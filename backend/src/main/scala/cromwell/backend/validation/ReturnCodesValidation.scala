@@ -1,16 +1,11 @@
 package cromwell.backend.validation
 
-import cats.data.Validated.{Invalid, Valid}
-import cats.implicits.{catsSyntaxValidatedId, toTraverseOps}
+import cats.implicits.catsSyntaxValidatedId
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.validation.RuntimeAttributesValidation.validateInt
 import wom.RuntimeAttributesKeys
-import wom.RuntimeAttributesKeys._
-import wom.types.{WomArrayType, WomIntegerType, WomStringType, WomType}
-import wom.values.{WomArray, WomInteger, WomString, WomValue}
-
-import scala.util.Try
+import wom.types.WomType
+import wom.values.{WomInteger, WomString, WomValue}
 
 /**
  * Validates the "returnCodes" runtime attribute as an Integer, returning the value as an `Int`, or as
@@ -22,9 +17,9 @@ import scala.util.Try
  * reference.conf file, coerced into a WomValue.
  */
 object ReturnCodesValidation {
-  lazy val instance: RuntimeAttributesValidation[ReturnCodes] = new ReturnCodesValidation(ReturnCodesKey)
-  lazy val optional: OptionalRuntimeAttributesValidation[ReturnCodes] = instance.optional
-  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[ReturnCodes] =
+  lazy val instance: RuntimeAttributesValidation[ReturnCode] = new ReturnCodesValidation
+  lazy val optional: OptionalRuntimeAttributesValidation[ReturnCode] = instance.optional
+  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[ReturnCode] =
     instance.withDefault(configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
 
   def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] =
@@ -32,36 +27,21 @@ object ReturnCodesValidation {
   def configDefaultWomValue(config: Option[Config]): Option[WomValue] = instance.configDefaultWomValue(config)
 }
 
-class ReturnCodesValidation(attributeName: String) extends RuntimeAttributesValidation[ReturnCodes] {
+class ReturnCodesValidation extends ReturnCodeValidation {
 
   override def key: String = RuntimeAttributesKeys.ReturnCodesKey
 
   override def coercion: Set[WomType] = ReturnCodes.validWdlTypes
 
-  override def validateValue: PartialFunction[WomValue, ErrorOr[ReturnCodes]] = {
+  override def validateValue: PartialFunction[WomValue, ErrorOr[ReturnCode]] = {
     case WomString(value) if value.equals("*") =>
       ReturnCodesString(value).validNel
-    case WomString(value) if Try(value.toInt).isSuccess =>
-      ReturnCodesSet(Set(value.toInt)).validNel
-    case WomInteger(value) =>
-      ReturnCodesSet(Set(value)).validNel
-    case value @ WomArray(_, seq) =>
-      val errorOrInts: ErrorOr[List[Int]] = (seq.toList map validateInt).sequence[ErrorOr, Int]
-      errorOrInts match {
-        case Valid(ints) => ReturnCodesSet(ints.toSet).validNel
-        case Invalid(_) => invalidValueFailure(value)
-      }
+    case value => super.validateValue(value)
   }
 
   override def validateExpression: PartialFunction[WomValue, Boolean] = {
-    case WomString(value) if Try(value.toInt).isSuccess => true
-    case WomInteger(_) => true
     case WomString(value) if value.equals("*") => true
-    case WomArray(WomArrayType(WomStringType), elements) =>
-      elements forall { value =>
-        Try(value.valueString.toInt).isSuccess
-      }
-    case WomArray(WomArrayType(WomIntegerType), _) => true
+    case value => super.validateExpression(value)
   }
 
   override protected def missingValueMessage: String = s"Expecting $key" +

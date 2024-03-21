@@ -22,8 +22,8 @@ import wom.values._
 
 import java.util.regex.Pattern
 
-case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
-                                returnCodes: ReturnCodes,
+case class TesRuntimeAttributes(continueOnReturnCode: ReturnCode,
+                                returnCodes: ReturnCode,
                                 dockerImage: String,
                                 dockerWorkingDir: Option[String],
                                 failOnStderr: Boolean,
@@ -158,11 +158,11 @@ object TesRuntimeAttributes {
     val disk: Option[MemorySize] = detectDiskFormat(backendRuntimeConfig, validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(backendRuntimeConfig), validatedRuntimeAttributes)
-    val continueOnReturnCode: ContinueOnReturnCode =
+    val continueOnReturnCode: ReturnCode =
       RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(backendRuntimeConfig),
                                           validatedRuntimeAttributes
       )
-    val returnCodes: ReturnCodes =
+    val returnCodes: ReturnCode =
       RuntimeAttributesValidation.extract(returnCodesValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val preemptible: Boolean =
       RuntimeAttributesValidation.extract(preemptibleValidation(backendRuntimeConfig), validatedRuntimeAttributes)

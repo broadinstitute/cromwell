@@ -34,10 +34,10 @@ object RuntimeAttributesValidation {
 
   def validateContinueOnReturnCode(value: Option[WomValue],
                                    onMissingKey: => ErrorOr[ContinueOnReturnCode]
-  ): ErrorOr[ContinueOnReturnCode] =
+  ): ErrorOr[ReturnCode] =
     validateWithValidation(value, ContinueOnReturnCodeValidation.instance, onMissingKey)
 
-  def validateReturnCodes(value: Option[WomValue], onMissingKey: => ErrorOr[ReturnCodes]): ErrorOr[ReturnCodes] =
+  def validateReturnCodes(value: Option[WomValue], onMissingKey: => ErrorOr[ReturnCode]): ErrorOr[ReturnCode] =
     validateWithValidation(value, ReturnCodesValidation.instance, onMissingKey)
 
   def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] =

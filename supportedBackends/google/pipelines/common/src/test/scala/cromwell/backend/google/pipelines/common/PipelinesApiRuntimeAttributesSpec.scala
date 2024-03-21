@@ -4,12 +4,7 @@ import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleConfiguration, papiAttributes, _}
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
-import cromwell.backend.validation.{
-  ContinueOnReturnCodeFlag,
-  ContinueOnReturnCodeSet,
-  ReturnCodesSet,
-  ReturnCodesString
-}
+import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ReturnCodeSet, ReturnCodesString}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
 import org.scalatest.TestSuite
@@ -72,7 +67,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "validate a valid continueOnReturnCode integer entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomInteger(1))
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ReturnCodeSet(Set(1)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -87,7 +82,7 @@ final class PipelinesApiRuntimeAttributesSpec
         Map("docker" -> WomString("ubuntu:latest"),
             "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
         )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ReturnCodeSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -96,7 +91,7 @@ final class PipelinesApiRuntimeAttributesSpec
         Map("docker" -> WomString("ubuntu:latest"),
             "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
         )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ReturnCodeSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -110,7 +105,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "validate a valid returnCodes integer entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomInteger(1))
-      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodesSet(Set(1)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodeSet(Set(1)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -125,7 +120,7 @@ final class PipelinesApiRuntimeAttributesSpec
         Map("docker" -> WomString("ubuntu:latest"),
             "returnCodes" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
         )
-      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodesSet(Set(1, 2)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodeSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -134,7 +129,7 @@ final class PipelinesApiRuntimeAttributesSpec
         Map("docker" -> WomString("ubuntu:latest"),
             "returnCodes" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
         )
-      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodesSet(Set(1, 2)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodeSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -369,8 +364,8 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
     Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)),
     "ubuntu:latest",
     false,
-    ContinueOnReturnCodeSet(Set(0)),
-    ReturnCodesSet(Set(0)),
+    ReturnCodeSet(Set(0)),
+    ReturnCodeSet(Set(0)),
     false,
     false,
     None,

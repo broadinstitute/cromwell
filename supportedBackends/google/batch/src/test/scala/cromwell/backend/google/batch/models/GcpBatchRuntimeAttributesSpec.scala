@@ -3,7 +3,7 @@ package cromwell.backend.google.batch.models
 import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.batch.models.GcpBatchTestConfig._
-import cromwell.backend.validation.{ContinueOnReturnCodeSet, ReturnCodesSet}
+import cromwell.backend.validation.ReturnCodeSet
 //import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk}
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.core.WorkflowOptions
@@ -282,8 +282,8 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
     disks = Vector(GcpBatchWorkingDisk(DiskType.SSD, 10)),
     dockerImage = "ubuntu:latest",
     failOnStderr = false,
-    continueOnReturnCode = ContinueOnReturnCodeSet(Set(0)),
-    returnCodes = ReturnCodesSet(Set(0)),
+    continueOnReturnCode = ReturnCodeSet(Set(0)),
+    returnCodes = ReturnCodeSet(Set(0)),
     noAddress = false,
     useDockerImageCache = None,
     checkpointFilename = None

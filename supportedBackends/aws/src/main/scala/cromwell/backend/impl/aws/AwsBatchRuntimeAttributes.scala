@@ -69,8 +69,8 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      dockerImage: String,
                                      queueArn: String,
                                      failOnStderr: Boolean,
-                                     continueOnReturnCode: ContinueOnReturnCode,
-                                     returnCodes: ReturnCodes,
+                                     continueOnReturnCode: ReturnCode,
+                                     returnCodes: ReturnCode,
                                      noAddress: Boolean,
                                      scriptS3BucketName: String,
                                      fileSystem: String = "s3"
@@ -189,11 +189,11 @@ object AwsBatchRuntimeAttributes {
       RuntimeAttributesValidation.extract(queueArnValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(
+    val continueOnReturnCode: ReturnCode = RuntimeAttributesValidation.extract(
       continueOnReturnCodeValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
     )
-    val returnCodes: ReturnCodes = RuntimeAttributesValidation.extract(
+    val returnCodes: ReturnCode = RuntimeAttributesValidation.extract(
       returnCodesValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
     )

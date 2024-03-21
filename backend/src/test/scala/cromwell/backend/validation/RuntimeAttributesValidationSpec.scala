@@ -169,7 +169,7 @@ class RuntimeAttributesValidationSpec
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel
       )
       result match {
-        case Valid(x) => assert(x == ContinueOnReturnCodeSet(Set(12)))
+        case Valid(x) => assert(x == ReturnCodeSet(Set(12)))
         case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }
@@ -196,7 +196,7 @@ class RuntimeAttributesValidationSpec
         "Failed to get continueOnReturnCode mandatory key from runtime attributes".invalidNel
       )
       result match {
-        case Valid(x) => assert(x == ContinueOnReturnCodeSet(Set(1, 2)))
+        case Valid(x) => assert(x == ReturnCodeSet(Set(1, 2)))
         case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }
@@ -247,7 +247,7 @@ class RuntimeAttributesValidationSpec
         "Failed to get returnCodes mandatory key from runtime attributes".invalidNel
       )
       result match {
-        case Valid(x) => assert(x == ReturnCodesSet(Set(12)))
+        case Valid(x) => assert(x == ReturnCodeSet(Set(12)))
         case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }
@@ -259,7 +259,7 @@ class RuntimeAttributesValidationSpec
         "Failed to get returnCode mandatory key from runtime attributes".invalidNel
       )
       result match {
-        case Valid(x) => assert(x == ReturnCodesSet(Set(1, 2)))
+        case Valid(x) => assert(x == ReturnCodeSet(Set(1, 2)))
         case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }

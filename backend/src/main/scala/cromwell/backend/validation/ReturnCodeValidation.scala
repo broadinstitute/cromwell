@@ -9,6 +9,10 @@ import wom.values.{WomArray, WomInteger, WomString, WomValue}
 
 import scala.util.Try
 
+/**
+ * Validates the `continueOnReturnCode` and `returnCodes` runtime attributes, since they share the functionality of
+ * being a Set of Integers. 
+ */
 trait ReturnCodeValidation extends RuntimeAttributesValidation[ReturnCode] {
   override def key: String
   override def coercion: Iterable[WomType]

@@ -21,6 +21,7 @@ package object consumed {
         case _: PrimitiveLiteralExpressionElement | _: StringLiteral => Set.empty[UnlinkedConsumedValueHook]
         case a: StringExpression => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: ObjectLiteral => a.expressionConsumedValueHooks(expressionValueConsumer)
+        case a: StructLiteral => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: PairLiteral => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: ArrayLiteral => a.expressionConsumedValueHooks(expressionValueConsumer)
         case a: MapLiteral => a.expressionConsumedValueHooks(expressionValueConsumer)

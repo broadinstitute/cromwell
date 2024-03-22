@@ -35,6 +35,18 @@ object LiteralEvaluators {
     ): ErrorOr[WomType] = WomObjectType.validNel
   }
 
+  implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
+    override def evaluateType(a: StructLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(
+      implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =  {
+
+      val valueTypes = a.elements.values.toList.traverse { y: ExpressionElement => y.evaluateType(linkedValues) }
+      val commonValueType: ErrorOr[WomType] = valueTypes.map(WomType.homogeneousTypeFromTypes)
+      println(commonValueType)
+      WomObjectType.validNel
+    }
+  }
+
   implicit val stringLiteralTypeEvaluator: TypeEvaluator[StringLiteral] = new TypeEvaluator[StringLiteral] {
     override def evaluateType(a: StringLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(
       implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]

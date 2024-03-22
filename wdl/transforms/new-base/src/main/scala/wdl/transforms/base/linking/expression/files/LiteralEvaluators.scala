@@ -72,19 +72,10 @@ object LiteralEvaluators {
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,
                                               coerceTo: WomType
-    )(implicit
-      fileEvaluator: FileEvaluator[ExpressionElement],
-      valueEvaluator: ValueEvaluator[ExpressionElement]
-    ): ErrorOr[Set[WomFile]] = {
-
-      //TODO:
-      // Keep functionality of the object literal evaluator, so we can predict the files needed to evaluate
-      //  Do some type checking. Specifically:
-      // - (unlike objects) Allow people to omit optional values, and populate with nullopt when missing
-      // - throw error if we're assigning to a WomCompositeType but the k/v pairs don't match exactly
-      // - Question why all of this is a FileEvaluator
-      // fieldAndWomTypeTuple is like: "isGood" : WomOptionalType(WomBooleanType)
-      // a.elements is a map like { "isGood"  : PrimitiveLiteralExpressionElement(WomBoolean(false)) }
+                                             )(implicit
+                                               fileEvaluator: FileEvaluator[ExpressionElement],
+                                               valueEvaluator: ValueEvaluator[ExpressionElement]
+                                             ): ErrorOr[Set[WomFile]] = {
       def filesInObjectField(fieldAndWomTypeTuple: (String, WomType)): ErrorOr[Set[WomFile]] = {
         val (field, womType) = fieldAndWomTypeTuple
         a.elements.get(field) match {

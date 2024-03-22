@@ -1,31 +1,45 @@
 version development-1.1
 
-
-struct Animal {
- String name
- Boolean? isGood
+struct Plant {
+    String color
+    Boolean tasty
 }
 
-task create_dog {
+struct Animal {
+    String name
+    Boolean? isGood
+}
+
+task test_struct_parsing {
     input {
-        String name_input
+        Plant p1 = Plant{color: "green", tasty: true}
+        Plant p2 = Plant{color: "brown", tasty: false}
+        Plant p3 = Plant{color: "red", tasty: false}
+        Animal a1 = Animal{name: "mittens", isGood: false}
     }
+
+    meta {
+        volatile: true
+    }
+
     runtime {
         docker: "ubuntu:latest"
     }
 
     command { echo "all dogs are good" }
+
     output {
-        Animal cat = Animal{name: "mittens", isGood: false}
-        Animal dog = Animal{name: name_input, isGood: true}
+        Plant o1 = Plant{color: "green", tasty: true}
+        Plant o2 = Plant{color: "green", tasty: true}
+        Plant o3 = Plant{color: "green", tasty: true}
+        Animal o4 = Animal{name: "BlobStorage", isGood: true}
     }
 }
 
 workflow struct_literal {
-    call create_dog { input: name_input = "doggo" }
+    call test_struct_parsing
     output {
-        Boolean? areDogsGood = create_dog.dog.isGood
-        Boolean? areCatsGood = create_dog.cat.isGood
-        String name_output = create_dog.dog.name
+        Boolean tasty = test_struct_parsing.o1.tasty
+        String pet = test_struct_parsing.o4.name
     }
 }

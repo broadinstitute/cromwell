@@ -10,12 +10,9 @@ import common.collections.EnhancedCollections._
 import common.validation.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
+import wdl.transforms.base.linking.expression.values.LiteralEvaluators.structLiteralValueEvaluator
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
-import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.{
-  processThreeValidatedValues,
-  processTwoValidatedValues,
-  processValidatedSingleValue
-}
+import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.{processThreeValidatedValues, processTwoValidatedValues, processValidatedSingleValue}
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.{WomArray, WomFloat, WomInteger, WomMap, WomOptionalValue, WomPair, WomString, WomValue}
@@ -351,4 +348,7 @@ object BiscayneValueEvaluators {
           s"Invalid call of 'unzip' on parameter of type '${other.womType.stableName}' (expected Array[Pair[X, Y]])".invalidNel
       }
   }
+
+  implicit val structLiteralEvaluator: ValueEvaluator[StructLiteral] = structLiteralValueEvaluator
+
 }

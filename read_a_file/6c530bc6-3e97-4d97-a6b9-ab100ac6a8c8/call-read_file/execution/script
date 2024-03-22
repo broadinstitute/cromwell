@@ -1,0 +1,38 @@
+#!/bin/bash
+
+cd /cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution
+tmpDir=$(mktemp -d "$PWD"/tmp.XXXXXX)
+chmod 777 "$tmpDir"
+export _JAVA_OPTIONS=-Djava.io.tmpdir="$tmpDir"
+export TMPDIR="$tmpDir"
+
+
+cd /cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution
+
+
+
+out6c530bc6="${tmpDir}/out.$$" err6c530bc6="${tmpDir}/err.$$"
+mkfifo "$out6c530bc6" "$err6c530bc6"
+trap 'rm "$out6c530bc6" "$err6c530bc6"' EXIT
+touch '/cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution/stdout' '/cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution/stderr'
+tee '/cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution/stdout' < "$out6c530bc6" &
+tee '/cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution/stderr' < "$err6c530bc6" >&2 &
+(
+cd /cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution
+
+
+cat /cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/inputs/lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-20fd3928-64ac-4334-aaf5-e22577187d1b/mul8ak/tes-internal/configuration/supported-vm-sizes
+)  > "$out6c530bc6" 2> "$err6c530bc6"
+echo $? > /cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution/rc.tmp
+(
+# add a .file in every empty directory to facilitate directory delocalization on the cloud
+cd /cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution
+find . -type d -exec sh -c '[ -z "$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \;
+)
+(
+cd /cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution
+sync
+
+
+)
+mv /cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution/rc.tmp /cromwell-executions/read_a_file/6c530bc6-3e97-4d97-a6b9-ab100ac6a8c8/call-read_file/execution/rc

@@ -72,7 +72,7 @@ object LiteralEvaluators {
     }
   }
 
-  implicit val structLiteralEvaluator: ValueEvaluator[StructLiteral] = new ValueEvaluator[StructLiteral] {
+  implicit val structLiteralValueEvaluator: ValueEvaluator[StructLiteral] = new ValueEvaluator[StructLiteral] {
     override def evaluateValue(a: StructLiteral,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,

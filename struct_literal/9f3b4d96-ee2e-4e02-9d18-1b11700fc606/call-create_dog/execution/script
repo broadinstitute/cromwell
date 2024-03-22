@@ -1,0 +1,38 @@
+#!/bin/bash
+
+cd /cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution
+tmpDir=$(mktemp -d "$PWD"/tmp.XXXXXX)
+chmod 777 "$tmpDir"
+export _JAVA_OPTIONS=-Djava.io.tmpdir="$tmpDir"
+export TMPDIR="$tmpDir"
+
+
+cd /cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution
+
+
+
+out9f3b4d96="${tmpDir}/out.$$" err9f3b4d96="${tmpDir}/err.$$"
+mkfifo "$out9f3b4d96" "$err9f3b4d96"
+trap 'rm "$out9f3b4d96" "$err9f3b4d96"' EXIT
+touch '/cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution/stdout' '/cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution/stderr'
+tee '/cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution/stdout' < "$out9f3b4d96" &
+tee '/cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution/stderr' < "$err9f3b4d96" >&2 &
+(
+cd /cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution
+
+
+echo "all dogs are good"
+)  > "$out9f3b4d96" 2> "$err9f3b4d96"
+echo $? > /cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution/rc.tmp
+(
+# add a .file in every empty directory to facilitate directory delocalization on the cloud
+cd /cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution
+find . -type d -exec sh -c '[ -z "$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \;
+)
+(
+cd /cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution
+sync
+
+
+)
+mv /cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution/rc.tmp /cromwell-executions/struct_literal/9f3b4d96-ee2e-4e02-9d18-1b11700fc606/call-create_dog/execution/rc

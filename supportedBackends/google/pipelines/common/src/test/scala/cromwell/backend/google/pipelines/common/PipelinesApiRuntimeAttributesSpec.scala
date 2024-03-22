@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.pipelines.common.PipelinesApiTestConfig.{googleConfiguration, papiAttributes, _}
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
-import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet}
+import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ReturnCodeSet, ReturnCodesString}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
 import org.scalatest.TestSuite
@@ -67,7 +67,7 @@ final class PipelinesApiRuntimeAttributesSpec
 
     "validate a valid continueOnReturnCode integer entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomInteger(1))
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ReturnCodeSet(Set(1)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -82,7 +82,7 @@ final class PipelinesApiRuntimeAttributesSpec
         Map("docker" -> WomString("ubuntu:latest"),
             "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
         )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ReturnCodeSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -91,7 +91,7 @@ final class PipelinesApiRuntimeAttributesSpec
         Map("docker" -> WomString("ubuntu:latest"),
             "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
         )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
+      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ReturnCodeSet(Set(1, 2)))
       assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -100,6 +100,44 @@ final class PipelinesApiRuntimeAttributesSpec
       assertPapiRuntimeAttributesFailedCreation(
         runtimeAttributes,
         "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+      )
+    }
+
+    "validate a valid returnCodes integer entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomInteger(1))
+      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodeSet(Set(1)))
+      assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "validate a valid returnCodes String entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomString("*"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodesString("*"))
+      assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "validate a valid returnCodes array entry" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            "returnCodes" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
+        )
+      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodeSet(Set(1, 2)))
+      assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "coerce then validate a valid returnCodes array entry" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            "returnCodes" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
+        )
+      val expectedRuntimeAttributes = expectedDefaults.copy(returnCodes = ReturnCodeSet(Set(1, 2)))
+      assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid returnCodes entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomString("value"))
+      assertPapiRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]"
       )
     }
 
@@ -326,7 +364,8 @@ trait PipelinesApiRuntimeAttributesSpecsMixin { this: TestSuite =>
     Vector(PipelinesApiWorkingDisk(DiskType.SSD, 10)),
     "ubuntu:latest",
     false,
-    ContinueOnReturnCodeSet(Set(0)),
+    ReturnCodeSet(Set(0)),
+    ReturnCodeSet(Set(0)),
     false,
     false,
     None,

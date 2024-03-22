@@ -11,7 +11,7 @@ import common.validation.Validation._
 import cromwell.backend.BackendLifecycleActor._
 import cromwell.backend.BackendWorkflowInitializationActor._
 import cromwell.backend.async.{RuntimeAttributeValidationFailure, RuntimeAttributeValidationFailures}
-import cromwell.backend.validation.ContinueOnReturnCodeValidation
+import cromwell.backend.validation.{ContinueOnReturnCodeValidation, ReturnCodesValidation}
 import cromwell.core._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.services.metadata.MetadataService.PutMetadataAction
@@ -131,6 +131,16 @@ trait BackendWorkflowInitializationActor extends BackendWorkflowLifecycleActor w
     */
   protected def continueOnReturnCodePredicate(valueRequired: Boolean)(womExpressionMaybe: Option[WomValue]): Boolean =
     ContinueOnReturnCodeValidation
+      .default(configurationDescriptor.backendRuntimeAttributesConfig)
+      .validateOptionalWomValue(womExpressionMaybe)
+
+  /**
+   * This predicate is only appropriate for validation during workflow initialization.  The logic does not differentiate
+   * between evaluation failures due to missing call inputs or evaluation failures due to malformed expressions, and will
+   * return `true` in both cases.
+   */
+  protected def returnCodesPredicate(valueRequired: Boolean)(womExpressionMaybe: Option[WomValue]): Boolean =
+    ReturnCodesValidation
       .default(configurationDescriptor.backendRuntimeAttributesConfig)
       .validateOptionalWomValue(womExpressionMaybe)
 

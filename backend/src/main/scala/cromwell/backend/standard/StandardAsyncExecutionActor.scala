@@ -752,8 +752,25 @@ trait StandardAsyncExecutionActor
     *
     * @return the behavior for continuing on the return code.
     */
-  lazy val continueOnReturnCode: ContinueOnReturnCode =
+  lazy val continueOnReturnCode: ReturnCode =
     RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
+
+  /**
+   * Returns the behavior for continuing on the return code, obtained by converting `returnCodeContents` to an Int.
+   *
+   * @return the behavior for continuing on the return code.
+   */
+  lazy val returnCodes: ReturnCode =
+    RuntimeAttributesValidation.extract(ReturnCodesValidation.instance, validatedRuntimeAttributes)
+
+  /**
+   * Returns the true behavior for continuing on the return code. If `returnCodes` runtime attribute is specified,
+   * then `continueOnReturnCode` attribute is ignored. If `returnCodes` is unspecified, then the value in
+   * `continueOnReturnCode` will be used.
+   */
+  lazy val returnCode: ReturnCode =
+    if (returnCodes.isInstanceOf[ReturnCodeSet] && returnCodes.equals(ReturnCodeSet(Set(0)))) continueOnReturnCode
+    else returnCodes
 
   /**
     * Returns the max number of times that a failed job should be retried, obtained by converting `maxRetries` to an Int.
@@ -1388,7 +1405,7 @@ trait StandardAsyncExecutionActor
               )
             )
             retryElseFail(executionHandle)
-          case Success(returnCodeAsInt) if continueOnReturnCode.continueFor(returnCodeAsInt) =>
+          case Success(returnCodeAsInt) if returnCode.continueFor(returnCodeAsInt) =>
             handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
           // It's important that we check retryWithMoreMemory case before isAbort. RC could be 137 in either case;
           // if it was caused by OOM killer, want to handle as OOM and not job abort.
@@ -1422,7 +1439,7 @@ trait StandardAsyncExecutionActor
       } else {
         tryReturnCodeAsInt match {
           case Success(returnCodeAsInt)
-              if outOfMemoryDetected && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
+              if outOfMemoryDetected && memoryRetryRequested && !returnCode.continueFor(returnCodeAsInt) =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(
                 RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),

@@ -34,8 +34,11 @@ object RuntimeAttributesValidation {
 
   def validateContinueOnReturnCode(value: Option[WomValue],
                                    onMissingKey: => ErrorOr[ContinueOnReturnCode]
-  ): ErrorOr[ContinueOnReturnCode] =
+  ): ErrorOr[ReturnCode] =
     validateWithValidation(value, ContinueOnReturnCodeValidation.instance, onMissingKey)
+
+  def validateReturnCodes(value: Option[WomValue], onMissingKey: => ErrorOr[ReturnCode]): ErrorOr[ReturnCode] =
+    validateWithValidation(value, ReturnCodesValidation.instance, onMissingKey)
 
   def validateMemory(value: Option[WomValue], onMissingKey: => ErrorOr[MemorySize]): ErrorOr[MemorySize] =
     validateWithValidation(value, MemoryValidation.instance(), onMissingKey)
@@ -372,7 +375,8 @@ trait RuntimeAttributesValidation[ValidatedType] {
           case Success(womValue) => validateExpression.applyOrElse(womValue, (_: Any) => false)
           case Failure(_) => true // If we can't evaluate it, we'll let it pass for now...
         }
-      case Some(womValue) => validateExpression.applyOrElse(womValue, (_: Any) => false)
+      case Some(womValue) =>
+        validateExpression.applyOrElse(womValue, (_: Any) => false)
     }
 
   def validateOptionalWomExpression(womExpressionMaybe: Option[WomExpression]): Boolean =

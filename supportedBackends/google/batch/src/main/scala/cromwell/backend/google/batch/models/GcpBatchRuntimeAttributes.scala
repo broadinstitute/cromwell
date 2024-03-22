@@ -46,7 +46,8 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            disks: Seq[GcpBatchAttachedDisk],
                                            dockerImage: String,
                                            failOnStderr: Boolean,
-                                           continueOnReturnCode: ContinueOnReturnCode,
+                                           continueOnReturnCode: ReturnCode,
+                                           returnCodes: ReturnCode,
                                            noAddress: Boolean,
                                            useDockerImageCache: Option[Boolean],
                                            checkpointFilename: Option[String]
@@ -113,6 +114,9 @@ object GcpBatchRuntimeAttributes {
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) =
     ContinueOnReturnCodeValidation.default(runtimeConfig)
+
+  private def returnCodesValidation(runtimeConfig: Option[Config]) =
+    ReturnCodesValidation.default(runtimeConfig)
 
   private def disksValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Seq[GcpBatchAttachedDisk]] =
     DisksValidation
@@ -207,8 +211,12 @@ object GcpBatchRuntimeAttributes {
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(
+    val continueOnReturnCode: ReturnCode = RuntimeAttributesValidation.extract(
       continueOnReturnCodeValidation(runtimeAttrsConfig),
+      validatedRuntimeAttributes
+    )
+    val returnCodes: ReturnCode = RuntimeAttributesValidation.extract(
+      returnCodesValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
     )
     val noAddress: Boolean =
@@ -239,6 +247,7 @@ object GcpBatchRuntimeAttributes {
       docker,
       failOnStderr,
       continueOnReturnCode,
+      returnCodes,
       noAddress,
       useDockerImageCache,
       checkpointFileName

@@ -3,7 +3,7 @@ package cromwell.backend.google.batch.models
 import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.batch.models.GcpBatchTestConfig._
-import cromwell.backend.validation.ContinueOnReturnCodeSet
+import cromwell.backend.validation.ReturnCodeSet
 //import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk}
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.core.WorkflowOptions
@@ -72,6 +72,14 @@ final class GcpBatchRuntimeAttributesSpec
       assertBatchRuntimeAttributesFailedCreation(
         runtimeAttributes,
         "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+      )
+    }
+
+    "fail to validate an invalid returnCodes entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomString("value"))
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]"
       )
     }
 
@@ -274,7 +282,8 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
     disks = Vector(GcpBatchWorkingDisk(DiskType.SSD, 10)),
     dockerImage = "ubuntu:latest",
     failOnStderr = false,
-    continueOnReturnCode = ContinueOnReturnCodeSet(Set(0)),
+    continueOnReturnCode = ReturnCodeSet(Set(0)),
+    returnCodes = ReturnCodeSet(Set(0)),
     noAddress = false,
     useDockerImageCache = None,
     checkpointFilename = None

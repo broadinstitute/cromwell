@@ -1,12 +1,16 @@
 package wdl.transforms.biscayne.linking.expression.files
 
 
+import cats.implicits.{catsSyntaxValidatedId, toTraverseOps}
+import common.validation.ErrorOr.ErrorOr
+import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement.{AsMap, AsPairs, CollectByKey, Keys, Max, Min, Quote, SQuote, Sep, StructLiteral, SubPosix, Suffix, Unzip}
-import wdl.model.draft3.graph.expression.{FileEvaluator}
+import wdl.model.draft3.graph.expression.{FileEvaluator, ValueEvaluator}
 import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.{threeParameterFunctionPassthroughFileEvaluator, twoParameterFunctionPassthroughFileEvaluator}
 import wdl.transforms.base.linking.expression.files.EngineFunctionEvaluators.singleParameterPassthroughFileEvaluator
-import wdl.transforms.base.linking.expression.files.LiteralEvaluators.structLiteralEvaluator
-
+import wom.expression.IoFunctionSet
+import wom.types.{WomCompositeType, WomType}
+import wom.values.{WomFile, WomValue}
 
 object BiscayneFileEvaluators {
 
@@ -27,5 +31,33 @@ object BiscayneFileEvaluators {
 
   implicit val unzipFunctionEvaluator: FileEvaluator[Unzip] = singleParameterPassthroughFileEvaluator
 
-  implicit val structLiteralFileEvaluator: FileEvaluator[StructLiteral] = structLiteralEvaluator
+  implicit val structLiteralEvaluator: FileEvaluator[StructLiteral] = new FileEvaluator[StructLiteral] {
+    override def predictFilesNeededToEvaluate(a: StructLiteral,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType
+                                             )(implicit
+                                               fileEvaluator: FileEvaluator[ExpressionElement],
+                                               valueEvaluator: ValueEvaluator[ExpressionElement]
+                                             ): ErrorOr[Set[WomFile]] = {
+      // TODO: Confirm correct use of implicits. I'm explicitly using them and explicitly passing them down, which feels meh
+      // TODO: coerceTo is a great way to do type checking. We know the type of the struct, and are checking if the files we evaluate can be coerced to that.
+      // This appears to only be called for output files, but it is useful to emulate and/or think about
+      def filesInObjectField(fieldAndWomTypeTuple: (String, WomType)): ErrorOr[Set[WomFile]] = {
+        val (field, womType) = fieldAndWomTypeTuple
+        a.elements.get(field) match {
+          case Some(fieldElement) => fileEvaluator.predictFilesNeededToEvaluate(fieldElement, inputs, ioFunctionSet, womType)(fileEvaluator, valueEvaluator)
+          case None => s"Invalid assignment to struct. Required field $field was not specified.".invalidNel
+        }
+      }
+
+      coerceTo match {
+        case WomCompositeType(mapping, _) => mapping.toList.traverse(filesInObjectField).map(_.flatten.toSet)
+        case _ =>
+          a.elements.values.toList
+            .traverse(fileEvaluator.evaluateFilesNeededToEvaluate(_,inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator))
+            .map(_.toSet.flatten)
+      }
+    }
+  }
 }

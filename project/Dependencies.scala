@@ -66,9 +66,13 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.14.2"
+  private val jacksonV = "2.13.3"
+  private val jakartaActivationV = "1.2.1"
+  private val jakartaAnnotationV = "1.3.5"
+  private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
   private val janinoV = "3.1.7"
+  private val jerseyV = "2.32" // Use a jersey compatible with WSM. See notes in wsmDependencies below.
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kindProjectorV = "0.13.2"
@@ -184,6 +188,16 @@ object Dependencies {
     "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
       exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
+    /*
+    The google-cloud-java dependencies have similar issues with using an older javax.* vs. jakarta.* as guice.
+    google-cloud-java is still using javax.annotation and guice is sticking with javax.inject:
+     - https://github.com/google/guice/issues/1383
+     - https://github.com/googleapis/google-cloud-java/blob/v0.201.0/google-cloud-jar-parent/pom.xml#L131-L136
+
+     Globally use of jakarta instead of javax until Google does themselves.
+     The javax.annotation exclusion is below in cromwellExcludeDependencies.
+     */
+    "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationV,
   )
 
   val spiDependencies: List[ModuleID] = List(
@@ -228,13 +242,33 @@ object Dependencies {
   ) ++ azureBlobNioDependencies
 
   val wsmDependencies: List[ModuleID] = List(
-    "bio.terra" % "workspace-manager-client" % "0.254.1050-SNAPSHOT"
-  )
+    "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT"
+      exclude("com.sun.activation", "jakarta.activation"),
+    /*
+    1. WSM is looking for the rs-api under javax.*.
 
-  val ecmDependencies: List[ModuleID] = List(
-    "bio.terra" % "externalcreds-client-resttemplate" % "1.15.0-SNAPSHOT"
-      exclude("org.springframework", "spring-aop")
-      exclude("org.springframework", "spring-jcl")
+    Jersey 3.x switched to jakarta.ws.rs-api 3.x. If one uses jakarta's rs-api, 3.x will automatically evict 2.x.
+
+    However, jakarta's rs-api 2.x provides packages javax.* while 3.x provides jakarta.* instead.
+     - https://javadoc.io/doc/jakarta.ws.rs/jakarta.ws.rs-api/2.1.6/javax/ws/rs/package-summary.html
+     - https://javadoc.io/doc/jakarta.ws.rs/jakarta.ws.rs-api/3.1.0/jakarta.ws.rs/module-summary.html
+
+    TODO: Perhaps coordinate with the WSM team to use the jakarta 3.x rs-api and jakarta.* instead of javax.*.
+
+    2. Use the exact version of jersey that WSM is using.
+
+    Jersey libraries cannot be mixed and matched as the various modules cannot be mixed and matched.
+    For example jersey-client 2.32 is not compatible with jersey-common 2.37.
+
+    If needed one may also explicitly enumerate the list of jersey artifacts and explicitly set the versions similar to
+    catsDepeendencies, akkaHttpDependencies, etc.
+     - https://broadinstitute.jfrog.io/ui/repos/tree/PomView/libs-snapshot-local/bio/terra/workspace-manager-client/0.254.452-SNAPSHOT/workspace-manager-client-0.254.452-20221114.190249-1.pom
+     - https://github.com/eclipse-ee4j/jersey/blob/2.32/core-client/src/main/java/org/glassfish/jersey/client/ClientExecutorProvidersConfigurator.java#L139
+     - https://github.com/eclipse-ee4j/jersey/blob/2.37/core-client/src/main/java/org/glassfish/jersey/client/ClientExecutorProvidersConfigurator.java#L136-L137
+     */
+    "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyV
+      exclude("com.sun.activation", "jakarta.activation"),
+    "jakarta.activation" % "jakarta.activation-api" % jakartaActivationV,
   )
 
   val implFtpDependencies = List(
@@ -373,14 +407,24 @@ object Dependencies {
   private val googleCloudDependencies = List(
     "io.grpc" % "grpc-core" % grpcV,
     "com.google.guava" % "guava" % guavaV,
+    /*
+    The google-cloud-nio has the same problems with an ancient inject as guice:
+     - https://github.com/google/guice/issues/1383
+     - https://github.com/googleapis/java-storage-nio/blob/v0.124.20/google-cloud-nio/pom.xml#L49-L53
+
+     Force use of jakarta instead of javax until Google does themselves.
+     */
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
       exclude("com.google.api.grpc", "grpc-google-common-protos")
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
+      exclude("javax.inject", "javax.inject")
       exclude("org.apache.httpcomponents", "httpclient"),
     "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
       exclude("com.google.apis", "google-api-services-genomics"),
     "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
     "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
+      exclude("com.google.guava", "guava-jdk5"),
+    "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
   ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
 
   private val dbmsDependencies = List(
@@ -482,6 +526,7 @@ object Dependencies {
     "com.softwaremill.sttp" %% "core" % sttpV,
     "com.softwaremill.sttp" %% "async-http-client-backend-cats" % sttpV
       exclude("com.sun.activation", "javax.activation"),
+    "jakarta.activation" % "jakarta.activation-api" % jakartaActivationV,
   )
 
   val draft2LanguageFactoryDependencies = List(
@@ -548,7 +593,7 @@ object Dependencies {
   val servicesDependencies: List[ModuleID] = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
-  ) ++ testDatabaseDependencies ++ ecmDependencies
+  ) ++ testDatabaseDependencies ++ akkaHttpDependencies
 
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 
@@ -570,6 +615,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
     "org.broadinstitute.dsde.workbench" %% "workbench-model" % workbenchModelV,
     "org.broadinstitute.dsde.workbench" %% "workbench-util" % workbenchUtilV,
+    "jakarta.activation" % "jakarta.activation-api" % jakartaActivationV,
   ) ++ akkaHttpDependencies ++ swaggerUiDependencies ++ slf4jBindingDependencies
 
   val wes2cromwellDependencies: List[ModuleID] = coreDependencies ++ akkaHttpDependencies

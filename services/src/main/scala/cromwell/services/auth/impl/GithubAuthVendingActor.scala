@@ -1,7 +1,6 @@
 package cromwell.services.auth.impl
 
-import akka.actor.{Actor, ActorRef, Props}
-import cats.data.Validated.{Invalid, Valid}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.core.Dispatcher.ServiceDispatcher
@@ -11,32 +10,37 @@ import cromwell.services.auth.GithubAuthVending.{
   GithubAuthVendingFailure,
   NoGithubAuthResponse
 }
-import cromwell.services.auth.ecm.{EcmConfig, HttpEcmApiClientProvider}
+import cromwell.services.auth.ecm.{EcmConfig, EcmService}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+
+import scala.concurrent.ExecutionContext
+import scala.util.{Failure, Success}
 
 class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
     extends Actor
     with LazyLogging {
 
+  implicit val system: ActorSystem = context.system
+  implicit val ec: ExecutionContext = context.dispatcher
+
   lazy val enabled: Boolean = serviceConfig.getBoolean("enabled")
 
   private lazy val ecmConfigOpt: Option[EcmConfig] = EcmConfig.apply(serviceConfig)
-  private lazy val ecmClientProviderOpt: Option[HttpEcmApiClientProvider] =
-    ecmConfigOpt.map(ecmConfig => new HttpEcmApiClientProvider(ecmConfig.baseUrl))
+  private lazy val ecmServiceOpt: Option[EcmService] = ecmConfigOpt.map(ecmConfig => new EcmService(ecmConfig.baseUrl))
 
   override def receive: Receive = {
     case GithubAuthRequest(userToken) if enabled =>
-      ecmClientProviderOpt match {
-        case Some(ecmClientProvider) =>
-          val ecmOauthApi = ecmClientProvider.getOauthApi(userToken)
-          ecmOauthApi.getGithubAccessToken match {
-            case Valid(githubToken) =>
-              sender() ! GithubAuthTokenResponse(githubToken)
-            case Invalid(e) =>
-              sender() ! GithubAuthVendingFailure(e.head)
+      val respondTo = sender()
+      ecmServiceOpt match {
+        case Some(ecmService) =>
+          ecmService.getGithubAccessToken(userToken) onComplete {
+            case Success(githubToken) =>
+              respondTo ! GithubAuthTokenResponse(githubToken)
+            case Failure(e) =>
+              respondTo ! GithubAuthVendingFailure(e.getMessage)
           }
         case None =>
-          sender() ! GithubAuthVendingFailure(
+          respondTo ! GithubAuthVendingFailure(
             "Invalid configuration for service 'GithubAuthVending': missing 'ecm.base-url' value."
           )
       }

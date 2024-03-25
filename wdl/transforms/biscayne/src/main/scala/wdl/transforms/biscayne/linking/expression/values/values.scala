@@ -39,7 +39,7 @@ package object values {
         case a: ObjectLiteral =>
           a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: StructLiteral =>
-          evaluateValue(a, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+          a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: MapLiteral =>
           a.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
         case a: ArrayLiteral =>

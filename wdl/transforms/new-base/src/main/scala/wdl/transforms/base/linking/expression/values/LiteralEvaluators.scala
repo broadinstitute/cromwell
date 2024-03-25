@@ -72,24 +72,6 @@ object LiteralEvaluators {
     }
   }
 
-  implicit val structLiteralValueEvaluator: ValueEvaluator[StructLiteral] = new ValueEvaluator[StructLiteral] {
-    override def evaluateValue(a: StructLiteral,
-                               inputs: Map[String, WomValue],
-                               ioFunctionSet: IoFunctionSet,
-                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
-                              )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
-
-      val evaluated: ErrorOr[List[(String, EvaluatedValue[_])]] = a.elements.toList traverse { case (key, value) =>
-        value.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions).map(key -> _)
-      }
-
-      evaluated map { mapping =>
-        val value = mapping.map(entry => entry._1 -> entry._2.value).toMap
-        val sideEffectFiles = mapping.flatMap(entry => entry._2.sideEffectFiles)
-        EvaluatedValue(WomObject(value), sideEffectFiles)
-      }
-    }
-  }
 
   implicit val mapLiteralEvaluator: ValueEvaluator[MapLiteral] = new ValueEvaluator[MapLiteral] {
     override def evaluateValue(a: MapLiteral,

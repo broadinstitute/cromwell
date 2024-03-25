@@ -37,6 +37,7 @@ package object files {
         case a: ObjectLiteral =>
           a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: StructLiteral =>
+          //TODO: This is wrong and should follow the pattern of everything else. Need to add a literal file evaluator to biscayne
           structLiteralEvaluator.predictFilesNeededToEvaluate(a, inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: MapLiteral =>
           a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)

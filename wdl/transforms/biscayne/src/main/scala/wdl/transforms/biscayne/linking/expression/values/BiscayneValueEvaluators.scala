@@ -353,6 +353,10 @@ object BiscayneValueEvaluators {
   }
 
   implicit val structLiteralValueEvaluator: ValueEvaluator[StructLiteral] = new ValueEvaluator[StructLiteral] {
+    // TODO: This is copypasta from the ObjectLiteralValueEvaluator of new-base.
+    // Need to update for the WDL 1.1 struct literal rules
+    // Specifically, we need to allow for the omission of optional inputs. Think about whether we should be populating with 'None' here.
+    // Also need to throw an error if an unrecognized kv pair is used (but that might happen elsewhere, like in the file or type evaluator)
     override def evaluateValue(a: StructLiteral,
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,

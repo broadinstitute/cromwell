@@ -111,6 +111,7 @@ object BiscayneExpressionValueConsumers {
       override def expressionConsumedValueHooks(a: StructLiteral)(implicit
                                                                   expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
       ): Set[UnlinkedConsumedValueHook] = {
+        //TODO: think more about what happens when an optional value is omitted. Do we need to consume a none?
         a.elements.values.flatMap(element => expressionValueConsumer.expressionConsumedValueHooks(element)(expressionValueConsumer)).toSet
       }
     }

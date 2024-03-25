@@ -164,8 +164,8 @@ object BiscayneTypeEvaluators {
     override def evaluateType(a: StructLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(
       implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] = {
-      val i = 3+4;
-      println(i)
+      //TODO: This is tricky. We need to allow for the omission of optional inputs and fill in their values with None.
+      // We probably want this to return a WomCompositeType
       WomObjectType.validNel
     }
   }

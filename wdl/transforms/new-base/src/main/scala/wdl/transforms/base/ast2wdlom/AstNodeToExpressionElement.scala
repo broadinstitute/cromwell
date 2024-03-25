@@ -57,7 +57,7 @@ object AstNodeToExpressionElement {
           objectKvs <- a.getAttributeAsVector[KvPair]("map")
           asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
         } yield ObjectLiteral(asMap)).toValidated
-      case a: GenericAst if a.getName == "StructLiteral" =>
+      case a: GenericAst if a.getName == "StructLiteral" => //TODO, StructLiterals are a biscayne feature, but this ast parsing is 'core'. Probably fine, but should test what happens when a 1.0 wdl uses a struct literal.
         (for {
           objectKvs <- a.getAttributeAsVector[KvPair]("map")
           asMap = objectKvs.map(kv => kv.key -> kv.value).toMap

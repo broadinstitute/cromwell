@@ -72,7 +72,6 @@ object LiteralEvaluators {
     }
   }
 
-
   implicit val mapLiteralEvaluator: ValueEvaluator[MapLiteral] = new ValueEvaluator[MapLiteral] {
     override def evaluateValue(a: MapLiteral,
                                inputs: Map[String, WomValue],

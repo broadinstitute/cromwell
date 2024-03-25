@@ -40,11 +40,11 @@ object WdlWriterImpl {
           }
           .mkString(", ") + " }"
       case a: StructLiteral =>
-        "object { " + a.elements
+        a.structTypeName + " { " + a.elements
           .map { pair =>
             pair._1 + ": " + expressionElementWriter.toWdlV1(pair._2)
           }
-          .mkString(", ") + " }" //TODO: Fix this to be for structs and not objects
+          .mkString(", ") + " }" //TODO: where is this tested?
       case a: ArrayLiteral =>
         "[" + a.elements.map(expressionElementWriter.toWdlV1).mkString(", ") + "]"
       case a: MapLiteral =>

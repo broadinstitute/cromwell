@@ -68,6 +68,7 @@ object LiteralEvaluators {
   }
 
   implicit val structLiteralEvaluator: FileEvaluator[StructLiteral] = new FileEvaluator[StructLiteral] {
+    //TODO: move this to a biscayne+ equivalent file.
     override def predictFilesNeededToEvaluate(a: StructLiteral,
                                               inputs: Map[String, WomValue],
                                               ioFunctionSet: IoFunctionSet,

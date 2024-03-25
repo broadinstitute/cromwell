@@ -12,10 +12,9 @@ struct Animal {
 
 task test_struct_parsing {
     input {
-        Plant p1 = Plant{color: "green", tasty: true}
-        Plant p2 = Plant{color: "brown", tasty: false}
-        Plant p3 = Plant{color: "red", tasty: false}
-        Animal a1 = Animal{name: "mittens", isGood: false}
+        Plant standard_plant_input = Plant{color: "green", tasty: true}
+        Animal standard_animal_input = Animal{name: "mittens", isGood: false}
+        Animal omitted_optional_animal = Animal{name: "boots"}
     }
 
     meta {
@@ -29,17 +28,23 @@ task test_struct_parsing {
     command { echo "all dogs are good" }
 
     output {
-        Plant o1 = Plant{color: "green", tasty: true}
-        Plant o2 = Plant{color: "green", tasty: true}
-        Plant o3 = Plant{color: "green", tasty: true}
-        Animal o4 = Animal{name: "BlobStorage", isGood: true}
+        Plant standard_plant_forwarded = standard_plant_input
+        Animal standard_animal_forwarded = standard_animal_input
+        Plant plant_output_literal = Plant{color: "red", tasty: true}
+        Animal animal_output_literal = Animal{name: "Drainus", isGood: true}
+        Animal omitted_output_forwarded_animal = omitted_optional_animal
+        Animal omitted_output_literal_animal = Animal{name: "Alfonso"}
     }
 }
 
 workflow struct_literal {
     call test_struct_parsing
     output {
-        Boolean tasty = test_struct_parsing.o1.tasty
-        String pet = test_struct_parsing.o4.name
+        Plant forwarded_input_1 = test_struct_parsing.standard_plant_forwarded
+        Animal forwarded_input_2 = test_struct_parsing.standard_animal_forwarded
+        Plant literal_output_1 = test_struct_parsing.plant_output_literal
+        Animal literal_output_2  = test_struct_parsing.animal_output_literal
+        Animal omitted_optional_1 = test_struct_parsing.omitted_output_forwarded_animal
+        Animal omitted_optional_2 = test_struct_parsing.omitted_output_literal_animal
     }
 }

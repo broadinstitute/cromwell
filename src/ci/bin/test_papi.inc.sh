@@ -66,8 +66,7 @@ cromwell::private::papi::gcr_image_push() {
 
     cromwell::build::build_docker_image "${executable_name}" "${docker_image}"
     echo "${docker_image}" >> "${CROMWELL_BUILD_PAPI_GCR_IMAGES}"
-    # Use cat to quiet docker: https://github.com/moby/moby/issues/36655#issuecomment-375136087
-    docker push "${docker_image}" | cat
+    docker push --quiet "${docker_image}"
 }
 
 cromwell::private::papi::gcr_image_delete() {
@@ -85,7 +84,7 @@ cromwell::private::papi::setup_papi_gcr() {
     elif command -v docker; then
         # Upload images built from this commit
         gcloud auth configure-docker --quiet
-        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}-papi"
+        CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS="gcr.io/${CROMWELL_BUILD_PAPI_PROJECT_ID}/cromwell-drs-localizer:${CROMWELL_BUILD_DOCKER_TAG}"
         cromwell::private::papi::gcr_image_push cromwell-drs-localizer "${CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}"
         export CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
     else

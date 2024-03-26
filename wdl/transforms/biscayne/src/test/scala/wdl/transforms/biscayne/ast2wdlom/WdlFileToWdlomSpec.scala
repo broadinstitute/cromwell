@@ -6,11 +6,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.elements._
+import wdl.model.draft3.elements.{CallElement, FileElement, _}
 import wdl.transforms.biscayne.ast2wdlom.WdlFileToWdlomSpec._
 import wom.SourceFileLocation
 import wom.types._
-import wom.values.WomInteger
+import wom.values.{WomBoolean, WomInteger}
 
 class WdlFileToWdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
@@ -36,7 +36,10 @@ class WdlFileToWdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
     testOrIgnore {
 
-      val expected = expectations.getOrElse(testName, fail(s"No Element expectation defined for $testName"))
+      val expected: FileElement = expectations.getOrElse(testName, fail(s"No Element expectation defined for $testName"))
+
+      val result: FileElement = fileToFileElement.run(testCase).getOrElse(expected)
+      println(result)
       fileToFileElement.run(testCase) match {
         case Right(actual) => actual shouldBe expected
         case Left(errors) =>
@@ -367,6 +370,99 @@ object WdlFileToWdlomSpec {
           )
         ),
         tasks = Vector.empty
+      ),
+    "struct_literal" -> FileElement(
+      imports = Vector(),
+      structs = Vector(
+        StructElement("Plant",
+                      Vector(StructEntryElement("color", PrimitiveTypeElement(WomStringType)),
+                             StructEntryElement("tasty", PrimitiveTypeElement(WomBooleanType))
+                      )
+        ),
+        StructElement(
+          "Animal",
+          Vector(StructEntryElement("name", PrimitiveTypeElement(WomStringType)),
+                 StructEntryElement("isGood", OptionalTypeElement(PrimitiveTypeElement(WomBooleanType)))
+          )
+        )
+      ),
+      workflows = Vector(
+        WorkflowDefinitionElement(
+          "struct_literal",
+          None,
+          Set(
+            CallElement(
+              "test_struct_parsing",
+              None,
+              Vector(),
+              Some(
+                CallBodyElement(
+                  Vector(
+                    KvPair("standard_plant_input",
+                           StructLiteral("Plant",
+                                         Map("color" -> StringLiteral("green"),
+                                             "tasty" -> PrimitiveLiteralExpressionElement(WomBoolean(true))
+                                         )
+                           )
+                    ),
+                    KvPair("standard_animal_input",
+                           StructLiteral("Animal",
+                                         Map("name" -> StringLiteral("mittens"),
+                                             "isGood" -> PrimitiveLiteralExpressionElement(WomBoolean(false))
+                                         )
+                           )
+                    )
+                  )
+                )
+              ),
+              None
+            )
+          ),
+          None,
+          None,
+          None,
+          Some(SourceFileLocation(34))
+        )
+      ),
+      tasks = Vector(
+        TaskDefinitionElement(
+          "test_struct_parsing",
+          Some(
+            InputsSectionElement(
+              Vector(
+                InputDeclarationElement(TypeAliasElement("Plant"), "standard_plant_input", None),
+                InputDeclarationElement(TypeAliasElement("Animal"), "standard_animal_input", None)
+              )
+            )
+          ),
+          Vector(),
+          Some(
+            OutputsSectionElement(
+              Vector(
+                OutputDeclarationElement(TypeAliasElement("Plant"),
+                                         "standard_plant_forwarded",
+                                         IdentifierLookup("Plant")
+                ),
+                OutputDeclarationElement(TypeAliasElement("Animal"),
+                                         "standard_animal_forwarded",
+                                         IdentifierLookup("Animal")
+                ),
+                OutputDeclarationElement(TypeAliasElement("Plant"),
+                                         "plant_output_literal",
+                                         IdentifierLookup("Plant")
+                )
+              )
+            )
+          ),
+          CommandSectionElement(
+            List(CommandSectionLine(Vector(StringCommandPartElement("""echo "all dogs are good""""))))
+          ),
+          Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))),
+          None,
+          None,
+          Some(SourceFileLocation(13))
+        )
       )
+    )
   )
 }

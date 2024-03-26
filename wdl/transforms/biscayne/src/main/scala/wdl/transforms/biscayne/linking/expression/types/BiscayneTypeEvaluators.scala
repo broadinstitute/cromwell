@@ -159,4 +159,16 @@ object BiscayneTypeEvaluators {
         case other => s"Cannot invoke 'unzip' on type '${other.stableName}'. Expected an array of pairs".invalidNel
       }
   }
+
+  implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
+    override def evaluateType(a: StructLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(
+      implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      // This works fine, but is not yet a strong enough type check for the WDL 1.1 spec
+      // (i.e. users are able to instantiate struct literals with k/v pairs that aren't actually in the struct definition, without an error being thrown.)
+      // We want to add extra validation here, and return a WomCompositeType that matches the struct definition of everything is OK.
+      // Note that users are allowed to omit optional k/v pairs in their literal.
+      // This requires some extra work to be done in a subsequent PR.
+      WomObjectType.validNel
+  }
 }

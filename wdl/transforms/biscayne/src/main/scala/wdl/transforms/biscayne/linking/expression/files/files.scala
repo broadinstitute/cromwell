@@ -16,7 +16,6 @@ import wom.expression.IoFunctionSet
 import wom.types.WomType
 import wom.values.{WomFile, WomValue}
 import wdl.transforms.biscayne.linking.expression.files.BiscayneFileEvaluators._
-
 package object files {
 
   implicit val expressionFileEvaluator: FileEvaluator[ExpressionElement] = new FileEvaluator[ExpressionElement] {
@@ -36,6 +35,8 @@ package object files {
         case a: StringLiteral =>
           a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: ObjectLiteral =>
+          a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
+        case a: StructLiteral =>
           a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)
         case a: MapLiteral =>
           a.predictFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)(fileEvaluator, valueEvaluator)

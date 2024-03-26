@@ -33,6 +33,7 @@ object ExpressionElement {
 
   final case class KvPair(key: String, value: ExpressionElement)
   final case class ObjectLiteral(elements: Map[String, ExpressionElement]) extends ExpressionElement
+  final case class StructLiteral(structTypeName: String, elements: Map[String, ExpressionElement]) extends ExpressionElement
   final case class ArrayLiteral(elements: Seq[ExpressionElement]) extends ExpressionElement
   final case class MapLiteral(elements: Map[ExpressionElement, ExpressionElement]) extends ExpressionElement
   final case class PairLiteral(left: ExpressionElement, right: ExpressionElement) extends ExpressionElement

@@ -131,4 +131,14 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       e.evaluateType(Map.empty) shouldBeValid WomPairType(WomArrayType(WomAnyType), WomArrayType(WomAnyType))
     }
   }
+
+  it should "evaluate the type of a struct literal" in {
+    // NB: This is not yet strict enough type checking for the WDL 1.1 spec.
+    // In a subsequent branch, we will make this be a WomCompositeType that matches the struct definition.
+    val structLiteral = """ Animal{fur: "fuzzy", isGood: true} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF( {
+      case e => e.evaluateType(Map.empty) shouldBeValid WomObjectType
+    })
+  }
 }

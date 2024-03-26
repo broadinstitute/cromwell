@@ -36,10 +36,8 @@ class WdlFileToWdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
     testOrIgnore {
 
-      val expected: FileElement = expectations.getOrElse(testName, fail(s"No Element expectation defined for $testName"))
-
-      val result: FileElement = fileToFileElement.run(testCase).getOrElse(expected)
-      println(result)
+      val expected: FileElement =
+        expectations.getOrElse(testName, fail(s"No Element expectation defined for $testName"))
       fileToFileElement.run(testCase) match {
         case Right(actual) => actual shouldBe expected
         case Left(errors) =>
@@ -447,10 +445,7 @@ object WdlFileToWdlomSpec {
                                          "standard_animal_forwarded",
                                          IdentifierLookup("Animal")
                 ),
-                OutputDeclarationElement(TypeAliasElement("Plant"),
-                                         "plant_output_literal",
-                                         IdentifierLookup("Plant")
-                )
+                OutputDeclarationElement(TypeAliasElement("Plant"), "plant_output_literal", IdentifierLookup("Plant"))
               )
             )
           ),

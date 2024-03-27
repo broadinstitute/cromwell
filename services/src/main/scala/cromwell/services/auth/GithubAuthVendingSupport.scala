@@ -44,7 +44,7 @@ trait GithubAuthVendingSupport extends AskSupport with StrictLogging {
           case GithubAuthTokenResponse(token) => Future.successful(Map("Authorization" -> s"Bearer ${token}"))
           case NoGithubAuthResponse => Future.successful(Map.empty)
           case GithubAuthVendingFailure(error) =>
-            Future.failed(new Exception("Failed to resolve github auth token", error))
+            Future.failed(new Exception(s"Failed to resolve GitHub auth token. Error: $error"))
         }
   }
 

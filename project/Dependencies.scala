@@ -593,7 +593,7 @@ object Dependencies {
   val servicesDependencies: List[ModuleID] = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
-  ) ++ testDatabaseDependencies
+  ) ++ testDatabaseDependencies ++ akkaHttpDependencies
 
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 

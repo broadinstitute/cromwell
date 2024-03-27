@@ -67,12 +67,11 @@ class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike wit
     val authHeader: Future[Map[String, String]] = provider.authHeader()
 
     serviceRegistryActor.expectMsg(GithubAuthRequest("user-token"))
-    serviceRegistryActor.reply(GithubAuthVending.GithubAuthVendingFailure(new Exception("BOOM")))
+    serviceRegistryActor.reply(GithubAuthVending.GithubAuthVendingFailure("BOOM"))
 
     eventually {
       authHeader.isCompleted should be(true)
-      authHeader.value.get.failed.get.getMessage should be("Failed to resolve github auth token")
-      authHeader.value.get.failed.get.getCause.getMessage should be("BOOM")
+      authHeader.value.get.failed.get.getMessage should be("Failed to resolve GitHub auth token. Error: BOOM")
     }
   }
 

@@ -59,7 +59,7 @@ task b {
   }
 }
 
-workflow struct_literal_passing {
+workflow struct_literal {
   call a
   call b {input: in_animal=a.out_animal}
   output {

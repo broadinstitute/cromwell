@@ -8,5 +8,5 @@ files {
 metadata {
   workflowName: struct_literal
   status: Succeeded
-  "outputs.struct_literal_passing.out": 44
+  "outputs.struct_literal.out": 44
 }

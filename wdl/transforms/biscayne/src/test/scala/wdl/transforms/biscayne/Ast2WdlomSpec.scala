@@ -130,6 +130,9 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   it should "parse a struct literal" in {
     val str = """Dog{breed: "fluffy", isGood: true}"""
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeValid (StructLiteral("Dog", Map("breed" -> StringLiteral("fluffy"), "isGood" -> PrimitiveLiteralExpressionElement(WomBoolean(true)))))
+    expr shouldBeValid (StructLiteral(
+      "Dog",
+      Map("breed" -> StringLiteral("fluffy"), "isGood" -> PrimitiveLiteralExpressionElement(WomBoolean(true)))
+    ))
   }
 }

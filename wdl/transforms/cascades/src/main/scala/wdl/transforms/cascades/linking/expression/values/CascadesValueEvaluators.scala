@@ -11,7 +11,11 @@ import common.validation.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.{EvaluatedValue, ForCommandInstantiationOptions, ValueEvaluator}
-import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.{processThreeValidatedValues, processTwoValidatedValues, processValidatedSingleValue}
+import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.{
+  processThreeValidatedValues,
+  processTwoValidatedValues,
+  processValidatedSingleValue
+}
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.{WomArray, WomFloat, WomInteger, WomMap, WomObject, WomOptionalValue, WomPair, WomString, WomValue}
@@ -350,7 +354,7 @@ object cascadesValueEvaluators {
                                inputs: Map[String, WomValue],
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
-                              )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
 
       val evaluated: ErrorOr[List[(String, EvaluatedValue[_])]] = a.elements.toList traverse {
         case (key: String, value: ExpressionElement) =>

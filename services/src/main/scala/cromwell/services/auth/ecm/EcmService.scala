@@ -13,22 +13,23 @@ import spray.json._
 class EcmService(baseEcmUrl: String) {
   private val getGithubAccessTokenApiPath = "api/oauth/v1/github/access-token"
 
-  // TODO: add comments
-  private def extractErrorMessage(errorCode: StatusCode, responseBodyAsStr: String): String =
+  /*
+     ECM doesn't have a standard error response format. Some of the responses contains HTML tags in it. This helper
+     method returns custom error message for 401 and 403 errors as they contain HTML tags. For 400, 404 and 500 the
+     Swagger suggests that the response format is of ErrorReport schema and this method tries to extract the
+     actual message from the JSON object and returns it. In case of other status codes or if it fails to parse JSON it
+     returns the original error response.
+     ErrorReport schema: {"message":<actual_error_msg>, "statusCode":<code>}
+   */
+  def extractErrorMessage(errorCode: StatusCode, responseBodyAsStr: String): String =
     errorCode match {
-      case StatusCodes.Unauthorized =>
-        "401 Unauthorized. Invalid or missing authentication credentials."
-      case StatusCodes.Forbidden =>
-        "403 Forbidden. User doesn't have the right permission(s) to fetch Github token."
+      case StatusCodes.Unauthorized => "Invalid or missing authentication credentials."
+      case StatusCodes.Forbidden => "User doesn't have the right permission(s) to fetch Github token."
       case StatusCodes.BadRequest | StatusCodes.NotFound | StatusCodes.InternalServerError =>
         Try(responseBodyAsStr.parseJson) match {
           case Success(JsObject(fields)) =>
-            fields
-              .get("message")
-              .map(v => s"${errorCode.value}. ${v.toString()}")
-              .getOrElse(responseBodyAsStr)
-          case _ =>
-            responseBodyAsStr
+            fields.get("message").map(_.toString().replaceAll("\"", "")).getOrElse(responseBodyAsStr)
+          case _ => responseBodyAsStr
         }
       case _ => responseBodyAsStr
     }
@@ -50,9 +51,7 @@ class EcmService(baseEcmUrl: String) {
         if (response.status.isFailure()) {
           responseEntityToFutureStr(response.entity) flatMap { errorBody =>
             val errorMessage = extractErrorMessage(response.status, errorBody)
-            Future.failed(
-              new RuntimeException(s"HTTP $errorMessage")
-            )
+            Future.failed(new RuntimeException(s"HTTP ${response.status.value}. $errorMessage"))
           }
         } else responseEntityToFutureStr(response.entity)
       )

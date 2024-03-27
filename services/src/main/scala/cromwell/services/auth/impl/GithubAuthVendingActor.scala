@@ -26,7 +26,7 @@ class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, servic
   lazy val enabled: Boolean = serviceConfig.getBoolean("enabled")
 
   private lazy val ecmConfigOpt: Option[EcmConfig] = EcmConfig.apply(serviceConfig)
-  private lazy val ecmServiceOpt: Option[EcmService] = ecmConfigOpt.map(ecmConfig => new EcmService(ecmConfig.baseUrl))
+  lazy val ecmServiceOpt: Option[EcmService] = ecmConfigOpt.map(ecmConfig => new EcmService(ecmConfig.baseUrl))
 
   override def receive: Receive = {
     case GithubAuthRequest(userToken) if enabled =>
@@ -34,10 +34,8 @@ class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, servic
       ecmServiceOpt match {
         case Some(ecmService) =>
           ecmService.getGithubAccessToken(userToken) onComplete {
-            case Success(githubToken) =>
-              respondTo ! GithubAuthTokenResponse(githubToken)
-            case Failure(e) =>
-              respondTo ! GithubAuthVendingFailure(e.getMessage)
+            case Success(githubToken) => respondTo ! GithubAuthTokenResponse(githubToken)
+            case Failure(e) => respondTo ! GithubAuthVendingFailure(e.getMessage)
           }
         case None =>
           respondTo ! GithubAuthVendingFailure(
@@ -47,8 +45,7 @@ class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, servic
     // This service currently doesn't do any work on shutdown but the service registry pattern requires it
     // (see https://github.com/broadinstitute/cromwell/issues/2575)
     case ShutdownCommand => context stop self
-    case _ =>
-      sender() ! NoGithubAuthResponse
+    case _ => sender() ! NoGithubAuthResponse
   }
 }
 

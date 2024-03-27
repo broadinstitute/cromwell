@@ -10,7 +10,7 @@ import wdl.model.draft3.elements._
 import wdl.transforms.cascades.ast2wdlom.WdlFileToWdlomSpec._
 import wom.SourceFileLocation
 import wom.types._
-import wom.values.WomInteger
+import wom.values.{WomBoolean, WomInteger}
 
 class WdlFileToWdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
@@ -367,6 +367,104 @@ object WdlFileToWdlomSpec {
           )
         ),
         tasks = Vector.empty
+      ),
+    "struct_literal" -> FileElement(
+      imports = Vector(),
+      structs = Vector(
+        StructElement("Plant",
+                      Vector(StructEntryElement("color", PrimitiveTypeElement(WomStringType)),
+                             StructEntryElement("tasty", PrimitiveTypeElement(WomBooleanType))
+                      )
+        ),
+        StructElement(
+          "Animal",
+          Vector(StructEntryElement("name", PrimitiveTypeElement(WomStringType)),
+                 StructEntryElement("isGood", OptionalTypeElement(PrimitiveTypeElement(WomBooleanType)))
+          )
+        )
+      ),
+      workflows = Vector(
+        WorkflowDefinitionElement(
+          "struct_literal",
+          None,
+          Set(
+            CallElement(
+              "test_struct_parsing",
+              None,
+              Vector(),
+              Some(
+                CallBodyElement(
+                  Vector(
+                    KvPair("standard_plant_input",
+                           StructLiteral("Plant",
+                                         Map("color" -> StringLiteral("green"),
+                                             "tasty" -> PrimitiveLiteralExpressionElement(WomBoolean(true))
+                                         )
+                           )
+                    ),
+                    KvPair("standard_animal_input",
+                           StructLiteral("Animal",
+                                         Map("name" -> StringLiteral("mittens"),
+                                             "isGood" -> PrimitiveLiteralExpressionElement(WomBoolean(false))
+                                         )
+                           )
+                    )
+                  )
+                )
+              ),
+              Some(SourceFileLocation(35))
+            )
+          ),
+          None,
+          None,
+          None,
+          Some(SourceFileLocation(34))
+        )
+      ),
+      tasks = Vector(
+        TaskDefinitionElement(
+          "test_struct_parsing",
+          Some(
+            InputsSectionElement(
+              Vector(
+                InputDeclarationElement(TypeAliasElement("Plant"), "standard_plant_input", None),
+                InputDeclarationElement(TypeAliasElement("Animal"), "standard_animal_input", None)
+              )
+            )
+          ),
+          Vector(),
+          Some(
+            OutputsSectionElement(
+              Vector(
+                OutputDeclarationElement(TypeAliasElement("Plant"),
+                                         "standard_plant_forwarded",
+                                         IdentifierLookup("standard_plant_input")
+                ),
+                OutputDeclarationElement(TypeAliasElement("Animal"),
+                                         "standard_animal_forwarded",
+                                         IdentifierLookup("standard_animal_input")
+                ),
+                OutputDeclarationElement(
+                  TypeAliasElement("Plant"),
+                  "plant_output_literal",
+                  StructLiteral("Plant",
+                                Map("color" -> StringLiteral("red"),
+                                    "tasty" -> PrimitiveLiteralExpressionElement(WomBoolean(true))
+                                )
+                  )
+                )
+              )
+            )
+          ),
+          CommandSectionElement(
+            List(CommandSectionLine(Vector(StringCommandPartElement("""echo "all dogs are good""""))))
+          ),
+          Some(RuntimeAttributesSectionElement(Vector(KvPair("docker", StringLiteral("ubuntu:latest"))))),
+          None,
+          None,
+          Some(SourceFileLocation(13))
+        )
       )
+    )
   )
 }

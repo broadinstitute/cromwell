@@ -18,7 +18,7 @@ import wdl.transforms.base.linking.expression.values.EngineFunctionEvaluators.{
 }
 import wom.expression.IoFunctionSet
 import wom.types._
-import wom.values.{WomArray, WomFloat, WomInteger, WomMap, WomOptionalValue, WomPair, WomString, WomValue}
+import wom.values.{WomArray, WomFloat, WomInteger, WomMap, WomObject, WomOptionalValue, WomPair, WomString, WomValue}
 import wom.types.coercion.defaults._
 
 object BiscayneValueEvaluators {
@@ -350,5 +350,30 @@ object BiscayneValueEvaluators {
         case other =>
           s"Invalid call of 'unzip' on parameter of type '${other.womType.stableName}' (expected Array[Pair[X, Y]])".invalidNel
       }
+  }
+
+  implicit val structLiteralValueEvaluator: ValueEvaluator[StructLiteral] = new ValueEvaluator[StructLiteral] {
+    // This works fine, but is missing a feature from the WDL 1.1 spec: users are allowed to omit optional values from their struct literal.
+    // This requires some extra work to be done in a subsequent PR.
+    // Specifically, make the known struct definitions available to this function so we can populate k/v pairs with None appropriately.
+    override def evaluateValue(a: StructLiteral,
+                               inputs: Map[String, WomValue],
+                               ioFunctionSet: IoFunctionSet,
+                               forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
+    )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[_ <: WomValue]] = {
+
+      val evaluated: ErrorOr[List[(String, EvaluatedValue[_])]] = a.elements.toList traverse {
+        case (key: String, value: ExpressionElement) =>
+          expressionValueEvaluator
+            .evaluateValue(value, inputs, ioFunctionSet, forCommandInstantiationOptions)(expressionValueEvaluator)
+            .map(key -> _)
+      }
+
+      evaluated map { mapping =>
+        val value = mapping.map(entry => entry._1 -> entry._2.value).toMap
+        val sideEffectFiles = mapping.flatMap(entry => entry._2.sideEffectFiles)
+        EvaluatedValue(WomObject(value), sideEffectFiles)
+      }
+    }
   }
 }

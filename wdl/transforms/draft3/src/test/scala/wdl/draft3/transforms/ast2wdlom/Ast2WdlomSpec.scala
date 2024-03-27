@@ -93,4 +93,12 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val expr = fromString[ExpressionElement](str, parser.parse_e)
     expr shouldBeInvalid "Failed to parse expression (reason 1 of 1): Unknown engine function: 'unzip'"
   }
+
+  it should "not parse a struct literal" in {
+    val str = """Dog{breed: "fluffy", isGood: true}"""
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    // parser interprets "Dog" as an identifier, rather than as part of a struct literal,
+    // since struct literals aren't in WDL 1.0
+    expr shouldBeValid (IdentifierLookup("Dog"))
+  }
 }

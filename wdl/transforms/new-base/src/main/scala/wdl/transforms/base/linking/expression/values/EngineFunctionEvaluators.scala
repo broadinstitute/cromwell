@@ -51,7 +51,7 @@ object EngineFunctionEvaluators {
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
     )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] =
-      EvaluatedValue(WomSingleFile(ioFunctionSet.pathFunctions.stdout), Seq.empty).validNel
+      ErrorOr(EvaluatedValue(WomSingleFile(ioFunctionSet.pathFunctions.stdout), Seq.empty))
   }
 
   implicit val stderrFunctionEvaluator: ValueEvaluator[StderrElement.type] = new ValueEvaluator[StderrElement.type] {
@@ -60,7 +60,7 @@ object EngineFunctionEvaluators {
                                ioFunctionSet: IoFunctionSet,
                                forCommandInstantiationOptions: Option[ForCommandInstantiationOptions]
     )(implicit expressionValueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[EvaluatedValue[WomSingleFile]] =
-      EvaluatedValue(WomSingleFile(ioFunctionSet.pathFunctions.stderr), Seq.empty).validNel
+      ErrorOr(EvaluatedValue(WomSingleFile(ioFunctionSet.pathFunctions.stderr), Seq.empty))
   }
 
   private val ReadWaitTimeout = 60.seconds

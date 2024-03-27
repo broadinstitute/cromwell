@@ -144,11 +144,11 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     }
   }
 
-  def getDrsPathResolver: IO[DrsLocalizerDrsPathResolver] =
+  def getDrsPathResolver: IO[DrsPathResolver] =
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
       logger.info(s"Using ${drsConfig.drsResolverUrl} to resolve DRS Objects")
-      new DrsLocalizerDrsPathResolver(drsConfig, drsCredentials)
+      new DrsPathResolver(drsConfig, drsCredentials)
     }
 
   /**
@@ -182,9 +182,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
   /**
     * Runs a synchronous HTTP request to resolve the provided DRS URL with the provided resolver.
     */
-  def resolveSingleUrl(resolverObject: DrsLocalizerDrsPathResolver,
-                       drsUrlToResolve: UnresolvedDrsUrl
-  ): IO[ResolvedDrsUrl] = {
+  def resolveSingleUrl(resolverObject: DrsPathResolver, drsUrlToResolve: UnresolvedDrsUrl): IO[ResolvedDrsUrl] = {
     val fields = NonEmptyList.of(DrsResolverField.GsUri,
                                  DrsResolverField.GoogleServiceAccount,
                                  DrsResolverField.AccessUrl,
@@ -213,7 +211,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
       }
     }
 
-  def resolveWithRetries(resolverObject: DrsLocalizerDrsPathResolver,
+  def resolveWithRetries(resolverObject: DrsPathResolver,
                          drsUrlToResolve: UnresolvedDrsUrl,
                          resolutionRetries: Int,
                          backoff: Option[CloudNioBackoff],

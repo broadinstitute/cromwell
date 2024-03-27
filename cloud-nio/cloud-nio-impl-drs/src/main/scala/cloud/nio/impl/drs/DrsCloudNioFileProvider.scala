@@ -11,7 +11,7 @@ import common.exception._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.HttpStatus
 
-class DrsCloudNioFileProvider(drsPathResolver: EngineDrsPathResolver, drsReadInterpreter: DrsReadInterpreter)
+class DrsCloudNioFileProvider(drsPathResolver: DrsPathResolver, drsReadInterpreter: DrsReadInterpreter)
     extends CloudNioFileProvider {
 
   private def checkIfPathExistsThroughDrsResolver(drsPath: String): IO[Boolean] =

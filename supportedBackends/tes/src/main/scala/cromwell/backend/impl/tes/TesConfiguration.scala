@@ -1,7 +1,7 @@
 package cromwell.backend.impl.tes
 
 import com.typesafe.config.Config
-import cromwell.backend.BackendConfigurationDescriptor
+import cromwell.backend.{BackendConfigurationDescriptor, Platform}
 import cromwell.core.retry.SimpleExponentialBackoff
 import net.ceedubs.ficus.Ficus._
 
@@ -12,6 +12,8 @@ class TesConfiguration(val configurationDescriptor: BackendConfigurationDescript
 
   val endpointURL = configurationDescriptor.backendConfig.getString("endpoint")
   val runtimeConfig = configurationDescriptor.backendRuntimeAttributesConfig
+  val platform: Option[Platform] =
+    configurationDescriptor.backendConfig.as[Option[String]]("platform").flatMap(Platform(_))
   val useBackendParameters =
     configurationDescriptor.backendConfig
       .as[Option[Boolean]](TesConfiguration.useBackendParametersKey)

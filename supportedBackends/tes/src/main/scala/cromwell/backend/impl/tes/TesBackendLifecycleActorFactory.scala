@@ -24,4 +24,6 @@ case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor
                                                  restarting: Boolean
   ): StandardInitializationActorParams =
     TesInitializationActorParams(workflowDescriptor, calls, tesConfiguration, serviceRegistryActor)
+
+  override def platform: Option[Platform] = tesConfiguration.platform
 }

@@ -325,7 +325,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     val unevaluatedRuntimeAttributes = jobKey.call.callable.runtimeAttributes
     evaluateRuntimeAttributes(unevaluatedRuntimeAttributes,
                               expressionLanguageFunctions,
-                              inputEvaluation
+                              inputEvaluation,
+                              factory.platform
     ) map curriedAddDefaultsToAttributes
   }
 }

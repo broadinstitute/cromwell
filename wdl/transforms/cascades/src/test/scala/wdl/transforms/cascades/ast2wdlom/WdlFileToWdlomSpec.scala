@@ -412,7 +412,7 @@ object WdlFileToWdlomSpec {
                   )
                 )
               ),
-              None
+              Some(SourceFileLocation(35))
             )
           ),
           None,
@@ -438,13 +438,21 @@ object WdlFileToWdlomSpec {
               Vector(
                 OutputDeclarationElement(TypeAliasElement("Plant"),
                                          "standard_plant_forwarded",
-                                         IdentifierLookup("Plant")
+                                         IdentifierLookup("standard_plant_input")
                 ),
                 OutputDeclarationElement(TypeAliasElement("Animal"),
                                          "standard_animal_forwarded",
-                                         IdentifierLookup("Animal")
+                                         IdentifierLookup("standard_animal_input")
                 ),
-                OutputDeclarationElement(TypeAliasElement("Plant"), "plant_output_literal", IdentifierLookup("Plant"))
+                OutputDeclarationElement(
+                  TypeAliasElement("Plant"),
+                  "plant_output_literal",
+                  StructLiteral("Plant",
+                                Map("color" -> StringLiteral("red"),
+                                    "tasty" -> PrimitiveLiteralExpressionElement(WomBoolean(true))
+                                )
+                  )
+                )
               )
             )
           ),

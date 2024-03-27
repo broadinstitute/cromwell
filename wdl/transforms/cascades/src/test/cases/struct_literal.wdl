@@ -1,4 +1,4 @@
-version development-1.1
+version development
 
 struct Plant {
     String color

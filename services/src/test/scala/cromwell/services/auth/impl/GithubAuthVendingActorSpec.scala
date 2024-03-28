@@ -17,11 +17,18 @@ import cromwell.services.auth.impl.GithubAuthVendingActorSpec.TestGithubAuthVend
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class GithubAuthVendingActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
+class GithubAuthVendingActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with Eventually
+    with TableDrivenPropertyChecks {
 
+  final private val validUserToken = "valid_user_token"
   final private val githubAuthEnabledServiceConfig =
     ConfigFactory.parseString(s"""
                                  |enabled = true
@@ -29,75 +36,53 @@ class GithubAuthVendingActorSpec extends TestKitSuite with AnyFlatSpecLike with 
                                  |ecm.base-url = "https://mock-ecm-url.org"
         """.stripMargin)
 
+  private def githubAuthConfigWithoutEcmUrl(flag: Boolean): Config =
+    ConfigFactory.parseString(s"""
+                                 |enabled = $flag
+                                 |auth.azure = $flag
+        """.stripMargin)
+
+  private val testCases = Table(
+    ("test name", "service config", "use TestEcmService class", "terra token", "response"),
+    ("return NoGithubAuthResponse if GithubAuthVending is disabled",
+     githubAuthConfigWithoutEcmUrl(false),
+     false,
+     validUserToken,
+     NoGithubAuthResponse
+    ),
+    ("return invalid configuration error if no ECM base url is found",
+     githubAuthConfigWithoutEcmUrl(true),
+     false,
+     validUserToken,
+     GithubAuthVendingFailure("Invalid configuration for service 'GithubAuthVending': missing 'ecm.base-url' value.")
+    ),
+    ("return Github token if found",
+     githubAuthEnabledServiceConfig,
+     true,
+     validUserToken,
+     GithubAuthTokenResponse(GithubToken("gha_token"))
+    ),
+    ("return failure message if ECM service returns non-successful response",
+     githubAuthEnabledServiceConfig,
+     true,
+     "invalid_user_token",
+     GithubAuthVendingFailure("Exception thrown for testing purposes")
+    )
+  )
+
   behavior of "GithubAuthVendingActor"
 
-  it should "return NoGithubAuthResponse if GithubAuthVending is disabled" in {
-    val serviceConfig = ConfigFactory.parseString(s"""
-                                                     |enabled = false
-                                                     |auth.azure = false
-      """.stripMargin)
-
-    val serviceRegistryActor = TestProbe()
-    val actor = system.actorOf(
-      Props(new GithubAuthVendingActor(serviceConfig, ConfigFactory.parseString(""), serviceRegistryActor.ref))
-    )
-
-    eventually {
-      serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken("valid_user_token")))
-      serviceRegistryActor.expectMsg(NoGithubAuthResponse)
-    }
-  }
-
-  it should "return invalid configuration error if no ECM base url is found" in {
-    val serviceConfig = ConfigFactory.parseString(s"""
-                                                     |enabled = true
-                                                     |auth.azure = true
-      """.stripMargin)
-
-    val serviceRegistryActor = TestProbe()
-    val actor = system.actorOf(
-      Props(new GithubAuthVendingActor(serviceConfig, ConfigFactory.parseString(""), serviceRegistryActor.ref))
-    )
-
-    eventually {
-      serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken("valid_user_token")))
-      serviceRegistryActor.expectMsg(
-        GithubAuthVendingFailure("Invalid configuration for service 'GithubAuthVending': missing 'ecm.base-url' value.")
+  forAll(testCases) { (testName, serviceConfig, useTestEcmService, userTerraToken, expectedResponseMsg) =>
+    it should testName in {
+      val serviceRegistryActor = TestProbe()
+      val actor = system.actorOf(
+        Props(new TestGithubAuthVendingActor(serviceConfig, serviceRegistryActor.ref, useTestEcmService))
       )
-    }
-  }
 
-  it should "return Github token if found" in {
-    val serviceRegistryActor = TestProbe()
-    val actor = system.actorOf(
-      Props(
-        new TestGithubAuthVendingActor(githubAuthEnabledServiceConfig,
-                                       ConfigFactory.parseString(""),
-                                       serviceRegistryActor.ref
-        )
-      )
-    )
-
-    eventually {
-      serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken("valid_user_token")))
-      serviceRegistryActor.expectMsg(GithubAuthTokenResponse(GithubToken("gha_token")))
-    }
-  }
-
-  it should "return failure message if ECM service returns non-successful response" in {
-    val serviceRegistryActor = TestProbe()
-    val actor = system.actorOf(
-      Props(
-        new TestGithubAuthVendingActor(githubAuthEnabledServiceConfig,
-                                       ConfigFactory.parseString(""),
-                                       serviceRegistryActor.ref
-        )
-      )
-    )
-
-    eventually {
-      serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken("invalid_user_token")))
-      serviceRegistryActor.expectMsg(GithubAuthVendingFailure("Exception thrown for testing purposes"))
+      eventually {
+        serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken(userTerraToken)))
+        serviceRegistryActor.expectMsg(expectedResponseMsg)
+      }
     }
   }
 }
@@ -115,8 +100,13 @@ class TestEcmService(baseUrl: String) extends EcmService(baseUrl) {
 
 object GithubAuthVendingActorSpec {
 
-  class TestGithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-      extends GithubAuthVendingActor(serviceConfig, globalConfig, serviceRegistryActor) {
-    override lazy val ecmServiceOpt: Option[EcmService] = Some(new TestEcmService("https://mock-ecm-url.org"))
+  class TestGithubAuthVendingActor(serviceConfig: Config,
+                                   serviceRegistryActor: ActorRef,
+                                   useTestEcmServiceClass: Boolean
+  ) extends GithubAuthVendingActor(serviceConfig, ConfigFactory.parseString(""), serviceRegistryActor) {
+
+    override lazy val ecmServiceOpt: Option[EcmService] =
+      if (useTestEcmServiceClass) Some(new TestEcmService("https://mock-ecm-url.org"))
+      else ecmConfigOpt.map(ecmConfig => new EcmService(ecmConfig.baseUrl))
   }
 }

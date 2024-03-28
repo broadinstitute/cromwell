@@ -8,7 +8,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
 import cromwell.languages.util.ImportResolver.GithubImportAuthProvider
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
-import cromwell.services.auth.GithubAuthVending.GithubAuthRequest
+import cromwell.services.auth.GithubAuthVending.{GithubAuthRequest, GithubToken, TerraToken}
 import cromwell.services.auth.GithubAuthVendingSupportSpec.TestGithubAuthVendingSupport
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -42,8 +42,8 @@ class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike wit
     val provider = testSupport.importAuthProvider("user-token")
     val authHeader: Future[Map[String, String]] = provider.authHeader()
 
-    serviceRegistryActor.expectMsg(GithubAuthRequest("user-token"))
-    serviceRegistryActor.reply(GithubAuthVending.GithubAuthTokenResponse("github-token"))
+    serviceRegistryActor.expectMsg(GithubAuthRequest(TerraToken("user-token")))
+    serviceRegistryActor.reply(GithubAuthVending.GithubAuthTokenResponse(GithubToken("github-token")))
 
     Await.result(authHeader, 10.seconds) should be(Map("Authorization" -> "Bearer github-token"))
   }
@@ -54,7 +54,7 @@ class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike wit
     val provider = testSupport.importAuthProvider("user-token")
     val authHeader: Future[Map[String, String]] = provider.authHeader()
 
-    serviceRegistryActor.expectMsg(GithubAuthRequest("user-token"))
+    serviceRegistryActor.expectMsg(GithubAuthRequest(TerraToken("user-token")))
     serviceRegistryActor.reply(GithubAuthVending.NoGithubAuthResponse)
 
     Await.result(authHeader, 10.seconds) should be(Map.empty)
@@ -66,7 +66,7 @@ class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike wit
     val provider = testSupport.importAuthProvider("user-token")
     val authHeader: Future[Map[String, String]] = provider.authHeader()
 
-    serviceRegistryActor.expectMsg(GithubAuthRequest("user-token"))
+    serviceRegistryActor.expectMsg(GithubAuthRequest(TerraToken("user-token")))
     serviceRegistryActor.reply(GithubAuthVending.GithubAuthVendingFailure("BOOM"))
 
     eventually {
@@ -94,7 +94,7 @@ class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike wit
     val provider = testSupport.importAuthProvider("user-token")
     val authHeader: Future[Map[String, String]] = provider.authHeader()
 
-    serviceRegistryActor.expectMsg(GithubAuthRequest("user-token"))
+    serviceRegistryActor.expectMsg(GithubAuthRequest(TerraToken("user-token")))
     serviceRegistryActor.reply(ServiceRegistryFailure("GithubAuthVending"))
 
     eventually {

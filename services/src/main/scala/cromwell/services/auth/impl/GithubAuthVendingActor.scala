@@ -27,7 +27,7 @@ class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, servic
 
   lazy val enabled: Boolean = serviceConfig.getBoolean("enabled")
 
-  private lazy val ecmConfigOpt: Option[EcmConfig] = EcmConfig.apply(serviceConfig)
+  lazy val ecmConfigOpt: Option[EcmConfig] = EcmConfig.apply(serviceConfig)
   lazy val ecmServiceOpt: Option[EcmService] = ecmConfigOpt.map(ecmConfig => new EcmService(ecmConfig.baseUrl))
 
   override def receive: Receive = {

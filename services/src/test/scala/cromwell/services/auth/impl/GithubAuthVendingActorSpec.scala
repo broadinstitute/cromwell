@@ -8,7 +8,9 @@ import cromwell.services.auth.GithubAuthVending.{
   GithubAuthRequest,
   GithubAuthTokenResponse,
   GithubAuthVendingFailure,
-  NoGithubAuthResponse
+  GithubToken,
+  NoGithubAuthResponse,
+  TerraToken
 }
 import cromwell.services.auth.ecm.EcmService
 import cromwell.services.auth.impl.GithubAuthVendingActorSpec.TestGithubAuthVendingActor
@@ -41,7 +43,7 @@ class GithubAuthVendingActorSpec extends TestKitSuite with AnyFlatSpecLike with 
     )
 
     eventually {
-      serviceRegistryActor.send(actor, GithubAuthRequest("valid_user_token"))
+      serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken("valid_user_token")))
       serviceRegistryActor.expectMsg(NoGithubAuthResponse)
     }
   }
@@ -58,7 +60,7 @@ class GithubAuthVendingActorSpec extends TestKitSuite with AnyFlatSpecLike with 
     )
 
     eventually {
-      serviceRegistryActor.send(actor, GithubAuthRequest("valid_user_token"))
+      serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken("valid_user_token")))
       serviceRegistryActor.expectMsg(
         GithubAuthVendingFailure("Invalid configuration for service 'GithubAuthVending': missing 'ecm.base-url' value.")
       )
@@ -77,8 +79,8 @@ class GithubAuthVendingActorSpec extends TestKitSuite with AnyFlatSpecLike with 
     )
 
     eventually {
-      serviceRegistryActor.send(actor, GithubAuthRequest("valid_user_token"))
-      serviceRegistryActor.expectMsg(GithubAuthTokenResponse("gha_token"))
+      serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken("valid_user_token")))
+      serviceRegistryActor.expectMsg(GithubAuthTokenResponse(GithubToken("gha_token")))
     }
   }
 
@@ -94,7 +96,7 @@ class GithubAuthVendingActorSpec extends TestKitSuite with AnyFlatSpecLike with 
     )
 
     eventually {
-      serviceRegistryActor.send(actor, GithubAuthRequest("invalid_user_token"))
+      serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken("invalid_user_token")))
       serviceRegistryActor.expectMsg(GithubAuthVendingFailure("Exception thrown for testing purposes"))
     }
   }

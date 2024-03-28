@@ -14,24 +14,22 @@ class EcmService(baseEcmUrl: String) {
   private val getGithubAccessTokenApiPath = "api/oauth/v1/github/access-token"
 
   /*
-     ECM doesn't have a standard error response format. Some of the responses contains HTML tags in it. This helper
-     method returns custom error message for 401 and 403 errors as they contain HTML tags. For 400, 404 and 500 the
-     Swagger suggests that the response format is of ErrorReport schema and this method tries to extract the
-     actual message from the JSON object and returns it. In case of other status codes or if it fails to parse JSON it
-     returns the original error response.
-     ErrorReport schema: {"message":<actual_error_msg>, "statusCode":<code>}
+     ECM does generally return standard JSON error response, but for 401 status code it seems some other layer in
+     between (like the apache proxies, etc) returns HTML pages. This helper method returns custom error message for 401
+     status code as it contains HTML tags. For all other status code, the response format is generally of ErrorReport
+     schema and this method tries to extract the actual message from the JSON object and return it. In case it fails
+     to parse JSON, it returns the original error response body.
+     ErrorReport schema: {"message":"<actual_error_msg>", "statusCode":<code>}
    */
   def extractErrorMessage(errorCode: StatusCode, responseBodyAsStr: String): String =
     errorCode match {
       case StatusCodes.Unauthorized => "Invalid or missing authentication credentials."
-      case StatusCodes.Forbidden => "User doesn't have the right permission(s) to fetch Github token."
-      case StatusCodes.BadRequest | StatusCodes.NotFound | StatusCodes.InternalServerError =>
+      case _ =>
         Try(responseBodyAsStr.parseJson) match {
           case Success(JsObject(fields)) =>
             fields.get("message").map(_.toString().replaceAll("\"", "")).getOrElse(responseBodyAsStr)
           case _ => responseBodyAsStr
         }
-      case _ => responseBodyAsStr
     }
 
   def getGithubAccessToken(

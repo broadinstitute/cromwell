@@ -9,7 +9,7 @@ class EcmServiceSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyC
 
   private val ecmService = new EcmService("https://mock-ecm-url.org")
 
-  private val ecm400ErrorMsg = "No enum constant bio.terra.externalcreds.generated.model.Provider.githubb"
+  private val ecm400ErrorMsg = "No enum constant bio.terra.externalcreds.generated.model.Provider.MyOwnProvider"
   private val ecm404ErrorMsg =
     "No linked account found for user ID: 123 and provider: github. Please go to the Terra Profile page External Identities tab to link your account for this provider"
 
@@ -19,11 +19,6 @@ class EcmServiceSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyC
      StatusCodes.Unauthorized,
      "<h2>could be anything</h2>",
      "Invalid or missing authentication credentials."
-    ),
-    ("return custom 403 error when status code is 403",
-     StatusCodes.Forbidden,
-     "<h2>could be anything</h2>",
-     "User doesn't have the right permission(s) to fetch Github token."
     ),
     ("extract message from valid ErrorReport JSON if status code is 400",
      StatusCodes.BadRequest,
@@ -45,10 +40,10 @@ class EcmServiceSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyC
      "Response error - not a JSON",
      "Response error - not a JSON"
     ),
-    ("return response error body for other non-success status codes",
-     StatusCodes.BadGateway,
-     "Response error - Bad Gateway",
-     "Response error - Bad Gateway"
+    ("return response error body if JSON doesn't contain 'message' key",
+     StatusCodes.BadRequest,
+     """{"non-message-key" : "error message"}""",
+     """{"non-message-key" : "error message"}"""
     )
   )
 

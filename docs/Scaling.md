@@ -38,7 +38,7 @@ system {
 
   # Cromwell will launch up to N submitted workflows at a time, regardless of how many open workflow slots exist
   # Set this to 0 for a non-runner.
-  max-workflow-launch-count = 50
+  max-workflow-launch-count = 1
 
   # The maximum number of workflows to run concurrently.
   # Set this to 0 for a non-runner.

@@ -13,10 +13,10 @@ class EcmConfigSpec extends AnyFlatSpec with Matchers {
                                               |ecm.base-url = "https://mock-ecm-url.org"
       """.stripMargin)
 
-    val actualEcmConfig = EcmConfig.apply(config)
+    val actualEcmConfig = EcmConfig(config)
 
-    actualEcmConfig shouldBe defined
-    actualEcmConfig.get.baseUrl shouldBe "https://mock-ecm-url.org"
+    actualEcmConfig.baseUrl shouldBe defined
+    actualEcmConfig.baseUrl.get shouldBe "https://mock-ecm-url.org"
   }
 
   it should "return None when ECM base url is absent" in {
@@ -25,6 +25,6 @@ class EcmConfigSpec extends AnyFlatSpec with Matchers {
                                               |auth.azure = true
       """.stripMargin)
 
-    EcmConfig.apply(config) shouldBe None
+    EcmConfig(config).baseUrl shouldBe None
   }
 }

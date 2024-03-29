@@ -5,13 +5,7 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.services.auth.GithubAuthVending.{
-  GithubAuthRequest,
-  GithubAuthTokenResponse,
-  GithubAuthVendingFailure,
-  GithubToken,
-  NoGithubAuthResponse
-}
+import cromwell.services.auth.GithubAuthVending.{GithubAuthRequest, GithubAuthTokenResponse, GithubAuthVendingFailure, NoGithubAuthResponse}
 import cromwell.services.auth.ecm.{EcmConfig, EcmService}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
@@ -27,16 +21,16 @@ class GithubAuthVendingActor(serviceConfig: Config, globalConfig: Config, servic
 
   lazy val enabled: Boolean = serviceConfig.getBoolean("enabled")
 
-  lazy val ecmConfigOpt: Option[EcmConfig] = EcmConfig.apply(serviceConfig)
-  lazy val ecmServiceOpt: Option[EcmService] = ecmConfigOpt.map(ecmConfig => new EcmService(ecmConfig.baseUrl))
+  lazy val ecmConfigOpt: EcmConfig = EcmConfig(serviceConfig)
+  lazy val ecmServiceOpt: Option[EcmService] = ecmConfigOpt.baseUrl.map(url => new EcmService(url))
 
   override def receive: Receive = {
     case GithubAuthRequest(terraToken) if enabled =>
       val respondTo = sender()
       ecmServiceOpt match {
         case Some(ecmService) =>
-          ecmService.getGithubAccessToken(terraToken.value) onComplete {
-            case Success(token) => respondTo ! GithubAuthTokenResponse(GithubToken(token))
+          ecmService.getGithubAccessToken(terraToken) onComplete {
+            case Success(githubToken) => respondTo ! GithubAuthTokenResponse(githubToken)
             case Failure(e) => respondTo ! GithubAuthVendingFailure(e.getMessage)
           }
         case None =>

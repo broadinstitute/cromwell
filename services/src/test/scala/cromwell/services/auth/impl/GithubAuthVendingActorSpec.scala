@@ -79,8 +79,8 @@ class GithubAuthVendingActorSpec
         Props(new TestGithubAuthVendingActor(serviceConfig, serviceRegistryActor.ref, useTestEcmService))
       )
 
+      serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken(userTerraToken)))
       eventually {
-        serviceRegistryActor.send(actor, GithubAuthRequest(TerraToken(userTerraToken)))
         serviceRegistryActor.expectMsg(expectedResponseMsg)
       }
     }
@@ -90,10 +90,10 @@ class GithubAuthVendingActorSpec
 class TestEcmService(baseUrl: String) extends EcmService(baseUrl) {
 
   override def getGithubAccessToken(
-    userToken: String
-  )(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[String] =
-    userToken match {
-      case "valid_user_token" => Future.successful("gha_token")
+    userToken: TerraToken
+  )(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[GithubToken] =
+    userToken.value match {
+      case "valid_user_token" => Future.successful(GithubToken("gha_token"))
       case _ => Future.failed(new RuntimeException("Exception thrown for testing purposes"))
     }
 }
@@ -107,6 +107,6 @@ object GithubAuthVendingActorSpec {
 
     override lazy val ecmServiceOpt: Option[EcmService] =
       if (useTestEcmServiceClass) Some(new TestEcmService("https://mock-ecm-url.org"))
-      else ecmConfigOpt.map(ecmConfig => new EcmService(ecmConfig.baseUrl))
+      else ecmConfigOpt.baseUrl.map(url => new EcmService(url))
   }
 }

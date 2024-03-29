@@ -5,10 +5,11 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.util.ByteString
+import cromwell.services.auth.GithubAuthVending.{GithubToken, TerraToken}
+import spray.json._
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Success, Try}
-import spray.json._
 
 class EcmService(baseEcmUrl: String) {
   private val getGithubAccessTokenApiPath = "api/oauth/v1/github/access-token"
@@ -33,13 +34,13 @@ class EcmService(baseEcmUrl: String) {
     }
 
   def getGithubAccessToken(
-    userToken: String
-  )(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[String] = {
+    userToken: TerraToken
+  )(implicit actorSystem: ActorSystem, ec: ExecutionContext): Future[GithubToken] = {
 
     def responseEntityToFutureStr(responseEntity: ResponseEntity): Future[String] =
       responseEntity.dataBytes.runFold(ByteString(""))(_ ++ _).map(_.utf8String)
 
-    val headers: HttpHeader = RawHeader("Authorization", s"Bearer $userToken")
+    val headers: HttpHeader = RawHeader("Authorization", s"Bearer ${userToken.value}")
     val httpRequest =
       HttpRequest(method = HttpMethods.GET, uri = s"$baseEcmUrl/$getGithubAccessTokenApiPath").withHeaders(headers)
 
@@ -51,7 +52,7 @@ class EcmService(baseEcmUrl: String) {
             val errorMessage = extractErrorMessage(response.status, errorBody)
             Future.failed(new RuntimeException(s"HTTP ${response.status.value}. $errorMessage"))
           }
-        } else responseEntityToFutureStr(response.entity)
+        } else responseEntityToFutureStr(response.entity).map(GithubToken)
       )
   }
 }

@@ -10,6 +10,7 @@ import wom.expression.WomExpression
 import wom.types.WomType
 import wom.values.WomValue
 
+import scala.collection.mutable.ListBuffer
 import scala.util.control.NoStackTrace
 
 final case class ValidatedRuntimeAttributes(attributes: Map[String, Any])
@@ -33,7 +34,15 @@ trait ValidatedRuntimeAttributesBuilder {
   /**
     * Returns a mapping of the validations: RuntimeAttributesValidation each converted to a RuntimeAttributeDefinition.
     */
-  final lazy val definitions: Seq[RuntimeAttributeDefinition] = validations.map(_.runtimeAttributeDefinition)
+  final lazy val definitions: Seq[RuntimeAttributeDefinition] =
+    validations.map(_.runtimeAttributeDefinition) ++ validations
+      .map {
+        case value: TwoKeyRuntimeAttributesValidation[_, _] =>
+          value.altKeyRuntimeAttributeDefinition
+        case _ =>
+          null
+      }
+      .filterNot(x => x == null)
 
   /**
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
@@ -49,7 +58,14 @@ trait ValidatedRuntimeAttributesBuilder {
 
   def unsupportedKeys(keys: Seq[String]): Seq[String] = keys.diff(validationKeys)
 
-  private lazy val validationKeys = validations.map(_.key)
+  private lazy val validationKeys = validations.map(_.key) ++ validations
+    .map {
+      case value: TwoKeyRuntimeAttributesValidation[_, _] =>
+        value.altKey
+      case _ =>
+        null
+    }
+    .filterNot(x => x == null)
 
   def build(attrs: Map[String, WomValue], logger: Logger): ValidatedRuntimeAttributes = {
     RuntimeAttributesValidation.warnUnrecognized(attrs.keySet, validationKeys.toSet, logger)
@@ -67,11 +83,23 @@ trait ValidatedRuntimeAttributesBuilder {
   }
 
   private def validate(values: Map[String, WomValue]): ErrorOr[ValidatedRuntimeAttributes] = {
-    val listOfKeysToErrorOrAnys: List[(String, ErrorOr[Any])] =
-      validations.map(validation => validation.key -> validation.validate(values)).toList
+    val listOfKeysToErrorOrAnys: ListBuffer[(String, ErrorOr[Any])] = ListBuffer()
 
-    val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys map { case (key, errorOrAny) =>
-      errorOrAny map { any => (key, any) }
+    validations.foreach { validation =>
+      listOfKeysToErrorOrAnys += validation.key -> validation.validate(values)
+
+      validation match {
+        case twoKeyValidation: TwoKeyRuntimeAttributesValidation[_, _] =>
+          if (values.contains(twoKeyValidation.altKey)) {
+            listOfKeysToErrorOrAnys += twoKeyValidation.altKey -> twoKeyValidation.validateAltKey(values)
+          }
+        case _ =>
+      }
+    }
+
+    val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys.toList map {
+      case (key, errorOrAny) =>
+        errorOrAny map { any => (key, any) }
     }
 
     import cats.syntax.traverse._

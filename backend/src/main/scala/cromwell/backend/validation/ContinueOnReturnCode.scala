@@ -9,7 +9,7 @@ object ContinueOnReturnCode {
 /**
   * Decides if a call/job continues upon a specific return code.
   */
-sealed trait ContinueOnReturnCode extends ReturnCode {
+sealed trait ContinueOnReturnCode {
 
   /**
     * Returns true if the call is a success based on the return code.
@@ -17,10 +17,10 @@ sealed trait ContinueOnReturnCode extends ReturnCode {
     * @param returnCode Return code from the process / script.
     * @return True if the call is a success.
     */
-  final override def continueFor(returnCode: Int): Boolean =
+  final def continueFor(returnCode: Int): Boolean =
     this match {
       case ContinueOnReturnCodeFlag(continue) => continue || returnCode == 0
-      case _ => super.continueFor(returnCode)
+      case ContinueOnReturnCodeSet(returnCodes) => returnCodes.contains(returnCode)
     }
 }
 
@@ -30,4 +30,15 @@ sealed trait ContinueOnReturnCode extends ReturnCode {
   */
 case class ContinueOnReturnCodeFlag(continue: Boolean) extends ContinueOnReturnCode {
   override def toString = continue.toString
+}
+
+/**
+  * Continues only if the call/job return code is found in returnCodes.
+  * @param returnCodes Inclusive set of return codes that specify a job success.
+  */
+case class ContinueOnReturnCodeSet(returnCodes: Set[Int]) extends ContinueOnReturnCode {
+  override def toString = returnCodes match {
+    case single if single.size == 1 => returnCodes.head.toString
+    case multiple => s"[${multiple.mkString(",")}]"
+  }
 }

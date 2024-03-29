@@ -34,7 +34,7 @@ package cromwell.backend.impl.aws
 import common.collections.EnhancedCollections._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.BackendSpec._
-import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ReturnCodeSet}
+import cromwell.backend.validation.ContinueOnReturnCodeFlag
 import cromwell.core.TestKitSuite
 import cromwell.util.SampleWdl
 import eu.timepit.refined.api.Refined
@@ -110,7 +110,6 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     queueArn = "arn:aws:batch:us-east-1:123456789:job-queue/default-gwf-core",
     failOnStderr = true,
     continueOnReturnCode = ContinueOnReturnCodeFlag(false),
-    returnCodes = ReturnCodeSet(Set(0)),
     noAddress = false,
     scriptS3BucketName = "script-bucket",
     fileSystem = "s3"

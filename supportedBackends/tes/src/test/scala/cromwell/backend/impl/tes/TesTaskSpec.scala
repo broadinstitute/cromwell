@@ -2,7 +2,7 @@ package cromwell.backend.impl.tes
 
 import common.assertion.CromwellTimeoutSpec
 import common.mock.MockSugar
-import cromwell.backend.validation.ReturnCodeSet
+import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.{BackendSpec, BackendWorkflowDescriptor, TestConfig}
 import cromwell.core.{RootWorkflowId, WorkflowId, WorkflowOptions}
 import cromwell.core.labels.Labels
@@ -18,8 +18,7 @@ import java.util.UUID
 class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BackendSpec with MockSugar {
 
   val runtimeAttributes = new TesRuntimeAttributes(
-    ReturnCodeSet(Set(0)),
-    ReturnCodeSet(Set(0)),
+    ContinueOnReturnCodeSet(Set(0)),
     "ubuntu:latest",
     None,
     false,

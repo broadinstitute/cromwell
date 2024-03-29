@@ -40,7 +40,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     """.stripMargin
 
   val defaultRuntimeAttributes: Map[String, Any] =
-    Map(DockerKey -> None, FailOnStderrKey -> false, ContinueOnReturnCodeKey -> ReturnCodeSet(Set(0)))
+    Map(DockerKey -> None, FailOnStderrKey -> false, ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(0)))
 
   def workflowOptionsWithDefaultRuntimeAttributes(defaults: Map[String, JsValue]): WorkflowOptions =
     WorkflowOptions(JsObject(Map("default_runtime_attributes" -> JsObject(defaults))))
@@ -128,7 +128,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     "validate a valid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("continueOnReturnCode" -> WomInteger(1))
       val expectedRuntimeAttributes =
-        defaultRuntimeAttributes + (ContinueOnReturnCodeKey -> ReturnCodeSet(Set(1)))
+        defaultRuntimeAttributes + (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1)))
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -136,13 +136,13 @@ class StandardValidatedRuntimeAttributesBuilderSpec
       val runtimeAttributes = Map("continueOnReturnCode" -> WomString("value"))
       assertRuntimeAttributesFailedCreation(
         runtimeAttributes,
-        "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+        "Expecting returnCodes runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
       )
     }
 
     "use workflow options as default if continueOnReturnCode key is missing" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes +
-        (ContinueOnReturnCodeKey -> ReturnCodeSet(Set(1, 2)))
+        (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1, 2)))
       val workflowOptions = workflowOptionsWithDefaultRuntimeAttributes(
         Map(ContinueOnReturnCodeKey -> JsArray(Vector(JsNumber(1), JsNumber(2))))
       )
@@ -156,7 +156,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     "validate a valid returnCode entry" in {
       val runtimeAttributes = Map("returnCodes" -> WomInteger(1))
       val expectedRuntimeAttributes =
-        defaultRuntimeAttributes + (ReturnCodesKey -> ReturnCodeSet(Set(1)))
+        defaultRuntimeAttributes + (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1)))
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -164,13 +164,13 @@ class StandardValidatedRuntimeAttributesBuilderSpec
       val runtimeAttributes = Map("returnCodes" -> WomString("value"))
       assertRuntimeAttributesFailedCreation(
         runtimeAttributes,
-        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]"
+        "Expecting returnCodes runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
       )
     }
 
     "use workflow options as default if returnCode key is missing" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes +
-        (ReturnCodesKey -> ReturnCodeSet(Set(1, 2)))
+        (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1, 2)))
       val workflowOptions = workflowOptionsWithDefaultRuntimeAttributes(
         Map(ReturnCodesKey -> JsArray(Vector(JsNumber(1), JsNumber(2))))
       )
@@ -211,7 +211,9 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     val docker = RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
     val failOnStderr = RuntimeAttributesValidation.extract(FailOnStderrValidation.instance, validatedRuntimeAttributes)
     val continueOnReturnCode =
-      RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
+      TwoKeyRuntimeAttributesValidation.extractTwoKeys(ContinueOnReturnCodeValidation.instance,
+                                                       validatedRuntimeAttributes
+      )
 
     docker should be(expectedRuntimeAttributes(DockerKey).asInstanceOf[Option[String]])
     failOnStderr should be(expectedRuntimeAttributes(FailOnStderrKey).asInstanceOf[Boolean])

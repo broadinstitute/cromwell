@@ -49,8 +49,7 @@ final case class PipelinesApiRuntimeAttributes(cpu: Int Refined Positive,
                                                disks: Seq[PipelinesApiAttachedDisk],
                                                dockerImage: String,
                                                failOnStderr: Boolean,
-                                               continueOnReturnCode: ReturnCode,
-                                               returnCodes: ReturnCode,
+                                               continueOnReturnCode: ContinueOnReturnCode,
                                                noAddress: Boolean,
                                                googleLegacyMachineSelection: Boolean,
                                                useDockerImageCache: Option[Boolean],
@@ -116,9 +115,6 @@ object PipelinesApiRuntimeAttributes {
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) =
     ContinueOnReturnCodeValidation.default(runtimeConfig)
-
-  private def returnCodesValidation(runtimeConfig: Option[Config]) =
-    ReturnCodesValidation.default(runtimeConfig)
 
   private def disksValidation(
     runtimeConfig: Option[Config]
@@ -223,12 +219,8 @@ object PipelinesApiRuntimeAttributes {
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val continueOnReturnCode: ReturnCode = RuntimeAttributesValidation.extract(
+    val continueOnReturnCode: ContinueOnReturnCode = TwoKeyRuntimeAttributesValidation.extractTwoKeys(
       continueOnReturnCodeValidation(runtimeAttrsConfig),
-      validatedRuntimeAttributes
-    )
-    val returnCodes: ReturnCode = RuntimeAttributesValidation.extract(
-      returnCodesValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
     )
     val noAddress: Boolean =
@@ -250,7 +242,6 @@ object PipelinesApiRuntimeAttributes {
       docker,
       failOnStderr,
       continueOnReturnCode,
-      returnCodes,
       noAddress,
       googleLegacyMachineSelection,
       useDockerImageCache,

@@ -57,7 +57,6 @@ import scala.util.matching.Regex
  * @param queueArn the arn of the AWS Batch queue that the job will be submitted to
  * @param failOnStderr should the job fail if something is logged to `stderr`
  * @param continueOnReturnCode decides if a job continues on receiving a specific return code
- * @param returnCodes decides if a job continues on receiving a specific return code
  * @param noAddress is there no address
  * @param scriptS3BucketName the s3 bucket where the execution command or script will be written and, from there, fetched into the container and executed
  * @param fileSystem the filesystem type, default is "s3"
@@ -69,8 +68,7 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      dockerImage: String,
                                      queueArn: String,
                                      failOnStderr: Boolean,
-                                     continueOnReturnCode: ReturnCode,
-                                     returnCodes: ReturnCode,
+                                     continueOnReturnCode: ContinueOnReturnCode,
                                      noAddress: Boolean,
                                      scriptS3BucketName: String,
                                      fileSystem: String = "s3"
@@ -103,9 +101,6 @@ object AwsBatchRuntimeAttributes {
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) =
     ContinueOnReturnCodeValidation.default(runtimeConfig)
-
-  private def returnCodesValidation(runtimeConfig: Option[Config]) =
-    ReturnCodesValidation.default(runtimeConfig)
 
   private def disksValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Seq[AwsBatchVolume]] =
     DisksValidation
@@ -189,12 +184,8 @@ object AwsBatchRuntimeAttributes {
       RuntimeAttributesValidation.extract(queueArnValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val continueOnReturnCode: ReturnCode = RuntimeAttributesValidation.extract(
+    val continueOnReturnCode: ContinueOnReturnCode = TwoKeyRuntimeAttributesValidation.extractTwoKeys(
       continueOnReturnCodeValidation(runtimeAttrsConfig),
-      validatedRuntimeAttributes
-    )
-    val returnCodes: ReturnCode = RuntimeAttributesValidation.extract(
-      returnCodesValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
     )
     val noAddress: Boolean =
@@ -216,7 +207,6 @@ object AwsBatchRuntimeAttributes {
       queueArn,
       failOnStderr,
       continueOnReturnCode,
-      returnCodes,
       noAddress,
       scriptS3BucketName,
       fileSystem

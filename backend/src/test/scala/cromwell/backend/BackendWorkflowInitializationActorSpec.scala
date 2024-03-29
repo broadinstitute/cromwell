@@ -5,13 +5,7 @@ import _root_.wdl.draft2.model.types._
 import akka.actor.ActorRef
 import akka.testkit.TestActorRef
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.validation.{
-  ContinueOnReturnCodeFlag,
-  ContinueOnReturnCodeValidation,
-  ReturnCodeSet,
-  ReturnCodesString,
-  ReturnCodesValidation
-}
+import cromwell.backend.validation.{ContinueOnReturnCodeFlag, ContinueOnReturnCodeSet, ContinueOnReturnCodeValidation}
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -43,16 +37,11 @@ class BackendWorkflowInitializationActorSpec
   val testContinueOnReturnCode: Option[WomValue] => Boolean =
     testPredicateBackendWorkflowInitializationActor.continueOnReturnCodePredicate(valueRequired = false)
 
-  val testReturnCodes: Option[WomValue] => Boolean =
-    testPredicateBackendWorkflowInitializationActor.returnCodesPredicate(valueRequired = false)
-
   val optionalConfig: Option[Config] = Option(TestConfig.optionalRuntimeConfig)
 
-  it should "continueOnReturnCodePredicate and returnCodePredicate" in {
+  it should "continueOnReturnCodePredicate" in {
     testContinueOnReturnCode(None) should be(true)
-    testReturnCodes(None) should be(true)
     ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(None) should be(true)
-    ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(None) should be(true)
 
     val booleanRows = Table(
       "value",
@@ -97,7 +86,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.toOption.get should be(ContinueOnReturnCodeFlag(value))
     }
@@ -112,7 +101,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.toOption.get should be(ContinueOnReturnCodeFlag(value))
     }
@@ -131,26 +120,15 @@ class BackendWorkflowInitializationActorSpec
       val womValue = WomInteger(value)
       val result = true
       testContinueOnReturnCode(Option(womValue)) should be(result)
-      testReturnCodes(Option(womValue)) should be(result)
       ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
-        result
-      )
-      ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
         result
       )
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.toOption.get should be(ReturnCodeSet(Set(value)))
-
-      val returnCodesValid =
-        ReturnCodesValidation
-          .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ReturnCodesKey -> womValue))
-      returnCodesValid.isValid should be(result)
-      returnCodesValid.toEither.toOption.get should be(ReturnCodeSet(Set(value)))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
@@ -160,25 +138,12 @@ class BackendWorkflowInitializationActorSpec
       ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
         result
       )
-
-      testReturnCodes(Option(womValue)) should be(result)
-      ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
-        result
-      )
-
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.toOption.get should be(ReturnCodeSet(Set(value)))
-
-      val returnCodesValid =
-        ReturnCodesValidation
-          .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ReturnCodesKey -> womValue))
-      returnCodesValid.isValid should be(result)
-      returnCodesValid.toEither.toOption.get should be(ReturnCodeSet(Set(value)))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
@@ -188,12 +153,6 @@ class BackendWorkflowInitializationActorSpec
       ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
         result
       )
-
-      testReturnCodes(Option(womValue)) should be(result)
-      ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
-        result
-      )
-
       // NOTE: expressions are never valid to validate
     }
 
@@ -204,25 +163,12 @@ class BackendWorkflowInitializationActorSpec
       ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
         result
       )
-
-      testReturnCodes(Option(womValue)) should be(result)
-      ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
-        result
-      )
-
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.toOption.get should be(ReturnCodeSet(Set(value)))
-
-      val returnCodesValid =
-        ReturnCodesValidation
-          .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ReturnCodesKey -> womValue))
-      returnCodesValid.isValid should be(result)
-      returnCodesValid.toEither.toOption.get should be(ReturnCodeSet(Set(value)))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
@@ -232,25 +178,12 @@ class BackendWorkflowInitializationActorSpec
       ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
         result
       )
-
-      testReturnCodes(Option(womValue)) should be(result)
-      ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
-        result
-      )
-
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.toOption.get should be(ReturnCodeSet(Set(value)))
-
-      val returnCodesValid =
-        ReturnCodesValidation
-          .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ReturnCodesKey -> womValue))
-      returnCodesValid.isValid should be(result)
-      returnCodesValid.toEither.toOption.get should be(ReturnCodeSet(Set(value)))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
 
     forAll(integerRows) { value =>
@@ -258,11 +191,6 @@ class BackendWorkflowInitializationActorSpec
       val result = false
       testContinueOnReturnCode(Option(womValue)) should be(result)
       ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
-        result
-      )
-
-      testReturnCodes(Option(womValue)) should be(result)
-      ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
         result
       )
       // NOTE: expressions are never valid to validate
@@ -275,27 +203,22 @@ class BackendWorkflowInitializationActorSpec
       ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
         result
       )
-
-      testReturnCodes(Option(womValue)) should be(result)
-      ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
-        result
-      )
       // NOTE: expressions are never valid to validate
     }
 
     forAll(starRow) { value =>
       val womValue = WomString(value)
       val result = true
-      testReturnCodes(Option(womValue)) should be(result)
-      ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
         result
       )
       val valid =
-        ReturnCodesValidation
+        ContinueOnReturnCodeValidation
           .default(optionalConfig)
           .validate(Map(RuntimeAttributesKeys.ReturnCodesKey -> womValue))
       valid.isValid should be(result)
-      valid.toEither.toOption.get should be(ReturnCodesString(value))
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeFlag(true))
     }
 
     forAll(invalidWdlValueRows) { womValue =>
@@ -304,28 +227,13 @@ class BackendWorkflowInitializationActorSpec
       ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
         result
       )
-
-      testReturnCodes(Option(womValue)) should be(result)
-      ReturnCodesValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
-        result
-      )
-
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.swap.toOption.get.toList should contain theSameElementsAs List(
-        "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
-      )
-
-      val returnCodesValid =
-        ReturnCodesValidation
-          .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ReturnCodesKey -> womValue))
-      returnCodesValid.isValid should be(result)
-      returnCodesValid.toEither.swap.toOption.get.toList should contain theSameElementsAs List(
-        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]"
+        "Expecting returnCodes runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
       )
     }
 
@@ -359,7 +267,4 @@ class TestPredicateBackendWorkflowInitializationActor extends BackendWorkflowIni
 
   override def continueOnReturnCodePredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WomValue]): Boolean =
     super.continueOnReturnCodePredicate(valueRequired)(wdlExpressionMaybe)
-
-  override def returnCodesPredicate(valueRequired: Boolean)(wdlExpressionMaybe: Option[WomValue]): Boolean =
-    super.returnCodesPredicate(valueRequired)(wdlExpressionMaybe)
 }

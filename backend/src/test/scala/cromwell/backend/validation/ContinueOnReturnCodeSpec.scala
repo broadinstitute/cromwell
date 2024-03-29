@@ -34,7 +34,7 @@ class ContinueOnReturnCodeSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       )
 
       forAll(setTests) { (set, returnCode, expectedContinue) =>
-        ReturnCodeSet(set).continueFor(returnCode) should be(expectedContinue)
+        ContinueOnReturnCodeSet(set).continueFor(returnCode) should be(expectedContinue)
       }
     }
   }

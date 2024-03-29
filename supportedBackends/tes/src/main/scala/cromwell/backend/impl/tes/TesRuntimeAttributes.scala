@@ -22,8 +22,7 @@ import wom.values._
 
 import java.util.regex.Pattern
 
-case class TesRuntimeAttributes(continueOnReturnCode: ReturnCode,
-                                returnCodes: ReturnCode,
+case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 dockerImage: String,
                                 dockerWorkingDir: Option[String],
                                 failOnStderr: Boolean,
@@ -48,9 +47,6 @@ object TesRuntimeAttributes {
 
   private def continueOnReturnCodeValidation(runtimeConfig: Option[Config]) =
     ContinueOnReturnCodeValidation.default(runtimeConfig)
-
-  private def returnCodesValidation(runtimeConfig: Option[Config]) =
-    ReturnCodesValidation.default(runtimeConfig)
 
   private def diskSizeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] =
     MemoryValidation.optional(DiskSizeKey)
@@ -158,12 +154,10 @@ object TesRuntimeAttributes {
     val disk: Option[MemorySize] = detectDiskFormat(backendRuntimeConfig, validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(backendRuntimeConfig), validatedRuntimeAttributes)
-    val continueOnReturnCode: ReturnCode =
-      RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(backendRuntimeConfig),
-                                          validatedRuntimeAttributes
+    val continueOnReturnCode: ContinueOnReturnCode =
+      TwoKeyRuntimeAttributesValidation.extractTwoKeys(continueOnReturnCodeValidation(backendRuntimeConfig),
+                                                       validatedRuntimeAttributes
       )
-    val returnCodes: ReturnCode =
-      RuntimeAttributesValidation.extract(returnCodesValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val preemptible: Boolean =
       RuntimeAttributesValidation.extract(preemptibleValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val localizedSas: Option[String] =
@@ -181,7 +175,6 @@ object TesRuntimeAttributes {
       diskSizeCompatValidation(backendRuntimeConfig),
       failOnStderrValidation(backendRuntimeConfig),
       continueOnReturnCodeValidation(backendRuntimeConfig),
-      returnCodesValidation(backendRuntimeConfig),
       preemptibleValidation(backendRuntimeConfig),
       localizedSasValidation
     )
@@ -193,7 +186,6 @@ object TesRuntimeAttributes {
 
     new TesRuntimeAttributes(
       continueOnReturnCode,
-      returnCodes,
       docker,
       dockerWorkingDir,
       failOnStderr,

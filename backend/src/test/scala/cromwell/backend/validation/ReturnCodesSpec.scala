@@ -12,24 +12,7 @@ class ReturnCodesSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matc
       val flagTests = Table(("flag", "returnCode", "expectedContinue"), ("*", 0, true), ("*", 1, true))
 
       forAll(flagTests) { (flag, returnCode, expectedContinue) =>
-        ReturnCodesString(flag).continueFor(returnCode) should be(expectedContinue)
-      }
-    }
-
-    "continue on expected return code sets" in {
-      val setTests = Table(
-        ("set", "returnCode", "expectedContinue"),
-        (Set(0), 0, true),
-        (Set(0), 1, false),
-        (Set(1), 0, false),
-        (Set(1), 1, true),
-        (Set(0, 1), 0, true),
-        (Set(0, 1), 1, true),
-        (Set(0, 1), 2, false)
-      )
-
-      forAll(setTests) { (set, returnCode, expectedContinue) =>
-        ReturnCodeSet(set).continueFor(returnCode) should be(expectedContinue)
+        ContinueOnReturnCodeFlag(true).continueFor(returnCode) should be(expectedContinue)
       }
     }
   }

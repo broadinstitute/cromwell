@@ -37,6 +37,7 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
+import wom.RuntimeAttributesKeys.ReturnCodesKey
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
@@ -748,11 +749,11 @@ trait StandardAsyncExecutionActor
     RuntimeAttributesValidation.extract(FailOnStderrValidation.instance, validatedRuntimeAttributes)
 
   /**
-    * Returns the behavior for continuing on the return code, obtained by converting `returnCodeContents` to an Int.
-    *
-    * @return the behavior for continuing on the return code.
-    */
-  lazy val continueOnReturnCode: ReturnCode =
+   * Returns the behavior for continuing on the return code, obtained by converting `returnCodeContents` to an Int.
+   *
+   * @return the behavior for continuing on the return code.
+   */
+  lazy val continueOnReturnCode: ContinueOnReturnCode =
     RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
 
   /**
@@ -760,16 +761,17 @@ trait StandardAsyncExecutionActor
    *
    * @return the behavior for continuing on the return code.
    */
-  lazy val returnCodes: ReturnCode =
-    RuntimeAttributesValidation.extract(ReturnCodesValidation.instance, validatedRuntimeAttributes)
+  lazy val returnCodes: ContinueOnReturnCode =
+    RuntimeAttributesValidation.extract[ContinueOnReturnCode](ReturnCodesKey, validatedRuntimeAttributes)
 
   /**
    * Returns the true behavior for continuing on the return code. If `returnCodes` runtime attribute is specified,
    * then `continueOnReturnCode` attribute is ignored. If `returnCodes` is unspecified, then the value in
    * `continueOnReturnCode` will be used.
    */
-  lazy val returnCode: ReturnCode =
-    if (returnCodes.isInstanceOf[ReturnCodeSet] && returnCodes.equals(ReturnCodeSet(Set(0)))) continueOnReturnCode
+  lazy val returnCode: ContinueOnReturnCode =
+    if (returnCodes.isInstanceOf[ContinueOnReturnCodeSet] && returnCodes.equals(ContinueOnReturnCodeSet(Set(0))))
+      continueOnReturnCode
     else returnCodes
 
   /**

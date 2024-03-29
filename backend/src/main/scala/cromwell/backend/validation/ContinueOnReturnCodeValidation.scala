@@ -1,8 +1,10 @@
 package cromwell.backend.validation
 
+import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
 import com.typesafe.config.Config
 import common.validation.ErrorOr._
+import cromwell.backend.validation.RuntimeAttributesValidation.validateInt
 import wom.RuntimeAttributesKeys
 import wom.types._
 import wom.values._
@@ -21,29 +23,54 @@ import scala.util.Try
   * `default` a validation with the default value specified by the reference.conf file.
   */
 object ContinueOnReturnCodeValidation {
-  lazy val instance: RuntimeAttributesValidation[ReturnCode] = new ContinueOnReturnCodeValidation
-  def default(runtimeConfig: Option[Config]): RuntimeAttributesValidation[ReturnCode] =
-    instance.withDefault(configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
+  lazy val instance: TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode, ContinueOnReturnCodeSet] =
+    new ContinueOnReturnCodeValidation
+  def default(
+    runtimeConfig: Option[Config]
+  ): TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode, ContinueOnReturnCodeSet] =
+    instance.makeDefault(configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
   def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] =
-    instance.configDefaultWomValue(runtimeConfig)
+    instance.configDefault(runtimeConfig)
 }
 
-class ContinueOnReturnCodeValidation extends ReturnCodeValidation {
+class ContinueOnReturnCodeValidation
+    extends TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode, ContinueOnReturnCodeSet] {
 
-  override def key: String = RuntimeAttributesKeys.ContinueOnReturnCodeKey
+  override def key: String = RuntimeAttributesKeys.ReturnCodesKey
+
+  override def altKey: String = RuntimeAttributesKeys.ContinueOnReturnCodeKey
+
+  override def defaultVal: ContinueOnReturnCodeSet = ContinueOnReturnCodeSet(Set(0))
 
   override def coercion: Set[WomType] = ContinueOnReturnCode.validWdlTypes
 
-  override def validateValue: PartialFunction[WomValue, ErrorOr[ReturnCode]] = {
+  override def validateValue: PartialFunction[WomValue, ErrorOr[ContinueOnReturnCode]] = {
     case WomBoolean(value) => ContinueOnReturnCodeFlag(value).validNel
     case WomString(value) if Try(value.toBoolean).isSuccess => ContinueOnReturnCodeFlag(value.toBoolean).validNel
-    case value => super.validateValue(value)
+    case WomString(value) if value.equals("*") => ContinueOnReturnCodeFlag(true).validNel
+    case WomString(value) if Try(value.toInt).isSuccess => ContinueOnReturnCodeSet(Set(value.toInt)).validNel
+    case WomInteger(value) => ContinueOnReturnCodeSet(Set(value)).validNel
+    case value @ WomArray(_, seq) =>
+      val errorOrInts: ErrorOr[List[Int]] = (seq.toList map validateInt).sequence[ErrorOr, Int]
+      errorOrInts match {
+        case Valid(ints) => ContinueOnReturnCodeSet(ints.toSet).validNel
+        case Invalid(_) => invalidValueFailure(value)
+      }
+    case value => invalidValueFailure(value)
   }
 
   override def validateExpression: PartialFunction[WomValue, Boolean] = {
     case WomBoolean(_) => true
     case WomString(value) if Try(value.toBoolean).isSuccess => true
-    case value => super.validateExpression(value)
+    case WomString(value) if value.equals("*") => true
+    case WomString(value) if Try(value.toInt).isSuccess => true
+    case WomInteger(_) => true
+    case WomArray(WomArrayType(WomStringType), elements) =>
+      elements forall { value =>
+        Try(value.valueString.toInt).isSuccess
+      }
+    case WomArray(WomArrayType(WomIntegerType), _) => true
+    case _ => false
   }
 
   override protected def missingValueMessage: String = s"Expecting $key" +

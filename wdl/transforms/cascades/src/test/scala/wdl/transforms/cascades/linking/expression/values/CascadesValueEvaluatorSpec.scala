@@ -12,7 +12,7 @@ import wdl.transforms.cascades.Ast2WdlomSpec.{fromString, parser}
 import wdl.transforms.cascades.ast2wdlom._
 import wom.expression.NoIoFunctionSet
 import wom.types.{WomAnyType, WomArrayType, WomIntegerType, WomMapType, WomOptionalType, WomStringType}
-import wom.values.{WomArray, WomInteger, WomMap, WomOptionalValue, WomPair, WomString}
+import wom.values.{WomArray, WomBoolean, WomInteger, WomMap, WomObject, WomOptionalValue, WomPair, WomString}
 
 class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
@@ -407,5 +407,15 @@ class CascadesValueEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
           "Could not construct array of type WomMaybeEmptyArrayType(WomPairType(WomIntegerType,WomFloatType)) with this value: List(WomPair(WomInteger(1),WomFloat(11.0)), WomPair([1, 2, 3],WomFloat(2.0)))"
         )
     )
+  }
+
+  it should "evaluate a struct literal" in {
+    val literal = """ Animal{type: "dog", barks: false}"""
+    val expectedValue = WomObject(Map("type" -> WomString("dog"), "barks" -> WomBoolean(false)))
+    val expr = fromString[ExpressionElement](literal, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.evaluateValue(Map.empty, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(expectedValue, Seq.empty)
+    }
   }
 }

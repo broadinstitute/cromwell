@@ -105,4 +105,14 @@ object BiscayneExpressionValueConsumers {
         // None literals consume no values:
         Set.empty[UnlinkedConsumedValueHook]
     }
+
+  implicit val structLiteralExpressionValueConsumer: ExpressionValueConsumer[StructLiteral] =
+    new ExpressionValueConsumer[StructLiteral] {
+      override def expressionConsumedValueHooks(a: StructLiteral)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] =
+        a.elements.values
+          .flatMap(element => expressionValueConsumer.expressionConsumedValueHooks(element)(expressionValueConsumer))
+          .toSet
+    }
 }

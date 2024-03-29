@@ -57,6 +57,12 @@ object AstNodeToExpressionElement {
           objectKvs <- a.getAttributeAsVector[KvPair]("map")
           asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
         } yield ObjectLiteral(asMap)).toValidated
+      case a: GenericAst if a.getName == "StructLiteral" =>
+        (for {
+          objectKvs <- a.getAttributeAsVector[KvPair]("map")
+          asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
+          structTypeName <- a.getAttributeAs[String]("name")
+        } yield StructLiteral(structTypeName, asMap)).toValidated
       case a: GenericAst if a.getName == "MapLiteral" =>
         final case class MapKvPair(key: ExpressionElement, value: ExpressionElement)
         def convertOnePair(astNode: GenericAstNode): ErrorOr[MapKvPair] = astNode match {

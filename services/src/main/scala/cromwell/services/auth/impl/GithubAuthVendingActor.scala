@@ -5,7 +5,12 @@ import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.core.Dispatcher.ServiceDispatcher
-import cromwell.services.auth.GithubAuthVending.{GithubAuthRequest, GithubAuthTokenResponse, GithubAuthVendingFailure, NoGithubAuthResponse}
+import cromwell.services.auth.GithubAuthVending.{
+  GithubAuthRequest,
+  GithubAuthTokenResponse,
+  GithubAuthVendingFailure,
+  NoGithubAuthResponse
+}
 import cromwell.services.auth.ecm.{EcmConfig, EcmService}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 

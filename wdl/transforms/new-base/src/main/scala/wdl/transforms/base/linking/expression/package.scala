@@ -32,7 +32,7 @@ package object expression {
           s"Could not create WOM expression for '$a': Found no generated value for consumed value $missing".invalidNel
       }
 
-      neededLinkedValues flatMap { lookup => WdlomWomExpression.make(a, lookup.toMap) }
+      neededLinkedValues flatMap { lookup => WdlomWomExpression.make(a, lookup.toMap, typeAliases) }
 
     }
   }

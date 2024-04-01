@@ -101,7 +101,8 @@ object CallElementToGraphNode {
                   case _: CallableTaskDefinition => TaskCallInputExpressionNode.apply _
                   case _ => PlainAnonymousExpressionNode.apply _
                 }
-                WdlomWomExpression.make(expression, a.linkableValues) flatMap { wdlomWomExpression =>
+                //TODO: pipe type aliases through here
+                WdlomWomExpression.make(expression, a.linkableValues, Map()) flatMap { wdlomWomExpression =>
                   val requiredInputType = i match {
                     case _: OverridableInputDefinitionWithDefault => WomOptionalType(i.womType).flatOptionalType
                     case _ => i.womType

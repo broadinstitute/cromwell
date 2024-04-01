@@ -60,8 +60,9 @@ object ScatterElementToGraphNode {
     val scatterVariableName = a.node.scatterVariableName
     val graphElements = a.node.graphElements
 
+    //TODO: pipe type aliases through here
     val scatterWomExpressionV: ErrorOr[WdlomWomExpression] =
-      WdlomWomExpression.make(scatterExpression, a.linkableValues)
+      WdlomWomExpression.make(scatterExpression, a.linkableValues, Map())
     val scatterExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = scatterWomExpressionV flatMap {
       scatterWomExpression =>
         AnonymousExpressionNode.fromInputMapping(WomIdentifier(scatterVariableName),
@@ -71,7 +72,8 @@ object ScatterElementToGraphNode {
         )
     }
 
-    val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues) flatMap {
+    //TODO: pipe type aliases through here.
+    val scatterVariableTypeValidation: ErrorOr[WomType] = scatterExpression.evaluateType(a.linkableValues, Map() ) flatMap {
       case a: WomArrayType => a.memberType.validNel
       case WomAnyType => WomAnyType.validNel
       case other => s"Invalid type for scatter variable '$scatterVariableName': ${other.stableName}".invalidNel

@@ -12,7 +12,7 @@ import wom.types._
 
 object BiscayneTypeEvaluators {
   implicit val keysFunctionEvaluator: TypeEvaluator[Keys] = new TypeEvaluator[Keys] {
-    override def evaluateType(a: Keys, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: Keys, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType)) flatMap {
@@ -22,7 +22,7 @@ object BiscayneTypeEvaluators {
   }
 
   implicit val asMapFunctionEvaluator: TypeEvaluator[AsMap] = new TypeEvaluator[AsMap] {
-    override def evaluateType(a: AsMap, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: AsMap, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
@@ -34,7 +34,7 @@ object BiscayneTypeEvaluators {
   }
 
   implicit val asPairsFunctionEvaluator: TypeEvaluator[AsPairs] = new TypeEvaluator[AsPairs] {
-    override def evaluateType(a: AsPairs, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: AsPairs, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType)) flatMap {
@@ -44,7 +44,7 @@ object BiscayneTypeEvaluators {
   }
 
   implicit val collectByKeyFunctionEvaluator: TypeEvaluator[CollectByKey] = new TypeEvaluator[CollectByKey] {
-    override def evaluateType(a: CollectByKey, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(
+    override def evaluateType(a: CollectByKey, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(
       implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
@@ -67,29 +67,29 @@ object BiscayneTypeEvaluators {
     }
 
   implicit val minFunctionEvaluator: TypeEvaluator[Min] = new TypeEvaluator[Min] {
-    override def evaluateType(a: Min, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: Min, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] = {
-      val type1 = expressionTypeEvaluator.evaluateType(a.arg1, linkedValues)
-      val type2 = expressionTypeEvaluator.evaluateType(a.arg1, linkedValues)
+      val type1 = expressionTypeEvaluator.evaluateType(a.arg1, linkedValues, typeAliases)
+      val type2 = expressionTypeEvaluator.evaluateType(a.arg1, linkedValues, typeAliases)
 
       (type1, type2) flatMapN resultTypeOfIntVsFloat("min")
     }
   }
 
   implicit val maxFunctionEvaluator: TypeEvaluator[Max] = new TypeEvaluator[Max] {
-    override def evaluateType(a: Max, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: Max, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] = {
-      val type1 = expressionTypeEvaluator.evaluateType(a.arg1, linkedValues)
-      val type2 = expressionTypeEvaluator.evaluateType(a.arg1, linkedValues)
+      val type1 = expressionTypeEvaluator.evaluateType(a.arg1, linkedValues, typeAliases)
+      val type2 = expressionTypeEvaluator.evaluateType(a.arg1, linkedValues, typeAliases)
 
       (type1, type2) flatMapN resultTypeOfIntVsFloat("max")
     }
   }
 
   implicit val sepFunctionEvaluator: TypeEvaluator[Sep] = new TypeEvaluator[Sep] {
-    override def evaluateType(a: Sep, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: Sep, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.arg2, linkedValues, WomArrayType(WomAnyType)) flatMap {
@@ -103,7 +103,7 @@ object BiscayneTypeEvaluators {
   }
 
   implicit val subPosixFunctionEvaluator: TypeEvaluator[SubPosix] = new TypeEvaluator[SubPosix] {
-    override def evaluateType(a: SubPosix, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: SubPosix, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       (validateParamType(a.input, linkedValues, WomSingleFileType),
@@ -113,7 +113,7 @@ object BiscayneTypeEvaluators {
   }
 
   implicit val suffixFunctionEvaluator: TypeEvaluator[Suffix] = new TypeEvaluator[Suffix] {
-    override def evaluateType(a: Suffix, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: Suffix, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       (validateParamType(a.suffix, linkedValues, WomStringType),
@@ -122,7 +122,7 @@ object BiscayneTypeEvaluators {
   }
 
   implicit val quoteFunctionEvaluator: TypeEvaluator[Quote] = new TypeEvaluator[Quote] {
-    override def evaluateType(a: Quote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: Quote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
@@ -136,7 +136,7 @@ object BiscayneTypeEvaluators {
   }
 
   implicit val sQuoteFunctionEvaluator: TypeEvaluator[SQuote] = new TypeEvaluator[SQuote] {
-    override def evaluateType(a: SQuote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: SQuote, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
@@ -150,7 +150,7 @@ object BiscayneTypeEvaluators {
   }
 
   implicit val unzipFunctionEvaluator: TypeEvaluator[Unzip] = new TypeEvaluator[Unzip] {
-    override def evaluateType(a: Unzip, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(implicit
+    override def evaluateType(a: Unzip, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
@@ -161,7 +161,7 @@ object BiscayneTypeEvaluators {
   }
 
   implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
-    override def evaluateType(a: StructLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(
+    override def evaluateType(a: StructLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(
       implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       // This works fine, but is not yet a strong enough type check for the WDL 1.1 spec

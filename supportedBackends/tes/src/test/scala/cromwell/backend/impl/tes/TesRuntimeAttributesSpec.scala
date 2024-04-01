@@ -157,7 +157,8 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomString("value"))
       assertFailure(
         runtimeAttributes,
-        "Expecting returnCodes runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
+          "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
       )
     }
 
@@ -199,7 +200,8 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomString("value"))
       assertFailure(
         runtimeAttributes,
-        "Expecting returnCodes runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
+          "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
       )
     }
 

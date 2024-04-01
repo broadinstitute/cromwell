@@ -23,18 +23,17 @@ import scala.util.Try
   * `default` a validation with the default value specified by the reference.conf file.
   */
 object ContinueOnReturnCodeValidation {
-  lazy val instance: TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode, ContinueOnReturnCodeSet] =
+  lazy val instance: TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode] =
     new ContinueOnReturnCodeValidation
   def default(
     runtimeConfig: Option[Config]
-  ): TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode, ContinueOnReturnCodeSet] =
+  ): TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode] =
     instance.makeDefault(configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
   def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] =
     instance.configDefault(runtimeConfig)
 }
 
-class ContinueOnReturnCodeValidation
-    extends TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode, ContinueOnReturnCodeSet] {
+class ContinueOnReturnCodeValidation extends TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode] {
 
   override def key: String = RuntimeAttributesKeys.ReturnCodesKey
 
@@ -74,7 +73,9 @@ class ContinueOnReturnCodeValidation
   }
 
   override protected def missingValueMessage: String = s"Expecting $key" +
-    " runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+    " runtime attribute to be either a String '*' or an Array[Int]." +
+    s" Expecting $altKey" +
+    " runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
 
   override def usedInCallCaching: Boolean = true
 }

@@ -35,14 +35,10 @@ trait ValidatedRuntimeAttributesBuilder {
     * Returns a mapping of the validations: RuntimeAttributesValidation each converted to a RuntimeAttributeDefinition.
     */
   final lazy val definitions: Seq[RuntimeAttributeDefinition] =
-    validations.map(_.runtimeAttributeDefinition) ++ validations
-      .map {
-        case value: TwoKeyRuntimeAttributesValidation[_, _] =>
-          value.altKeyRuntimeAttributeDefinition
-        case _ =>
-          null
-      }
-      .filterNot(x => x == null)
+    validations.map(_.runtimeAttributeDefinition) ++ validations.flatMap {
+      case value: TwoKeyRuntimeAttributesValidation[_] => Seq(value.altKeyRuntimeAttributeDefinition)
+      case _ => Seq()
+    }
 
   /**
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
@@ -60,7 +56,7 @@ trait ValidatedRuntimeAttributesBuilder {
 
   private lazy val validationKeys = validations.map(_.key) ++ validations
     .map {
-      case value: TwoKeyRuntimeAttributesValidation[_, _] =>
+      case value: TwoKeyRuntimeAttributesValidation[_] =>
         value.altKey
       case _ =>
         null
@@ -89,7 +85,7 @@ trait ValidatedRuntimeAttributesBuilder {
       listOfKeysToErrorOrAnys += validation.key -> validation.validate(values)
 
       validation match {
-        case twoKeyValidation: TwoKeyRuntimeAttributesValidation[_, _] =>
+        case twoKeyValidation: TwoKeyRuntimeAttributesValidation[_] =>
           if (values.contains(twoKeyValidation.altKey)) {
             listOfKeysToErrorOrAnys += twoKeyValidation.altKey -> twoKeyValidation.validateAltKey(values)
           }

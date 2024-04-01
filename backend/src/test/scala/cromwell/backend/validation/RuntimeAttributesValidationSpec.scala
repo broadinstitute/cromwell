@@ -184,7 +184,8 @@ class RuntimeAttributesValidationSpec
         case Valid(_) => fail("A failure was expected.")
         case Invalid(e) =>
           assert(
-            e.head == "Expecting returnCodes runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+            e.head == "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
+              "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
           )
       }
     }
@@ -212,7 +213,8 @@ class RuntimeAttributesValidationSpec
         case Valid(_) => fail("A failure was expected.")
         case Invalid(e) =>
           assert(
-            e.head == "Expecting returnCodes runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+            e.head == "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
+              "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
           )
       }
     }

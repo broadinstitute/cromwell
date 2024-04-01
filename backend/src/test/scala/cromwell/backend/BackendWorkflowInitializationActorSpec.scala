@@ -233,7 +233,8 @@ class BackendWorkflowInitializationActorSpec
           .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.swap.toOption.get.toList should contain theSameElementsAs List(
-        "Expecting returnCodes runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
+          "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
       )
     }
 

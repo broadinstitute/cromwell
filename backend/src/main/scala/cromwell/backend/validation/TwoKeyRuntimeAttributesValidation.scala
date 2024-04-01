@@ -8,16 +8,16 @@ import wom.types.WomType
 import wom.values.{WomString, WomValue}
 
 object TwoKeyRuntimeAttributesValidation {
-  def withDefault[ValidatedType, DefaultValType](
-    validation: TwoKeyRuntimeAttributesValidation[ValidatedType, DefaultValType],
+  def withDefault[ValidatedType](
+    validation: TwoKeyRuntimeAttributesValidation[ValidatedType],
     default: WomValue
-  ): TwoKeyRuntimeAttributesValidation[ValidatedType, DefaultValType] =
-    new TwoKeyRuntimeAttributesValidation[ValidatedType, DefaultValType] {
+  ): TwoKeyRuntimeAttributesValidation[ValidatedType] =
+    new TwoKeyRuntimeAttributesValidation[ValidatedType] {
       override def key: String = validation.key
 
       override def altKey: String = validation.altKey
 
-      override def defaultVal: DefaultValType = validation.defaultVal
+      override def defaultVal: ValidatedType = validation.defaultVal
 
       override def coercion: Iterable[WomType] = validation.coercion
 
@@ -49,8 +49,8 @@ object TwoKeyRuntimeAttributesValidation {
    * @return The value matching the key.
    * @throws ClassCastException if the validation is called on an optional validation.
    */
-  def extractTwoKeys[A, B](runtimeAttributesValidation: TwoKeyRuntimeAttributesValidation[A, B],
-                           validatedRuntimeAttributes: ValidatedRuntimeAttributes
+  def extractTwoKeys[A](runtimeAttributesValidation: TwoKeyRuntimeAttributesValidation[A],
+                        validatedRuntimeAttributes: ValidatedRuntimeAttributes
   ): A = {
     val key = runtimeAttributesValidation.key
     val altKey = runtimeAttributesValidation.altKey
@@ -76,7 +76,7 @@ object TwoKeyRuntimeAttributesValidation {
   }
 }
 
-trait TwoKeyRuntimeAttributesValidation[A, DefaultValType] extends RuntimeAttributesValidation[A] {
+trait TwoKeyRuntimeAttributesValidation[A] extends RuntimeAttributesValidation[A] {
 
   /**
    * Returns the alternate key of the runtime attribute.
@@ -90,7 +90,7 @@ trait TwoKeyRuntimeAttributesValidation[A, DefaultValType] extends RuntimeAttrib
    *
    * @return the default value of this runtime attribute.
    */
-  def defaultVal: DefaultValType
+  def defaultVal: A
 
   /**
    * Runs this validation on the value matching key.
@@ -112,7 +112,7 @@ trait TwoKeyRuntimeAttributesValidation[A, DefaultValType] extends RuntimeAttrib
    * @param womValue The default wdl value.
    * @return The new version of this validation.
    */
-  final def makeDefault(womValue: WomValue): TwoKeyRuntimeAttributesValidation[A, DefaultValType] =
+  final def makeDefault(womValue: WomValue): TwoKeyRuntimeAttributesValidation[A] =
     TwoKeyRuntimeAttributesValidation.withDefault(this, womValue)
 
   /**

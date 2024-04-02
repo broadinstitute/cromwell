@@ -32,7 +32,8 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
     val _ = resultF
       .map {
         case Success(BatchApiResponse.DeleteJobRequested(operation)) =>
-          // TODO: Do we need to do anything with operation.getResultCase?
+          // After playing with the sdk, it seems that operation.getResultCase is always RESULT_NOT_SET
+          // When there is an error, an exception is thrown right away.
           logger.info(s"Operation succeeded ${operation.getName}, result = ${operation.getResultCase}")
           abortQuery.requester ! BatchAbortRequestSuccessful(abortQuery.jobId.jobId)
           Success(())

@@ -15,10 +15,11 @@ import cromwell.services.auth.GithubAuthVending.{
   GithubAuthTokenResponse,
   GithubAuthVendingFailure,
   GithubAuthVendingResponse,
-  NoGithubAuthResponse
+  NoGithubAuthResponse,
+  TerraToken
 }
-
 import net.ceedubs.ficus.Ficus._
+
 import scala.concurrent.{ExecutionContext, Future}
 
 trait GithubAuthVendingSupport extends AskSupport with StrictLogging {
@@ -30,7 +31,7 @@ trait GithubAuthVendingSupport extends AskSupport with StrictLogging {
   def importAuthProvider(token: String)(implicit timeout: Timeout): ImportAuthProvider = new GithubImportAuthProvider {
     override def authHeader(): Future[Map[String, String]] =
       serviceRegistryActor
-        .ask(GithubAuthRequest(token))
+        .ask(GithubAuthRequest(TerraToken(token)))
         .mapTo[GithubAuthVendingResponse]
         .recoverWith {
           case e: AskTimeoutException =>
@@ -41,10 +42,11 @@ trait GithubAuthVendingSupport extends AskSupport with StrictLogging {
             Future.failed(new Exception("Failed to resolve github auth token", e))
         }
         .flatMap {
-          case GithubAuthTokenResponse(token) => Future.successful(Map("Authorization" -> s"Bearer ${token}"))
+          case GithubAuthTokenResponse(githubToken) =>
+            Future.successful(Map("Authorization" -> s"Bearer ${githubToken.value}"))
           case NoGithubAuthResponse => Future.successful(Map.empty)
           case GithubAuthVendingFailure(error) =>
-            Future.failed(new Exception("Failed to resolve github auth token", error))
+            Future.failed(new Exception(s"Failed to resolve GitHub auth token. Error: $error"))
         }
   }
 

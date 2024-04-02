@@ -21,7 +21,7 @@ trait RunRequestHandler extends LazyLogging { this: RequestHandler =>
       Failure(ex)
     }
 
-    val (newBatch, resultF) = batch.queue(runCreationQuery)
+    val (newBatch, resultF) = batch.enqueue(runCreationQuery)
     val _ = resultF
       .map {
         case Success(BatchApiResponse.JobCreated(job)) =>

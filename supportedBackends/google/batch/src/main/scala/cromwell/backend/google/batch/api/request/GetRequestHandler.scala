@@ -24,7 +24,7 @@ trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
       Failure(ex)
     }
 
-    val (newBatch, resultF) = batch.queue(pollRequest)
+    val (newBatch, resultF) = batch.enqueue(pollRequest)
 
     val _ = resultF
       .map {

@@ -27,7 +27,7 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
       Failure(ex)
     }
 
-    val (newBatch, resultF) = batch.queue(abortQuery)
+    val (newBatch, resultF) = batch.enqueue(abortQuery)
 
     val _ = resultF
       .map {

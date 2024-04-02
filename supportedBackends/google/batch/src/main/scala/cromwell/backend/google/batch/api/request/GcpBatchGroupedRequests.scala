@@ -3,6 +3,10 @@ package cromwell.backend.google.batch.api.request
 import com.google.api.gax.rpc.{ApiException, StatusCode}
 import com.google.cloud.batch.v1._
 import com.typesafe.scalalogging.LazyLogging
+import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
+  BatchAbortRequestSuccessful,
+  BatchOperationIsAlreadyTerminal
+}
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.api.BatchApiResponse
 import cromwell.backend.google.batch.models.RunStatus
@@ -10,6 +14,7 @@ import cromwell.core.ExecutionEvent
 import io.grpc.Status
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.control.NonFatal
@@ -68,21 +73,29 @@ object GcpBatchGroupedRequests extends LazyLogging {
   private def internalExecute(client: BatchServiceClient, request: BatchApiRequest): Try[BatchApiResponse] =
     try
       request match {
-        case r: BatchStatusPollRequest => internalGetHandler(client, r)
+        case r: BatchStatusPollRequest =>
+          val result = internalGetHandler(client, r.httpRequest)
+          Success(result)
 
         case r: BatchRunCreationRequest =>
           val result = BatchApiResponse.JobCreated(client.createJob(r.httpRequest))
           Success(result)
 
         case r: BatchAbortRequest =>
-          // TODO: Alex - we should find a way to detect when the operation is already terminal
-          // then, throw BatchOperationIsAlreadyTerminal
           // different to PAPIv2, this call does not abort the job but deletes it, so, we need to be careful
           // to not delete jobs in a terminal state
+          val getResult = internalGetHandler(client, GetJobRequest.newBuilder.setName(r.httpRequest.getName).build())
+          val abortResult = getResult.status match {
+            case _: RunStatus.TerminalRunStatus => BatchOperationIsAlreadyTerminal(r.jobId.jobId)
+            case _ =>
+              // After playing with the sdk, it seems that operation.getResultCase is always RESULT_NOT_SET
+              // When there is an error, an exception is thrown right away.
+              @unused
+              val operation = client.deleteJobCallable().call(r.httpRequest)
+              BatchAbortRequestSuccessful(r.jobId.jobId)
+          }
 
-          // TODO: Do the query and throw an error when we are in a terminal state
-          val result = BatchApiResponse.DeleteJobRequested(client.deleteJobCallable().call(r.httpRequest))
-          Success(result)
+          Success(BatchApiResponse.DeleteJobRequested(abortResult))
       }
     catch {
       case apiException: ApiException =>
@@ -102,18 +115,18 @@ object GcpBatchGroupedRequests extends LazyLogging {
     }
 
   // A different handler is used when fetching the job status to map exceptions to the correct RunStatus
-  private def internalGetHandler(client: BatchServiceClient, request: BatchStatusPollRequest): Try[BatchApiResponse] =
+  private def internalGetHandler(client: BatchServiceClient, request: GetJobRequest): BatchApiResponse.StatusQueried =
     try {
-      val job = client.getJob(request.httpRequest)
-      val result = interpretOperationStatus(job, request)
-      Success(BatchApiResponse.StatusQueried(result))
+      val job = client.getJob(request)
+      val result = interpretOperationStatus(job)
+      BatchApiResponse.StatusQueried(result)
     } catch {
-      // TODO: We could detect preemptible vms
+      // We don't need to detect preemptible VMs because that's handled automatically by GCP
       case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
-        Success(BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota))
+        BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota)
     }
 
-  private[request] def interpretOperationStatus(job: Job, pollingRequest: BatchStatusPollRequest): RunStatus =
+  private[request] def interpretOperationStatus(job: Job): RunStatus =
     if (Option(job).isEmpty) {
       // TODO: This applies to PAPIv2 but its unlikely to apply to batch
       //

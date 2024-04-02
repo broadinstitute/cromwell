@@ -9,7 +9,7 @@ import common.util.Backoff
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.batch.actors.BatchApiAbortClient.BatchAbortRequestSuccess
 import cromwell.backend.google.batch.actors.BatchApiRunCreationClient.JobAbortedException
-import cromwell.backend.google.batch.api.request.BatchApiRequestHandler
+import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, BatchRequestExecutor}
 import cromwell.backend.google.batch.models.RunStatus
 import cromwell.backend.google.batch.monitoring.BatchInstrumentation
 import cromwell.backend.standard.StandardAsyncJob
@@ -31,7 +31,8 @@ import scala.util.control.NoStackTrace
  */
 class BatchApiRequestManager(val qps: Int Refined Positive,
                              requestWorkers: Int Refined Positive,
-                             override val serviceRegistryActor: ActorRef
+                             override val serviceRegistryActor: ActorRef,
+                             batchRequestExecutor: BatchRequestExecutor
 )(implicit batchHandler: BatchApiRequestHandler)
     extends Actor
     with ActorLogging
@@ -96,7 +97,9 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
   private var queriesWaitingForRetry: Set[BatchApiRequest] = Set.empty[BatchApiRequest]
 
   private def batchRequestWorkerProps =
-    BatchApiRequestWorker.props(self, workerBatchInterval, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox)
+    BatchApiRequestWorker
+      .props(self, workerBatchInterval, serviceRegistryActor, batchRequestExecutor)
+      .withMailbox(Mailbox.PriorityMailbox)
 
   // statusPollers is protected for the unit tests, not intended to be generally overridden
   protected[api] var statusPollers: Vector[ActorRef] = Vector.empty
@@ -327,10 +330,14 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
 object BatchApiRequestManager {
   case object ResetAllRequestWorkers
-  def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)(implicit
+  def props(qps: Int Refined Positive,
+            requestWorkers: Int Refined Positive,
+            serviceRegistryActor: ActorRef,
+            batchRequestExecutor: BatchRequestExecutor
+  )(implicit
     batchHandler: BatchApiRequestHandler
   ): Props =
-    Props(new BatchApiRequestManager(qps, requestWorkers, serviceRegistryActor))
+    Props(new BatchApiRequestManager(qps, requestWorkers, serviceRegistryActor, batchRequestExecutor))
       .withDispatcher(Dispatcher.BackendDispatcher)
 
   // TODO: Alex, what about Batch API?

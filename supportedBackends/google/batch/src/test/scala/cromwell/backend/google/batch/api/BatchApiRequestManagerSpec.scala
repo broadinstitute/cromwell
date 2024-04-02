@@ -14,7 +14,7 @@ import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   NoWorkToDo
 }
 import cromwell.backend.google.batch.api.TestBatchApiRequestManagerSpec.intWithTimes
-import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, GcpBatchGroupedRequests}
+import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, BatchRequestExecutor, GcpBatchGroupedRequests}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.util.AkkaTestUtil
@@ -26,8 +26,9 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.immutable.Queue
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
+import scala.util.{Success, Try}
 
 class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
@@ -283,6 +284,13 @@ object TestBatchApiRequestManager {
     )
 }
 
+class TestBatchRequestExecutor extends BatchRequestExecutor {
+  override def execute(groupedRequests: GcpBatchGroupedRequests)(implicit
+    ec: ExecutionContext
+  ): Future[List[Try[Unit]]] =
+    Future.successful(List.fill(groupedRequests.size)(Success(())))
+}
+
 /**
  * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
  */
@@ -290,7 +298,9 @@ class TestBatchApiRequestManager(qps: Int Refined Positive,
                                  requestWorkers: Int Refined Positive,
                                  registry: ActorRef,
                                  availableRequestWorkers: ActorRef*
-) extends BatchApiRequestManager(qps, requestWorkers, registry)(new MockBatchRequestHandler) {
+) extends BatchApiRequestManager(qps, requestWorkers, registry, new TestBatchRequestExecutor)(
+      new MockBatchRequestHandler
+    ) {
 
   var testProbeQueue: Queue[ActorRef] = _
   var testPollerCreations: Int = _

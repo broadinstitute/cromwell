@@ -2,23 +2,28 @@ package cromwell.backend.google.batch.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.backend.BackendSingletonActorAbortWorkflow
-import cromwell.backend.google.batch.api.BatchApiRequestManager.BatchApiRequest
-import cromwell.backend.google.batch.api.request.RequestHandler
 import cromwell.backend.google.batch.api.BatchApiRequestManager
+import cromwell.backend.google.batch.api.BatchApiRequestManager.BatchApiRequest
+import cromwell.backend.google.batch.api.request.{BatchRequestExecutor, RequestHandler}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.core.Mailbox
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 
 object GcpBatchBackendSingletonActor {
-  def props(qps: Int Refined Positive, requestWorkers: Int Refined Positive, serviceRegistryActor: ActorRef)(implicit
+  def props(qps: Int Refined Positive,
+            requestWorkers: Int Refined Positive,
+            serviceRegistryActor: ActorRef,
+            batchRequestExecutor: BatchRequestExecutor
+  )(implicit
     requestHandler: RequestHandler
   ): Props =
     Props(
       new GcpBatchBackendSingletonActor(
         qps = qps,
         requestWorkers = requestWorkers,
-        serviceRegistryActor = serviceRegistryActor
+        serviceRegistryActor = serviceRegistryActor,
+        batchRequestExecutor = batchRequestExecutor
       )
     ).withDispatcher(BackendDispatcher)
 }
@@ -26,13 +31,16 @@ object GcpBatchBackendSingletonActor {
 final class GcpBatchBackendSingletonActor(
   qps: Int Refined Positive,
   requestWorkers: Int Refined Positive,
-  serviceRegistryActor: ActorRef
+  serviceRegistryActor: ActorRef,
+  batchRequestExecutor: BatchRequestExecutor
 )(implicit requestHandler: RequestHandler)
     extends Actor
     with ActorLogging {
 
   private val jesApiQueryManager = context.actorOf(
-    BatchApiRequestManager.props(qps, requestWorkers, serviceRegistryActor).withMailbox(Mailbox.PriorityMailbox),
+    BatchApiRequestManager
+      .props(qps, requestWorkers, serviceRegistryActor, batchRequestExecutor)
+      .withMailbox(Mailbox.PriorityMailbox),
     "BatchQueryManager"
   )
 

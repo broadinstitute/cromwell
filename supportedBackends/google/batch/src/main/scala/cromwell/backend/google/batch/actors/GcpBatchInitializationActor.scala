@@ -73,6 +73,7 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
   private lazy val gcsCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.gcs
     .retryCredentials(workflowOptions, List(StorageScopes.DEVSTORAGE_FULL_CONTROL))
 
+  // TODO: Do we really need this? seems to be PAPI-related
   // Credentials object for the Genomics API
   private lazy val genomicsCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.genomics
     .retryCredentials(workflowOptions,

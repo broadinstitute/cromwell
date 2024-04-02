@@ -2,19 +2,22 @@ package cromwell.backend.google.batch
 
 import akka.actor.{ActorRef, Props}
 import com.google.api.client.util.ExponentialBackOff
+import com.google.api.gax.rpc.FixedHeaderProvider
+import com.google.cloud.batch.v1.BatchServiceSettings
+import com.google.common.collect.ImmutableMap
 import com.typesafe.scalalogging.StrictLogging
+import cromwell.backend._
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{
   preemptionCountKey,
   robustBuildAttributes,
   unexpectedRetryCountKey
 }
 import cromwell.backend.google.batch.actors._
-import cromwell.backend.google.batch.api.request.RequestHandler
+import cromwell.backend.google.batch.api.request.{BatchRequestExecutor, RequestHandler}
 import cromwell.backend.google.batch.callcaching.{BatchBackendCacheHitCopyingActor, BatchBackendFileHashingActor}
 import cromwell.backend.google.batch.models.{GcpBatchConfiguration, GcpBatchConfigurationAttributes}
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
-import cromwell.backend._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
@@ -86,11 +89,17 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
     implicit val requestHandler: RequestHandler = new RequestHandler
+
+    val batchSettings = BatchServiceSettings.newBuilder
+      .setHeaderProvider(FixedHeaderProvider.create(ImmutableMap.of("user-agent", "cromwell")))
+      .build
+
     Option(
       GcpBatchBackendSingletonActor.props(
         qps = batchConfiguration.batchAttributes.qps,
         requestWorkers = batchConfiguration.batchAttributes.requestWorkers,
-        serviceRegistryActor = serviceRegistryActor
+        serviceRegistryActor = serviceRegistryActor,
+        batchRequestExecutor = new BatchRequestExecutor.CloudImpl(batchSettings)
       )(requestHandler)
     )
   }

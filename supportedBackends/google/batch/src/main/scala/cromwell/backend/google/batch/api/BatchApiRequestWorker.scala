@@ -2,7 +2,7 @@ package cromwell.backend.google.batch.api
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
-import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, GcpBatchGroupedRequests}
+import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, BatchRequestExecutor, GcpBatchGroupedRequests}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
 
@@ -17,7 +17,8 @@ import scala.util.{Failure, Success, Try}
  */
 class BatchApiRequestWorker(val pollingManager: ActorRef,
                             val batchInterval: FiniteDuration,
-                            override val serviceRegistryActor: ActorRef
+                            override val serviceRegistryActor: ActorRef,
+                            batchRequestExecutor: BatchRequestExecutor
 )(implicit val batchHandler: BatchApiRequestHandler)
     extends Actor
     with ActorLogging
@@ -32,7 +33,7 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 
   override def receive = {
     case BatchApiWorkBatch(workBatch) =>
-      log.debug(s"Got a Batch request batch with ${workBatch.tail.size + 1} requests.")
+      log.debug(s"Got a Batch request batch with ${workBatch.size} requests.")
       handleBatch(workBatch).andThen(interstitialRecombobulation)
       ()
     case NoWorkToDo =>
@@ -55,10 +56,9 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 
   // These are separate functions so that the tests can hook in and replace the JES-side stuff
   private[api] def createBatch(): GcpBatchGroupedRequests = batchHandler.makeBatchRequest
+
   private[api] def runBatch(batch: GcpBatchGroupedRequests): Future[List[Try[Unit]]] = {
-    val result =
-      if (batch.size > 0) batch.execute(ec)
-      else Future.successful(List.empty)
+    val result = batchRequestExecutor.execute(batch)(ec)
 
     result.recover {
       // TODO: Alex - this seems unnecessary
@@ -104,10 +104,14 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 }
 
 object BatchApiRequestWorker {
-  def props(pollingManager: ActorRef, batchInterval: FiniteDuration, serviceRegistryActor: ActorRef)(implicit
+  def props(pollingManager: ActorRef,
+            batchInterval: FiniteDuration,
+            serviceRegistryActor: ActorRef,
+            batchRequestExecutor: BatchRequestExecutor
+  )(implicit
     batchHandler: BatchApiRequestHandler
   ): Props =
-    Props(new BatchApiRequestWorker(pollingManager, batchInterval, serviceRegistryActor))
+    Props(new BatchApiRequestWorker(pollingManager, batchInterval, serviceRegistryActor, batchRequestExecutor))
       .withDispatcher(BackendDispatcher)
 
   // TODO: Verify this fact applies to GCP Batch

@@ -1,6 +1,5 @@
 package cromwell.backend.google.batch.models
 
-import cromwell.backend.google.batch.actors.GcpBatchAsyncBackendJobExecutionActor
 import cromwell.core.ExecutionEvent
 import io.grpc.Status
 
@@ -18,19 +17,9 @@ object RunStatus {
 
   sealed trait TerminalRunStatus extends RunStatus {
     def eventList: Seq[ExecutionEvent]
-
-    def machineType: Option[String]
-
-    def zone: Option[String]
-
-    def instanceName: Option[String]
   }
 
-  case class Success(eventList: Seq[ExecutionEvent],
-                     machineType: Option[String],
-                     zone: Option[String],
-                     instanceName: Option[String]
-  ) extends TerminalRunStatus {
+  case class Success(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
     override def toString = "Success"
   }
 
@@ -48,54 +37,24 @@ object RunStatus {
   object UnsuccessfulRunStatus {
     def apply(errorCode: Status,
               errorMessage: Option[String],
-              eventList: Seq[ExecutionEvent],
-              machineType: Option[String],
-              zone: Option[String],
-              instanceName: Option[String],
-              wasPreemptible: Boolean
+              eventList: Seq[ExecutionEvent]
     ): UnsuccessfulRunStatus = {
       val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
 
-      // Because of Reasons, sometimes errors which aren't indicative of preemptions are treated as preemptions.
       val unsuccessfulStatusBuilder = errorCode match {
-        case Status.ABORTED if jesCode.contains(GcpBatchAsyncBackendJobExecutionActor.JesPreemption) =>
-          Preempted.apply _
-        case Status.ABORTED
-            if jesCode.contains(GcpBatchAsyncBackendJobExecutionActor.JesUnexpectedTermination) && wasPreemptible =>
-          Preempted.apply _
-        case Status.ABORTED if errorMessage.exists(_.contains(GcpBatchAsyncBackendJobExecutionActor.FailedV2Style)) =>
-          Preempted.apply _
-        case Status.UNKNOWN
-            if errorMessage.exists(
-              _.contains(GcpBatchAsyncBackendJobExecutionActor.FailedToStartDueToPreemptionSubstring)
-            ) =>
-          Preempted.apply _
         case Status.CANCELLED => Cancelled.apply _
         case _ => Failed.apply _
       }
 
-      unsuccessfulStatusBuilder.apply(errorCode,
-                                      jesCode,
-                                      errorMessage.toList,
-                                      eventList,
-                                      machineType,
-                                      zone,
-                                      instanceName
-      )
+      unsuccessfulStatusBuilder.apply(errorCode, jesCode, errorMessage.toList, eventList)
     }
   }
 
-  case object DeletionInProgress extends RunStatus
-  case object StateUnspecified extends RunStatus
-  case object Unrecognized extends RunStatus
-
-  final case class Failed(errorCode: Status,
-                          jesCode: Option[Int],
-                          errorMessages: List[String],
-                          eventList: Seq[ExecutionEvent],
-                          machineType: Option[String],
-                          zone: Option[String],
-                          instanceName: Option[String]
+  final case class Failed(
+    errorCode: Status,
+    jesCode: Option[Int],
+    errorMessages: List[String],
+    eventList: Seq[ExecutionEvent]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
   }
@@ -103,24 +62,20 @@ object RunStatus {
   /**
    * What Cromwell calls Aborted, PAPI calls Cancelled. This means the job was "cancelled" by the user
    */
-  final case class Cancelled(errorCode: Status,
-                             jesCode: Option[Int],
-                             errorMessages: List[String],
-                             eventList: Seq[ExecutionEvent],
-                             machineType: Option[String],
-                             zone: Option[String],
-                             instanceName: Option[String]
+  final case class Cancelled(
+    errorCode: Status,
+    jesCode: Option[Int],
+    errorMessages: List[String],
+    eventList: Seq[ExecutionEvent]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Cancelled"
   }
 
-  final case class Preempted(errorCode: Status,
-                             jesCode: Option[Int],
-                             errorMessages: List[String],
-                             eventList: Seq[ExecutionEvent],
-                             machineType: Option[String],
-                             zone: Option[String],
-                             instanceName: Option[String]
+  final case class Preempted(
+    errorCode: Status,
+    jesCode: Option[Int],
+    errorMessages: List[String],
+    eventList: Seq[ExecutionEvent]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Preempted"
   }

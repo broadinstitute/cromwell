@@ -20,7 +20,7 @@ import cromwell.backend.BackendJobExecutionActor.{
 }
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle}
 import cromwell.backend.google.batch.actors.GcpBatchAsyncBackendJobExecutionActor.GcpBatchPendingExecutionHandle
 import cromwell.backend.google.batch.api.BatchApiRequestManager.BatchStatusPollRequest
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory
@@ -44,7 +44,7 @@ import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder, MockGcsPathBuilder}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
 import cromwell.services.keyvalue.InMemoryKvServiceActor
-import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
+import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.mockito.Mockito._
@@ -332,14 +332,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
                  expectPreemptible: Boolean
   ): BackendJobExecutionResponse = {
 
-    val runStatus = RunStatus.UnsuccessfulRunStatus(errorCode,
-                                                    Option(innerErrorMessage),
-                                                    Seq.empty,
-                                                    Option("fakeMachine"),
-                                                    Option("fakeZone"),
-                                                    Option("fakeInstance"),
-                                                    expectPreemptible
-    )
+    val runStatus = RunStatus.UnsuccessfulRunStatus(errorCode, Option(innerErrorMessage), Seq.empty)
     val statusPoller = TestProbe("statusPoller")
 
     val promise = Promise[BackendJobExecutionResponse]()
@@ -496,16 +489,11 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       (0, 0, 0, Status.ABORTED, "15: other error", false, false),
       (0, 0, 0, Status.OUT_OF_RANGE, "13: unexpected error", false, false),
       (0, 0, 0, Status.OUT_OF_RANGE, "14: test error msg", false, false),
-      // TODO: These were ported from PAPIv2, this may be outdated
-      // These commented out tests should be uncommented if/when we stop mapping 13 to 14 in preemption mode
-      // 1 preemptible attempt allowed, but not all failures represent preemptions.
-      //      (0, 0, 1, Status.ABORTED, "13: retryable error", true, true),
-      //      (0, 1, 1, Status.ABORTED, "13: retryable error", true, true),
-      //      (0, 2, 1, Status.ABORTED, "13: retryable error", true, false),
       // The following 13 based test should be removed if/when we stop mapping 13 to 14 in preemption mode
       (0, 0, 1, Status.ABORTED, "13: retryable error", true, true),
-      (0, 0, 1, Status.ABORTED, "14: preempted", true, true),
-      (0, 0, 1, Status.UNKNOWN, "Instance failed to start due to preemption.", true, true),
+      // TODO: These tests were commented because we removed the preemption error detection
+      // (0, 0, 1, Status.ABORTED, "14: preempted", true, true),
+      // (0, 0, 1, Status.UNKNOWN, "Instance failed to start due to preemption.", true, true),
       (0, 0, 1, Status.ABORTED, "15: other error", true, false),
       (0, 0, 1, Status.OUT_OF_RANGE, "13: retryable error", true, false),
       (0, 0, 1, Status.OUT_OF_RANGE, "14: preempted", true, false),
@@ -712,176 +700,13 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val failedStatus = RunStatus.UnsuccessfulRunStatus(
       Status.ABORTED,
       Option("14: VM XXX shut down unexpectedly."),
-      Seq.empty,
-      Option("fakeMachine"),
-      Option("fakeZone"),
-      Option("fakeInstance"),
-      wasPreemptible = true
+      Seq.empty
     )
     val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     val failedHandle = result.asInstanceOf[FailedNonRetryableExecutionHandle]
     failedHandle.returnCode shouldBe None
-  }
-
-  it should "restart 1 of 1 unexpected shutdowns without another preemptible VM" in {
-    val actorRef = buildPreemptibleTestActorRef(1, 1)
-    val jesBackend = actorRef.underlyingActor
-    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
-
-    val failedStatus = RunStatus.UnsuccessfulRunStatus(
-      Status.ABORTED,
-      Option("14: VM XXX shut down unexpectedly."),
-      Seq.empty,
-      Option("fakeMachine"),
-      Option("fakeZone"),
-      Option("fakeInstance"),
-      wasPreemptible = true
-    )
-    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    val result = Await.result(executionResult, timeout)
-    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
-    retryableHandle.returnCode shouldBe None
-    retryableHandle.throwable.getMessage should include("will be restarted with a non-preemptible VM")
-  }
-
-  it should "restart 1 of 2 unexpected shutdowns with another preemptible VM" in {
-    val actorRef = buildPreemptibleTestActorRef(1, 2)
-    val jesBackend = actorRef.underlyingActor
-    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
-
-    val failedStatus = RunStatus.UnsuccessfulRunStatus(
-      Status.ABORTED,
-      Option("14: VM XXX shut down unexpectedly."),
-      Seq.empty,
-      Option("fakeMachine"),
-      Option("fakeZone"),
-      Option("fakeInstance"),
-      wasPreemptible = true
-    )
-    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    val result = Await.result(executionResult, timeout)
-    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
-    retryableHandle.returnCode shouldBe None
-    retryableHandle.throwable.getMessage should include("will be restarted with another preemptible VM")
-  }
-
-  it should "treat a JES message 13 as preemptible if the VM was preemptible" in {
-    val actorRef = buildPreemptibleTestActorRef(1, 2)
-    val jesBackend = actorRef.underlyingActor
-    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
-
-    val failedStatus = RunStatus.UnsuccessfulRunStatus(Status.ABORTED,
-                                                       Option("13: Retryable Error."),
-                                                       Seq.empty,
-                                                       Option("fakeMachine"),
-                                                       Option("fakeZone"),
-                                                       Option("fakeInstance"),
-                                                       wasPreemptible = true
-    )
-    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    val result = Await.result(executionResult, timeout)
-    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
-    retryableHandle.returnCode shouldBe None
-    retryableHandle.throwable.getMessage should include("will be restarted with another preemptible VM")
-  }
-
-  it should "treat a PAPI v2 style error message as preemptible if the VM was preemptible" in {
-    val actorRef = buildPreemptibleTestActorRef(1, 2)
-    val jesBackend = actorRef.underlyingActor
-    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
-
-    val failedStatus = RunStatus.UnsuccessfulRunStatus(
-      Status.ABORTED,
-      Option(GcpBatchAsyncBackendJobExecutionActor.FailedV2Style),
-      Seq.empty,
-      Option("fakeMachine"),
-      Option("fakeZone"),
-      Option("fakeInstance"),
-      wasPreemptible = true
-    )
-    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    val result = Await.result(executionResult, timeout)
-    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
-    retryableHandle.returnCode shouldBe None
-    retryableHandle.throwable.getMessage should include("will be restarted with another preemptible VM")
-  }
-
-  it should "when at the preemptible limit restart a PAPI v2 style error message with a non-preemptible VM" in {
-    val actorRef = buildPreemptibleTestActorRef(1, 1)
-    val jesBackend = actorRef.underlyingActor
-    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
-
-    val failedStatus = RunStatus.UnsuccessfulRunStatus(
-      Status.ABORTED,
-      Option(GcpBatchAsyncBackendJobExecutionActor.FailedV2Style),
-      Seq.empty,
-      Option("fakeMachine"),
-      Option("fakeZone"),
-      Option("fakeInstance"),
-      wasPreemptible = true
-    )
-    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    val result = Await.result(executionResult, timeout)
-    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    val retryableHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
-    retryableHandle.returnCode shouldBe None
-    retryableHandle.throwable.getMessage should include("The call will be restarted with a non-preemptible VM.")
-  }
-
-  it should "merge KvPairs from previous attempt with KvPairs generated by backend for the next attempt and send to KeyValueServiceActor in case of job retryable failure" in {
-    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, failedRetriesCountOpt = Option(1))
-    val jesBackend = actorRef.underlyingActor
-    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
-
-    val failedStatus = RunStatus.UnsuccessfulRunStatus(
-      Status.ABORTED,
-      Option(GcpBatchAsyncBackendJobExecutionActor.FailedV2Style),
-      Seq.empty,
-      Option("fakeMachine"),
-      Option("fakeZone"),
-      Option("fakeInstance"),
-      wasPreemptible = true
-    )
-    val executionResult = jesBackend.handleExecutionResult(failedStatus, handle)
-    val result = Await.result(executionResult, timeout)
-    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-
-    val probe = TestProbe("probe")
-    val job = jesBackend.workflowDescriptor.callable.taskCallNodes.head
-    val key = BackendJobDescriptorKey(job, None, attempt = 2)
-
-    val scopedKeyPreempt =
-      ScopedKey(jesBackend.workflowId, KvJobKey(key), GcpBatchBackendLifecycleActorFactory.preemptionCountKey)
-    probe.send(kvService, KvGet(scopedKeyPreempt))
-    probe.expectMsgPF(5.seconds) { case kvPreempt: KvPair =>
-      kvPreempt.value shouldBe 1.toString
-    }
-
-    val scopedKeyUnexpected =
-      ScopedKey(jesBackend.workflowId, KvJobKey(key), GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey)
-    probe.send(kvService, KvGet(scopedKeyUnexpected))
-    probe.expectMsgPF(5.seconds) { case kvUnexpected: KvPair =>
-      kvUnexpected.value shouldBe 0.toString
-    }
-
-    val scopedKeyFailedAttempts =
-      ScopedKey(jesBackend.workflowId, KvJobKey(key), BackendLifecycleActorFactory.FailedRetryCountKey)
-    probe.send(kvService, KvGet(scopedKeyFailedAttempts))
-    probe.expectMsgPF(5.seconds) { case kvFailedRetry: KvPair =>
-      kvFailedRetry.value shouldBe 1.toString
-    }
   }
 
   it should "handle Failure Status for various errors" in {
@@ -895,11 +720,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       val failed = RunStatus.UnsuccessfulRunStatus(
         errorCode,
         errorMessage,
-        Seq.empty,
-        Option("fakeMachine"),
-        Option("fakeZone"),
-        Option("fakeInstance"),
-        wasPreemptible = true
+        Seq.empty
       )
       Await.result(batchBackend.handleExecutionResult(failed, handle), timeout)
     }

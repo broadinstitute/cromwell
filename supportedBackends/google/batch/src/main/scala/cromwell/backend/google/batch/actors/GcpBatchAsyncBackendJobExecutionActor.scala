@@ -82,7 +82,6 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
   val JesFailedToDelocalize = 5
   val JesUnexpectedTermination = 13
-  val JesPreemption = 14
 
   val BatchFailedPreConditionErrorCode = 9
   val BatchMysteriouslyCrashedErrorCode = 10

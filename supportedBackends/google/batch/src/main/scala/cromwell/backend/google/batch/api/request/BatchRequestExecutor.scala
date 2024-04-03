@@ -125,7 +125,13 @@ object BatchRequestExecutor {
           BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota)
       }
 
-    private[request] def interpretOperationStatus(job: Job): RunStatus =
+    private[request] def interpretOperationStatus(job: Job): RunStatus = {
+      lazy val events = Option(job)
+        .flatMap(e => Option(e.getStatus))
+        .flatMap(e => Option(e.getStatusEventsList))
+        .map(_.asScala.toList)
+        .getOrElse(List.empty)
+
       if (Option(job).isEmpty) {
         // TODO: This applies to PAPIv2 but its unlikely to apply to batch
         //
@@ -135,28 +141,21 @@ object BatchRequestExecutor {
         RunStatus.UnsuccessfulRunStatus(
           Status.UNKNOWN,
           Option(errorMessage),
-          Nil,
-          None,
-          None,
-          None,
-          wasPreemptible = false
+          getEventList(events)
         )
       } else {
-        try {
-          lazy val events = job.getStatus.getStatusEventsList.asScala.toList
+        try
           if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
-            // TODO: We are likely better by removing the params we don't have
-            RunStatus.Success(getEventList(events), None, None, None)
+            RunStatus.Success(getEventList(events))
           } else if (job.getStatus.getState == JobStatus.State.FAILED) {
-            // TODO: How do we get these values? how do we detect is this was a preemptible vm?
             // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
-            RunStatus.Failed(Status.OK, None, List.empty, getEventList(events), None, None, None)
+            RunStatus.Failed(Status.OK, None, List.empty, getEventList(events))
           } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
             RunStatus.Running
           } else {
             RunStatus.Initializing
           }
-        } catch {
+        catch {
           // TODO: Do we care about this?
           case nullPointerException: NullPointerException =>
             throw new RuntimeException(
@@ -167,6 +166,7 @@ object BatchRequestExecutor {
             )
         }
       }
+    }
 
     private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] =
       /* TODO: This is an example printing the events from GCP, do we need to do anything else in the mapping?

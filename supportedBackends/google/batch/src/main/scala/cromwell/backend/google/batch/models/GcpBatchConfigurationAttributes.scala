@@ -204,6 +204,7 @@ object GcpBatchConfigurationAttributes
     val executionBucket: ErrorOr[String] = validate {
       backendConfig.as[String]("root")
     }
+    // TODO: Do we need all of these config entries related to genomics?
     val location: ErrorOr[String] = validate {
       backendConfig.as[String]("genomics.location")
     }
@@ -238,6 +239,7 @@ object GcpBatchConfigurationAttributes
           )
       }
     }
+    // TODO: This fetches the number of request workers
     val requestWorkers: ErrorOr[Int Refined Positive] =
       validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
 

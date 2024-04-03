@@ -86,7 +86,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
   private def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
 
-  // import GcpBatchTestConfig._
   import cromwell.backend.google.batch.models.GcpBatchTestConfig._
 
   implicit val Timeout: FiniteDuration = 25.seconds.dilated
@@ -452,7 +451,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       makeDrsInput("bbb", "drs://drs.example.org/bbb", "path/to/bbb.bai")
     )
 
-    // TODO: Alex - double check that the output should start with /mnt/disks/cromwell_root instead of /cromwell_root
     GcpBatchAsyncBackendJobExecutionActor.generateDrsLocalizerManifest(inputs) shouldEqual
       "drs://drs.example.org/aaa,/mnt/disks/cromwell_root/path/to/aaa.bai\r\ndrs://drs.example.org/bbb,/mnt/disks/cromwell_root/path/to/bbb.bai\r\n"
   }

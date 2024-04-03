@@ -1,0 +1,38 @@
+#!/bin/bash
+
+cd /cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution
+tmpDir=$(mktemp -d "$PWD"/tmp.XXXXXX)
+chmod 777 "$tmpDir"
+export _JAVA_OPTIONS=-Djava.io.tmpdir="$tmpDir"
+export TMPDIR="$tmpDir"
+
+
+cd /cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution
+
+
+
+outd341ca12="${tmpDir}/out.$$" errd341ca12="${tmpDir}/err.$$"
+mkfifo "$outd341ca12" "$errd341ca12"
+trap 'rm "$outd341ca12" "$errd341ca12"' EXIT
+touch '/cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution/stdout' '/cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution/stderr'
+tee '/cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution/stdout' < "$outd341ca12" &
+tee '/cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution/stderr' < "$errd341ca12" >&2 &
+(
+cd /cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution
+
+
+echo "44"
+)  > "$outd341ca12" 2> "$errd341ca12"
+echo $? > /cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution/rc.tmp
+(
+# add a .file in every empty directory to facilitate directory delocalization on the cloud
+cd /cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution
+find . -type d -exec sh -c '[ -z "$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \;
+)
+(
+cd /cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution
+sync
+
+
+)
+mv /cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution/rc.tmp /cromwell-executions/struct_literal/d341ca12-c956-4372-bc9b-a0c4f26d2b43/call-a/execution/rc

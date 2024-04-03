@@ -8,7 +8,7 @@ import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.TypeEvaluator
 import wdl.model.draft3.graph.{GeneratedValueHandle, UnlinkedConsumedValueHook}
 import wdl.transforms.base.linking.expression.types.EngineFunctionEvaluators.validateParamType
-import wom.types._
+import wom.types.{WomCompositeType, WomType, _}
 
 object BiscayneTypeEvaluators {
   implicit val keysFunctionEvaluator: TypeEvaluator[Keys] = new TypeEvaluator[Keys] {
@@ -163,12 +163,34 @@ object BiscayneTypeEvaluators {
   implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
     override def evaluateType(a: StructLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(
       implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
-    ): ErrorOr[WomType] =
+    ): ErrorOr[WomType] = {
+      typeAliases.get(a.structTypeName) map { definition =>
+        definition match {
+          case compositeType: WomCompositeType => {
+            a.elements.map { case (memberKey,  memberExpressionElement) => {
+              val evaluatedType = expressionTypeEvaluator.evaluateType(memberExpressionElement, linkedValues, typeAliases)
+              val expectedType = compositeType.typeMap.get(memberKey)
+            }
+                "".invalidNel
+            }.invalidNel
+          }
+          case _ => s"Could not find type definition for struct literal ${a.structTypeName}".invalidNel
+        }
+      }
+
+
+      val element = a.elements.head._2
+      val evaluatedType = expressionTypeEvaluator.evaluateType(element, linkedValues, typeAliases)
+      println(evaluatedType)
+      //a.elements.get("id").asInstanceOf[Some].value.asInstanceOf[PrimitiveLiteralExpressionElement].value.asWomExpression.value.womType
+      //val expressionElementMap = a.elements
+      //val expressionElement = expressionElementMap.head._2
       // This works fine, but is not yet a strong enough type check for the WDL 1.1 spec
       // (i.e. users are able to instantiate struct literals with k/v pairs that aren't actually in the struct definition, without an error being thrown.)
       // We want to add extra validation here, and return a WomCompositeType that matches the struct definition of everything is OK.
       // Note that users are allowed to omit optional k/v pairs in their literal.
       // This requires some extra work to be done in a subsequent PR.
       WomObjectType.validNel
+    }
   }
 }

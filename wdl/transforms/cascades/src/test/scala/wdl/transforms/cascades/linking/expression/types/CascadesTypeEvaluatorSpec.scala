@@ -16,7 +16,7 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomIntegerType
+      e.evaluateType(Map.empty, Map.empty) shouldBeValid WomIntegerType
     }
   }
 

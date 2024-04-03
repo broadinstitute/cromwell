@@ -31,7 +31,8 @@ object BatchRequestExecutor {
     // TODO: Alex - add retries and the logic from BatchRequest
     def execute(groupedRequests: GcpBatchGroupedRequests)(implicit ec: ExecutionContext): Future[List[Try[Unit]]] = {
       val requests = groupedRequests.entries
-      println(s"GcpBatchGroupedRequests: execute ${requests.size} requests")
+      logger.info(s"Execute ${requests.size} requests")
+
       if (requests.isEmpty) Future.successful(List.empty)
       else nonEmptyExecute(requests)
     }
@@ -61,7 +62,7 @@ object BatchRequestExecutor {
           client.close()
         catch {
           case NonFatal(ex) =>
-            println(s"GcpBatchGroupedRequests: failed to close client${ex.getMessage}")
+            logger.warn(s"Failed to close batch client: ${ex.getMessage}", ex)
         }
       }
 
@@ -168,8 +169,35 @@ object BatchRequestExecutor {
       }
 
     private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] =
-      // TODO: How do we map these events to the cromwell event type?
-      List.empty
+      /* TODO: This is an example printing the events from GCP, do we need to do anything else in the mapping?
+Event type=STATUS_CHANGED
+time=seconds: 1712173852,nanos: 952604950
+taskState=STATE_UNSPECIFIED,
+description=Job state is set from QUEUED to SCHEDULED for job projects/392615380452/locations/us-south1/jobs/job-ba81bad8-82e9-4d95-8fc0-04dfbbd746da.
+taskExecution.exitCode=0
 
+Event type=STATUS_CHANGED,
+time=seconds: 1712173947, nanos: 568998105
+taskState=STATE_UNSPECIFIED
+description=Job state is set from SCHEDULED to RUNNING for job projects/392615380452/locations/us-south1/jobs/job-ba81bad8-82e9-4d95-8fc0-04dfbbd746da.
+taskExecution.exitCode=0
+
+Event type=STATUS_CHANGED
+time=seconds: 1712173989, nanos: 937816549
+taskState=STATE_UNSPECIFIED
+description=Job state is set from RUNNING to SUCCEEDED for job projects/392615380452/locations/us-south1/jobs/job-ba81bad8-82e9-4d95-8fc0-04dfbbd746da.
+taskExecution.exitCode=0
+       */
+      events.map { e =>
+        /* TODO: This is an example output, verify that this is what we need
+ExecutionEvent(Job state is set from QUEUED to SCHEDULED for job projects/392615380452/locations/us-south1/jobs/job-321db1bc-9a68-4171-aa2a-46885d781656.,2024-04-03T20:10:01.704137839Z,None)
+Event - ExecutionEvent(Job state is set from SCHEDULED to RUNNING for job projects/392615380452/locations/us-south1/jobs/job-321db1bc-9a68-4171-aa2a-46885d781656.,2024-04-03T20:11:30.631264449Z,None)
+Event - ExecutionEvent(Job state is set from RUNNING to SUCCEEDED for job projects/392615380452/locations/us-south1/jobs/job-321db1bc-9a68-4171-aa2a-46885d781656.,2024-04-03T20:12:16.898798407Z,None)
+         */
+        val time = java.time.Instant
+          .ofEpochSecond(e.getEventTime.getSeconds, e.getEventTime.getNanos.toLong)
+          .atOffset(java.time.ZoneOffset.UTC)
+        ExecutionEvent(name = e.getDescription, offsetDateTime = time)
+      }
   }
 }

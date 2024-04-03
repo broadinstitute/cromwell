@@ -77,7 +77,6 @@ import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
 object GcpBatchAsyncBackendJobExecutionActor {
-  // TODO: Clean these up
   val maxUnexpectedRetries = 2
 
   val JesFailedToDelocalize = 5
@@ -85,10 +84,6 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
   val BatchFailedPreConditionErrorCode = 9
   val BatchMysteriouslyCrashedErrorCode = 10
-
-  // If the JES code is 2 (UNKNOWN), this sub-string indicates preemption:
-  val FailedToStartDueToPreemptionSubstring = "failed to start due to preemption"
-  val FailedV2Style = "The assigned worker has failed to complete the operation"
 
   def StandardException(errorCode: GrpcStatus,
                         message: String,

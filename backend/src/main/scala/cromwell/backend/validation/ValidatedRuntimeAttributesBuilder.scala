@@ -44,7 +44,12 @@ trait ValidatedRuntimeAttributesBuilder {
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
     */
   final lazy val validatorMap: Map[String, Option[WomExpression] => Boolean] =
-    validations.map(validation => validation.key -> validation.validateOptionalWomExpression _).toMap
+    validations.map(validation => validation.key -> validation.validateOptionalWomExpression _).toMap ++ validations
+      .flatMap {
+        case value: TwoKeyRuntimeAttributesValidation[_] =>
+          Seq(value.altKey -> value.validateOptionalWomExpression _).toMap
+        case _ => Seq()
+      }
 
   /**
     * Returns a map of coercions suitable for RuntimeAttributesDefault.workflowOptionsDefault.
@@ -54,14 +59,10 @@ trait ValidatedRuntimeAttributesBuilder {
 
   def unsupportedKeys(keys: Seq[String]): Seq[String] = keys.diff(validationKeys)
 
-  private lazy val validationKeys = validations.map(_.key) ++ validations
-    .map {
-      case value: TwoKeyRuntimeAttributesValidation[_] =>
-        value.altKey
-      case _ =>
-        null
-    }
-    .filterNot(x => x == null)
+  private lazy val validationKeys = validations.map(_.key) ++ validations.flatMap {
+    case value: TwoKeyRuntimeAttributesValidation[_] => Seq(value.altKey)
+    case _ => Seq()
+  }
 
   def build(attrs: Map[String, WomValue], logger: Logger): ValidatedRuntimeAttributes = {
     RuntimeAttributesValidation.warnUnrecognized(attrs.keySet, validationKeys.toSet, logger)

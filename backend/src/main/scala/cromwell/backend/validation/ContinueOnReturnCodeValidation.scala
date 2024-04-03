@@ -60,9 +60,9 @@ class ContinueOnReturnCodeValidation extends TwoKeyRuntimeAttributesValidation[C
 
   override def validateExpression: PartialFunction[WomValue, Boolean] = {
     case WomBoolean(_) => true
+    case WomString(value) if Try(value.toInt).isSuccess => true
     case WomString(value) if Try(value.toBoolean).isSuccess => true
     case WomString(value) if value.equals("*") => true
-    case WomString(value) if Try(value.toInt).isSuccess => true
     case WomInteger(_) => true
     case WomArray(WomArrayType(WomStringType), elements) =>
       elements forall { value =>

@@ -46,34 +46,9 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
   private val maxRetries = 10
   /*
-   * Context: the batch.execute() method throws an IOException("insufficient data written") in certain conditions.
-   * Here is what we know about it and how this attempts to address the issue.
-   *
-   * It was determined empirically that errors start to be thrown when the batch request approaches 15MB.
-   * Looking more closely at timing it appears that the exception takes almost exactly 60 seconds to be thrown
-   * from the batch.execute method, which suggests that this might be time related rather than byte size related and that
-   * the 15MB limit is just an artifact of how much data can be sent / received in 60 seconds by the client / server.
-   *
-   * In an attempt to provide a fix for this issue, the total size of the batch size is limited to 14MB, which is a rather
-   * arbitrary value only supported by local testing.
-   *
-   * Result of further investigation on the cause:
-   * IOException("insufficient data written") is being thrown because the http request attempts to close() its output stream.
-   * The close() method throws the "insufficient data written" exception because it still had data to send.
-   * The close() method was called as part of a finally, because an exception was thrown earlier when attempting to write to the
-   * stream. This exception is however swallowed by the one thrown in the close().
-   * This commit https://github.com/google/google-http-java-client/pull/333 fixes the swallowing issue so the original
-   * exception is thrown instead: IOException(“Error writing request body to server”).
-   * Tracing back why this exception is being thrown, it appears that at some point the socket gets closed externally
-   * (maybe the google server closes it ?)
-   * which results in a SocketException("broken pipe") being thrown and eventually bubbles up to the IOExceptions above.
-   *
-   * see sun.net.www.protocol.http.HttpURLConnection
-   * and com.google.api.client.http.javanet.NetHttpRequest
-   *
-   * TODO: Alex - do we still care about this? the github ticket was closed in 2016 and we don't use the batch API anyway
+   * This is inherited from PAPIv2, while this may be unnecessary, the limit seems reasonable for now.
    */
-  private val maxBatchRequestSize: Long = 14L * 1024L * 1024L // TODO: Alex what's the value for this?
+  private val maxBatchRequestSize: Long = 14L * 1024L * 1024L
   private val requestTooLargeException = new UserBatchApiException(
     cause = new IllegalArgumentException(
       s"The task run request has exceeded the maximum Batch request size ($maxBatchRequestSize bytes)."
@@ -340,11 +315,13 @@ object BatchApiRequestManager {
     Props(new BatchApiRequestManager(qps, requestWorkers, serviceRegistryActor, batchRequestExecutor))
       .withDispatcher(Dispatcher.BackendDispatcher)
 
-  // TODO: Alex, what about Batch API?
   /**
-   * Given the Genomics API queries per 100 seconds and given MaxBatchSize will determine a batch interval which
+   * Given the Batch API queries per 100 seconds and given MaxBatchSize will determine a batch interval which
    * is at 90% of the quota. The (still crude) delta is to provide some room at the edges for things like new
    * calls, etc.
+   *
+   * Batch quote allows up to 6000 mutation requests per minute (or 100 requests per second)
+   * See: https://cloud.google.com/batch/quotas
    */
   def determineBatchInterval(qps: Int Refined Positive): FiniteDuration = {
     val maxInterval = BatchApiRequestWorker.MaxBatchSize.toDouble / qps.value.toDouble

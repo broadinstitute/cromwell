@@ -2,16 +2,14 @@ package cromwell.backend.google.batch.api
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cats.data.NonEmptyList
-import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, BatchRequestExecutor, GcpBatchGroupedRequests}
+import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, BatchRequestExecutor}
 import cromwell.core.Dispatcher.BackendDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
-// TODO: Alex - porting this file is almost done
 /**
  * Sends batched requests to JES as a worker to the JesApiQueryManager
  */
@@ -42,31 +40,14 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 
   private def handleBatch(workBatch: NonEmptyList[BatchApiRequest]): Future[List[Try[Unit]]] = {
     // Create the batch:
-    val batch = workBatch.foldLeft(createBatch()) { case (batch, request) =>
+    val batch = workBatch.foldLeft(batchHandler.makeBatchRequest) { case (batch, request) =>
       batchHandler.enqueue(request, batch, pollingManager)
     }
 
     // Execute the batch and return the list of successes and failures:
     // NB: Blocking and error prone. If this fails, let the supervisor in the BatchApiRequestManager catch and resubmit
     // the work.
-    //
-    // TODO: Alex - verify that the work is actually resubmitted on failures
-    runBatch(batch)
-  }
-
-  // These are separate functions so that the tests can hook in and replace the JES-side stuff
-  private[api] def createBatch(): GcpBatchGroupedRequests = batchHandler.makeBatchRequest
-
-  private[api] def runBatch(batch: GcpBatchGroupedRequests): Future[List[Try[Unit]]] = {
-    val result = batchRequestExecutor.execute(batch)(ec)
-
-    result.recover {
-      // TODO: Alex - this seems unnecessary
-      case e: java.io.IOException =>
-        val msg =
-          s"A batch of Batch status requests failed. The request manager will retry automatically up to 10 times. The error was: ${e.getMessage}"
-        throw new Exception(msg, e.getCause) with NoStackTrace
-    }
+    batchRequestExecutor.execute(batch)(ec)
   }
 
   // TODO: FSMify this actor?
@@ -114,8 +95,7 @@ object BatchApiRequestWorker {
     Props(new BatchApiRequestWorker(pollingManager, batchInterval, serviceRegistryActor, batchRequestExecutor))
       .withDispatcher(BackendDispatcher)
 
-  // TODO: Verify this fact applies to GCP Batch
-  // https://cloud.google.com/batch/quotas
-  // The Batch API limits us to 100 at a time
+  // The Batch API limits does not support batched requests, still, this limit seems reasonable (coming from PAPIv2).
+  // See: https://cloud.google.com/batch/quotas
   val MaxBatchSize = 100
 }

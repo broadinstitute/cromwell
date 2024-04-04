@@ -39,36 +39,33 @@ object BatchRequestExecutor {
 
     private def nonEmptyExecute(
       requests: List[(BatchApiRequestManager.BatchApiRequest, Promise[Try[BatchApiResponse]])]
-    )(implicit ec: ExecutionContext): Future[List[Try[Unit]]] = {
-      val client = BatchServiceClient.create(batchSettings)
+    )(implicit ec: ExecutionContext): Future[List[Try[Unit]]] =
+      for {
+        client <- Future.fromTry(Try(BatchServiceClient.create(batchSettings)))
 
-      // TODO: Alex - Verify whether this already handles retries
-      // TODO: The sdk calls seem to be blocking, consider using a Future + scala.concurrent.blocking
-      //       Check whether sending many requests in parallel could be an issue
-      val futures = requests.reverse.map { case (request, promise) =>
-        Future {
-          scala.concurrent.blocking {
-            val result = internalExecute(client, request)
-            promise.success(result)
-            result
+        // TODO: Check whether sending many requests in parallel could be an issue
+        futures = requests.map { case (request, promise) =>
+          Future {
+            scala.concurrent.blocking {
+              val result = internalExecute(client, request)
+              promise.success(result)
+              result
+            }
           }
         }
-      }
-
-      val result = Future.sequence(futures.map(_.map(_.map(_ => ()))))
-
-      result.onComplete { _ =>
-        try
-          client.close()
-        catch {
-          case NonFatal(ex) =>
-            logger.warn(s"Failed to close batch client: ${ex.getMessage}", ex)
+        resultF = Future.sequence(futures.map(_.map(_.map(_ => ()))))
+        _ = resultF.onComplete { _ =>
+          try
+            client.close()
+          catch {
+            case NonFatal(ex) =>
+              logger.warn(s"Failed to close batch client: ${ex.getMessage}", ex)
+          }
         }
-      }
+        result <- resultF
+      } yield result
 
-      result
-    }
-
+    // TODO: Alex - Verify whether BatchServiceClient already handles retries
     private def internalExecute(client: BatchServiceClient, request: BatchApiRequest): Try[BatchApiResponse] =
       try
         request match {

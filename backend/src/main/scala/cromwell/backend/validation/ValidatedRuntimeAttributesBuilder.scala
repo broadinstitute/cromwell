@@ -70,9 +70,8 @@ trait ValidatedRuntimeAttributesBuilder {
     val listOfKeysToErrorOrAnys: List[(String, ErrorOr[Any])] =
       validations.map(validation => validation.key -> validation.validate(values)).toList
 
-    val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys map {
-      case (key, errorOrAny) =>
-        errorOrAny map { any => (key, any) }
+    val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys map { case (key, errorOrAny) =>
+      errorOrAny map { any => (key, any) }
     }
 
     import cats.syntax.traverse._

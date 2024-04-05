@@ -1726,7 +1726,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
         "runtimeAttributes:disks" -> "local-disk 200 SSD",
         "runtimeAttributes:docker" -> "ubuntu:latest",
         "runtimeAttributes:failOnStderr" -> "false",
-        "runtimeAttributes:returnCodes" -> "0",
         "runtimeAttributes:memory" -> "2 GB",
         "runtimeAttributes:noAddress" -> "false",
         "runtimeAttributes:preemptible" -> "0",

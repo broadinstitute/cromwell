@@ -76,15 +76,6 @@ final class GcpBatchRuntimeAttributesSpec
       )
     }
 
-    "fail to validate an invalid returnCodes entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomString("value"))
-      assertBatchRuntimeAttributesFailedCreation(
-        runtimeAttributes,
-        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
-          "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
-      )
-    }
-
     "validate a valid cpu entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomInteger(2))
       val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV(2))

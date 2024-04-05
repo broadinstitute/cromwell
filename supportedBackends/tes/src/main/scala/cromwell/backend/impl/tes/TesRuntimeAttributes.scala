@@ -155,8 +155,8 @@ object TesRuntimeAttributes {
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(backendRuntimeConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode =
-      TwoKeyRuntimeAttributesValidation.extractTwoKeys(continueOnReturnCodeValidation(backendRuntimeConfig),
-                                                       validatedRuntimeAttributes
+      RuntimeAttributesValidation.extract(continueOnReturnCodeValidation(backendRuntimeConfig),
+                                          validatedRuntimeAttributes
       )
     val preemptible: Boolean =
       RuntimeAttributesValidation.extract(preemptibleValidation(backendRuntimeConfig), validatedRuntimeAttributes)

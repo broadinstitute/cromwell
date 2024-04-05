@@ -86,7 +86,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.toOption.get should be(ContinueOnReturnCodeFlag(value))
     }
@@ -101,7 +101,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.toOption.get should be(ContinueOnReturnCodeFlag(value))
     }
@@ -126,7 +126,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
@@ -141,7 +141,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
@@ -166,7 +166,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
@@ -181,7 +181,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.toOption.get should be(ContinueOnReturnCodeSet(Set(value)))
     }
@@ -216,7 +216,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validate(Map(RuntimeAttributesKeys.ReturnCodesKey -> womValue))
+          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.toOption.get should be(ContinueOnReturnCodeFlag(true))
     }
@@ -230,7 +230,7 @@ class BackendWorkflowInitializationActorSpec
       val valid =
         ContinueOnReturnCodeValidation
           .default(optionalConfig)
-          .validateAltKey(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.swap.toOption.get.toList should contain theSameElementsAs List(
         "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +

@@ -163,8 +163,6 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     val outputCountHash =
       HashResult(HashKey("output count"), jobDescriptor.taskCall.callable.outputs.size.toString.md5HashValue)
 
-    var returnCodeHashResult: HashResult = null
-
     val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition =>
       jobDescriptor.runtimeAttributes.get(definition.name) match {
         case Some(_)
@@ -173,12 +171,6 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
                      callCachingEligible.dockerHash.get.md5HashValue
           )
         case Some(womValue) =>
-          if (definition.name == "returnCodes") {
-            returnCodeHashResult =
-              HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
-                         womValue.valueString.md5HashValue
-              )
-          }
           HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
                      womValue.valueString.md5HashValue
           )
@@ -188,8 +180,6 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
           )
       }
     }
-
-    val runtimeAttributeHashesEdited = runtimeAttributeHashes.removedAll(Set(returnCodeHashResult))
 
     val inputHashResults = nonFileInputs map { case WomValueSimpleton(name, value) =>
       val womTypeHashKeyString = value.womType.toHashKeyString
@@ -214,7 +204,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
         backendNameHash,
         inputCountHash,
         outputCountHash
-    ) ++ runtimeAttributeHashesEdited ++ inputHashResults ++ outputExpressionHashResults
+    ) ++ runtimeAttributeHashes ++ inputHashResults ++ outputExpressionHashResults
   }
 
   private[callcaching] def makeFileHashingActor() = {

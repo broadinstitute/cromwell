@@ -18,7 +18,7 @@ task ReturnCodeContinueOnReturnCode1 {
     runtime {
         docker: "ubuntu:latest"
         returnCodes: [1]
-        continueOnReturnCodes: [0]
+        continueOnReturnCode: [0]
     }
 }
 
@@ -34,7 +34,7 @@ task ReturnCodeContinueOnReturnCode2 {
     runtime {
         docker: "ubuntu:latest"
         returnCodes: [1]
-        continueOnReturnCodes: false
+        continueOnReturnCode: false
     }
 }
 
@@ -50,6 +50,6 @@ task ReturnCodeContinueOnReturnCode3 {
     runtime {
         docker: "ubuntu:latest"
         returnCodes: [1, 4, 7]
-        continueOnReturnCodes: [1, 3, 5]
+        continueOnReturnCode: [1, 3, 5]
     }
 }

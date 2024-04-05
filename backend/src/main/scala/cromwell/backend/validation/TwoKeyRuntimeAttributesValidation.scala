@@ -3,78 +3,7 @@ package cromwell.backend.validation
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.RuntimeAttributeDefinition
-import cromwell.backend.validation.RuntimeAttributesValidation.extractOption
-import wom.types.WomType
 import wom.values.{WomString, WomValue}
-
-object TwoKeyRuntimeAttributesValidation {
-  def withDefault[ValidatedType](
-    validation: TwoKeyRuntimeAttributesValidation[ValidatedType],
-    default: WomValue
-  ): TwoKeyRuntimeAttributesValidation[ValidatedType] =
-    new TwoKeyRuntimeAttributesValidation[ValidatedType] {
-      override def key: String = validation.key
-
-      override def altKey: String = validation.altKey
-
-      override def defaultVal: ValidatedType = validation.defaultVal
-
-      override def coercion: Iterable[WomType] = validation.coercion
-
-      override protected def validateValue: PartialFunction[WomValue, ErrorOr[ValidatedType]] =
-        validation.validateValuePackagePrivate
-
-      override protected def validateExpression: PartialFunction[WomValue, Boolean] =
-        validation.validateExpressionPackagePrivate
-
-      override protected def invalidValueMessage(value: WomValue): String =
-        validation.invalidValueMessagePackagePrivate(value)
-
-      override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be a type in $coercion"
-
-      override def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
-
-      override protected def staticDefaultOption = Option(default)
-    }
-
-  /**
-   * Returns the value from the attributes matching one of the validation keys. If values are assigned to attribute
-   * matching both keys, the `key` field will override the `altKey` field on the `RuntimeAttributeValidation`.
-   *
-   * Do not use an optional validation as the type internal implementation will throw a `ClassCastException` due to the
-   * way values are located and auto-magically cast to the type of the `runtimeAttributesValidation`.
-   *
-   * @param runtimeAttributesValidation The typed validation to use.
-   * @param validatedRuntimeAttributes  The values to search.
-   * @return The value matching the key.
-   * @throws ClassCastException if the validation is called on an optional validation.
-   */
-  def extractTwoKeys[A](runtimeAttributesValidation: TwoKeyRuntimeAttributesValidation[A],
-                        validatedRuntimeAttributes: ValidatedRuntimeAttributes
-  ): A = {
-    val key = runtimeAttributesValidation.key
-    val altKey = runtimeAttributesValidation.altKey
-    val primaryValue = extractOption(key, validatedRuntimeAttributes)
-    val altValue = extractOption(altKey, validatedRuntimeAttributes)
-    val value =
-      if (
-        primaryValue.isEmpty || (primaryValue.contains(
-          runtimeAttributesValidation.defaultVal
-        ) && !altValue.isEmpty && !altValue.contains(
-          runtimeAttributesValidation.defaultVal
-        ))
-      ) altValue
-      else primaryValue
-    value match {
-      // NOTE: Some(innerValue) aka Some.unapply() throws a `ClassCastException` to `Nothing$` as it can't tell the type
-      case some: Some[_] => some.get.asInstanceOf[A]
-      case None =>
-        throw new RuntimeException(
-          s"$key not found in runtime attributes ${validatedRuntimeAttributes.attributes.keys}"
-        )
-    }
-  }
-}
 
 trait TwoKeyRuntimeAttributesValidation[A] extends RuntimeAttributesValidation[A] {
 
@@ -105,15 +34,6 @@ trait TwoKeyRuntimeAttributesValidation[A] extends RuntimeAttributesValidation[A
       case Some(value) => validateValue.applyOrElse(value, (_: Any) => invalidValueFailure(value))
       case None => validateNone
     }
-
-  /**
-   * Returns a version of this validation with the default value.
-   *
-   * @param womValue The default wdl value.
-   * @return The new version of this validation.
-   */
-  final def makeDefault(womValue: WomValue): TwoKeyRuntimeAttributesValidation[A] =
-    TwoKeyRuntimeAttributesValidation.withDefault(this, womValue)
 
   /**
    * Returns the value of the default runtime attribute of a

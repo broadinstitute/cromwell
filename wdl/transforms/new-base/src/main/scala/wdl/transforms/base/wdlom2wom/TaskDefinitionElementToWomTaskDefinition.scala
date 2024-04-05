@@ -8,14 +8,20 @@ import cats.syntax.validated._
 import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
-import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, KvPair, SelectFirst}
+import wdl.model.draft3.elements.ExpressionElement.{
+  ArrayLiteral,
+  IdentifierLookup,
+  KvPair,
+  PrimitiveLiteralExpressionElement,
+  SelectFirst
+}
 import wdl.model.draft3.elements._
 import wdl.model.draft3.graph.{ExpressionValueConsumer, LinkedGraph}
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement}
 import wom.expression.WomExpression
 import wom.types.{WomOptionalType, WomType}
-import wom.{CommandPart, RuntimeAttributes}
+import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
@@ -25,6 +31,7 @@ import wdl.transforms.base.wdlom2wom.expression.renaming.IdentifierLookupRenamer
 import wdl.transforms.base.wdlom2wom.expression.renaming.expressionEvaluator
 import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
 import wdl.transforms.base.linking.typemakers._
+import wom.values.WomInteger
 
 object TaskDefinitionElementToWomTaskDefinition extends Util {
 
@@ -333,7 +340,32 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
       womExpression <- kvPair.value.makeWomExpression(linkedGraph.typeAliases, consumedValueLookup)
     } yield kvPair.key -> womExpression
 
-    attributes.runtimeAttributes.toList
+    val returnCodesAttribute =
+      attributes.runtimeAttributes.toList.find(pair => pair.key.equals(RuntimeAttributesKeys.ReturnCodesKey))
+    val continueOnReturnCodeAttribute =
+      attributes.runtimeAttributes.toList.find(pair => pair.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey))
+
+    val returnCodesNotUnique =
+      returnCodesAttribute.get.value
+        .equals(continueOnReturnCodeAttribute.get.value) || returnCodesAttribute.get.value.equals(
+        ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(0))))
+      )
+
+    var editedAttributes = attributes.runtimeAttributes
+
+    if (!returnCodesNotUnique) {
+      editedAttributes = attributes.runtimeAttributes.filterNot(attribute =>
+        attribute.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey)
+      )
+      editedAttributes = editedAttributes ++ Vector(
+        KvPair(RuntimeAttributesKeys.ContinueOnReturnCodeKey, returnCodesAttribute.get.value)
+      )
+    }
+
+    editedAttributes =
+      editedAttributes.filterNot(attribute => attribute.key.equals(RuntimeAttributesKeys.ReturnCodesKey))
+
+    editedAttributes.toList
       .traverse(processSingleRuntimeAttribute)
       .map(atts => RuntimeAttributes(atts.toMap))
   }

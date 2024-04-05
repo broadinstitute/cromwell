@@ -23,23 +23,19 @@ import scala.util.Try
   * `default` a validation with the default value specified by the reference.conf file.
   */
 object ContinueOnReturnCodeValidation {
-  lazy val instance: TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode] =
+  lazy val instance: RuntimeAttributesValidation[ContinueOnReturnCode] =
     new ContinueOnReturnCodeValidation
   def default(
     runtimeConfig: Option[Config]
-  ): TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode] =
-    instance.makeDefault(configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
+  ): RuntimeAttributesValidation[ContinueOnReturnCode] =
+    instance.withDefault(configDefaultWdlValue(runtimeConfig) getOrElse WomInteger(0))
   def configDefaultWdlValue(runtimeConfig: Option[Config]): Option[WomValue] =
-    instance.configDefault(runtimeConfig)
+    instance.configDefaultWomValue(runtimeConfig)
 }
 
-class ContinueOnReturnCodeValidation extends TwoKeyRuntimeAttributesValidation[ContinueOnReturnCode] {
+class ContinueOnReturnCodeValidation extends RuntimeAttributesValidation[ContinueOnReturnCode] {
 
-  override def key: String = RuntimeAttributesKeys.ReturnCodesKey
-
-  override def altKey: String = RuntimeAttributesKeys.ContinueOnReturnCodeKey
-
-  override def defaultVal: ContinueOnReturnCodeSet = ContinueOnReturnCodeSet(Set(0))
+  override def key: String = RuntimeAttributesKeys.ContinueOnReturnCodeKey
 
   override def coercion: Set[WomType] = ContinueOnReturnCode.validWdlTypes
 
@@ -72,9 +68,9 @@ class ContinueOnReturnCodeValidation extends TwoKeyRuntimeAttributesValidation[C
     case _ => false
   }
 
-  override protected def missingValueMessage: String = s"Expecting $key" +
+  override protected def missingValueMessage: String = "Expecting returnCodes" +
     " runtime attribute to be either a String '*' or an Array[Int]." +
-    s" Expecting $altKey" +
+    " Expecting continueOnReturnCode" +
     " runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
 
   override def usedInCallCaching: Boolean = true

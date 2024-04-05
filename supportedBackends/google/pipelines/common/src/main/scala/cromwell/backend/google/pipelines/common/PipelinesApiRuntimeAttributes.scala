@@ -219,7 +219,7 @@ object PipelinesApiRuntimeAttributes {
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val continueOnReturnCode: ContinueOnReturnCode = TwoKeyRuntimeAttributesValidation.extractTwoKeys(
+    val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(
       continueOnReturnCodeValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
     )

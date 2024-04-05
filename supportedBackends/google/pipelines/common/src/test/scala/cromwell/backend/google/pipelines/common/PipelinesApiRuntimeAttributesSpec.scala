@@ -104,45 +104,6 @@ final class PipelinesApiRuntimeAttributesSpec
       )
     }
 
-    "validate a valid returnCodes integer entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomInteger(1))
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
-      assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "validate a valid returnCodes String entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomString("*"))
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeFlag(true))
-      assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "validate a valid returnCodes array entry" in {
-      val runtimeAttributes =
-        Map("docker" -> WomString("ubuntu:latest"),
-            "returnCodes" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
-        )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
-      assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "coerce then validate a valid returnCodes array entry" in {
-      val runtimeAttributes =
-        Map("docker" -> WomString("ubuntu:latest"),
-            "returnCodes" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
-        )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
-      assertPapiRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "fail to validate an invalid returnCodes entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "returnCodes" -> WomString("value"))
-      assertPapiRuntimeAttributesFailedCreation(
-        runtimeAttributes,
-        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
-          "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
-      )
-    }
-
     "validate a valid cpu entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "cpu" -> WomInteger(2))
       val expectedRuntimeAttributes = expectedDefaults.copy(cpu = refineMV(2))

@@ -753,9 +753,7 @@ trait StandardAsyncExecutionActor
    * @return the behavior for continuing on the return code.
    */
   lazy val continueOnReturnCode: ContinueOnReturnCode =
-    TwoKeyRuntimeAttributesValidation.extractTwoKeys(ContinueOnReturnCodeValidation.instance,
-                                                     validatedRuntimeAttributes
-    )
+    RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
 
   /**
     * Returns the max number of times that a failed job should be retried, obtained by converting `maxRetries` to an Int.

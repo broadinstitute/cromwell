@@ -195,68 +195,6 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "fail to validate an invalid continueOnReturnCode entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),
-                                  "scriptBucketName" -> WomString("my-stuff"),
-                                  "continueOnReturnCode" -> WomString("value")
-      )
-      assertAwsBatchRuntimeAttributesFailedCreation(
-        runtimeAttributes,
-        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
-          "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
-      )
-    }
-
-    "validate a valid returnCodes integer entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),
-                                  "scriptBucketName" -> WomString("my-stuff"),
-                                  "returnCodes" -> WomInteger(1)
-      )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
-      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "validate a valid returnCodes String entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),
-                                  "scriptBucketName" -> WomString("my-stuff"),
-                                  "returnCodes" -> WomString("*")
-      )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeFlag(true))
-      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "validate a valid returnCodes array entry" in {
-      val runtimeAttributes = Map(
-        "docker" -> WomString("ubuntu:latest"),
-        "scriptBucketName" -> WomString("my-stuff"),
-        "returnCodes" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
-      )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
-      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "coerce then validate a valid returnCodes array entry" in {
-      val runtimeAttributes = Map(
-        "docker" -> WomString("ubuntu:latest"),
-        "scriptBucketName" -> WomString("my-stuff"),
-        "returnCodes" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
-      )
-      val expectedRuntimeAttributes = expectedDefaults.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
-      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    }
-
-    "fail to validate an invalid returnCode entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),
-                                  "scriptBucketName" -> WomString("my-stuff"),
-                                  "returnCodes" -> WomString("value")
-      )
-      assertAwsBatchRuntimeAttributesFailedCreation(
-        runtimeAttributes,
-        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
-          "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an Array[Int]"
-      )
-    }
-
     "validate a valid cpu entry" in {
       val runtimeAttributes =
         Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("my-stuff"), "cpu" -> WomInteger(2))

@@ -29,6 +29,7 @@ package object types {
         case a: StringLiteral => a.evaluateType(linkedValues)(typeEvaluator)
         case a: StringExpression => a.evaluateType(linkedValues)(typeEvaluator)
         case a: ObjectLiteral => a.evaluateType(linkedValues)(typeEvaluator)
+        case a: StructLiteral => a.evaluateType(linkedValues)(typeEvaluator)
         case a: MapLiteral => a.evaluateType(linkedValues)(typeEvaluator)
         case a: ArrayLiteral => a.evaluateType(linkedValues)(typeEvaluator)
         case a: PairLiteral => a.evaluateType(linkedValues)(typeEvaluator)

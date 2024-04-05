@@ -3,3 +3,14 @@
 Duplicated Cromwell `biscayne` into `cascades` to serve as new home for OpenWDL `development` version. Grammar synced from OpenWDL.
 Will become WDL 1.2 or 2.0.
 Some Terra users run `version development` WDLs, we don't officially support it, but shouldn't break it too badly if possible.
+
+2024-02-28
+When changing the grammar file, generate a new parser by:
+- changing current working directory to cromwell/wdl/transforms/cascades
+- running: hermes generate src/main/resources/grammar.hgr \
+          --language=java \
+          --directory=src/main/java \
+          --name=wdl \
+          --java-package=wdl.cascades.parser \
+          --java-use-apache-commons --java-imports=org.apache.commons.lang3.StringEscapeUtils \
+          --header

@@ -7,11 +7,15 @@ object GithubAuthVending {
     override def serviceName: String = "GithubAuthVending"
   }
 
-  case class GithubAuthRequest(terraToken: String) extends GithubAuthVendingMessage
+  // types of tokens
+  case class TerraToken(value: String)
+  case class GithubToken(value: String)
+
+  case class GithubAuthRequest(terraToken: TerraToken) extends GithubAuthVendingMessage
 
   sealed trait GithubAuthVendingResponse extends GithubAuthVendingMessage
-  case class GithubAuthTokenResponse(accessToken: String) extends GithubAuthVendingResponse
+  case class GithubAuthTokenResponse(githubAccessToken: GithubToken) extends GithubAuthVendingResponse
   case object NoGithubAuthResponse extends GithubAuthVendingResponse
-  case class GithubAuthVendingFailure(error: Exception) extends GithubAuthVendingResponse
+  case class GithubAuthVendingFailure(errorMsg: String) extends GithubAuthVendingResponse
 
 }

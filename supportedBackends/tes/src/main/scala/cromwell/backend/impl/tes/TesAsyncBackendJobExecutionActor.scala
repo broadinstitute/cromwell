@@ -368,9 +368,10 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
     val returnCodeTmp = jobPaths.returnCode.plusExt("kill")
     returnCodeTmp.write(s"$SIGTERM\n")
-    try
-      returnCodeTmp.moveTo(jobPaths.returnCode)
-    catch {
+    try {
+      returnCodeTmp.copyTo(jobPaths.returnCode) // Will throw if file exists
+      returnCodeTmp.delete(true)
+    } catch {
       case _: FileAlreadyExistsException =>
         // If the process has already completed, there will be an existing rc file.
         returnCodeTmp.delete(true)

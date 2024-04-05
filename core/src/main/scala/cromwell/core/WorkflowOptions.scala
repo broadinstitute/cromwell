@@ -59,7 +59,7 @@ object WorkflowOptions {
 
   // Misc.
   case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")
-  case object WorkflowFailureMode extends WorkflowOption("workflow_failure_mode")
+  case object WorkflowFailureMode extends WorkflowOption("workflow_failure_mode!!!!")
   case object UseReferenceDisks extends WorkflowOption("use_reference_disks")
   case object MemoryRetryMultiplier extends WorkflowOption("memory_retry_multiplier")
   case object WorkflowCallbackUri extends WorkflowOption("workflow_callback_uri")

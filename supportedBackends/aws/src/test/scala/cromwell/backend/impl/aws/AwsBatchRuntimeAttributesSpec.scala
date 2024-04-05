@@ -195,6 +195,19 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
+    "fail to validate an invalid continueOnReturnCode entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),
+                                  "scriptBucketName" -> WomString("my-stuff"),
+                                  "continueOnReturnCode" -> WomString("value")
+      )
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
+          "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an " +
+          "Array[Int]"
+      )
+    }
+
     "validate a valid cpu entry" in {
       val runtimeAttributes =
         Map("docker" -> WomString("ubuntu:latest"), "scriptBucketName" -> WomString("my-stuff"), "cpu" -> WomInteger(2))

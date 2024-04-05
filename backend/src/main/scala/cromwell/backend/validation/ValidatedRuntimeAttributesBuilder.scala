@@ -39,12 +39,7 @@ trait ValidatedRuntimeAttributesBuilder {
     * Returns validators suitable for BackendWorkflowInitializationActor.runtimeAttributeValidators.
     */
   final lazy val validatorMap: Map[String, Option[WomExpression] => Boolean] =
-    validations.map(validation => validation.key -> validation.validateOptionalWomExpression _).toMap ++ validations
-      .flatMap {
-        case value: TwoKeyRuntimeAttributesValidation[_] =>
-          Seq(value.altKey -> value.validateOptionalWomExpression _).toMap
-        case _ => Seq()
-      }
+    validations.map(validation => validation.key -> validation.validateOptionalWomExpression _).toMap
 
   /**
     * Returns a map of coercions suitable for RuntimeAttributesDefault.workflowOptionsDefault.
@@ -75,7 +70,7 @@ trait ValidatedRuntimeAttributesBuilder {
     val listOfKeysToErrorOrAnys: List[(String, ErrorOr[Any])] =
       validations.map(validation => validation.key -> validation.validate(values)).toList
 
-    val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys.toList map {
+    val listOfErrorOrKeysToAnys: List[ErrorOr[(String, Any)]] = listOfKeysToErrorOrAnys map {
       case (key, errorOrAny) =>
         errorOrAny map { any => (key, any) }
     }

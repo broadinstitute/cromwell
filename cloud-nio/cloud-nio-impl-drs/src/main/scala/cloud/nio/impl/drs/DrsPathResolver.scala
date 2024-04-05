@@ -25,7 +25,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel}
 import scala.util.Try
 
-abstract class DrsPathResolver(drsConfig: DrsConfig) {
+class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
 
   protected lazy val httpClientBuilder: HttpClientBuilder = {
     val clientBuilder = HttpClientBuilder.create()
@@ -38,7 +38,17 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
     clientBuilder
   }
 
-  def getAccessToken: ErrorOr[String]
+  def getAccessToken: ErrorOr[String] = drsCredentials.getAccessToken
+
+  private lazy val currentCloudPlatform: Option[DrsCloudPlatform.Value] = drsCredentials match {
+    case _: GoogleOauthDrsCredentials => Option(DrsCloudPlatform.GoogleStorage)
+    case GoogleAppDefaultTokenStrategy => Option(DrsCloudPlatform.GoogleStorage)
+    case _: AzureDrsCredentials => Option(DrsCloudPlatform.Azure)
+    case _ => None
+  }
+
+  def makeDrsResolverRequest(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): DrsResolverRequest =
+    DrsResolverRequest(drsPath, currentCloudPlatform, fields)
 
   private def makeHttpRequestToDrsResolver(drsPath: String,
                                            fields: NonEmptyList[DrsResolverField.Value]
@@ -47,7 +57,7 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
       case Valid(token) =>
         IO {
           val postRequest = new HttpPost(drsConfig.drsResolverUrl)
-          val requestJson = DrsResolverRequest(drsPath, fields).asJson.noSpaces
+          val requestJson = makeDrsResolverRequest(drsPath, fields).asJson.noSpaces
           postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
           postRequest.setHeader("Authorization", s"Bearer $token")
           postRequest
@@ -118,7 +128,9 @@ abstract class DrsPathResolver(drsConfig: DrsConfig) {
     * Please note, this method returns an IO that would make a synchronous HTTP request to DRS Resolver when run.
     */
   def resolveDrs(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): IO[DrsResolverResponse] =
-    rawDrsResolverResponse(drsPath, fields).use(httpResponseToDrsResolverResponse(drsPathForDebugging = drsPath))
+    rawDrsResolverResponse(drsPath, fields).use(
+      httpResponseToDrsResolverResponse(drsPathForDebugging = drsPath)
+    )
 
   def openChannel(accessUrl: AccessUrl): IO[ReadableByteChannel] =
     IO {
@@ -178,7 +190,20 @@ object DrsResolverField extends Enumeration {
   val LocalizationPath: DrsResolverField.Value = Value("localizationPath")
 }
 
-final case class DrsResolverRequest(url: String, fields: NonEmptyList[DrsResolverField.Value])
+// We supply a cloud platform value to the DRS service. In cases where the DRS repository
+// has multiple cloud files associated with a DRS link, it will prefer sending a file on the same
+// platform as this Cromwell instance. That is, if a DRS file has copies on both GCP and Azure,
+// we'll get the GCP one when running on GCP and the Azure one when running on Azure.
+object DrsCloudPlatform extends Enumeration {
+  val GoogleStorage: DrsCloudPlatform.Value = Value("gs")
+  val Azure: DrsCloudPlatform.Value = Value("azure")
+  val AmazonS3: DrsCloudPlatform.Value = Value("s3") // supported by DRSHub but not currently used by us
+}
+
+final case class DrsResolverRequest(url: String,
+                                    cloudPlatform: Option[DrsCloudPlatform.Value],
+                                    fields: NonEmptyList[DrsResolverField.Value]
+)
 
 final case class SADataObject(data: Json)
 
@@ -219,6 +244,8 @@ object DrsResolverResponseSupport {
 
   implicit lazy val drsResolverFieldEncoder: Encoder[DrsResolverField.Value] =
     Encoder.encodeEnumeration(DrsResolverField)
+  implicit lazy val drsResolverCloudPlatformEncoder: Encoder[DrsCloudPlatform.Value] =
+    Encoder.encodeEnumeration(DrsCloudPlatform)
   implicit lazy val drsResolverRequestEncoder: Encoder[DrsResolverRequest] = deriveEncoder
 
   implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder

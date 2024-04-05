@@ -111,4 +111,13 @@ class BiscayneExpressionValueConsumersSpec extends AnyFlatSpec with CromwellTime
       e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("my_array_of_pairs")))
     }
   }
+
+  it should "discover an array variable lookup within a struct literal member access" in {
+    val str = """ (StructWithAnArray{myArrayMember: arrayToLookup}).myArray """
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+
+    expr.shouldBeValidPF { case e =>
+      e.expressionConsumedValueHooks should be(Set(UnlinkedIdentifierHook("arrayToLookup")))
+    }
+  }
 }

@@ -24,8 +24,9 @@ object CentaurTestSuite extends StrictLogging {
     }
 
   val cromwellBackends = CentaurCromwellClient.backends.unsafeRunSync().supportedBackends.map(_.toLowerCase)
-
-  def isWdlUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("wdl_upgrade")
+  val defaultBackend = CentaurCromwellClient.backends.unsafeRunSync().defaultBackend.toLowerCase
+  logger.info(s"Cromwell under test configured with backends ${cromwellBackends.mkString(", ")}")
+  logger.info(s"Unless overridden by workflow options file, tests use default backend: $defaultBackend")
 
   def isEngineUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("engine_upgrade")
 

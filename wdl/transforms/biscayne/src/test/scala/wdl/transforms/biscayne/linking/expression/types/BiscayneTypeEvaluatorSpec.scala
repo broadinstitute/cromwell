@@ -11,12 +11,28 @@ import wdl.transforms.biscayne.ast2wdlom._
 import wom.types._
 
 class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
+
+  val plantTypeMap: Map[String, WomType] = Map(
+    "isTasty" -> WomBooleanType,
+    "count" -> WomIntegerType
+  )
+
+  val animalTypeMap: Map[String, WomType] = Map(
+    "isMaybeGood" -> WomOptionalType(WomBooleanType),
+    "hat" -> WomCompositeType(plantTypeMap, Some("Plant"))
+  )
+
+  val typeAliases: Map[String, WomType] = Map(
+    "Plant" -> WomCompositeType(plantTypeMap, Some("Plant")),
+    "Animal" -> WomCompositeType(plantTypeMap, Some("Animal"))
+  )
+
   it should "return nothing from static integer addition" in {
     val str = "3 + 3"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomIntegerType
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomIntegerType
     }
   }
 
@@ -25,7 +41,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomMapType(WomIntegerType, WomIntegerType)
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomMapType(WomIntegerType, WomIntegerType)
     }
   }
 
@@ -34,7 +50,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomPairType(WomStringType, WomIntegerType))
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomArrayType(WomPairType(WomStringType, WomIntegerType))
     }
   }
 
@@ -43,7 +59,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomStringType
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomStringType
     }
   }
 
@@ -52,7 +68,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomStringType
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomStringType
     }
   }
 
@@ -61,7 +77,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomStringType
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomStringType
     }
   }
 
@@ -70,7 +86,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomStringType)
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomArrayType(WomStringType)
     }
   }
 
@@ -79,7 +95,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomStringType)
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomArrayType(WomStringType)
     }
   }
 
@@ -88,7 +104,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomNothingType)
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomArrayType(WomNothingType)
     }
   }
 
@@ -97,7 +113,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomStringType)
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomArrayType(WomStringType)
     }
   }
 
@@ -106,7 +122,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val expr = fromString[ExpressionElement](str, parser.parse_e)
 
     expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomArrayType(WomNothingType)
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomArrayType(WomNothingType)
     }
   }
 
@@ -114,13 +130,17 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val string_and_int = """ unzip([("one", 1),("two", 2),("three", 3)]) """
     val string_and_int_expr = fromString[ExpressionElement](string_and_int, parser.parse_e)
     string_and_int_expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomPairType(WomArrayType(WomStringType), WomArrayType(WomIntegerType))
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomPairType(WomArrayType(WomStringType),
+                                                                       WomArrayType(WomIntegerType)
+      )
     }
 
     val int_and_int = """ unzip([(1,2),(3,4),(5,6)]) """
     val int_and_int_expr = fromString[ExpressionElement](int_and_int, parser.parse_e)
     int_and_int_expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomPairType(WomArrayType(WomIntegerType), WomArrayType(WomIntegerType))
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomPairType(WomArrayType(WomIntegerType),
+                                                                       WomArrayType(WomIntegerType)
+      )
     }
   }
 
@@ -128,17 +148,48 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val empty = """ unzip([]) """
     val empty_unzip_expr = fromString[ExpressionElement](empty, parser.parse_e)
     empty_unzip_expr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomPairType(WomArrayType(WomAnyType), WomArrayType(WomAnyType))
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomPairType(WomArrayType(WomAnyType),
+                                                                       WomArrayType(WomAnyType)
+      )
     }
   }
 
   it should "evaluate the type of a struct literal" in {
-    // NB: This is not yet strict enough type checking for the WDL 1.1 spec.
-    // In a subsequent branch, we will make this be a WomCompositeType that matches the struct definition.
+    val structLiteral = """ Plant{isTasty: true, count: 42} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomCompositeType(plantTypeMap, Some("Plant"))
+    }
+  }
+
+  it should "fail to evaluate the type of a struct literal with incorrect members" in {
     val structLiteral = """ Animal{fur: "fuzzy", isGood: true} """
     val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
     structExpr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty) shouldBeValid WomObjectType
+      e.evaluateType(Map.empty,
+                     typeAliases
+      ) shouldBeInvalid "Type Animal does not have a member called fur.,Type Animal does not have a member called isGood."
     }
   }
+
+  it should "fail to evaluate the type of a struct literal with members that are the wrong type" in {
+    val structLiteral = """ Plant{isTasty: true, count: "four"} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty,
+                     typeAliases
+      ) shouldBeInvalid "Plant.count expected to be Int. Found String."
+    }
+  }
+
+  it should "fail if a member is missing" in {
+    val structLiteral = """ Plant{count: 4} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty,
+        typeAliases
+      ) shouldBeInvalid "Plant.count expected to be Int. Found String."
+    }
+  }
+
 }

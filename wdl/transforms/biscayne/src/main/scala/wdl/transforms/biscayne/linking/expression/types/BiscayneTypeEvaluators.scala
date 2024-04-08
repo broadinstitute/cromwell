@@ -198,6 +198,24 @@ object BiscayneTypeEvaluators {
 
   implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
 
+    /*
+    def isMissingMembers(foundMembers: Map[String, WomType], expectedMembers: Map[String, WomType]): Option[String] = {
+      val errors: Iterable[String] = expectedMembers flatMap { case (memberName, memberType) =>
+        memberType match {
+          case WomOptionalType(_) => None // It's OK if an Optional type is not found.
+          case _ => if (!foundMembers.contains(memberName)) Some(s"Expected member ${memberName} not found.") else None
+        }
+      }
+      errors match {
+        case Nil => None
+        case _ => Some(errors.mkString)
+      }
+    }
+     */
+    def areTypesAssignable(a: WomType, b: WomType): Boolean =
+      !a.equalsType(b).isFailure
+
+
     def typeCheckHelper(typeName: String,
                         memberName: String,
                         evaluatedType: Option[WomType],
@@ -207,21 +225,21 @@ object BiscayneTypeEvaluators {
         case Some(evaluated) =>
           expectedType match {
             case Some(expected) =>
-              if (expected.isCoerceableFrom(evaluated)) None
+              if (areTypesAssignable(evaluated, expected)) None
               else
-                Some(s"$typeName.$memberName expected to be ${expected.friendlyName}. Found ${evaluated.friendlyName}")
-            case None => Some(s"Type $typeName does not have a member called $memberName")
+                Some(s"$typeName.$memberName expected to be ${expected.friendlyName}. Found ${evaluated.friendlyName}.")
+            case None => Some(s"Type $typeName does not have a member called $memberName.")
           }
-        case None => Some(s"Error evaluating the type of ${typeName}.${memberName}")
+        case None => Some(s"Error evaluating the type of ${typeName}.${memberName}.")
       }
+
     override def evaluateType(a: StructLiteral,
                               linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                               typeAliases: Map[String, WomType]
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
-    ): ErrorOr[WomType] = {
-      val myType = typeAliases.get(a.structTypeName)
-      val myEvaluatedType = myType map {
+    ): ErrorOr[WomType] =
+      typeAliases.get(a.structTypeName) map {
         case compositeType: WomCompositeType =>
           val errors = a.elements.flatMap { case (memberKey, memberExpressionElement) =>
             val evaluatedType =
@@ -232,11 +250,10 @@ object BiscayneTypeEvaluators {
           if (errors.isEmpty) {
             WomCompositeType(compositeType.typeMap, Some(a.structTypeName)).validNel
           } else {
-            errors.toString.invalidNel
+            errors.mkString(",").invalidNel
           }
         case _ => s"Could not find struct definition for struct literal ${a.structTypeName}".invalidNel
-      }
-      myEvaluatedType.getOrElse(s"Type map does not include definition for struct literal ${a.structTypeName}".invalidNel)
-    }
+      } getOrElse s"Type map does not include definition for struct literal ${a.structTypeName}".invalidNel
+
   }
 }

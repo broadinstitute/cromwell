@@ -345,21 +345,25 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     val continueOnReturnCodeAttribute =
       attributes.runtimeAttributes.toList.find(pair => pair.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey))
 
-    val returnCodesNotUnique =
-      returnCodesAttribute.get.value
-        .equals(continueOnReturnCodeAttribute.get.value) || returnCodesAttribute.get.value.equals(
-        ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(0))))
-      )
-
+    val returnCodesGet = returnCodesAttribute.orNull
+    val continueOnReturnCodeGet = continueOnReturnCodeAttribute.orNull
     var editedAttributes = attributes.runtimeAttributes
 
-    if (!returnCodesNotUnique) {
-      editedAttributes = attributes.runtimeAttributes.filterNot(attribute =>
-        attribute.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey)
-      )
-      editedAttributes = editedAttributes ++ Vector(
-        KvPair(RuntimeAttributesKeys.ContinueOnReturnCodeKey, returnCodesAttribute.get.value)
-      )
+    if (returnCodesGet != null) {
+      val returnCodesNotUnique =
+        returnCodesGet.value
+          .equals(continueOnReturnCodeGet.value) || returnCodesGet.value.equals(
+          ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(0))))
+        )
+
+      if (!returnCodesNotUnique) {
+        editedAttributes = attributes.runtimeAttributes.filterNot(attribute =>
+          attribute.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey)
+        )
+        editedAttributes = editedAttributes ++ Vector(
+          KvPair(RuntimeAttributesKeys.ContinueOnReturnCodeKey, returnCodesAttribute.get.value)
+        )
+      }
     }
 
     editedAttributes =

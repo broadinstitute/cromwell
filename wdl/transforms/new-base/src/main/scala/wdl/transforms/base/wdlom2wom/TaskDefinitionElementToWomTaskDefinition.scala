@@ -100,9 +100,9 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     conversion.contextualizeErrors(s"process task definition '${b.taskDefinitionElement.name}'")
   }
 
-  private def validateParameterMetaEntries(parameterMetaSectionElement: Option[ParameterMetaSectionElement],
-                                           inputs: Option[InputsSectionElement],
-                                           outputs: Option[OutputsSectionElement]
+  def validateParameterMetaEntries(parameterMetaSectionElement: Option[ParameterMetaSectionElement],
+                                   inputs: Option[InputsSectionElement],
+                                   outputs: Option[OutputsSectionElement]
   ): ErrorOr[Unit] = {
     val validKeys: List[String] =
       inputs.toList.flatMap(_.inputDeclarations.map(_.name)) ++ outputs.toList.flatMap(_.outputs.map(_.name))
@@ -123,7 +123,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     }
   }
 
-  private def eliminateInputDependencies(
+  def eliminateInputDependencies(
     a: TaskDefinitionElementToWomInputs
   )(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]): TaskDefinitionElementToWomInputs = {
     case class NewInputElementsSet(original: InputDeclarationElement,
@@ -208,7 +208,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     )
   }
 
-  private def expandLines(lines: Seq[CommandSectionLine]): Seq[CommandPartElement] = {
+  def expandLines(lines: Seq[CommandSectionLine]): Seq[CommandPartElement] = {
     def expandNonFinalLine(line: CommandSectionLine): Seq[CommandPartElement] = if (line.parts.isEmpty) {
       Seq(StringCommandPartElement(System.lineSeparator))
     } else {
@@ -228,16 +228,16 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     }
   }
 
-  final private case class TaskGraph(inputs: List[Callable.InputDefinition],
-                                     outputs: List[Callable.OutputDefinition],
-                                     linkedGraph: LinkedGraph
+  final case class TaskGraph(inputs: List[Callable.InputDefinition],
+                             outputs: List[Callable.OutputDefinition],
+                             linkedGraph: LinkedGraph
   )
 
-  private def createTaskGraph(inputs: Seq[InputDeclarationElement],
-                              declarations: Seq[IntermediateValueDeclarationElement],
-                              outputs: Seq[OutputDeclarationElement],
-                              parameterMeta: Option[ParameterMetaSectionElement],
-                              typeAliases: Map[String, WomType]
+  def createTaskGraph(inputs: Seq[InputDeclarationElement],
+                      declarations: Seq[IntermediateValueDeclarationElement],
+                      outputs: Seq[OutputDeclarationElement],
+                      parameterMeta: Option[ParameterMetaSectionElement],
+                      typeAliases: Map[String, WomType]
   )(implicit
     expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
     fileEvaluator: FileEvaluator[ExpressionElement],
@@ -326,7 +326,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     }
   }
 
-  private def createRuntimeAttributes(attributes: RuntimeAttributesSectionElement, linkedGraph: LinkedGraph)(implicit
+  def createRuntimeAttributes(attributes: RuntimeAttributesSectionElement, linkedGraph: LinkedGraph)(implicit
     expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
     fileEvaluator: FileEvaluator[ExpressionElement],
     typeEvaluator: TypeEvaluator[ExpressionElement],
@@ -340,36 +340,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
       womExpression <- kvPair.value.makeWomExpression(linkedGraph.typeAliases, consumedValueLookup)
     } yield kvPair.key -> womExpression
 
-    val returnCodesAttribute =
-      attributes.runtimeAttributes.toList.find(pair => pair.key.equals(RuntimeAttributesKeys.ReturnCodesKey))
-    val continueOnReturnCodeAttribute =
-      attributes.runtimeAttributes.toList.find(pair => pair.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey))
-
-    val returnCodesGet = returnCodesAttribute.orNull
-    val continueOnReturnCodeGet = continueOnReturnCodeAttribute.orNull
-    var editedAttributes = attributes.runtimeAttributes
-
-    if (returnCodesGet != null) {
-      val returnCodesNotUnique =
-        returnCodesGet.value
-          .equals(continueOnReturnCodeGet.value) || returnCodesGet.value.equals(
-          ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(0))))
-        )
-
-      if (!returnCodesNotUnique) {
-        editedAttributes = attributes.runtimeAttributes.filterNot(attribute =>
-          attribute.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey)
-        )
-        editedAttributes = editedAttributes ++ Vector(
-          KvPair(RuntimeAttributesKeys.ContinueOnReturnCodeKey, returnCodesAttribute.get.value)
-        )
-      }
-    }
-
-    editedAttributes =
-      editedAttributes.filterNot(attribute => attribute.key.equals(RuntimeAttributesKeys.ReturnCodesKey))
-
-    editedAttributes.toList
+    attributes.runtimeAttributes.toList
       .traverse(processSingleRuntimeAttribute)
       .map(atts => RuntimeAttributes(atts.toMap))
   }

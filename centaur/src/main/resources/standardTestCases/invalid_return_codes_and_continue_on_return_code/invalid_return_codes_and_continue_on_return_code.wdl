@@ -16,6 +16,6 @@ task InvalidReturnCodeContinueOnReturnCode {
     runtime {
         docker: "ubuntu:latest"
         returnCodes: [5, 10, 15]
-        continueOnReturnCodes: [1]
+        continueOnReturnCode: [1]
     }
 }

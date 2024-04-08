@@ -202,9 +202,8 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       )
       assertAwsBatchRuntimeAttributesFailedCreation(
         runtimeAttributes,
-        "Expecting returnCodes runtime attribute to be either a String '*' or an Array[Int]. " +
-          "Expecting continueOnReturnCode runtime attribute to be a Boolean, a String 'true' or 'false', or an " +
-          "Array[Int]"
+        "Expecting returnCodes/continueOnReturnCode" +
+          " runtime attribute to be either a String '*', 'true', or 'false', a Boolean, or an Array[Int]."
       )
     }
 

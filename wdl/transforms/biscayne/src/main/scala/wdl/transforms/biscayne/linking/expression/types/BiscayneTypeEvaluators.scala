@@ -164,33 +164,17 @@ object BiscayneTypeEvaluators {
     override def evaluateType(a: StructLiteral, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(
       implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] = {
-      typeAliases.get(a.structTypeName) map { definition =>
-        definition match {
-          case compositeType: WomCompositeType => {
-            a.elements.map { case (memberKey,  memberExpressionElement) => {
-              val evaluatedType = expressionTypeEvaluator.evaluateType(memberExpressionElement, linkedValues, typeAliases)
-              val expectedType = compositeType.typeMap.get(memberKey)
-            }
-                "".invalidNel
-            }.invalidNel
+      typeAliases.get(a.structTypeName) map {
+        case compositeType: WomCompositeType =>
+          val errors = a.elements.flatMap { case (memberKey, memberExpressionElement) =>
+            val evaluatedType = expressionTypeEvaluator.evaluateType(memberExpressionElement, linkedValues, typeAliases)
+            val expectedType = compositeType.typeMap.get(memberKey)
+            if (evaluatedType.toOption != expectedType) Some(s"${memberKey} of type ${evaluatedType.toString} found, expected ${expectedType.toString}\n") else None
           }
-          case _ => s"Could not find type definition for struct literal ${a.structTypeName}".invalidNel
-        }
+          if (errors.isEmpty) compositeType.validNel else errors.toString.invalidNel
+        case _ => s"Could not find struct definition for struct literal ${a.structTypeName}".invalidNel
       }
-
-
-      val element = a.elements.head._2
-      val evaluatedType = expressionTypeEvaluator.evaluateType(element, linkedValues, typeAliases)
-      println(evaluatedType)
-      //a.elements.get("id").asInstanceOf[Some].value.asInstanceOf[PrimitiveLiteralExpressionElement].value.asWomExpression.value.womType
-      //val expressionElementMap = a.elements
-      //val expressionElement = expressionElementMap.head._2
-      // This works fine, but is not yet a strong enough type check for the WDL 1.1 spec
-      // (i.e. users are able to instantiate struct literals with k/v pairs that aren't actually in the struct definition, without an error being thrown.)
-      // We want to add extra validation here, and return a WomCompositeType that matches the struct definition of everything is OK.
-      // Note that users are allowed to omit optional k/v pairs in their literal.
-      // This requires some extra work to be done in a subsequent PR.
-      WomObjectType.validNel
+      s"Could not find struct definition for struct literal ${a.structTypeName}".invalidNel
     }
   }
 }

@@ -2,36 +2,29 @@ package wdl.transforms.base.wdlom2wom
 
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
+import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import cats.instances.list._
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
-import wdl.model.draft3.elements.ExpressionElement.{
-  ArrayLiteral,
-  IdentifierLookup,
-  KvPair,
-  PrimitiveLiteralExpressionElement,
-  SelectFirst
-}
+import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, KvPair, SelectFirst}
 import wdl.model.draft3.elements._
+import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
+import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
+import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
+import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.{ExpressionValueConsumer, LinkedGraph}
+import wdl.transforms.base.linking.expression._
+import wdl.transforms.base.linking.graph.LinkedGraphMaker
+import wdl.transforms.base.linking.typemakers._
+import wdl.transforms.base.wdlom2wom.expression.renaming.IdentifierLookupRenamer.ops._
+import wdl.transforms.base.wdlom2wom.expression.renaming.expressionEvaluator
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement}
 import wom.expression.WomExpression
 import wom.types.{WomOptionalType, WomType}
-import wom.{CommandPart, RuntimeAttributes, RuntimeAttributesKeys}
-import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
-import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
-import wdl.model.draft3.graph.expression.WomExpressionMaker.ops._
-import wdl.transforms.base.linking.expression._
-import wdl.transforms.base.linking.graph.LinkedGraphMaker
-import wdl.transforms.base.wdlom2wom.expression.renaming.IdentifierLookupRenamer.ops._
-import wdl.transforms.base.wdlom2wom.expression.renaming.expressionEvaluator
-import wdl.model.draft3.graph.expression.WomTypeMaker.ops._
-import wdl.transforms.base.linking.typemakers._
-import wom.values.WomInteger
+import wom.{CommandPart, RuntimeAttributes}
 
 object TaskDefinitionElementToWomTaskDefinition extends Util {
 

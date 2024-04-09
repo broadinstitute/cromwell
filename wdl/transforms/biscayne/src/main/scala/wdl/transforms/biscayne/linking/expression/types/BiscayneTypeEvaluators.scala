@@ -199,10 +199,14 @@ object BiscayneTypeEvaluators {
 
   implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
 
-    // Does it make sense that someone would assign type b to type a?
-    // Using WomType equality for strict, coercion-less checking.
-    def areTypesAssignable(a: WomType, b: WomType): Boolean =
-      !a.equalsType(b).isFailure
+    // Is the evaluated type allowed to be assigned to the expectedType?
+    def areTypesAssignable(evaluatedType: WomType, expectedType: WomType): Boolean =
+      // NB: This check is a little looser than we'd like it to be.
+      // For example, String is coercible to Int (Int i = "1" is OK)
+      // It's not until we actually evaluate the value of the string that we can know if that coercion succeeded or not. (Int i = "orange" will fail)
+      // We don't know whether the user has provided "1" or "orange" at this stage.
+      // This is OK as-is because the value evaluators do the coercing and throw meaningful errors if the coercion fails.
+      expectedType.isCoerceableFrom(evaluatedType)
 
     // Helper method to check something (maybe) found in the struct literal to something (maybe) found in the struct definition.
     def checkIfMemberIsValid(typeName: String,
@@ -235,23 +239,19 @@ object BiscayneTypeEvaluators {
         (memberKey, checkIfMemberIsValid(a.structTypeName, memberKey, evaluatedType, expectedType))
       }
 
-      val errors: Iterable[String] = checkedMembers.flatMap { case (_, errorOr) =>
+      val (errors, validatedTypes) = checkedMembers.partition { case (_, errorOr) =>
         errorOr match {
-          case Invalid(e) => Some(e.toList.mkString)
-          case _ => None
+          case Invalid(_) => true
+          case Valid(_) => false
         }
       }
 
-      if (errors.nonEmpty) {
-        errors.mkString(",").invalidNel
-      } else {
-        val validatedTypes: Map[String, WomType] = checkedMembers.flatMap { case (key, errorOr) =>
-          errorOr match {
-            case Valid(v) => Some((key, v))
-            case _ => None
-          }
-        }
-        WomCompositeType(validatedTypes, Some(a.structTypeName)).validNel
+      errors.headOption match {
+        case Some((_, Invalid(_))) =>
+          errors.collect { case (_, Invalid(e)) => e.toList.mkString }.toList.mkString(",").invalidNel
+        case _ =>
+          val types = validatedTypes.collect { case (key, Valid(v)) => (key, v) }
+          WomCompositeType(types, Some(a.structTypeName)).validNel
       }
     }
 

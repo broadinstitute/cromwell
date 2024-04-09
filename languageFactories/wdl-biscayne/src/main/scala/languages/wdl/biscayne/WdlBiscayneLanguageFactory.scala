@@ -66,22 +66,7 @@ class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFa
                             convertNestedScatterToSubworkflow: Boolean = true
   ): Checked[WomBundle] = {
 
-    val converter: CheckedAtoB[FileStringParserInput, WomBundle] = {
-      val ast = stringToAst
-      val wrapped = ast andThen wrapAst
-      val elems = wrapped andThen astToFileElement.map(
-        FileElementToWomBundleInputs(
-          _,
-          workflowOptionsJson,
-          convertNestedScatterToSubworkflow,
-          importResolvers,
-          languageFactories,
-          workflowDefinitionElementToWomWorkflowDefinition,
-          taskDefinitionElementToWomTaskDefinition
-        )
-      ) andThen fileElementToWomBundle
-
-      println(elems)
+    val converter: CheckedAtoB[FileStringParserInput, WomBundle] =
       stringToAst andThen wrapAst andThen astToFileElement.map(
         FileElementToWomBundleInputs(
           _,
@@ -93,7 +78,6 @@ class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFa
           taskDefinitionElementToWomTaskDefinition
         )
       ) andThen fileElementToWomBundle
-    }
 
     lazy val validationCallable = new Callable[ErrorOr[WomBundle]] {
       def call: ErrorOr[WomBundle] = converter

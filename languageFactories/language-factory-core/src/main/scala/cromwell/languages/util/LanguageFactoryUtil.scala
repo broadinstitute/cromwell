@@ -51,15 +51,12 @@ object LanguageFactoryUtil {
     }
   }
 
-  def validateWomNamespace(womExecutable: Executable, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] = {
-    val allNodes = womExecutable.graph.allNodes
-    println(allNodes)
+  def validateWomNamespace(womExecutable: Executable, ioFunctions: IoFunctionSet): Checked[ValidatedWomNamespace] =
     for {
       evaluatedInputs <- validateExecutableInputs(womExecutable.resolvedExecutableInputs, ioFunctions).toEither
       validatedWomNamespace = ValidatedWomNamespace(womExecutable, evaluatedInputs, Map.empty)
       _ <- validateWdlFiles(validatedWomNamespace.womValueInputs)
     } yield validatedWomNamespace
-  }
 
   /*
    * At this point input values are either a WomValue (if it was provided through the input file)

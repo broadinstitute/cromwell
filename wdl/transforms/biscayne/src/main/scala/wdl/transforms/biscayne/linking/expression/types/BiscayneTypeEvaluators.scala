@@ -199,7 +199,8 @@ object BiscayneTypeEvaluators {
 
   implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
 
-    // does it make sense that someone would assign type b to type a?
+    // Does it make sense that someone would assign type b to type a?
+    // Using WomType equality for strict, coercion-less checking.
     def areTypesAssignable(a: WomType, b: WomType): Boolean =
       !a.equalsType(b).isFailure
 

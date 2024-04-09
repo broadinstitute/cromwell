@@ -23,10 +23,10 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
   it should "find the left and right hand sides of a pair expression" in {
     val pair = PairLiteral(fiveLiteral, sixLiteral)
     val leftExpression: ExpressionElement = ExpressionMemberAccess(pair, NonEmptyList("left", List.empty))
-    leftExpression.evaluateType(Map.empty) shouldBeValid WomIntegerType
+    leftExpression.evaluateType(Map.empty, Map.empty) shouldBeValid WomIntegerType
 
     val rightExpression: ExpressionElement = ExpressionMemberAccess(pair, NonEmptyList("right", List.empty))
-    rightExpression.evaluateType(Map.empty) shouldBeValid WomIntegerType
+    rightExpression.evaluateType(Map.empty, Map.empty) shouldBeValid WomIntegerType
   }
 
   it should "find the appropriate value in a deeply nested Pair" in {
@@ -46,7 +46,7 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
       ),
       memberAccessTail = NonEmptyList("left", List("right", "right", "left"))
     )
-    nestedPairLookup.evaluateType(Map.empty) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
+    nestedPairLookup.evaluateType(Map.empty, Map.empty) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
   }
 
   it should "evaluate a nested member access on a call output" in {
@@ -59,7 +59,7 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
       )
     )
 
-    callOutputLookup.evaluateType(linkedValues) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
+    callOutputLookup.evaluateType(linkedValues, Map.empty) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
   }
 
   it should "evaluate a nested member access on a struct" in {
@@ -77,7 +77,7 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
       )
     )
 
-    objectLookup.evaluateType(linkedValues) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
+    objectLookup.evaluateType(linkedValues, Map.empty) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
   }
 
   it should "evaluate a nested member access type on an object" in {
@@ -89,7 +89,7 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
       )
     )
 
-    objectLookup.evaluateType(linkedValues) shouldBeValid WomAnyType
+    objectLookup.evaluateType(linkedValues, Map.empty) shouldBeValid WomAnyType
   }
 
   it should "evaluate an identifier lookup" in {
@@ -101,7 +101,7 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
       )
     )
 
-    identifierLookup.evaluateType(linkedValues) shouldBeValid WomPairType(WomStringType, WomStringType)
+    identifierLookup.evaluateType(linkedValues, Map.empty) shouldBeValid WomPairType(WomStringType, WomStringType)
   }
 
 }

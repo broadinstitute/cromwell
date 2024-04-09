@@ -184,9 +184,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val structLiteral = """ Plant{isTasty: true, count: "four"} """
     val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
     structExpr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty,
-                     typeAliases
-      ) shouldBeInvalid "Plant.count expected to be Int. Found String."
+      e.evaluateType(Map.empty, typeAliases) shouldBeInvalid "Plant.count expected to be Int. Found String."
     }
   }
 
@@ -194,9 +192,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val structLiteral = """ Plant{count: 4} """
     val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
     structExpr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty,
-        typeAliases
-      ) shouldBeInvalid "Expected member isTasty not found. "
+      e.evaluateType(Map.empty, typeAliases) shouldBeInvalid "Expected member isTasty not found. "
     }
   }
 

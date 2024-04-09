@@ -18,8 +18,11 @@ import wdl.transforms.biscayne.linking.expression.types.cascadesTypeEvaluators._
 
 package object types {
   implicit val expressionTypeEvaluator: TypeEvaluator[ExpressionElement] = new TypeEvaluator[ExpressionElement] {
-    override def evaluateType(a: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType] )(
-      implicit typeEvaluator: TypeEvaluator[ExpressionElement]
+    override def evaluateType(a: ExpressionElement,
+                              linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                              typeAliases: Map[String, WomType]
+    )(implicit
+      typeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       a match {
         // Literals:

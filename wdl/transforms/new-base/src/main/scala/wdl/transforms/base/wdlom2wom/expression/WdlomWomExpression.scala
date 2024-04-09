@@ -16,7 +16,7 @@ import wom.values.WomValue
 
 final case class WdlomWomExpression private (expressionElement: ExpressionElement,
                                              linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                                            typeAliases: Map[String, WomType]
+                                             typeAliases: Map[String, WomType]
 )(implicit
   expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
   fileEvaluator: FileEvaluator[ExpressionElement],
@@ -53,8 +53,10 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
 }
 
 object WdlomWomExpression {
-  def make(expressionElement: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle], typeAliases: Map[String, WomType])(
-    implicit
+  def make(expressionElement: ExpressionElement,
+           linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+           typeAliases: Map[String, WomType]
+  )(implicit
     expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
     fileEvaluator: FileEvaluator[ExpressionElement],
     typeEvaluator: TypeEvaluator[ExpressionElement],

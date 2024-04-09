@@ -61,7 +61,6 @@ object LanguageFactoryUtil {
     } yield validatedWomNamespace
   }
 
-
   /*
    * At this point input values are either a WomValue (if it was provided through the input file)
    * or a WomExpression (if we fell back to the default).

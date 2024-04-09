@@ -82,7 +82,9 @@ object CallElementToGraphNode {
      *
      * @return ErrorOr of LocalName(key) mapped to ExpressionNode(value).
      */
-    def expressionNodeMappings(callable: Callable, typeAliases: Map[String, WomType]): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
+    def expressionNodeMappings(callable: Callable,
+                               typeAliases: Map[String, WomType]
+    ): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
 
       def hasDeclaration(callable: Callable, name: String): Boolean = callable match {
         case t: TaskDefinition =>

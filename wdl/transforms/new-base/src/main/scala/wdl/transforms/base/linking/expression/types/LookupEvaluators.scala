@@ -15,8 +15,11 @@ import wom.types._
 object LookupEvaluators {
 
   implicit val identifierLookupTypeEvaluator: TypeEvaluator[IdentifierLookup] = new TypeEvaluator[IdentifierLookup] {
-    override def evaluateType(a: IdentifierLookup, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle], typeAliases: Map[String, WomType])(
-      implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    override def evaluateType(a: IdentifierLookup,
+                              linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                              typeAliases: Map[String, WomType]
+    )(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       linkedValues.collectFirst {
         case (UnlinkedIdentifierHook(id), gen) if a.identifier == id => gen.womType
@@ -33,7 +36,7 @@ object LookupEvaluators {
     new TypeEvaluator[ExpressionMemberAccess] {
       override def evaluateType(a: ExpressionMemberAccess,
                                 linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                               typeAliases: Map[String, WomType]
+                                typeAliases: Map[String, WomType]
       )(implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
         val baseType = a.expression.evaluateType(linkedValues, typeAliases)
         baseType flatMap { doLookup(_, a.memberAccessTail) }
@@ -44,7 +47,7 @@ object LookupEvaluators {
     new TypeEvaluator[IdentifierMemberAccess] {
       override def evaluateType(a: IdentifierMemberAccess,
                                 linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                               typeAliases: Map[String, WomType]
+                                typeAliases: Map[String, WomType]
       )(implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
         val generatedValueHandle =
           linkedValues.get(UnlinkedCallOutputOrIdentifierAndMemberAccessHook(a.first, a.second))
@@ -66,10 +69,16 @@ object LookupEvaluators {
     }
 
   implicit val indexAccessTypeEvaluator: TypeEvaluator[IndexAccess] = new TypeEvaluator[IndexAccess] {
-    override def evaluateType(a: IndexAccess, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],typeAliases: Map[String, WomType])(
-      implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    override def evaluateType(a: IndexAccess,
+                              linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                              typeAliases: Map[String, WomType]
+    )(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      (a.expressionElement.evaluateType(linkedValues, typeAliases), a.index.evaluateType(linkedValues, typeAliases), a.index.validNel) flatMapN {
+      (a.expressionElement.evaluateType(linkedValues, typeAliases),
+       a.index.evaluateType(linkedValues, typeAliases),
+       a.index.validNel
+      ) flatMapN {
         case (a: WomArrayType, WomIntegerType, _) => a.memberType.validNel
         case (WomMapType(keyType, valueType), lookupType, _) if keyType.isCoerceableFrom(lookupType) =>
           valueType.validNel

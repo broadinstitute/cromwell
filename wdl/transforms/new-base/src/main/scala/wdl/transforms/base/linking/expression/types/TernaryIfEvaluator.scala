@@ -13,7 +13,10 @@ import wom.types.{WomBooleanType, WomType}
 
 object TernaryIfEvaluator {
   implicit val ternaryIfEvaluator: TypeEvaluator[TernaryIf] = new TypeEvaluator[TernaryIf] {
-    override def evaluateType(a: TernaryIf, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle], typeAliases: Map[String, WomType])(implicit
+    override def evaluateType(a: TernaryIf,
+                              linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                              typeAliases: Map[String, WomType]
+    )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       a.condition.evaluateType(linkedValues, typeAliases) flatMap {

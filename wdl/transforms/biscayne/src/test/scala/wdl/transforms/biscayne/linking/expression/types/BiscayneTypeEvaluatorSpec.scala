@@ -24,7 +24,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
 
   val typeAliases: Map[String, WomType] = Map(
     "Plant" -> WomCompositeType(plantTypeMap, Some("Plant")),
-    "Animal" -> WomCompositeType(plantTypeMap, Some("Animal"))
+    "Animal" -> WomCompositeType(animalTypeMap, Some("Animal"))
   )
 
   it should "return nothing from static integer addition" in {
@@ -162,6 +162,14 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     }
   }
 
+  it should "evaluate the type of a struct literal with a nested struct literal" in {
+    val structLiteral = """ Animal{isMaybeGood: true, hat: Plant{isTasty: true, count: 42}} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomCompositeType(animalTypeMap, Some("Animal"))
+    }
+  }
+
   it should "fail to evaluate the type of a struct literal with incorrect members" in {
     val structLiteral = """ Animal{fur: "fuzzy", isGood: true} """
     val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
@@ -182,14 +190,21 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     }
   }
 
-  it should "fail if a member is missing" in {
+  it should "fail if a struct literal member is missing" in {
     val structLiteral = """ Plant{count: 4} """
     val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
     structExpr.shouldBeValidPF { case e =>
       e.evaluateType(Map.empty,
         typeAliases
-      ) shouldBeInvalid "Plant.count expected to be Int. Found String."
+      ) shouldBeInvalid "Expected member isTasty not found. "
     }
   }
 
+  it should "tolerate a missing struct literal optional member" in {
+    val structLiteral = """ Animal{hat: Plant{isTasty: true, count: 42}} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomCompositeType(animalTypeMap, Some("Animal"))
+    }
+  }
 }

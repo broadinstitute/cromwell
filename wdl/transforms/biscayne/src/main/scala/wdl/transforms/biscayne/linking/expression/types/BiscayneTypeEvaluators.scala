@@ -1,5 +1,6 @@
 package wdl.transforms.biscayne.linking.expression.types
 
+import cats.data.Validated.{Invalid, Valid}
 import cats.implicits.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple3Semigroupal}
 import cats.syntax.validated._
 import common.validation.ErrorOr._
@@ -198,12 +199,71 @@ object BiscayneTypeEvaluators {
 
   implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
 
-    /*
-    def isMissingMembers(foundMembers: Map[String, WomType], expectedMembers: Map[String, WomType]): Option[String] = {
-      val errors: Iterable[String] = expectedMembers flatMap { case (memberName, memberType) =>
+    // does it make sense that someone would assign type b to type a?
+    def areTypesAssignable(a: WomType, b: WomType): Boolean =
+      !a.equalsType(b).isFailure
+
+    // Helper method to check something (maybe) found in the struct literal to something (maybe) found in the struct definition.
+    def checkIfMemberIsValid(typeName: String,
+                             memberName: String,
+                             evaluatedType: Option[WomType],
+                             expectedType: Option[WomType]
+    ): ErrorOr[WomType] =
+      evaluatedType match {
+        case Some(evaluated) =>
+          expectedType match {
+            case Some(expected) =>
+              if (areTypesAssignable(evaluated, expected)) evaluated.validNel
+              else
+                s"$typeName.$memberName expected to be ${expected.friendlyName}. Found ${evaluated.friendlyName}.".invalidNel
+            case None => s"Type $typeName does not have a member called $memberName.".invalidNel
+          }
+        case None => s"Error evaluating the type of ${typeName}.${memberName}.".invalidNel
+      }
+
+    // For each member in the literal, check that it exists in the struct definition and is the expected type.
+    def checkMembersAgainstDefinition(a: StructLiteral,
+                                      structDefinition: WomCompositeType,
+                                      linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                                      typeAliases: Map[String, WomType]
+    ): ErrorOr[WomCompositeType] = {
+      val checkedMembers: Map[String, ErrorOr[WomType]] = a.elements.map { case (memberKey, memberExpressionElement) =>
+        val evaluatedType =
+          expressionTypeEvaluator.evaluateType(memberExpressionElement, linkedValues, typeAliases).toOption
+        val expectedType = structDefinition.typeMap.get(memberKey)
+        (memberKey, checkIfMemberIsValid(a.structTypeName, memberKey, evaluatedType, expectedType))
+      }
+
+      val errors: Iterable[String] = checkedMembers.flatMap { case (_, errorOr) =>
+        errorOr match {
+          case Invalid(e) => Some(e.toList.mkString)
+          case _ => None
+        }
+      }
+
+      if (errors.nonEmpty) {
+        errors.mkString(",").invalidNel
+      } else {
+        val validatedTypes: Map[String, WomType] = checkedMembers.flatMap { case (key, errorOr) =>
+          errorOr match {
+            case Valid(v) => Some((key, v))
+            case _ => None
+          }
+        }
+        WomCompositeType(validatedTypes, Some(a.structTypeName)).validNel
+      }
+    }
+
+    // For every member in the definition, if that member isn't optional, confirm that it is also in the struct literal.
+    def checkForMissingMembers(foundMembers: Map[String, WomType],
+                               structDefinition: WomCompositeType
+    ): Option[String] = {
+      val errors: Iterable[String] = structDefinition.typeMap flatMap { case (memberName, memberType) =>
         memberType match {
-          case WomOptionalType(_) => None // It's OK if an Optional type is not found.
-          case _ => if (!foundMembers.contains(memberName)) Some(s"Expected member ${memberName} not found.") else None
+          case WomOptionalType(_) => None
+          case _ =>
+            if (!foundMembers.contains(memberName)) Some(s"Expected member ${memberName} not found. ")
+            else None
         }
       }
       errors match {
@@ -211,49 +271,27 @@ object BiscayneTypeEvaluators {
         case _ => Some(errors.mkString)
       }
     }
-     */
-    def areTypesAssignable(a: WomType, b: WomType): Boolean =
-      !a.equalsType(b).isFailure
-
-
-    def typeCheckHelper(typeName: String,
-                        memberName: String,
-                        evaluatedType: Option[WomType],
-                        expectedType: Option[WomType]
-    ): Option[String] =
-      evaluatedType match {
-        case Some(evaluated) =>
-          expectedType match {
-            case Some(expected) =>
-              if (areTypesAssignable(evaluated, expected)) None
-              else
-                Some(s"$typeName.$memberName expected to be ${expected.friendlyName}. Found ${evaluated.friendlyName}.")
-            case None => Some(s"Type $typeName does not have a member called $memberName.")
-          }
-        case None => Some(s"Error evaluating the type of ${typeName}.${memberName}.")
-      }
-
     override def evaluateType(a: StructLiteral,
                               linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                               typeAliases: Map[String, WomType]
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
-    ): ErrorOr[WomType] =
-      typeAliases.get(a.structTypeName) map {
-        case compositeType: WomCompositeType =>
-          val errors = a.elements.flatMap { case (memberKey, memberExpressionElement) =>
-            val evaluatedType =
-              expressionTypeEvaluator.evaluateType(memberExpressionElement, linkedValues, typeAliases).toOption
-            val expectedType = compositeType.typeMap.get(memberKey)
-            typeCheckHelper(a.structTypeName, memberKey, evaluatedType, expectedType)
+    ): ErrorOr[WomType] = {
+      val structDefinition = typeAliases.get(a.structTypeName)
+      structDefinition match {
+        case Some(definition) =>
+          definition match {
+            case compositeType: WomCompositeType =>
+              checkMembersAgainstDefinition(a, compositeType, linkedValues, typeAliases).flatMap { foundMembers =>
+                checkForMissingMembers(foundMembers.typeMap, compositeType) match {
+                  case Some(error) => error.invalidNel
+                  case _ => compositeType.validNel
+                }
+              }
+            case _ => s"Unexpected error while parsing ${a.structTypeName}".invalidNel
           }
-          if (errors.isEmpty) {
-            WomCompositeType(compositeType.typeMap, Some(a.structTypeName)).validNel
-          } else {
-            errors.mkString(",").invalidNel
-          }
-        case _ => s"Could not find struct definition for struct literal ${a.structTypeName}".invalidNel
-      } getOrElse s"Type map does not include definition for struct literal ${a.structTypeName}".invalidNel
-
+        case None => s"Could not find Struct Definition for type ${a.structTypeName}".invalidNel
+      }
+    }
   }
 }

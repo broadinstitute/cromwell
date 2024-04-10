@@ -75,6 +75,15 @@ package object wdlom2wom {
     conversion.contextualizeErrors(s"process task definition '${b.taskDefinitionElement.name}'")
   }
 
+  /**
+   * Combine `returnCodes` and `continueOnReturnCode` to be a single attribute. The resulting vector will contain 
+   * `continueOnReturnCode` if either `continueOnReturnCode` or `returnCodes` was in the `attributeSection`, it will 
+   * never contain `returnCodes`. The value for the `continueOnReturnCode` key in the new vector will be the value 
+   * associated with `returnCodes` in the original vector if it exists, else it will be the value associated with 
+   * `continueOnReturnCode` in the original vector.
+   * @param attributeSection list of all runtime attributes and their values
+   * @return A vector of pairs of runtime attribute keys to their respective values
+   */
   private def getFinalRuntimeAttributes(attributeSection: RuntimeAttributesSectionElement): Vector[KvPair] = {
     val returnCodesAttribute =
       attributeSection.runtimeAttributes.toList.find(pair => pair.key.equals(RuntimeAttributesKeys.ReturnCodesKey))
@@ -83,25 +92,25 @@ package object wdlom2wom {
         pair.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey)
       )
 
-    val returnCodesGet = returnCodesAttribute.orNull
-    val continueOnReturnCodeGet = continueOnReturnCodeAttribute.orNull
     var editedAttributes = attributeSection.runtimeAttributes
-    var returnCodesNotUnique = false
 
-    if (returnCodesGet != null && continueOnReturnCodeGet != null) {
-      returnCodesNotUnique = returnCodesGet.value
-        .equals(continueOnReturnCodeGet.value) || returnCodesGet.value.equals(
-        ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(0))))
-      )
+    val returnCodesNotUnique = (returnCodesAttribute, continueOnReturnCodeAttribute) match {
+      case (Some(returnCodesValue), Some(continueOnReturnCodeValue)) =>
+        returnCodesValue.value
+          .equals(continueOnReturnCodeValue.value) || returnCodesValue.value.equals(
+          ArrayLiteral(Vector(PrimitiveLiteralExpressionElement(WomInteger(0))))
+        )
+      case _ => false
     }
 
-    if (returnCodesGet != null && !returnCodesNotUnique) {
-      editedAttributes = attributeSection.runtimeAttributes.filterNot(attribute =>
-        attribute.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey)
-      )
-      editedAttributes = editedAttributes ++ Vector(
-        KvPair(RuntimeAttributesKeys.ContinueOnReturnCodeKey, returnCodesAttribute.get.value)
-      )
+    (returnCodesAttribute, returnCodesNotUnique) match {
+      case (Some(returnCodesValue), false) =>
+        editedAttributes = attributeSection.runtimeAttributes.filterNot(attribute =>
+          attribute.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey)
+        )
+        editedAttributes = editedAttributes ++ Vector(
+          KvPair(RuntimeAttributesKeys.ContinueOnReturnCodeKey, returnCodesValue.value)
+        )
     }
 
     editedAttributes =

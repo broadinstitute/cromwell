@@ -22,9 +22,14 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     "hat" -> WomCompositeType(plantTypeMap, Some("Plant"))
   )
 
+  val bacteriumTypeMap: Map[String, WomType] = Map(
+    "myFile" -> WomSingleFileType
+  )
+
   val typeAliases: Map[String, WomType] = Map(
     "Plant" -> WomCompositeType(plantTypeMap, Some("Plant")),
-    "Animal" -> WomCompositeType(animalTypeMap, Some("Animal"))
+    "Animal" -> WomCompositeType(animalTypeMap, Some("Animal")),
+    "Bacterium" -> WomCompositeType(bacteriumTypeMap, Some("Bacterium"))
   )
 
   it should "return nothing from static integer addition" in {
@@ -155,12 +160,60 @@ class CascadesTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
   }
 
   it should "evaluate the type of a struct literal" in {
-    // NB: This is not yet strict enough type checking for the WDL 1.1 spec.
-    // In a subsequent branch, we will make this be a WomCompositeType that matches the struct definition.
+    val structLiteral = """ Plant{isTasty: true, count: 42} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomCompositeType(plantTypeMap, Some("Plant"))
+    }
+  }
+
+  it should "evaluate the type of a struct literal with a nested struct literal" in {
+    val structLiteral = """ Animal{isMaybeGood: true, hat: Plant{isTasty: true, count: 42}} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomCompositeType(animalTypeMap, Some("Animal"))
+    }
+  }
+
+  it should "fail to evaluate the type of a struct literal with incorrect members" in {
     val structLiteral = """ Animal{fur: "fuzzy", isGood: true} """
     val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
     structExpr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomObjectType
+      e.evaluateType(Map.empty,
+                     typeAliases
+      ) shouldBeInvalid "[ Type Animal does not have a member called fur., Type Animal does not have a member called isGood. ]"
+    }
+  }
+
+  it should "fail to evaluate the type of a struct literal with members that are the wrong type" in {
+    val structLiteral = """ Plant{isTasty: true, count: (0, 1)} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty, typeAliases) shouldBeInvalid "[ Plant.count expected to be Int. Found Pair[Int, Int]. ]"
+    }
+  }
+
+  it should "fail if a struct literal member is missing" in {
+    val structLiteral = """ Plant{count: 4} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty, typeAliases) shouldBeInvalid "Expected member isTasty not found. "
+    }
+  }
+
+  it should "tolerate a missing struct literal optional member" in {
+    val structLiteral = """ Animal{hat: Plant{isTasty: true, count: 42}} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomCompositeType(animalTypeMap, Some("Animal"))
+    }
+  }
+
+  it should "work with file paths in struct literal" in {
+    val structLiteral = """ Bacterium{myFile: "/my/file/path"} """
+    val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
+    structExpr.shouldBeValidPF { case e =>
+      e.evaluateType(Map.empty, typeAliases) shouldBeValid WomCompositeType(bacteriumTypeMap, Some("Bacterium"))
     }
   }
 }

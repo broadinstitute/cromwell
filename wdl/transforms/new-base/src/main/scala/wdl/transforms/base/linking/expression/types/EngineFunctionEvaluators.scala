@@ -42,7 +42,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomArrayType(WomStringType))
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ => WomArrayType(WomStringType))
   }
 
   implicit val readTsvFunctionEvaluator: TypeEvaluator[ReadTsv] = new TypeEvaluator[ReadTsv] {
@@ -52,7 +52,9 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomArrayType(WomArrayType(WomStringType)))
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ =>
+        WomArrayType(WomArrayType(WomStringType))
+      )
   }
 
   implicit val readMapFunctionEvaluator: TypeEvaluator[ReadMap] = new TypeEvaluator[ReadMap] {
@@ -62,7 +64,9 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomMapType(WomStringType, WomStringType))
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ =>
+        WomMapType(WomStringType, WomStringType)
+      )
   }
 
   implicit val readObjectFunctionEvaluator: TypeEvaluator[ReadObject] = new TypeEvaluator[ReadObject] {
@@ -72,7 +76,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomObjectType)
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ => WomObjectType)
   }
 
   implicit val readObjectsFunctionEvaluator: TypeEvaluator[ReadObjects] = new TypeEvaluator[ReadObjects] {
@@ -82,7 +86,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomArrayType(WomObjectType))
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ => WomArrayType(WomObjectType))
   }
 
   implicit val readJsonFunctionEvaluator: TypeEvaluator[ReadJson] = new TypeEvaluator[ReadJson] {
@@ -93,7 +97,7 @@ object EngineFunctionEvaluators {
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
       // we can't figure out the WomType of data without reading the file hence evaluate it to `WomAnyType`
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomAnyType)
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ => WomAnyType)
   }
 
   implicit val readIntFunctionEvaluator: TypeEvaluator[ReadInt] = new TypeEvaluator[ReadInt] {
@@ -103,7 +107,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomIntegerType)
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ => WomIntegerType)
   }
 
   implicit val readStringFunctionEvaluator: TypeEvaluator[ReadString] = new TypeEvaluator[ReadString] {
@@ -113,7 +117,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomStringType)
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ => WomStringType)
   }
 
   implicit val readFloatFunctionEvaluator: TypeEvaluator[ReadFloat] = new TypeEvaluator[ReadFloat] {
@@ -123,7 +127,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomFloatType)
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ => WomFloatType)
   }
 
   implicit val readBooleanFunctionEvaluator: TypeEvaluator[ReadBoolean] = new TypeEvaluator[ReadBoolean] {
@@ -133,7 +137,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomSingleFileType).map(_ => WomBooleanType)
+      validateParamType(a.param, linkedValues, WomSingleFileType, typeAliases).map(_ => WomBooleanType)
   }
 
   implicit val writeLinesFunctionEvaluator: TypeEvaluator[WriteLines] = new TypeEvaluator[WriteLines] {
@@ -143,7 +147,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomArrayType(WomStringType)).map(_ => WomSingleFileType)
+      validateParamType(a.param, linkedValues, WomArrayType(WomStringType), typeAliases).map(_ => WomSingleFileType)
   }
 
   implicit val writeTsvFunctionEvaluator: TypeEvaluator[WriteTsv] = new TypeEvaluator[WriteTsv] {
@@ -153,7 +157,9 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomArrayType(WomArrayType(WomStringType))).map(_ => WomSingleFileType)
+      validateParamType(a.param, linkedValues, WomArrayType(WomArrayType(WomStringType)), typeAliases).map(_ =>
+        WomSingleFileType
+      )
   }
 
   implicit val writeMapFunctionEvaluator: TypeEvaluator[WriteMap] = new TypeEvaluator[WriteMap] {
@@ -163,7 +169,9 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType)).map(_ => WomSingleFileType)
+      validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType), typeAliases).map(_ =>
+        WomSingleFileType
+      )
   }
 
   implicit val writeObjectFunctionEvaluator: TypeEvaluator[WriteObject] = new TypeEvaluator[WriteObject] {
@@ -173,7 +181,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomObjectType).map(_ => WomSingleFileType)
+      validateParamType(a.param, linkedValues, WomObjectType, typeAliases).map(_ => WomSingleFileType)
   }
 
   implicit val writeObjectsFunctionEvaluator: TypeEvaluator[WriteObjects] = new TypeEvaluator[WriteObjects] {
@@ -183,7 +191,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomArrayType(WomObjectType)).map(_ => WomSingleFileType)
+      validateParamType(a.param, linkedValues, WomArrayType(WomObjectType), typeAliases).map(_ => WomSingleFileType)
   }
 
   implicit val writeJsonFunctionEvaluator: TypeEvaluator[WriteJson] = new TypeEvaluator[WriteJson] {
@@ -216,7 +224,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomIntegerType).map(_ => WomArrayType(WomIntegerType))
+      validateParamType(a.param, linkedValues, WomIntegerType, typeAliases).map(_ => WomArrayType(WomIntegerType))
   }
 
   implicit val transposeFunctionEvaluator: TypeEvaluator[Transpose] = new TypeEvaluator[Transpose] {
@@ -240,7 +248,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)).map(_ => WomIntegerType)
+      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType), typeAliases).map(_ => WomIntegerType)
   }
 
   implicit val flattenFunctionEvaluator: TypeEvaluator[Flatten] = new TypeEvaluator[Flatten] {
@@ -294,7 +302,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomOptionalType(WomAnyType)).map(_ => WomBooleanType)
+      validateParamType(a.param, linkedValues, WomOptionalType(WomAnyType), typeAliases).map(_ => WomBooleanType)
   }
 
   implicit val floorFunctionEvaluator: TypeEvaluator[Floor] = new TypeEvaluator[Floor] {
@@ -304,7 +312,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomFloatType).map(_ => WomIntegerType)
+      validateParamType(a.param, linkedValues, WomFloatType, typeAliases).map(_ => WomIntegerType)
   }
 
   implicit val ceilFunctionEvaluator: TypeEvaluator[Ceil] = new TypeEvaluator[Ceil] {
@@ -314,7 +322,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomFloatType).map(_ => WomIntegerType)
+      validateParamType(a.param, linkedValues, WomFloatType, typeAliases).map(_ => WomIntegerType)
   }
 
   implicit val roundFunctionEvaluator: TypeEvaluator[Round] = new TypeEvaluator[Round] {
@@ -324,7 +332,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomFloatType).map(_ => WomIntegerType)
+      validateParamType(a.param, linkedValues, WomFloatType, typeAliases).map(_ => WomIntegerType)
   }
 
   implicit val globFunctionTypeEvaluator: TypeEvaluator[Glob] = new TypeEvaluator[Glob] {
@@ -334,7 +342,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomStringType).map(_ => WomArrayType(WomSingleFileType))
+      validateParamType(a.param, linkedValues, WomStringType, typeAliases).map(_ => WomArrayType(WomSingleFileType))
   }
 
   implicit val sizeFunctionEvaluator: TypeEvaluator[Size] = new TypeEvaluator[Size] {
@@ -353,7 +361,7 @@ object EngineFunctionEvaluators {
     ): ErrorOr[WomType] = {
       val validatedSecondArg: ErrorOr[Unit] = a.secondParam match {
         case None => ().validNel
-        case Some(arg) => validateParamType(arg, linkedValues, WomStringType).void
+        case Some(arg) => validateParamType(arg, linkedValues, WomStringType, typeAliases).void
       }
       val validatedFirstArg: ErrorOr[Unit] = a.firstParam.evaluateType(linkedValues, typeAliases).flatMap {
         case t if suitableSizeType(t) => ().validNel
@@ -373,21 +381,22 @@ object EngineFunctionEvaluators {
     ): ErrorOr[WomType] = {
       val validatedSecondArg: ErrorOr[Unit] = a.secondParam match {
         case None => ().validNel
-        case Some(arg) => validateParamType(arg, linkedValues, WomStringType).void
+        case Some(arg) => validateParamType(arg, linkedValues, WomStringType, typeAliases).void
       }
 
-      (validateParamType(a.firstParam, linkedValues, WomSingleFileType), validatedSecondArg) mapN { (_, _) =>
-        WomStringType
+      (validateParamType(a.firstParam, linkedValues, WomSingleFileType, typeAliases), validatedSecondArg) mapN {
+        (_, _) =>
+          WomStringType
       }
     }
   }
 
   private def crossOrZipType(arg1: ExpressionElement,
                              arg2: ExpressionElement,
-                             linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]
+                             linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                             typeAliases: Map[String, WomType]
   )(implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] =
-    // TODO: can/should we pipe type aliases through here?
-    (arg1.evaluateType(linkedValues, Map()), arg2.evaluateType(linkedValues, Map())) match {
+    (arg1.evaluateType(linkedValues, typeAliases), arg2.evaluateType(linkedValues, typeAliases)) match {
       case (Valid(WomArrayType(left)), Valid(WomArrayType(right))) =>
         WomArrayType(WomPairType(left, right)).validNel
       case (Valid(otherLeft), Valid(WomArrayType(_))) =>
@@ -407,7 +416,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      crossOrZipType(a.arg1, a.arg2, linkedValues)
+      crossOrZipType(a.arg1, a.arg2, linkedValues, typeAliases)
   }
   implicit val crossFunctionEvaluator: TypeEvaluator[Cross] = new TypeEvaluator[Cross] {
     override def evaluateType(a: Cross,
@@ -416,7 +425,7 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      crossOrZipType(a.arg1, a.arg2, linkedValues)
+      crossOrZipType(a.arg1, a.arg2, linkedValues, typeAliases)
   }
 
   implicit val prefixFunctionEvaluator: TypeEvaluator[Prefix] = new TypeEvaluator[Prefix] {
@@ -426,8 +435,8 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      (validateParamType(a.prefix, linkedValues, WomStringType),
-       validateParamType(a.array, linkedValues, WomArrayType(WomStringType))
+      (validateParamType(a.prefix, linkedValues, WomStringType, typeAliases),
+       validateParamType(a.array, linkedValues, WomArrayType(WomStringType), typeAliases)
       ) mapN { (_, _) => WomArrayType(WomStringType) }
   }
 
@@ -438,17 +447,17 @@ object EngineFunctionEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      (validateParamType(a.input, linkedValues, WomSingleFileType),
-       validateParamType(a.pattern, linkedValues, WomSingleFileType),
-       validateParamType(a.replace, linkedValues, WomSingleFileType)
+      (validateParamType(a.input, linkedValues, WomSingleFileType, typeAliases),
+       validateParamType(a.pattern, linkedValues, WomSingleFileType, typeAliases),
+       validateParamType(a.replace, linkedValues, WomSingleFileType, typeAliases)
       ) mapN { (_, _, _) => WomStringType }
   }
 
   def validateParamType(param: ExpressionElement,
                         linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
-                        expectedType: WomType
+                        expectedType: WomType,
+                        typeAliases: Map[String, WomType]
   )(implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] =
-    // TODO: pipe type aliases through here
     param.evaluateType(linkedValues, Map()).flatMap { foundType =>
       if (expectedType.isCoerceableFrom(foundType)) { foundType.validNel }
       else {

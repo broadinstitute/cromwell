@@ -19,7 +19,7 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType)) flatMap {
+      validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType), typeAliases) flatMap {
         case WomMapType(keyType, _) => WomArrayType(keyType).validNel
         case other => s"Cannot invoke 'keys' on type '${other.stableName}'. Expected a map".invalidNel
       }
@@ -32,7 +32,7 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
+      validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType)), typeAliases) flatMap {
         case WomArrayType(WomPairType(x: WomPrimitiveType, y)) => WomMapType(x, y).validNel
         case other @ WomArrayType(WomPairType(x, _)) =>
           s"Cannot invoke 'as_map' on type ${other.stableName}. Map keys must be primitive but got '${x.stableName}'".invalidNel
@@ -47,7 +47,7 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType)) flatMap {
+      validateParamType(a.param, linkedValues, WomMapType(WomAnyType, WomAnyType), typeAliases) flatMap {
         case WomMapType(x, y) => WomArrayType(WomPairType(x, y)).validNel
         case other => s"Cannot invoke 'as_pairs' on type '${other.stableName}'. Expected a map".invalidNel
       }
@@ -60,7 +60,7 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
+      validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType)), typeAliases) flatMap {
         case WomArrayType(WomPairType(x: WomPrimitiveType, y)) => WomMapType(x, WomArrayType(y)).validNel
         case other @ WomArrayType(WomPairType(x, _)) =>
           s"Cannot invoke 'collect_by_key' on type ${other.stableName}. Map keys must be primitive but got '${x.stableName}'".invalidNel
@@ -114,7 +114,7 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.arg2, linkedValues, WomArrayType(WomAnyType)) flatMap {
+      validateParamType(a.arg2, linkedValues, WomArrayType(WomAnyType), typeAliases) flatMap {
         case WomArrayType(WomArrayType(_)) =>
           s"Cannot invoke 'sep' on type 'Array[Array[_]]'. Expected an Array[String].".invalidNel
         case WomArrayType(_) => WomStringType.validNel
@@ -131,9 +131,9 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      (validateParamType(a.input, linkedValues, WomSingleFileType),
-       validateParamType(a.pattern, linkedValues, WomSingleFileType),
-       validateParamType(a.replace, linkedValues, WomSingleFileType)
+      (validateParamType(a.input, linkedValues, WomSingleFileType, typeAliases),
+       validateParamType(a.pattern, linkedValues, WomSingleFileType, typeAliases),
+       validateParamType(a.replace, linkedValues, WomSingleFileType, typeAliases)
       ) mapN { (_, _, _) => WomStringType }
   }
 
@@ -144,8 +144,8 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      (validateParamType(a.suffix, linkedValues, WomStringType),
-       validateParamType(a.array, linkedValues, WomArrayType(WomStringType))
+      (validateParamType(a.suffix, linkedValues, WomStringType, typeAliases),
+       validateParamType(a.array, linkedValues, WomArrayType(WomStringType), typeAliases)
       ) mapN { (_, _) => WomArrayType(WomStringType) }
   }
 
@@ -156,7 +156,7 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
+      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType), typeAliases) flatMap {
         case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
         case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
         case other @ WomArrayType(_) =>
@@ -173,7 +173,7 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType)) flatMap {
+      validateParamType(a.param, linkedValues, WomArrayType(WomAnyType), typeAliases) flatMap {
         case WomArrayType(WomNothingType) => WomArrayType(WomNothingType).validNel
         case WomArrayType(_: WomPrimitiveType) => WomArrayType(WomStringType).validNel
         case other @ WomArrayType(_) =>
@@ -190,7 +190,7 @@ object BiscayneTypeEvaluators {
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomType] =
-      validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType))) flatMap {
+      validateParamType(a.param, linkedValues, WomArrayType(WomPairType(WomAnyType, WomAnyType)), typeAliases) flatMap {
         case WomArrayType(WomNothingType) => WomPairType(WomArrayType(WomAnyType), WomArrayType(WomAnyType)).validNel
         case WomArrayType(WomPairType(x, y)) => WomPairType(WomArrayType(x), WomArrayType(y)).validNel
         case other => s"Cannot invoke 'unzip' on type '${other.stableName}'. Expected an array of pairs".invalidNel
@@ -240,6 +240,8 @@ object BiscayneTypeEvaluators {
                                       structDefinition: WomCompositeType,
                                       linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                                       typeAliases: Map[String, WomType]
+    )(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
     ): ErrorOr[WomCompositeType] = {
       val checkedMembers: Map[String, ErrorOr[WomType]] = a.elements.map { case (memberKey, memberExpressionElement) =>
         val evaluatedType =

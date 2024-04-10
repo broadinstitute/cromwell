@@ -199,7 +199,9 @@ object BiscayneTypeEvaluators {
 
   implicit val structLiteralTypeEvaluator: TypeEvaluator[StructLiteral] = new TypeEvaluator[StructLiteral] {
 
-    // Is the evaluated type allowed to be assigned to the expectedType?
+    /**
+     * Is the evaluated type allowed to be assigned to the expectedType?
+     */
     def areTypesAssignable(evaluatedType: WomType, expectedType: WomType): Boolean =
       // NB: This check is a little looser than we'd like it to be.
       // For example, String is coercible to Int (Int i = "1" is OK)
@@ -208,7 +210,10 @@ object BiscayneTypeEvaluators {
       // This is OK as-is because the value evaluators do the coercing and throw meaningful errors if the coercion fails.
       expectedType.isCoerceableFrom(evaluatedType)
 
-    // Helper method to check something (maybe) found in the struct literal to something (maybe) found in the struct definition.
+    /**
+     * Helper method to check if something (maybe) found in the struct literal against something (maybe) found in the struct definition.
+     * @return The WomType of the evaluated member. Error if either is not present, or if the types aren't compatible.
+     */
     def checkIfMemberIsValid(typeName: String,
                              memberName: String,
                              evaluatedType: Option[WomType],
@@ -226,7 +231,11 @@ object BiscayneTypeEvaluators {
         case None => s"Error evaluating the type of ${typeName}.${memberName}.".invalidNel
       }
 
-    // For each member in the literal, check that it exists in the struct definition and is the expected type.
+    /**
+     * For each member in the literal, check that it exists in the struct definition and is the expected type.
+     * @return The WomCompositeType of the struct literal, as determined from evaluating each member.
+     *         This might not *exactly* match the struct definition due to permitted type coercions.
+     */
     def checkMembersAgainstDefinition(a: StructLiteral,
                                       structDefinition: WomCompositeType,
                                       linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
@@ -246,19 +255,20 @@ object BiscayneTypeEvaluators {
         }
       }
 
-      errors.headOption match {
-        case Some((_, Invalid(_))) =>
-          errors.collect { case (_, Invalid(e)) => e.toList.mkString }.toList.mkString(",").invalidNel
-        case _ =>
-          val types = validatedTypes.collect { case (key, Valid(v)) => (key, v) }
-          WomCompositeType(types, Some(a.structTypeName)).validNel
+      if (errors.nonEmpty) {
+        errors.collect { case (_, Invalid(e)) => e.toList.mkString(", ") }.toList.mkString("[ ", ", ", " ]").invalidNel
+      } else {
+        val types = validatedTypes.collect { case (key, Valid(v)) => (key, v) }
+        WomCompositeType(types, Some(a.structTypeName)).validNel
       }
     }
 
-    // For every member in the definition, if that member isn't optional, confirm that it is also in the struct literal.
+    /**
+     * For each member in the struct definition, if that member isn't optional, confirm that it is also in the struct literal.
+     */
     def checkForMissingMembers(foundMembers: Map[String, WomType],
                                structDefinition: WomCompositeType
-    ): Option[String] = {
+    ): ErrorOr[Unit] = {
       val errors: Iterable[String] = structDefinition.typeMap flatMap { case (memberName, memberType) =>
         memberType match {
           case WomOptionalType(_) => None
@@ -267,32 +277,42 @@ object BiscayneTypeEvaluators {
             else None
         }
       }
-      errors match {
-        case Nil => None
-        case _ => Some(errors.mkString)
-      }
+      if (errors.nonEmpty) errors.mkString.invalidNel else ().validNel
     }
+
+    /**
+     * Returns the type of a struct literal, assuming it is compatible with an existing struct definition.
+     * It is required that:
+     *   - a struct definition exist for the literal (looked up the via name of the struct type). This is defined elsewhere in the WDL and is not part of the literal.
+     *   - the struct definition be a WomCompositeType (it's programmer error if it's not)
+     *   - each  member provided in the literal is also in the definition, and is coercible to the defined type.
+     *   - all non-optional members of the definition are present in the literal.
+     * @param a The literal to evaluate
+     * @param linkedValues Used by the expression type evaluator.
+     * @param typeAliases A map containing available struct definitions
+     * @param expressionTypeEvaluator An object capable of evaluating the types of ExpressionElements. Used to evaluate the type of each member provided in the literal.
+     * @return The type of the struct definition (as found in typeAliases) if all goes well. A list of errors otherwise.
+     */
     override def evaluateType(a: StructLiteral,
                               linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
                               typeAliases: Map[String, WomType]
     )(implicit
       expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
-    ): ErrorOr[WomType] = {
-      val structDefinition = typeAliases.get(a.structTypeName)
-      structDefinition match {
+    ): ErrorOr[WomType] =
+      typeAliases.get(a.structTypeName) match {
         case Some(definition) =>
           definition match {
             case compositeType: WomCompositeType =>
               checkMembersAgainstDefinition(a, compositeType, linkedValues, typeAliases).flatMap { foundMembers =>
                 checkForMissingMembers(foundMembers.typeMap, compositeType) match {
-                  case Some(error) => error.invalidNel
+                  case Invalid(error) => error.invalid
                   case _ => compositeType.validNel
                 }
               }
-            case _ => s"Unexpected error while parsing ${a.structTypeName}".invalidNel
+            case _ =>
+              s"Programmer error: Expected the struct definition of ${a.structTypeName} to be a WomCompositeType".invalidNel
           }
         case None => s"Could not find Struct Definition for type ${a.structTypeName}".invalidNel
       }
-    }
   }
 }

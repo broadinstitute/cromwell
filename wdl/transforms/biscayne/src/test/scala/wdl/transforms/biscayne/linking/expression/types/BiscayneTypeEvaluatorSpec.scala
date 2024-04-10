@@ -181,7 +181,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     structExpr.shouldBeValidPF { case e =>
       e.evaluateType(Map.empty,
                      typeAliases
-      ) shouldBeInvalid "Type Animal does not have a member called fur.,Type Animal does not have a member called isGood."
+      ) shouldBeInvalid "[ Type Animal does not have a member called fur., Type Animal does not have a member called isGood. ]"
     }
   }
 
@@ -189,7 +189,7 @@ class BiscayneTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     val structLiteral = """ Plant{isTasty: true, count: (0, 1)} """
     val structExpr = fromString[ExpressionElement](structLiteral, parser.parse_e)
     structExpr.shouldBeValidPF { case e =>
-      e.evaluateType(Map.empty, typeAliases) shouldBeInvalid "Plant.count expected to be Int. Found Pair[Int, Int]."
+      e.evaluateType(Map.empty, typeAliases) shouldBeInvalid "[ Plant.count expected to be Int. Found Pair[Int, Int]. ]"
     }
   }
 

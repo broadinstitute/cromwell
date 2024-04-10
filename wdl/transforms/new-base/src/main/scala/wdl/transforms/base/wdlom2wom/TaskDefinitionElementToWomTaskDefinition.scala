@@ -39,63 +39,82 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     valueEvaluator: ValueEvaluator[ExpressionElement]
   ): ErrorOr[CallableTaskDefinition] = {
     val a = eliminateInputDependencies(b)
-    val inputElements = a.taskDefinitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty)
 
-    val declarations = a.taskDefinitionElement.declarations
-    val outputElements = a.taskDefinitionElement.outputsSection.map(_.outputs).getOrElse(Seq.empty)
-
-    val conversion = (
-      createTaskGraph(inputElements,
-                      declarations,
-                      outputElements,
-                      a.taskDefinitionElement.parameterMetaSection,
-                      a.typeAliases
-      ),
-      validateParameterMetaEntries(a.taskDefinitionElement.parameterMetaSection,
-                                   a.taskDefinitionElement.inputsSection,
-                                   a.taskDefinitionElement.outputsSection
-      )
-    ) flatMapN { (taskGraph, _) =>
+    val conversion = createTaskGraphAndValidateMetadata(a) flatMapN { (taskGraph, _) =>
       val validRuntimeAttributes: ErrorOr[RuntimeAttributes] = a.taskDefinitionElement.runtimeSection match {
         case Some(attributeSection) => createRuntimeAttributes(attributeSection, taskGraph.linkedGraph)
         case None => RuntimeAttributes(Map.empty).validNel
       }
-
-      val validCommand: ErrorOr[Seq[CommandPart]] =
-        expandLines(a.taskDefinitionElement.commandSection.parts).toList
-          .traverse { parts =>
-            CommandPartElementToWomCommandPart.convert(parts,
-                                                       taskGraph.linkedGraph.typeAliases,
-                                                       taskGraph.linkedGraph.generatedHandles
-            )
-          }
-          .map(_.toSeq)
-
-      val (meta, parameterMeta) =
-        processMetaSections(a.taskDefinitionElement.metaSection, a.taskDefinitionElement.parameterMetaSection)
-
-      (validRuntimeAttributes, validCommand) mapN { (runtime, command) =>
-        CallableTaskDefinition(
-          a.taskDefinitionElement.name,
-          Function.const(command.validNel),
-          runtime,
-          meta,
-          parameterMeta,
-          taskGraph.outputs,
-          taskGraph.inputs,
-          Set.empty,
-          Map.empty,
-          sourceLocation = a.taskDefinitionElement.sourceLocation
-        )
-      }
+      createCallableTaskDefinition(a, taskGraph, validRuntimeAttributes)
     }
 
     conversion.contextualizeErrors(s"process task definition '${b.taskDefinitionElement.name}'")
   }
 
-  def validateParameterMetaEntries(parameterMetaSectionElement: Option[ParameterMetaSectionElement],
-                                   inputs: Option[InputsSectionElement],
-                                   outputs: Option[OutputsSectionElement]
+  def createTaskGraphAndValidateMetadata(a: TaskDefinitionElementToWomInputs)(implicit
+    expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+    fileEvaluator: FileEvaluator[ExpressionElement],
+    typeEvaluator: TypeEvaluator[ExpressionElement],
+    valueEvaluator: ValueEvaluator[ExpressionElement]
+  ): (ErrorOr[TaskGraph], ErrorOr[Unit]) = {
+    val inputElements = a.taskDefinitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty)
+
+    val declarations = a.taskDefinitionElement.declarations
+    val outputElements = a.taskDefinitionElement.outputsSection.map(_.outputs).getOrElse(Seq.empty)
+
+    (createTaskGraph(inputElements,
+                     declarations,
+                     outputElements,
+                     a.taskDefinitionElement.parameterMetaSection,
+                     a.typeAliases
+     ),
+     validateParameterMetaEntries(a.taskDefinitionElement.parameterMetaSection,
+                                  a.taskDefinitionElement.inputsSection,
+                                  a.taskDefinitionElement.outputsSection
+     )
+    )
+  }
+
+  def createCallableTaskDefinition(a: TaskDefinitionElementToWomInputs,
+                                   taskGraph: TaskGraph,
+                                   validRuntimeAttributes: ErrorOr[RuntimeAttributes]
+  )(implicit
+    expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+    fileEvaluator: FileEvaluator[ExpressionElement],
+    typeEvaluator: TypeEvaluator[ExpressionElement],
+    valueEvaluator: ValueEvaluator[ExpressionElement]
+  ): ErrorOr[CallableTaskDefinition] = {
+    val validCommand: ErrorOr[Seq[CommandPart]] =
+      expandLines(a.taskDefinitionElement.commandSection.parts).toList
+        .traverse { parts =>
+          CommandPartElementToWomCommandPart.convert(parts,
+                                                     taskGraph.linkedGraph.typeAliases,
+                                                     taskGraph.linkedGraph.generatedHandles
+          )
+        }
+        .map(_.toSeq)
+
+    val (meta, parameterMeta) =
+      processMetaSections(a.taskDefinitionElement.metaSection, a.taskDefinitionElement.parameterMetaSection)
+
+    (validRuntimeAttributes, validCommand) mapN { (runtime, command) =>
+      CallableTaskDefinition(
+        a.taskDefinitionElement.name,
+        Function.const(command.validNel),
+        runtime,
+        meta,
+        parameterMeta,
+        taskGraph.outputs,
+        taskGraph.inputs,
+        Set.empty,
+        Map.empty,
+        sourceLocation = a.taskDefinitionElement.sourceLocation
+      )
+    }
+  }
+  private def validateParameterMetaEntries(parameterMetaSectionElement: Option[ParameterMetaSectionElement],
+                                           inputs: Option[InputsSectionElement],
+                                           outputs: Option[OutputsSectionElement]
   ): ErrorOr[Unit] = {
     val validKeys: List[String] =
       inputs.toList.flatMap(_.inputDeclarations.map(_.name)) ++ outputs.toList.flatMap(_.outputs.map(_.name))
@@ -201,7 +220,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     )
   }
 
-  def expandLines(lines: Seq[CommandSectionLine]): Seq[CommandPartElement] = {
+  private def expandLines(lines: Seq[CommandSectionLine]): Seq[CommandPartElement] = {
     def expandNonFinalLine(line: CommandSectionLine): Seq[CommandPartElement] = if (line.parts.isEmpty) {
       Seq(StringCommandPartElement(System.lineSeparator))
     } else {
@@ -226,11 +245,11 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
                              linkedGraph: LinkedGraph
   )
 
-  def createTaskGraph(inputs: Seq[InputDeclarationElement],
-                      declarations: Seq[IntermediateValueDeclarationElement],
-                      outputs: Seq[OutputDeclarationElement],
-                      parameterMeta: Option[ParameterMetaSectionElement],
-                      typeAliases: Map[String, WomType]
+  private def createTaskGraph(inputs: Seq[InputDeclarationElement],
+                              declarations: Seq[IntermediateValueDeclarationElement],
+                              outputs: Seq[OutputDeclarationElement],
+                              parameterMeta: Option[ParameterMetaSectionElement],
+                              typeAliases: Map[String, WomType]
   )(implicit
     expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
     fileEvaluator: FileEvaluator[ExpressionElement],

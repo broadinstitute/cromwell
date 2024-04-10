@@ -92,8 +92,6 @@ package object wdlom2wom {
         pair.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey)
       )
 
-    var editedAttributes = attributeSection.runtimeAttributes
-
     val returnCodesNotUnique = (returnCodesAttribute, continueOnReturnCodeAttribute) match {
       case (Some(returnCodesValue), Some(continueOnReturnCodeValue)) =>
         returnCodesValue.value
@@ -103,18 +101,16 @@ package object wdlom2wom {
       case _ => false
     }
 
-    (returnCodesAttribute, returnCodesNotUnique) match {
+    val finalAttributes = (returnCodesAttribute, returnCodesNotUnique) match {
       case (Some(returnCodesValue), false) =>
-        editedAttributes = attributeSection.runtimeAttributes.filterNot(attribute =>
+        attributeSection.runtimeAttributes.filterNot(attribute =>
           attribute.key.equals(RuntimeAttributesKeys.ContinueOnReturnCodeKey)
-        )
-        editedAttributes = editedAttributes ++ Vector(
+        ) ++ Vector(
           KvPair(RuntimeAttributesKeys.ContinueOnReturnCodeKey, returnCodesValue.value)
         )
+      case _ => attributeSection.runtimeAttributes
     }
 
-    editedAttributes =
-      editedAttributes.filterNot(attribute => attribute.key.equals(RuntimeAttributesKeys.ReturnCodesKey))
-    editedAttributes
+    finalAttributes.filterNot(attribute => attribute.key.equals(RuntimeAttributesKeys.ReturnCodesKey))
   }
 }

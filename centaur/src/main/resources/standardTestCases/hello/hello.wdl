@@ -2,6 +2,8 @@ task hello {
   String addressee
   command {
     echo "Hello ${addressee}!"
+    pwd
+    ls -a
   }
   output {
     String salutation = read_string(stdout())

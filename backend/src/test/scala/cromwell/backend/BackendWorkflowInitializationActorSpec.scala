@@ -62,6 +62,11 @@ class BackendWorkflowInitializationActorSpec
       "read_int(\"bad file\")"
     )
 
+    val starRow = Table(
+      "value",
+      "*"
+    )
+
     val invalidWdlValueRows = Table(
       "womValue",
       WomString(""),
@@ -201,6 +206,21 @@ class BackendWorkflowInitializationActorSpec
       // NOTE: expressions are never valid to validate
     }
 
+    forAll(starRow) { value =>
+      val womValue = WomString(value)
+      val result = true
+      testContinueOnReturnCode(Option(womValue)) should be(result)
+      ContinueOnReturnCodeValidation.default(optionalConfig).validateOptionalWomValue(Option(womValue)) should be(
+        result
+      )
+      val valid =
+        ContinueOnReturnCodeValidation
+          .default(optionalConfig)
+          .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
+      valid.isValid should be(result)
+      valid.toEither.toOption.get should be(ContinueOnReturnCodeFlag(true))
+    }
+
     forAll(invalidWdlValueRows) { womValue =>
       val result = false
       testContinueOnReturnCode(Option(womValue)) should be(result)
@@ -213,7 +233,8 @@ class BackendWorkflowInitializationActorSpec
           .validate(Map(RuntimeAttributesKeys.ContinueOnReturnCodeKey -> womValue))
       valid.isValid should be(result)
       valid.toEither.swap.toOption.get.toList should contain theSameElementsAs List(
-        "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+        "Expecting returnCodes/continueOnReturnCode" +
+          " runtime attribute to be either a String '*', 'true', or 'false', a Boolean, or an Array[Int]."
       )
     }
 

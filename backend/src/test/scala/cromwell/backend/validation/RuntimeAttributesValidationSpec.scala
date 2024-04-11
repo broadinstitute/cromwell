@@ -184,7 +184,8 @@ class RuntimeAttributesValidationSpec
         case Valid(_) => fail("A failure was expected.")
         case Invalid(e) =>
           assert(
-            e.head == "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+            e.head == "Expecting returnCodes/continueOnReturnCode" +
+              " runtime attribute to be either a String '*', 'true', or 'false', a Boolean, or an Array[Int]."
           )
       }
     }
@@ -212,7 +213,8 @@ class RuntimeAttributesValidationSpec
         case Valid(_) => fail("A failure was expected.")
         case Invalid(e) =>
           assert(
-            e.head == "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+            e.head == "Expecting returnCodes/continueOnReturnCode" +
+              " runtime attribute to be either a String '*', 'true', or 'false', a Boolean, or an Array[Int]."
           )
       }
     }
@@ -224,6 +226,18 @@ class RuntimeAttributesValidationSpec
       )
       result match {
         case Valid(x) => assert(x == ContinueOnReturnCodeFlag(false))
+        case Invalid(e) => fail(e.toList.mkString(" "))
+      }
+    }
+
+    "return success when tries to validate a valid returnCodes string entry" in {
+      val returnCodesValue = Some(WomString("*"))
+      val result = RuntimeAttributesValidation.validateContinueOnReturnCode(
+        returnCodesValue,
+        "Failed to get return code mandatory key from runtime attributes".invalidNel
+      )
+      result match {
+        case Valid(x) => assert(x == ContinueOnReturnCodeFlag(true))
         case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }

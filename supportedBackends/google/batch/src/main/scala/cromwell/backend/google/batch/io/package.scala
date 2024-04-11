@@ -1,6 +1,7 @@
 package cromwell.backend.google.batch
 
 import com.google.api.client.http.HttpResponseException
+import com.google.api.gax.rpc.ApiException
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import cromwell.core.path.Path
 
@@ -15,6 +16,7 @@ package object io {
   }
 
   private[batch] def isFatalJesException(t: Throwable): Boolean = t match {
+    case e: ApiException if e.getStatusCode.getCode.getHttpStatusCode == 403 => true
     case e: HttpResponseException if e.getStatusCode == 403 => true
     case e: HttpResponseException if e.getStatusCode == 400 && e.getContent.contains("INVALID_ARGUMENT") => true
     case _ => false
@@ -23,6 +25,7 @@ package object io {
   private[batch] def isTransientJesException(t: Throwable): Boolean = t match {
     // Quota exceeded
     case e: HttpResponseException if e.getStatusCode == 429 => true
+    case e: ApiException if e.getStatusCode.getCode.getHttpStatusCode == 429 => true
     case _ => false
   }
 }

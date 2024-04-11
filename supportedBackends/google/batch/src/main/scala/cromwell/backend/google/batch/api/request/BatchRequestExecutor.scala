@@ -143,6 +143,8 @@ object BatchRequestExecutor {
       } else {
         try
           if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
+            // TODO: Remove me
+//            debug(job, getEventList(events))
             RunStatus.Success(getEventList(events))
           } else if (job.getStatus.getState == JobStatus.State.FAILED) {
             // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
@@ -162,6 +164,32 @@ object BatchRequestExecutor {
               nullPointerException
             )
         }
+      }
+    }
+
+    // Temporal method that writes the state changes results to a file
+    private val debugLock = this
+    @scala.annotation.nowarn
+    private def debug(job: Job, events: List[ExecutionEvent]): Unit = {
+      val queuedTime = java.time.Instant
+        .ofEpochSecond(job.getCreateTime.getSeconds, job.getCreateTime.getNanos.toLong)
+        .atOffset(java.time.ZoneOffset.UTC)
+
+      //
+      val scheduledTime = events.find(_.name contains "QUEUED to SCHEDULED").map(_.offsetDateTime).get
+      val runningTime = events.find(_.name contains "SCHEDULED to RUNNING").map(_.offsetDateTime).get
+      val succeededTime = events.find(_.name contains "RUNNING to SUCCEEDED").map(_.offsetDateTime).get
+      val row =
+        (job.getName :: List(queuedTime, scheduledTime, runningTime, succeededTime).map(_.toString)).mkString(",")
+
+      debugLock.synchronized {
+        val out = java.nio.file.Files.writeString(
+          java.nio.file.Paths.get("results.csv").toAbsolutePath,
+          row + System.lineSeparator(),
+          java.nio.file.StandardOpenOption.CREATE,
+          java.nio.file.StandardOpenOption.APPEND
+        )
+        println(s"ZZZ: Result written to $out")
       }
     }
 

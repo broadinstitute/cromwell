@@ -935,7 +935,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
           s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
         )
 
-        val jesInputs = testActorRef.underlyingActor.generateInputs(jobDescriptor)
+        val jesInputs = testActorRef.underlyingActor.generateInputs()
         jesInputs should have size 8
         // TODO: The name seems wrong
         jesInputs should contain(
@@ -1082,6 +1082,8 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     }
   }
 
+  // TODO: Debug this
+  // googleBatch/testOnly *GcpBatchAsyncBackendJobExecutionActorSpec -- -z "generate correct JesOutputs"
   it should "generate correct JesOutputs" in {
     val womFile = WomSingleFile("gs://blah/b/c.txt")
     val workflowInputs = Map("file_passing.f" -> womFile)
@@ -1092,7 +1094,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val jesBackend = makeJesActorRef(SampleWdl.FilePassingWorkflow, workflowInputs, "a", callInputs).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
     val workflowId = jesBackend.workflowId
-    val jesInputs = jesBackend.generateInputs(jobDescriptor)
+    val jesInputs = jesBackend.generateInputs()
     jesInputs should have size 1
     jesInputs should contain(
       GcpBatchFileInput(
@@ -1132,7 +1134,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val functions = new TestPipelinesApiExpressionFunctions
     val jesBackend = makeJesActorRef(SampleWdl.ArrayIO, Map.empty, "serialize", inputs, functions).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
-    val jesInputs = jesBackend.generateInputs(jobDescriptor)
+    val jesInputs = jesBackend.generateInputs()
     jesInputs should have size 1
     jesInputs should contain(
       GcpBatchFileInput(
@@ -1203,7 +1205,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
           s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
         )
 
-        val jesInputs = testActorRef.underlyingActor.generateInputs(jobDescriptor)
+        val jesInputs = testActorRef.underlyingActor.generateInputs()
         jesInputs should have size 2
         jesInputs should contain(
           GcpBatchFileInput(
@@ -1281,7 +1283,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
           s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
         )
 
-        val jesInputs = testActorRef.underlyingActor.generateInputs(jobDescriptor)
+        val jesInputs = testActorRef.underlyingActor.generateInputs()
 
         jesInputs should have size 2
         jesInputs should contain(

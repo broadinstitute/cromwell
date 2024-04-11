@@ -1,0 +1,11 @@
+name: return_codes_invalid_on_old_wdl_version
+testFormat: workflowfailure
+
+files {
+  workflow: return_codes_invalid_on_old_wdl_version/return_codes_invalid_on_old_wdl_version.wdl
+}
+
+metadata {
+  workflowName: ReturnCodesInvalidOnOldWdl
+  status: Failed
+}

@@ -37,5 +37,13 @@ class ContinueOnReturnCodeSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
         ContinueOnReturnCodeSet(set).continueFor(returnCode) should be(expectedContinue)
       }
     }
+
+    "continue on expected return code string" in {
+      val flagTests = Table(("string", "returnCode", "expectedContinue"), ("*", 0, true), ("*", 1, true))
+
+      forAll(flagTests) { (flag, returnCode, expectedContinue) =>
+        ContinueOnReturnCodeFlag(flag == "*").continueFor(returnCode) should be(expectedContinue)
+      }
+    }
   }
 }

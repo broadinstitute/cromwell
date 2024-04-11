@@ -37,15 +37,16 @@ class EcmServiceContractSpec extends TestKitSuite with AnyFlatSpecLike with Matc
   var testGithubToken: String = "githubToken"
 
   var pactDslResponse: PactDslResponse = pactProvider
-    .`given`("a user is registered", Map[String, String](
-        "userEmail" -> testUser,
-        "bearerToken" -> testBearerToken,
-      )
+    .`given`("a user is registered",
+             Map[String, String](
+               "userEmail" -> testUser,
+               "bearerToken" -> testBearerToken
+             )
     )
     .uponReceiving("a github token request")
     .method("GET")
     .path("/api/oauth/v1/github/access-token")
-    .headers(Map[String, String] ("Authorization" -> s"Bearer $testBearerToken"))
+    .headers(Map[String, String]("Authorization" -> s"Bearer $testBearerToken"))
     .willRespondWith()
     .status(200)
     .bodyMatchingContentType("text/plain", testGithubToken)
@@ -55,7 +56,7 @@ class EcmServiceContractSpec extends TestKitSuite with AnyFlatSpecLike with Matc
   it should "get a github token" in {
     Await.result(
       new EcmService(mockServer.getUrl)
-      .getGithubAccessToken(TerraToken(testBearerToken)),
+        .getGithubAccessToken(TerraToken(testBearerToken)),
       10.seconds
     ) shouldBe GithubToken(testGithubToken)
   }

@@ -15,7 +15,8 @@ import wom.types._
 import wom.values.WomValue
 
 final case class WdlomWomExpression private (expressionElement: ExpressionElement,
-                                             linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]
+                                             linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                                             typeAliases: Map[String, WomType]
 )(implicit
   expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
   fileEvaluator: FileEvaluator[ExpressionElement],
@@ -36,7 +37,7 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
   override def evaluateValue(inputValues: Map[String, WomValue], ioFunctionSet: IoFunctionSet): ErrorOr[WomValue] =
     expressionElement.evaluateValue(inputValues, ioFunctionSet, None) map { _.value }
 
-  private lazy val evaluatedType = expressionElement.evaluateType(linkedValues)
+  private lazy val evaluatedType = expressionElement.evaluateType(linkedValues, typeAliases)
   // NB types can be determined using the linked values, so we don't need the inputMap:
   override def evaluateType(inputMap: Map[String, WomType]): ErrorOr[WomType] = evaluatedType
 
@@ -52,14 +53,16 @@ final case class WdlomWomExpression private (expressionElement: ExpressionElemen
 }
 
 object WdlomWomExpression {
-  def make(expressionElement: ExpressionElement, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])(
-    implicit
+  def make(expressionElement: ExpressionElement,
+           linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+           typeAliases: Map[String, WomType]
+  )(implicit
     expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
     fileEvaluator: FileEvaluator[ExpressionElement],
     typeEvaluator: TypeEvaluator[ExpressionElement],
     valueEvaluator: ValueEvaluator[ExpressionElement]
   ): ErrorOr[WdlomWomExpression] = {
-    val candidate = WdlomWomExpression(expressionElement, linkedValues)
+    val candidate = WdlomWomExpression(expressionElement, linkedValues, typeAliases)
     candidate.evaluatedType.contextualizeErrors(s"process expression '${candidate.sourceString}'") map { _ =>
       candidate
     }

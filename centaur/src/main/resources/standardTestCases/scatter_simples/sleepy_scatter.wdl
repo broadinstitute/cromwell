@@ -8,6 +8,11 @@ task genSeq {
     echo "~{count}"
     seq 1 ~{count}
   >>>
+
+  runtime {
+    docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+  }
+
   output {
     Array[Int] seq = read_lines(stdout())
   }
@@ -23,6 +28,10 @@ task nap {
     sleep ${secs}
     echo "Ah, that was refreshing!"
   >>>
+
+  runtime {
+    docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+  }
 
   output {
     String napReport = stdout()

@@ -136,7 +136,8 @@ class StandardValidatedRuntimeAttributesBuilderSpec
       val runtimeAttributes = Map("continueOnReturnCode" -> WomString("value"))
       assertRuntimeAttributesFailedCreation(
         runtimeAttributes,
-        "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]"
+        "Expecting returnCodes/continueOnReturnCode" +
+          " runtime attribute to be either a String '*', 'true', or 'false', a Boolean, or an Array[Int]."
       )
     }
 
@@ -152,7 +153,6 @@ class StandardValidatedRuntimeAttributesBuilderSpec
                                                 workflowOptions = workflowOptions
       )
     }
-
   }
 
   val defaultLogger: Logger = LoggerFactory.getLogger(classOf[StandardValidatedRuntimeAttributesBuilderSpec])
@@ -188,7 +188,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     docker should be(expectedRuntimeAttributes(DockerKey).asInstanceOf[Option[String]])
     failOnStderr should be(expectedRuntimeAttributes(FailOnStderrKey).asInstanceOf[Boolean])
     continueOnReturnCode should be(
-      expectedRuntimeAttributes(ContinueOnReturnCodeKey).asInstanceOf[ContinueOnReturnCode]
+      expectedRuntimeAttributes(ContinueOnReturnCodeKey)
     )
     ()
   }

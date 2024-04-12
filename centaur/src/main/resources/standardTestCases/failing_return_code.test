@@ -1,0 +1,11 @@
+name: failing_return_code
+testFormat: workflowfailure
+
+files {
+  workflow: failing_return_code/failing_return_code.wdl
+}
+
+metadata {
+  workflowName: FailingReturnCode
+  status: Failed
+}

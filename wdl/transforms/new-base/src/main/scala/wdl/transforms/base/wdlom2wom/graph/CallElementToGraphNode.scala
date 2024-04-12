@@ -82,7 +82,9 @@ object CallElementToGraphNode {
      *
      * @return ErrorOr of LocalName(key) mapped to ExpressionNode(value).
      */
-    def expressionNodeMappings(callable: Callable): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
+    def expressionNodeMappings(callable: Callable,
+                               typeAliases: Map[String, WomType]
+    ): ErrorOr[Map[LocalName, AnonymousExpressionNode]] = {
 
       def hasDeclaration(callable: Callable, name: String): Boolean = callable match {
         case t: TaskDefinition =>
@@ -101,7 +103,8 @@ object CallElementToGraphNode {
                   case _: CallableTaskDefinition => TaskCallInputExpressionNode.apply _
                   case _ => PlainAnonymousExpressionNode.apply _
                 }
-                WdlomWomExpression.make(expression, a.linkableValues) flatMap { wdlomWomExpression =>
+
+                WdlomWomExpression.make(expression, a.linkableValues, typeAliases) flatMap { wdlomWomExpression =>
                   val requiredInputType = i match {
                     case _: OverridableInputDefinitionWithDefault => WomOptionalType(i.womType).flatOptionalType
                     case _ => i.womType
@@ -238,7 +241,7 @@ object CallElementToGraphNode {
 
     val result = for {
       callable <- callableValidation
-      mappings <- expressionNodeMappings(callable)
+      mappings <- expressionNodeMappings(callable, a.availableTypeAliases)
       identifier = WomIdentifier(localName = callName, fullyQualifiedName = a.workflowName + "." + callName)
       upstream <- findUpstreamCalls(a.node.afters.toList)
       result = callNodeBuilder.build(identifier,

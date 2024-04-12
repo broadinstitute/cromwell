@@ -30,8 +30,8 @@ task nap {
 }
 
 workflow w {
-  Int shardCount = 5
-  Int sleepyTime = 3
+  Int shardCount
+  Int sleepyTime
 
   call genSeq {
     input: count = shardCount

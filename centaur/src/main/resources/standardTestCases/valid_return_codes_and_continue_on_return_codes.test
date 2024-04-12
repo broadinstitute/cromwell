@@ -1,0 +1,11 @@
+name: valid_return_codes_and_continue_on_return_code
+testFormat: workflowsuccess
+
+files {
+  workflow: valid_return_codes_and_continue_on_return_code/valid_return_codes_and_continue_on_return_code.wdl
+}
+
+metadata {
+  workflowName: ValidReturnCodeAndContinueOnReturnCode
+  status: Succeeded
+}

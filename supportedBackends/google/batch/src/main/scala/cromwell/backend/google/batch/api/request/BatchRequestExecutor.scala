@@ -144,7 +144,7 @@ object BatchRequestExecutor {
         try
           if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
             // TODO: Remove me
-//            debug(job, getEventList(events))
+            debug(job, getEventList(events))
             RunStatus.Success(getEventList(events))
           } else if (job.getStatus.getState == JobStatus.State.FAILED) {
             // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code

@@ -35,52 +35,52 @@ jobs:
           - build_type: centaurGcpBatch
             build_mysql: 5.7
             friendly_name: Centaur GCP Batch with MySQL 5.7
-#          - build_type: centaurPapiV2beta
-#            build_mysql: 5.7
-#            friendly_name: Centaur Papi V2 Beta with MySQL 5.7
-#          - build_type: centaurPapiV2betaRestart
-#            build_mysql: 5.7
-#            friendly_name: Centaur Papi V2 Beta (restart)
-#          - build_type: dbms
-#            friendly_name: DBMS
-#          - build_type: centaurTes
-#            build_mysql: 5.7
-#            friendly_name: Centaur TES with MySQL 5.7
-#          - build_type: centaurLocal
-#            build_mysql: 5.7
-#            friendly_name: Centaur Local with MySQL 5.7
-#          - build_type: checkPublish
-#            friendly_name: Check Publish
-#          - build_type: centaurAws
-#            build_mysql: 5.7
-#            friendly_name: Centaur AWS with MySQL 5.7
-#          - build_type: centaurDummy
-#            build_mysql: 5.7
-#            friendly_name: Centaur Dummy with MySQL 5.7
-#          - build_type: centaurHoricromtalPapiV2beta
-#            build_mysql: 5.7
-#            friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 5.7
-#          - build_type: horicromtalDeadlock
-#            friendly_name: Horicromtal Deadlock
-#          - build_type: singleWorkflowRunner
-#            friendly_name: Single Workflow Runner
-#          - build_type: centaurLocal
-#            build_mariadb: 10.3
-#            friendly_name: Centaur Local with MariaDB 10.3
-#          - build_type: centaurLocal
-#            build_postgresql: 11.3
-#            friendly_name: Centaur Local with PostgreSQL 11.3
-#          - build_type: centaurEngineUpgradeLocal
-#            build_mysql: 5.7
-#            friendly_name: Centaur Engine Upgrade Local with MySQL 5.7
-#          - build_type: referenceDiskManifestBuilderApp
-#            friendly_name: Reference Disk Manifest Builder App
-#          - build_type: centaurSlurm
-#            build_mysql: 5.7
-#            friendly_name: "Centaur Slurm with MySQL 5.7"
-#          - build_type: centaurBlob
-#            build_mysql: 5.7
-#            friendly_name: Centaur Blob
+          - build_type: centaurPapiV2beta
+            build_mysql: 5.7
+            friendly_name: Centaur Papi V2 Beta with MySQL 5.7
+          - build_type: centaurPapiV2betaRestart
+            build_mysql: 5.7
+            friendly_name: Centaur Papi V2 Beta (restart)
+          - build_type: dbms
+            friendly_name: DBMS
+          - build_type: centaurTes
+            build_mysql: 5.7
+            friendly_name: Centaur TES with MySQL 5.7
+          - build_type: centaurLocal
+            build_mysql: 5.7
+            friendly_name: Centaur Local with MySQL 5.7
+          - build_type: checkPublish
+            friendly_name: Check Publish
+          - build_type: centaurAws
+            build_mysql: 5.7
+            friendly_name: Centaur AWS with MySQL 5.7
+          - build_type: centaurDummy
+            build_mysql: 5.7
+            friendly_name: Centaur Dummy with MySQL 5.7
+          - build_type: centaurHoricromtalPapiV2beta
+            build_mysql: 5.7
+            friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 5.7
+          - build_type: horicromtalDeadlock
+            friendly_name: Horicromtal Deadlock
+          - build_type: singleWorkflowRunner
+            friendly_name: Single Workflow Runner
+          - build_type: centaurLocal
+            build_mariadb: 10.3
+            friendly_name: Centaur Local with MariaDB 10.3
+          - build_type: centaurLocal
+            build_postgresql: 11.3
+            friendly_name: Centaur Local with PostgreSQL 11.3
+          - build_type: centaurEngineUpgradeLocal
+            build_mysql: 5.7
+            friendly_name: Centaur Engine Upgrade Local with MySQL 5.7
+          - build_type: referenceDiskManifestBuilderApp
+            friendly_name: Reference Disk Manifest Builder App
+          - build_type: centaurSlurm
+            build_mysql: 5.7
+            friendly_name: "Centaur Slurm with MySQL 5.7"
+          - build_type: centaurBlob
+            build_mysql: 5.7
+            friendly_name: Centaur Blob
     name: ${{ matrix.friendly_name }}
     env:
       BUILD_NAME: ${{ matrix.build_type }}

@@ -927,7 +927,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       jobDescriptor = jobDescriptor,
       runtimeAttributes = runtimeAttributes,
       batchAttributes = batchAttributes,
-      projectId = batchAttributes.project,
+      projectId = googleProject(workflowDescriptor),
       region = batchAttributes.location
     )
 

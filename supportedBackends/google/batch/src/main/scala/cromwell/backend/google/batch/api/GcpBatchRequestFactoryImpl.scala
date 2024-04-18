@@ -156,7 +156,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
   override def submitRequest(data: GcpBatchRequest): CreateJobRequest = {
 
-    val batchAttributes = data.gcpBatchParameters.batchAttributes
     val runtimeAttributes = data.gcpBatchParameters.runtimeAttributes
     val createParameters = data.createParameters
     val retryCount = data.gcpBatchParameters.runtimeAttributes.preemptible
@@ -166,7 +165,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     // set parent for metadata storage of job information
     lazy val parent = s"projects/${data.gcpBatchParameters.projectId}/locations/${data.gcpBatchParameters.region}"
-    val gcpSa = ServiceAccount.newBuilder.setEmail(batchAttributes.computeServiceAccount).build
+    val gcpSa = ServiceAccount.newBuilder.setEmail(createParameters.computeServiceAccount).build
 
     // make zones path
     val zones = toZonesPath(runtimeAttributes.zones)

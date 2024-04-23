@@ -8,8 +8,6 @@ import com.google.api.client.http.{HttpRequest, HttpResponse}
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
 import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
 import com.google.api.services.cloudresourcemanager.{CloudResourceManager, CloudResourceManagerScopes}
-import com.google.api.services.genomics.v2alpha1.GenomicsScopes
-import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
@@ -72,14 +70,9 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
   private lazy val gcsCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.gcs
     .retryCredentials(workflowOptions, List(StorageScopes.DEVSTORAGE_FULL_CONTROL))
 
-  // Credentials object for the Genomics API
-  private lazy val genomicsCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.genomics
-    .retryCredentials(workflowOptions,
-                      List(
-                        CloudLifeSciencesScopes.CLOUD_PLATFORM,
-                        GenomicsScopes.GENOMICS
-                      )
-    )
+  // Credentials object for the Batch API
+  private lazy val batchCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.batch
+    .retryCredentials(workflowOptions, List.empty)
 
   val privateDockerEncryptionKeyName: Option[String] = {
     val optionsEncryptionKey = workflowOptions.get(GoogleAuthMode.DockerCredentialsEncryptionKeyNameKey).toOption
@@ -230,11 +223,11 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
 
   override lazy val workflowPaths: Future[GcpBatchWorkflowPaths] = for {
     gcsCred <- gcsCredentials
-    genomicsCred <- genomicsCredentials
+    batchCred <- batchCredentials
     validatedPathBuilders <- pathBuilders
   } yield new GcpBatchWorkflowPaths(workflowDescriptor,
                                     gcsCred,
-                                    genomicsCred,
+                                    batchCred,
                                     gcpBatchConfiguration,
                                     validatedPathBuilders,
                                     standardStreamNameToFileNameMetadataMapper

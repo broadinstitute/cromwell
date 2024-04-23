@@ -98,15 +98,15 @@ object GcpBatchConfigurationAttributes
     "project",
     "root",
     "maximum-polling-interval",
-    "genomics",
-    "genomics.location",
-    "genomics.compute-service-account",
-    "genomics.auth",
-    "genomics.restrict-metadata-access",
-    "genomics.enable-fuse",
-    "genomics-api-queries-per-100-seconds",
-    "genomics.localization-attempts",
-    "genomics.parallel-composite-upload-threshold",
+    "batch-api",
+    "batch-api.location",
+    "batch-api.compute-service-account",
+    "batch-api.auth",
+    "batch-api.restrict-metadata-access",
+    "batch-api.enable-fuse",
+    "batch-api-api-queries-per-100-seconds",
+    "batch-api.localization-attempts",
+    "batch-api.parallel-composite-upload-threshold",
     "filesystems",
     "filesystems.drs.auth",
     "filesystems.gcs.auth",
@@ -133,7 +133,7 @@ object GcpBatchConfigurationAttributes
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
-    "genomics.default-zones" -> "default-runtime-attributes.zones"
+    "batch-api.default-zones" -> "default-runtime-attributes.zones"
   )
 
   def apply(googleConfig: GoogleConfiguration,
@@ -205,19 +205,19 @@ object GcpBatchConfigurationAttributes
       backendConfig.as[String]("root")
     }
     val location: ErrorOr[String] = validate {
-      backendConfig.as[String]("genomics.location")
+      backendConfig.as[String]("batch-api.location")
     }
     val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     val computeServiceAccount: String =
-      backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
-    val genomicsAuthName: ErrorOr[String] = validate {
-      backendConfig.as[String]("genomics.auth")
+      backendConfig.as[Option[String]]("batch-api.compute-service-account").getOrElse("default")
+    val batchAuthName: ErrorOr[String] = validate {
+      backendConfig.as[String]("batch-api.auth")
     }
-    val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate {
-      backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false)
+    val batchRestrictMetadataAccess: ErrorOr[Boolean] = validate {
+      backendConfig.as[Option[Boolean]]("batch-api.restrict-metadata-access").getOrElse(false)
     }
-    val genomicsEnableFuse: ErrorOr[Boolean] = validate {
-      backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false)
+    val batchEnableFuse: ErrorOr[Boolean] = validate {
+      backendConfig.as[Option[Boolean]]("batch-api.enable-fuse").getOrElse(false)
     }
 
     val dockerhubToken: ErrorOr[String] = validate {
@@ -252,11 +252,11 @@ object GcpBatchConfigurationAttributes
     }
 
     val parallelCompositeUploadThreshold =
-      validateGsutilMemorySpecification(backendConfig, "genomics.parallel-composite-upload-threshold")
+      validateGsutilMemorySpecification(backendConfig, "batch-api.parallel-composite-upload-threshold")
 
     val localizationAttempts: ErrorOr[Int Refined Positive] = backendConfig
-      .as[Option[Int]]("genomics.localization-attempts")
-      .map(attempts => validatePositiveInt(attempts, "genomics.localization-attempts"))
+      .as[Option[Int]]("batch-api.localization-attempts")
+      .map(attempts => validatePositiveInt(attempts, "batch-api.localization-attempts"))
       .getOrElse(DefaultGcsTransferAttempts.validNel)
 
     val gcsTransferConfiguration: ErrorOr[GcsTransferConfiguration] =
@@ -303,7 +303,7 @@ object GcpBatchConfigurationAttributes
     def authGoogleConfigForBatchConfigurationAttributes(
       project: String,
       bucket: String,
-      genomicsName: String,
+      batchName: String,
       location: String,
       restrictMetadata: Boolean,
       dockerhubToken: String,
@@ -318,17 +318,17 @@ object GcpBatchConfigurationAttributes
       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
       dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]
     ): ErrorOr[GcpBatchConfigurationAttributes] =
-      (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN { (genomicsAuth, gcsAuth) =>
+      (googleConfig.auth(batchName), googleConfig.auth(gcsName)) mapN { (batchAuth, gcsAuth) =>
         val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
-          generateReferenceFilesMapping(genomicsAuth, _)
+          generateReferenceFilesMapping(batchAuth, _)
         }
         val dockerImageToCacheDiskImageMappingOpt = dockerImageCacheManifestFileOpt map {
-          generateDockerImageToDiskImageMapping(genomicsAuth, _)
+          generateDockerImageToDiskImageMapping(batchAuth, _)
         }
         models.GcpBatchConfigurationAttributes(
           project = project,
           computeServiceAccount = computeServiceAccount,
-          auths = GcpBatchAuths(genomicsAuth, gcsAuth),
+          auths = GcpBatchAuths(batchAuth, gcsAuth),
           restrictMetadataAccess = restrictMetadata,
           dockerhubToken = dockerhubToken,
           enableFuse = enableFuse,
@@ -351,11 +351,11 @@ object GcpBatchConfigurationAttributes
 
     (project,
      executionBucket,
-     genomicsAuthName,
+     batchAuthName,
      location,
-     genomicsRestrictMetadataAccess,
+     batchRestrictMetadataAccess,
      dockerhubToken,
-     genomicsEnableFuse,
+     batchEnableFuse,
      gcsFilesystemAuthName,
      qpsValidation,
      duplicationStrategy,
@@ -429,12 +429,12 @@ object GcpBatchConfigurationAttributes
   def validateQps(config: Config): ErrorOr[Int Refined Positive] = {
     import eu.timepit.refined._
 
-    val qp100s = config.as[Option[Int]]("genomics-api-queries-per-100-seconds").getOrElse(BatchApiDefaultQps)
+    val qp100s = config.as[Option[Int]]("batch-api-api-queries-per-100-seconds").getOrElse(BatchApiDefaultQps)
     val qpsCandidate = qp100s / 100
 
     refineV[Positive](qpsCandidate) match {
       case Left(_) =>
-        s"Calculated QPS for Google Genomics API ($qpsCandidate/s) was not a positive integer (supplied value was $qp100s per 100s)".invalidNel
+        s"Calculated QPS for Google Batch API ($qpsCandidate/s) was not a positive integer (supplied value was $qp100s per 100s)".invalidNel
       case Right(refined) => refined.validNel
     }
   }

@@ -110,7 +110,7 @@ class GcpBatchConfigurationAttributesSpec
 
   it should "parse compute service account" in {
 
-    val backendConfig = ConfigFactory.parseString(configString(genomics = """compute-service-account = "testing" """))
+    val backendConfig = ConfigFactory.parseString(configString(batchApi = """compute-service-account = "testing" """))
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
     gcpBatchAttributes.computeServiceAccount should be("testing")
@@ -118,7 +118,7 @@ class GcpBatchConfigurationAttributesSpec
 
   it should "parse restrict-metadata-access" in {
 
-    val backendConfig = ConfigFactory.parseString(configString(genomics = "restrict-metadata-access = true"))
+    val backendConfig = ConfigFactory.parseString(configString(batchApi = "restrict-metadata-access = true"))
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
     gcpBatchAttributes.restrictMetadataAccess should be(true)
@@ -127,7 +127,7 @@ class GcpBatchConfigurationAttributesSpec
 
   it should "parse localization-attempts" in {
 
-    val backendConfig = ConfigFactory.parseString(configString(genomics = "localization-attempts = 31380"))
+    val backendConfig = ConfigFactory.parseString(configString(batchApi = "localization-attempts = 31380"))
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
     gcpBatchAttributes.gcsTransferConfiguration.transferAttempts.value should be(31380)
@@ -250,7 +250,7 @@ class GcpBatchConfigurationAttributesSpec
     val nakedConfig =
       ConfigFactory.parseString("""
                                   |{
-                                  |   genomics {
+                                  |   batch-api {
                                   |
                                   |   }
                                   |}
@@ -262,22 +262,22 @@ class GcpBatchConfigurationAttributesSpec
     val errorsList = exception.errorMessages.toList
     errorsList should contain("String: 2: No configuration setting found for key 'project'")
     errorsList should contain("String: 2: No configuration setting found for key 'root'")
-    errorsList should contain("String: 3: No configuration setting found for key 'genomics.auth'")
+    errorsList should contain("String: 3: No configuration setting found for key 'batch-api.auth'")
     errorsList should contain("String: 2: No configuration setting found for key 'filesystems'")
   }
 
-  def configString(customContent: String = "", genomics: String = ""): String =
+  def configString(customContent: String = "", batchApi: String = ""): String =
     s"""
        |{
        |   project = "myProject"
        |   root = "gs://myBucket"
        |   maximum-polling-interval = 600
        |   $customContent
-       |   genomics {
+       |   batch-api {
        |     // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
        |     // Pipelines and manipulate auth JSONs.
        |     auth = "mock"
-       |    $genomics
+       |    $batchApi
        |     endpoint-url = "http://myEndpoint"
        |     location = "us-central1"
        |   }

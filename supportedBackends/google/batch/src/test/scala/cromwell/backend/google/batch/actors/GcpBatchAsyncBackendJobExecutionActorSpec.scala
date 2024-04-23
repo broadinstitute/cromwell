@@ -937,11 +937,9 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
         val jesInputs = testActorRef.underlyingActor.generateInputs()
         jesInputs should have size 8
-        // TODO: The name seems wrong
         jesInputs should contain(
           GcpBatchFileInput(
             name = "stringToFileMap",
-            //            name = "wf_whereami.whereami.stringToFileMap-0",
             cloudPath = gcsPath("gs://path/to/stringTofile1"),
             relativeHostPath = DefaultPathBuilder.get("path/to/stringTofile1"),
             mount = workingDisk
@@ -950,7 +948,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "stringToFileMap",
-            //            name = "wf_whereami.whereami.stringToFileMap-1",
             cloudPath = gcsPath("gs://path/to/stringTofile2"),
             relativeHostPath = DefaultPathBuilder.get("path/to/stringTofile2"),
             mount = workingDisk
@@ -959,7 +956,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "fileToStringMap",
-            //            name = "wf_whereami.whereami.fileToStringMap-0",
             cloudPath = gcsPath("gs://path/to/fileToString1"),
             relativeHostPath = DefaultPathBuilder.get("path/to/fileToString1"),
             mount = workingDisk
@@ -968,7 +964,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "fileToStringMap",
-            //            name = "wf_whereami.whereami.fileToStringMap-1",
             cloudPath = gcsPath("gs://path/to/fileToString2"),
             relativeHostPath = DefaultPathBuilder.get("path/to/fileToString2"),
             mount = workingDisk
@@ -977,7 +972,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "fileToFileMap",
-            //            name = "wf_whereami.whereami.fileToFileMap-0",
             cloudPath = gcsPath("gs://path/to/fileToFile1Key"),
             relativeHostPath = DefaultPathBuilder.get("path/to/fileToFile1Key"),
             mount = workingDisk
@@ -986,7 +980,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "fileToFileMap",
-            //            name = "wf_whereami.whereami.fileToFileMap-1",
             cloudPath = gcsPath("gs://path/to/fileToFile1Value"),
             relativeHostPath = DefaultPathBuilder.get("path/to/fileToFile1Value"),
             mount = workingDisk
@@ -995,7 +988,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "fileToFileMap",
-            //            name = "wf_whereami.whereami.fileToFileMap-2",
             cloudPath = gcsPath("gs://path/to/fileToFile2Key"),
             relativeHostPath = DefaultPathBuilder.get("path/to/fileToFile2Key"),
             mount = workingDisk
@@ -1004,7 +996,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "fileToFileMap",
-            //            name = "wf_whereami.whereami.fileToFileMap-3",
             cloudPath = gcsPath("gs://path/to/fileToFile2Value"),
             relativeHostPath = DefaultPathBuilder.get("path/to/fileToFile2Value"),
             mount = workingDisk
@@ -1082,8 +1073,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     }
   }
 
-  // TODO: Debug this
-  // googleBatch/testOnly *GcpBatchAsyncBackendJobExecutionActorSpec -- -z "generate correct JesOutputs"
   it should "generate correct JesOutputs" in {
     val womFile = WomSingleFile("gs://blah/b/c.txt")
     val workflowInputs = Map("file_passing.f" -> womFile)
@@ -1099,8 +1088,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     jesInputs should contain(
       GcpBatchFileInput(
         name = "in",
-        // TODO: The name seems wrong
-        //        name = "file_passing.a.in-0",
         cloudPath = gcsPath("gs://blah/b/c.txt"),
         relativeHostPath = DefaultPathBuilder.get("blah/b/c.txt"),
         mount = workingDisk
@@ -1139,8 +1126,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     jesInputs should contain(
       GcpBatchFileInput(
         name = "c35ad8d3",
-        // TODO: The name seems wrong
-        //        name = "c35ad8d3-0",
         cloudPath = gcsPath("gs://some/path/file.txt"),
         relativeHostPath = DefaultPathBuilder.get("some/path/file.txt"),
         mount = workingDisk
@@ -1210,8 +1195,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "fileArray",
-            // TODO: The name seems wrong
-            //            name = "wf_whereami.whereami.fileArray-0",
             cloudPath = gcsPath("gs://path/to/file1"),
             relativeHostPath = DefaultPathBuilder.get("path/to/file1"),
             mount = workingDisk
@@ -1220,7 +1203,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "fileArray",
-            //            name = "wf_whereami.whereami.fileArray-1",
             cloudPath = gcsPath("gs://path/to/file2"),
             relativeHostPath = DefaultPathBuilder.get("path/to/file2"),
             mount = workingDisk
@@ -1289,8 +1271,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "file1",
-            // TODO: The name seems wrong
-            //            name = "wf_whereami.whereami.file1-0",
             cloudPath = gcsPath("gs://path/to/file1"),
             relativeHostPath = DefaultPathBuilder.get("path/to/file1"),
             mount = workingDisk
@@ -1299,7 +1279,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         jesInputs should contain(
           GcpBatchFileInput(
             name = "file2",
-            //            name = "wf_whereami.whereami.file2-0",
             cloudPath = gcsPath("gs://path/to/file2"),
             relativeHostPath = DefaultPathBuilder.get("path/to/file2"),
             mount = workingDisk

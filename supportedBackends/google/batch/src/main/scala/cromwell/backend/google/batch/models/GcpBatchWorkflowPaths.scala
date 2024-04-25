@@ -21,7 +21,7 @@ object GcpBatchWorkflowPaths {
   private val AuthFilePathOptionKey = "auth_bucket"
   private val GcsPrefix = "gs://"
 
-  private def callCachePathPrefixFromExecutionRoot(executionRoot: String): String =
+  private[models] def callCachePathPrefixFromExecutionRoot(executionRoot: String): String =
     // If the root looks like gs://bucket/stuff-under-bucket this should return gs://bucket
     GcsPrefix + executionRoot.substring(GcsPrefix.length).takeWhile(_ != '/')
 }
@@ -46,6 +46,7 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 
+  // TODO: Do we actually need this? it seems to be used only by tests
   val gcsAuthFilePath: Path = {
     // The default auth file bucket is always at the root of the root workflow
     val defaultBucket = executionRoot

@@ -5,6 +5,7 @@ import cromwell.core.logging.JobLogger
 import cromwell.core.path.NioPath
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
 import org.mockito.ArgumentMatchers.any
+import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -12,7 +13,7 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 import scala.util.{Failure, Try}
 
-class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar {
+class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar with PrivateMethodTester {
   behavior of "TesAsyncBackendJobExecutionActor"
 
   val fullyQualifiedName = "this.name.is.more.than.qualified"
@@ -59,6 +60,15 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
     path = someNotBlobUrl + index,
     `type` = Option("FILE"),
     content = None
+  )
+
+  val mockTesTaskLog = TaskLog(
+    start_time = Option("add me"),
+    end_time = Option("add me"),
+    metadata = Option(Map()),
+    logs = Option(Seq[ExecutorLog]),
+    outputs = Option(Seq[OutputFileLog]),
+    system_logs = Option(Seq.empty[String])
   )
 
   // Mock blob path functionality.
@@ -174,5 +184,12 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
     generatedBashScript should include(curlCommandSubstring)
     generatedBashScript should include(echoCommandSubstring)
     generatedBashScript should include(exportCommandSubstring)
+  }
+
+  it should "return correct vm cost" in {
+    val getVmCostPerHour = PrivateMethod[Double](Symbol("getVmCostPerHour"))
+
+    val cost = TesAsyncBackendJobExecutionActor invokePrivate getVmCostPerHour
+
   }
 }

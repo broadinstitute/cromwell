@@ -11,11 +11,7 @@ import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked._
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{
-  BackendJobExecutionResponse,
-  JobAbortedResponse,
-  JobReconnectionNotSupportedException
-}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._
@@ -80,7 +76,7 @@ case class ScriptPreambleData(bashString: String, executeInSubshell: Boolean = t
   * as the common behavior among the backends adjusts in unison.
   */
 trait StandardAsyncExecutionActor
-    extends AsyncBackendJobExecutionActor
+  extends AsyncBackendJobExecutionActor
     with StandardCachingActorHelper
     with AsyncIoActorClient
     with KvClient
@@ -345,7 +341,7 @@ trait StandardAsyncExecutionActor
         |$globLinkCommand
         |
         |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
-        |ls -1 $globDirectory | grep -v $controlFileName > $globList
+        |ls -1 $globDirectory| grep -v $controlFileName > $globList
         |""".stripMargin
   }
 
@@ -353,6 +349,7 @@ trait StandardAsyncExecutionActor
   def scriptPreamble: ErrorOr[ScriptPreambleData] = ScriptPreambleData("").valid
 
   def cwd: Path = commandDirectory
+
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
 
   // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
@@ -429,7 +426,7 @@ trait StandardAsyncExecutionActor
 
     lazy val environmentVariables = instantiatedCommand.environmentVariables map { case (k, v) =>
       s"""export $k="$v""""
-    } mkString ("", "\n", "\n")
+    } mkString("", "\n", "\n")
 
     val shortId = jobDescriptor.workflowDescriptor.id.shortString
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
@@ -444,11 +441,12 @@ trait StandardAsyncExecutionActor
 
     val emptyDirectoryFillCommand: String = configurationDescriptor.backendConfig
       .getAs[String]("empty-dir-fill-command")
-      .getOrElse(s"""(
-                    |# add a .file in every empty directory to facilitate directory delocalization on the cloud
-                    |cd $cwd
-                    |find . -type d -exec sh -c '[ -z "$$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \\;
-                    |)""".stripMargin)
+      .getOrElse(
+        s"""(
+           |# add a .file in every empty directory to facilitate directory delocalization on the cloud
+           |cd $cwd
+           |find . -type d -exec sh -c '[ -z "$$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \\;
+           |)""".stripMargin)
 
     val errorOrPreamble: ErrorOr[String] = scriptPreamble.map { preambleData =>
       preambleData.executeInSubshell match {
@@ -511,13 +509,13 @@ trait StandardAsyncExecutionActor
   }
 
   /**
-   * Turns WomFiles into relative paths.  These paths are relative to the working disk.
-   *
-   * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
-   * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
-   * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
-   * etc
-   */
+    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
+    *
+    * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
+    * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+    * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+    * etc
+    */
   protected def relativeLocalizationPath(file: WomFile): WomFile =
     file.mapFile(value =>
       getPath(value) match {
@@ -650,11 +648,11 @@ trait StandardAsyncExecutionActor
           inputDefinition -> adHocFiles
             .collectFirst {
               case AsAdHocValue(AdHocValue(originalWomFile, _, Some(inputName)))
-                  if inputName == inputDefinition.localName.value =>
+                if inputName == inputDefinition.localName.value =>
                 originalWomFile
               case AsLocalizedAdHocValue(
-                    LocalizedAdHocValue(AdHocValue(originalWomFile, _, Some(inputName)), localizedPath)
-                  ) if inputName == inputDefinition.localName.value =>
+              LocalizedAdHocValue(AdHocValue(originalWomFile, _, Some(inputName)), localizedPath)
+              ) if inputName == inputDefinition.localName.value =>
                 originalWomFile.mapFile(_ => localizedPath.pathAsString)
             }
             .getOrElse(originalWomValue)
@@ -698,8 +696,8 @@ trait StandardAsyncExecutionActor
       // redirection or override of the filename of a redirection. Evaluate that expression if present and stringify.
       val List(stdinRedirect, stdoutOverride, stderrOverride) =
         List[CommandTaskDefinition => Option[WomExpression]](_.stdinRedirection,
-                                                             _.stdoutOverride,
-                                                             _.stderrOverride
+          _.stdoutOverride,
+          _.stderrOverride
         ) map {
           _.apply(callable).traverse[ErrorOr, String] {
             _.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { _.valueString }
@@ -768,8 +766,8 @@ trait StandardAsyncExecutionActor
     }
 
   /**
-   * Returns the memory multiplier for previous attempt if available
-   */
+    * Returns the memory multiplier for previous attempt if available
+    */
   lazy val previousMemoryMultiplier: Option[Double] =
     jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) match {
       case Some(KvPair(_, v)) =>
@@ -909,6 +907,8 @@ trait StandardAsyncExecutionActor
     */
   def getTerminalMetadata(runStatus: StandardAsyncRunState): Map[String, Any] = Map.empty
 
+  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit = {}
+
   /**
     * Attempts to abort a job when an abort signal is retrieved.
     *
@@ -1030,7 +1030,7 @@ trait StandardAsyncExecutionActor
   def handleExecutionSuccess(runStatus: StandardAsyncRunState,
                              handle: StandardAsyncPendingExecutionHandle,
                              returnCode: Int
-  )(implicit ec: ExecutionContext): Future[ExecutionHandle] =
+                            )(implicit ec: ExecutionContext): Future[ExecutionHandle] =
     evaluateOutputs() map {
       case ValidJobOutputs(outputs) =>
         // Need to make sure the paths are up to date before sending the detritus back in the response
@@ -1039,6 +1039,7 @@ trait StandardAsyncExecutionActor
       case InvalidJobOutputs(errors) =>
         val exception = new MessageAggregation {
           override def exceptionContext: String = "Failed to evaluate job outputs"
+
           override def errorMessages: Iterable[String] = errors.toList
         }
         FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
@@ -1055,7 +1056,7 @@ trait StandardAsyncExecutionActor
     */
   def retryElseFail(backendExecutionStatus: Future[ExecutionHandle],
                     retryWithMoreMemory: Boolean = false
-  ): Future[ExecutionHandle] =
+                   ): Future[ExecutionHandle] =
     backendExecutionStatus flatMap {
       case failedRetryableOrNonRetryable: FailedExecutionHandle =>
         val kvsFromPreviousAttempt = jobDescriptor.prefetchedKvStoreEntries.collect {
@@ -1063,7 +1064,7 @@ trait StandardAsyncExecutionActor
         }
         val kvsForNextAttempt = failedRetryableOrNonRetryable.kvPairsToSave match {
           case Some(kvPairs) =>
-            kvPairs.map { case kvPair @ KvPair(ScopedKey(_, _, key), _) =>
+            kvPairs.map { case kvPair@KvPair(ScopedKey(_, _, key), _) =>
               key -> kvPair
             }.toMap
           case None => Map.empty[String, KvPair]
@@ -1076,17 +1077,17 @@ trait StandardAsyncExecutionActor
               case (true, Some(retryFactor), Some(previousMultiplier)) =>
                 val nextMemoryMultiplier = previousMultiplier * retryFactor.value
                 saveAttrsAndRetry(failed,
-                                  kvsFromPreviousAttempt,
-                                  kvsForNextAttempt,
-                                  incFailedCount = true,
-                                  Option(nextMemoryMultiplier)
+                  kvsFromPreviousAttempt,
+                  kvsForNextAttempt,
+                  incFailedCount = true,
+                  Option(nextMemoryMultiplier)
                 )
               case (true, Some(retryFactor), None) =>
                 saveAttrsAndRetry(failed,
-                                  kvsFromPreviousAttempt,
-                                  kvsForNextAttempt,
-                                  incFailedCount = true,
-                                  Option(retryFactor.value)
+                  kvsFromPreviousAttempt,
+                  kvsForNextAttempt,
+                  incFailedCount = true,
+                  Option(retryFactor.value)
                 )
               case (_, _, _) =>
                 saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
@@ -1103,7 +1104,7 @@ trait StandardAsyncExecutionActor
                                 kvNext: Map[String, KvPair],
                                 incFailedCount: Boolean,
                                 nextMemoryMultiplier: Option[Double] = None
-  ): Future[FailedRetryableExecutionHandle] =
+                               ): Future[FailedRetryableExecutionHandle] =
     failedExecHandle match {
       case failedNonRetryable: FailedNonRetryableExecutionHandle =>
         saveKvPairsForNextAttempt(kvPrev, kvNext, incFailedCount, nextMemoryMultiplier) map { _ =>
@@ -1114,16 +1115,16 @@ trait StandardAsyncExecutionActor
     }
 
   /**
-   * Merge key-value pairs from previous job execution attempt with incoming pairs from current attempt, which has just
-   * failed, and store them in the database. In case when there are key-value pairs with the same key name among those
-   * from previous attempt and coming from backend, backend values have higher precedence.
-   *
-   */
+    * Merge key-value pairs from previous job execution attempt with incoming pairs from current attempt, which has just
+    * failed, and store them in the database. In case when there are key-value pairs with the same key name among those
+    * from previous attempt and coming from backend, backend values have higher precedence.
+    *
+    */
   private def saveKvPairsForNextAttempt(kvsFromPreviousAttempt: Map[String, KvPair],
                                         kvsForNextAttempt: Map[String, KvPair],
                                         incrementFailedRetryCount: Boolean,
                                         nextMemoryMultiplierOption: Option[Double]
-  ): Future[Seq[KvResponse]] = {
+                                       ): Future[Seq[KvResponse]] = {
     val nextKvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
@@ -1173,6 +1174,7 @@ trait StandardAsyncExecutionActor
 
   // See executeOrRecoverSuccess
   private var missedAbort = false
+
   private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
   context.become(kvClientReceive orElse standardReceiveBehavior(None) orElse slowJobWarningReceive orElse receive)
@@ -1216,9 +1218,9 @@ trait StandardAsyncExecutionActor
   private def executeOrRecoverSuccess(executionHandle: ExecutionHandle): Future[ExecutionHandle] =
     executionHandle match {
       case handle: PendingExecutionHandle[StandardAsyncJob @unchecked,
-                                          StandardAsyncRunInfo @unchecked,
-                                          StandardAsyncRunState @unchecked
-          ] =>
+        StandardAsyncRunInfo @unchecked,
+        StandardAsyncRunState @unchecked
+      ] =>
         configurationDescriptor.slowJobWarningAfter foreach { duration =>
           self ! WarnAboutSlownessAfter(handle.pendingJob.jobId, duration)
         }
@@ -1241,10 +1243,11 @@ trait StandardAsyncExecutionActor
   override def poll(previous: ExecutionHandle)(implicit ec: ExecutionContext): Future[ExecutionHandle] =
     previous match {
       case handle: PendingExecutionHandle[StandardAsyncJob @unchecked,
-                                          StandardAsyncRunInfo @unchecked,
-                                          StandardAsyncRunState @unchecked
-          ] =>
+        StandardAsyncRunInfo @unchecked,
+        StandardAsyncRunState @unchecked
+      ] =>
         jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
+        // poll for end time //
         pollStatusAsync(handle) flatMap { backendRunStatus =>
           self ! WarnAboutSlownessIfNecessary
           handlePollSuccess(handle, backendRunStatus)
@@ -1261,12 +1264,12 @@ trait StandardAsyncExecutionActor
     * Process a poll success.
     *
     * @param oldHandle The previous execution handle.
-    * @param state The updated run state.
+    * @param state     The updated run state.
     * @return The updated execution handle.
     */
   def handlePollSuccess(oldHandle: StandardAsyncPendingExecutionHandle,
                         state: StandardAsyncRunState
-  ): Future[ExecutionHandle] = {
+                       ): Future[ExecutionHandle] = {
     val previousState = oldHandle.previousState
     if (!(previousState exists statusEquivalentTo(state))) {
       // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise just use
@@ -1280,6 +1283,7 @@ trait StandardAsyncExecutionActor
     state match {
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
+        onTaskComplete(state, oldHandle)
         tellMetadata(metadata)
         handleExecutionResult(state, oldHandle)
       case s =>
@@ -1308,7 +1312,7 @@ trait StandardAsyncExecutionActor
             case (handle: ExecutionHandle, exception: Exception) =>
               // Log exceptions and return the original handle to try again.
               jobLogger.warn(s"Caught non-fatal ${exception.getClass.getSimpleName} exception trying to poll, retrying",
-                             exception
+                exception
               )
               handle
           }
@@ -1322,13 +1326,13 @@ trait StandardAsyncExecutionActor
   /**
     * Process an execution result.
     *
-    * @param status The execution status.
+    * @param status    The execution status.
     * @param oldHandle The previous execution handle.
     * @return The updated execution handle.
     */
   def handleExecutionResult(status: StandardAsyncRunState,
                             oldHandle: StandardAsyncPendingExecutionHandle
-  ): Future[ExecutionHandle] = {
+                           ): Future[ExecutionHandle] = {
 
     // Returns true if the task has written an RC file that indicates OOM, false otherwise
     def memoryRetryRC: Future[Boolean] = {
@@ -1383,8 +1387,8 @@ trait StandardAsyncExecutionActor
           case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption),
-                                                Option(returnCodeAsInt),
-                                                None
+                Option(returnCodeAsInt),
+                None
               )
             )
             retryElseFail(executionHandle)
@@ -1406,8 +1410,8 @@ trait StandardAsyncExecutionActor
           case Success(returnCodeAsInt) =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption),
-                                                Option(returnCodeAsInt),
-                                                None
+                Option(returnCodeAsInt),
+                None
               )
             )
             retryElseFail(executionHandle)
@@ -1422,7 +1426,7 @@ trait StandardAsyncExecutionActor
       } else {
         tryReturnCodeAsInt match {
           case Success(returnCodeAsInt)
-              if outOfMemoryDetected && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
+            if outOfMemoryDetected && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(
                 RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),

@@ -14,35 +14,23 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{
-  AbortedExecutionHandle,
-  ExecutionHandle,
-  FailedNonRetryableExecutionHandle,
-  PendingExecutionHandle
-}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{
-  determineWSMSasEndpointFromInputs,
-  generateLocalizedSasScriptPreamble
-}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{
-  ScriptPreambleData,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob
-}
+import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.blob.{BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
+import cromwell.services.metadata.CallMetadataKeys
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
-import java.time.Duration
+import java.time.{Duration, OffsetDateTime}
 import java.time.temporal.ChronoUnit
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
@@ -179,7 +167,7 @@ object TesAsyncBackendJobExecutionActor {
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-    extends BackendJobLifecycleActor
+  extends BackendJobLifecycleActor
     with StandardAsyncExecutionActor
     with TesJobCachingActorHelper {
   implicit val actorSystem = context.system
@@ -211,22 +199,22 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   /**
-   * This script preamble is bash code that is executed at the start of a task inside the user's container.
-   * It is executed directly before the user's instantiated command is, which gives cromwell a chance to adjust the
-   * container environment before the actual task runs. See commandScriptContents in StandardAsyncExecutionActor for more context.
-   *
-   * For TES tasks, we sometimes want to acquire and save an azure sas token to an environment variable.
-   * If the user provides a value for runtimeAttributes.localizedSasEnvVar, we will add the relevant bash code to the preamble
-   * that acquires/exports the sas token to an environment variable. Once there, it will be visible to the user's task code.
-   *
-   * If runtimeAttributes.localizedSasEnvVar is provided in the WDL (and determineWSMSasEndpointFromInputs is successful),
-   * we will export the sas token to an environment variable named to be the value of runtimeAttributes.localizedSasEnvVar.
-   * Otherwise, we won't alter the preamble.
-   *
-   * See determineWSMSasEndpointFromInputs to see how we use taskInputs to infer *which* container to get a sas token for.
-   *
-   * @return Bash code to run at the start of a task.
-   */
+    * This script preamble is bash code that is executed at the start of a task inside the user's container.
+    * It is executed directly before the user's instantiated command is, which gives cromwell a chance to adjust the
+    * container environment before the actual task runs. See commandScriptContents in StandardAsyncExecutionActor for more context.
+    *
+    * For TES tasks, we sometimes want to acquire and save an azure sas token to an environment variable.
+    * If the user provides a value for runtimeAttributes.localizedSasEnvVar, we will add the relevant bash code to the preamble
+    * that acquires/exports the sas token to an environment variable. Once there, it will be visible to the user's task code.
+    *
+    * If runtimeAttributes.localizedSasEnvVar is provided in the WDL (and determineWSMSasEndpointFromInputs is successful),
+    * we will export the sas token to an environment variable named to be the value of runtimeAttributes.localizedSasEnvVar.
+    * Otherwise, we won't alter the preamble.
+    *
+    * See determineWSMSasEndpointFromInputs to see how we use taskInputs to infer *which* container to get a sas token for.
+    *
+    * @return Bash code to run at the start of a task.
+    */
   override def scriptPreamble: ErrorOr[ScriptPreambleData] =
     runtimeAttributes.localizedSasEnvVar match {
       case Some(environmentVariableName) =>
@@ -239,13 +227,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           val computedEndpoint = determineWSMSasEndpointFromInputs(taskInputs, getPath, jobLogger)
           computedEndpoint.map(endpoint =>
             ScriptPreambleData(generateLocalizedSasScriptPreamble(environmentVariableName, endpoint),
-                               executeInSubshell = false
+              executeInSubshell = false
             )
           )
         }.toErrorOr
       case _ =>
         ScriptPreambleData("",
-                           executeInSubshell = false
+          executeInSubshell = false
         ).valid // Case: user doesn't want a sas token. Empty preamble is the correct preamble.
     }
   override def mapCommandLineWomFile(womFile: WomFile): WomFile =
@@ -349,10 +337,10 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def reconnectAsync(jobId: StandardAsyncJob) = {
     val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](jobDescriptor,
-                                                                                                       jobId,
-                                                                                                       None,
-                                                                                                       previousState =
-                                                                                                         None
+      jobId,
+      None,
+      previousState =
+        None
     )
     Future.successful(handle)
   }
@@ -389,7 +377,33 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def requestsAbortAndDiesImmediately: Boolean = false
 
-  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
+  override def onTaskComplete(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Unit = {
+    val taskMetadataMap = for {
+      logs <- getTaskLogs(handle)
+      cost = getVmCostPerHour(logs)
+      thisThing = runStatus match {
+        case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> getErrorLogs(handle))
+        case _ => Map(CallMetadataKeys.TotalVmCostUsd -> cost)
+     }
+    } yield thisThing
+
+    taskMetadataMap.onComplete {
+      case Success(result) => tellMetadata(result)
+      case Failure(e) => log.error(e.getMessage)
+    }
+  }
+
+  private def getVmCostPerHour(logs: TaskLog): Double = {
+    val startTime = OffsetDateTime.parse(logs.start_time.getOrElse(""))
+    val endTime = OffsetDateTime.parse(logs.end_time.getOrElse(""))
+    val vmPricePerHour = logs.metadata.get("vm_price_per_hour_usd").toDouble
+    val elapsedTime = endTime.toEpochSecond - startTime.toEpochSecond
+    val totalCost = (elapsedTime.toDouble/3600) * vmPricePerHour
+
+    BigDecimal(totalCost).setScale(3, BigDecimal.RoundingMode.HALF_UP).toDouble
+  }
+
+  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
     for {
       status <- queryStatusAsync(handle)
       errorLog <- status match {
@@ -402,6 +416,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         case _ => status
       }
     } yield statusWithLog
+  }
 
   private def queryStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
@@ -431,6 +446,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private def getErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] =
     makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
       response.logs.flatMap(_.lastOption).flatMap(_.system_logs).getOrElse(Seq.empty[String])
+    }
+
+  private def getTaskLogs(handle: StandardAsyncPendingExecutionHandle): Future[TaskLog] =
+    makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
+      val errorStates = List("EXECUTOR_ERROR", "SYSTEM_ERROR")
+      val state = response.state.map(s => s)
+      if(errorStates.contains(state)) {
+        Future.failed(
+          new RuntimeException(s"Failed TES request: $state"))
+      }
+      response.logs.flatMap(_.headOption).head
     }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {

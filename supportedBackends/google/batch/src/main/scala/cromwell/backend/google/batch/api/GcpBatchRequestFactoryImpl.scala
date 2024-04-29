@@ -18,6 +18,7 @@ import com.google.cloud.batch.v1.{
   Volume
 }
 import com.google.protobuf.Duration
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.{GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
@@ -35,7 +36,8 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     with Delocalization
     with MemoryRetryCheckRunnable
     with MonitoringRunnable
-    with CheckpointingRunnable {
+    with CheckpointingRunnable
+    with LazyLogging {
 
   override def queryRequest(jobName: JobName): GetJobRequest = GetJobRequest.newBuilder.setName(jobName.toString).build
 
@@ -242,6 +244,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
           .build
       )
 
+    logger.info(s"Creating new Batch job with $gcpSa")
     CreateJobRequest.newBuilder
       .setParent(parent)
       .setJob(job)

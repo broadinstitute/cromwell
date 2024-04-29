@@ -42,13 +42,13 @@ backend {
       config {
         # Root of a blob storage container to use
         # Might look something like: https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-d8143fd8-aa07-446d-9ba0-af72203f1794/some/path/"
-        root = "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-c10a67a1-dcb2-4d55-80a4-ae37bb3a635b/workspace-services/cbas/terra-app-22f4f31e-70a2-4f12-a079-74a103b1b274/"
+        root = ""
         dockerRoot = "/cromwell-executions"
         # TES Endpoint for cromwell to use. Might look something like: "https://lz7388ada396994bb48ea5c87a02eed673689c82c2af423d03.servicebus.windows.net/something/tes/v1/tasks?view=FULL
-        endpoint = "https://lz7388ada396994bb48ea5c87a02eed673689c82c2af423d03.servicebus.windows.net/terra-app-22f4f31e-70a2-4f12-a079-74a103b1b274-c10a67a1-dcb2-4d55-80a4-ae37bb3a635b/tes/v1/tasks"
+        endpoint = ""
         concurrent-job-limit = 1000
         # Identity to execute the workflow as. Might look something like: "pet-2676571657071603a9eab"
-        workflow-execution-identity = "pet-2642611506189ed0d7427"
+        workflow-execution-identity = ""
         # See comment in src/ci/resources/acquire_b2c_token.sh for the one-time setup required to automatically acquire this.
         # This token can also be manually acquired with gcloud auth print-access-token myAccount@gmail.com
         bearer-token="Bearer {{ env "CROMWELL_B2C_TOKEN" }}"

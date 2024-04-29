@@ -14,10 +14,23 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble}
+import cromwell.backend.async.{
+  AbortedExecutionHandle,
+  ExecutionHandle,
+  FailedNonRetryableExecutionHandle,
+  PendingExecutionHandle
+}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{
+  determineWSMSasEndpointFromInputs,
+  generateLocalizedSasScriptPreamble
+}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{
+  ScriptPreambleData,
+  StandardAsyncExecutionActor,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob
+}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
@@ -167,7 +180,7 @@ object TesAsyncBackendJobExecutionActor {
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends BackendJobLifecycleActor
+    extends BackendJobLifecycleActor
     with StandardAsyncExecutionActor
     with TesJobCachingActorHelper {
   implicit val actorSystem = context.system
@@ -227,13 +240,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           val computedEndpoint = determineWSMSasEndpointFromInputs(taskInputs, getPath, jobLogger)
           computedEndpoint.map(endpoint =>
             ScriptPreambleData(generateLocalizedSasScriptPreamble(environmentVariableName, endpoint),
-              executeInSubshell = false
+                               executeInSubshell = false
             )
           )
         }.toErrorOr
       case _ =>
         ScriptPreambleData("",
-          executeInSubshell = false
+                           executeInSubshell = false
         ).valid // Case: user doesn't want a sas token. Empty preamble is the correct preamble.
     }
   override def mapCommandLineWomFile(womFile: WomFile): WomFile =
@@ -337,10 +350,10 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def reconnectAsync(jobId: StandardAsyncJob) = {
     val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](jobDescriptor,
-      jobId,
-      None,
-      previousState =
-        None
+                                                                                                       jobId,
+                                                                                                       None,
+                                                                                                       previousState =
+                                                                                                         None
     )
     Future.successful(handle)
   }
@@ -384,7 +397,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       metadata = runStatus match {
         case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> getErrorLogs(handle))
         case _ => Map(CallMetadataKeys.TotalVmCostUsd -> cost)
-     }
+      }
     } yield metadata
 
     taskMetadataMap.onComplete {
@@ -399,12 +412,12 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
     val vmPricePerHour = logs.metadata.get("vm_price_per_hour_usd").toDouble
     val elapsedTime = endTime.toEpochSecond - startTime.toEpochSecond
-    val totalCost = (elapsedTime.toDouble/3600) * vmPricePerHour
+    val totalCost = (elapsedTime.toDouble / 3600) * vmPricePerHour
 
     BigDecimal(totalCost).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 
-  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
+  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     for {
       status <- queryStatusAsync(handle)
       errorLog <- status match {
@@ -417,7 +430,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         case _ => status
       }
     } yield statusWithLog
-  }
 
   private def queryStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
@@ -453,9 +465,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
       val errorStates = List("EXECUTOR_ERROR", "SYSTEM_ERROR")
       val state = response.state.map(s => s)
-      if(errorStates.contains(state)) {
-        Future.failed(
-          new RuntimeException(s"Failed TES request: $state"))
+      if (errorStates.contains(state)) {
+        Future.failed(new RuntimeException(s"Failed TES request: $state"))
       }
       response.logs.flatMap(_.headOption).head
     }

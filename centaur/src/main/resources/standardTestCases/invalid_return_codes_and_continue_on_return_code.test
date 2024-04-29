@@ -1,0 +1,11 @@
+name: invalid_return_codes_and_continue_on_return_code
+testFormat: workflowfailure
+
+files {
+  workflow: invalid_return_codes_and_continue_on_return_code/invalid_return_codes_and_continue_on_return_code.wdl
+}
+
+metadata {
+  workflowName: InvalidReturnCodeAndContinueOnReturnCode
+  status: Failed
+}

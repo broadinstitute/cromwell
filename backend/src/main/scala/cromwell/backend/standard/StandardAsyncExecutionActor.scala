@@ -746,10 +746,10 @@ trait StandardAsyncExecutionActor
     RuntimeAttributesValidation.extract(FailOnStderrValidation.instance, validatedRuntimeAttributes)
 
   /**
-    * Returns the behavior for continuing on the return code, obtained by converting `returnCodeContents` to an Int.
-    *
-    * @return the behavior for continuing on the return code.
-    */
+   * Returns the behavior for continuing on the return code, obtained by converting `returnCodeContents` to an Int.
+   *
+   * @return the behavior for continuing on the return code.
+   */
   lazy val continueOnReturnCode: ContinueOnReturnCode =
     RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
 

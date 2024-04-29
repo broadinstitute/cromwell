@@ -55,6 +55,8 @@ case class HttpPath(nioPath: NioPath) extends Path {
 
   override def pathWithoutScheme: String = pathAsString.replaceFirst("http[s]?://", "")
 
+  def pathWithoutSchemeOrQueryOrFragment: String = pathWithoutScheme.split("[?#]").head
+
   def fetchSize(implicit executionContext: ExecutionContext, actorSystem: ActorSystem): Future[Long] =
     Http().singleRequest(HttpRequest(uri = pathAsString, method = HttpMethods.HEAD)).map { response =>
       response.discardEntityBytes()

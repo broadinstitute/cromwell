@@ -25,6 +25,7 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.blob.{BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.services.metadata.CallMetadataKeys
+import cromwell.filesystems.http.HttpPath
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
@@ -164,6 +165,46 @@ object TesAsyncBackendJobExecutionActor {
         )
       )
   }
+
+  def mapInputPath(path: Path, tesJobPaths: TesJobPaths, commandDirectory: Path): String =
+    path match {
+      case drsPath: DrsPath =>
+        val filepath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
+        tesJobPaths.containerExec(commandDirectory, filepath)
+      case httpPath: HttpPath =>
+        // Strip the query params and anything after a # from http paths when turning them into local paths
+        tesJobPaths.callInputsDockerRoot
+          .resolve(httpPath.pathWithoutSchemeOrQueryOrFragment.stripPrefix("/"))
+          .pathAsString
+      case path: Path if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
+        path.pathAsString
+      case path: Path if path.equals(tesJobPaths.callExecutionRoot) =>
+        commandDirectory.pathAsString
+      case path: Path if path.startsWith(tesJobPaths.callExecutionRoot) =>
+        tesJobPaths.containerExec(commandDirectory, path.name)
+      case path: Path if path.startsWith(tesJobPaths.callRoot) =>
+        tesJobPaths.callDockerRoot.resolve(path.name).pathAsString
+      case path: BlobPath if path.startsWith(tesJobPaths.workflowPaths.workflowRoot) =>
+        // Blob paths can get really long, which causes problems for some tools. If this input file
+        // lives in the workflow execution directory, strip off that prefix from the path we're
+        // generating inside `inputs/` to keep the total path length under control.
+        // In Terra on Azure, this saves us 200+ characters.
+        tesJobPaths.callInputsDockerRoot
+          .resolve(
+            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.workflowRoot)
+          )
+          .pathAsString
+      case path: BlobPath if path.startsWith(tesJobPaths.workflowPaths.executionRoot) =>
+        // See comment above... if this file is in the execution root, strip that off.
+        // In Terra on Azure, this saves us 160+ characters.
+        tesJobPaths.callInputsDockerRoot
+          .resolve(
+            path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.executionRoot)
+          )
+          .pathAsString
+      case _ =>
+        tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
+    }
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
@@ -250,37 +291,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile =
     womFile.mapFile(value =>
       getPath(value) match {
-        case Success(drsPath: DrsPath) =>
-          val filepath = DrsResolver.getContainerRelativePath(drsPath).unsafeRunSync()
-          tesJobPaths.containerExec(commandDirectory, filepath)
-        case Success(path: Path) if path.startsWith(tesJobPaths.workflowPaths.DockerRoot) =>
-          path.pathAsString
-        case Success(path: Path) if path.equals(tesJobPaths.callExecutionRoot) =>
-          commandDirectory.pathAsString
-        case Success(path: Path) if path.startsWith(tesJobPaths.callExecutionRoot) =>
-          tesJobPaths.containerExec(commandDirectory, path.name)
-        case Success(path: Path) if path.startsWith(tesJobPaths.callRoot) =>
-          tesJobPaths.callDockerRoot.resolve(path.name).pathAsString
-        case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.workflowRoot) =>
-          // Blob paths can get really long, which causes problems for some tools. If this input file
-          // lives in the workflow execution directory, strip off that prefix from the path we're
-          // generating inside `inputs/` to keep the total path length under control.
-          // In Terra on Azure, this saves us 200+ characters.
-          tesJobPaths.callInputsDockerRoot
-            .resolve(
-              path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.workflowRoot)
-            )
-            .pathAsString
-        case Success(path: BlobPath) if path.startsWith(tesJobPaths.workflowPaths.executionRoot) =>
-          // See comment above... if this file is in the execution root, strip that off.
-          // In Terra on Azure, this saves us 160+ characters.
-          tesJobPaths.callInputsDockerRoot
-            .resolve(
-              path.pathStringWithoutPrefix(tesJobPaths.workflowPaths.executionRoot)
-            )
-            .pathAsString
         case Success(path: Path) =>
-          tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
+          TesAsyncBackendJobExecutionActor.mapInputPath(path, tesJobPaths, commandDirectory)
         case _ =>
           value
       }

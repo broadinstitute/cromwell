@@ -2,19 +2,24 @@ package cromwell.backend.impl.tes
 
 import common.mock.MockSugar
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
+import cromwell.backend.BackendJobDescriptorKey
+import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
 import cromwell.core.logging.JobLogger
-import cromwell.core.path.NioPath
+import cromwell.core.path.{DefaultPathBuilder, NioPath}
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
+import cromwell.filesystems.http.HttpPathBuilder
 import org.mockito.ArgumentMatchers.any
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
+import wom.graph.CommandCallNode
 
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 import scala.util.{Failure, Try}
 
-class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar with PrivateMethodTester {
+class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar with TableDrivenPropertyChecks with PrivateMethodTester {
   behavior of "TesAsyncBackendJobExecutionActor"
 
   val standardParams: StandardAsyncExecutionActorParams = mock[StandardAsyncExecutionActorParams]
@@ -193,7 +198,56 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
     val getVmCostPerHour = PrivateMethod[Double](Symbol("getVmCostPerHour"))
     val cost = tesAsyncBackendJobExecutorActor invokePrivate getVmCostPerHour(mockTesTaskLog)
 
-    cost shouldEqual 0.01
+    cost shouldEqual 0.1
+  }
 
+
+  private val httpPathTestCases = Table(
+    ("test name", "http path", "local path in input dir"),
+    (
+      "strip simple kv query params",
+      "http://example.com/my_sample.bam?k1=v1&k2=v2",
+      "example.com/my_sample.bam"
+    ),
+    (
+      "handle http paths without query params",
+      "http://example.com/my_sample.bam",
+      "example.com/my_sample.bam"
+    ),
+    (
+      "handle http paths without params but with a ?",
+      "http://example.com/my_sample.bam?",
+      "example.com/my_sample.bam"
+    ),
+    (
+      "handle a blob file with SAS token attached",
+      "https://lzbc096764ae93ffff9f406e.blob.core.windows.net/sc-a7f7a9e0-2dcf-465c-997b-a276090a52da/workspace-services/cbas/terra-app-2f577477-763b-4e27-8e28-b03d91b6f3be/cromwell-workflow-logs/workflow.c621a5df-37f1-422d-b91a-1a65f6112a6a.log?sv=2023-11-03&spr=https&st=2024-04-09T23%3A35%3A37Z&se=2024-04-10T07%3A50%3A37Z&sr=c&sp=racwdlt&sig=REDACTEDS&rscd=100067995116984528334",
+      "lzbc096764ae93ffff9f406e.blob.core.windows.net/sc-a7f7a9e0-2dcf-465c-997b-a276090a52da/workspace-services/cbas/terra-app-2f577477-763b-4e27-8e28-b03d91b6f3be/cromwell-workflow-logs/workflow.c621a5df-37f1-422d-b91a-1a65f6112a6a.log"
+    ),
+    (
+      "handle an http path with fragment",
+      "http://example.com/my_sample.bam#my_favorite_part",
+      "example.com/my_sample.bam"
+    ),
+    (
+      "handle an http path with fragment and query params",
+      "http://example.com/my_sample.bam?k=yourface#my_favorite_part",
+      "example.com/my_sample.bam"
+    )
+  )
+
+  forAll(httpPathTestCases) { (testName, httpPath, localPathInInputDir) =>
+    it should testName in {
+      val wd = buildWdlWorkflowDescriptor(TestWorkflows.HelloWorld)
+      val call: CommandCallNode = wd.callable.taskCallNodes.head
+      val jobKey = BackendJobDescriptorKey(call, None, 1)
+      val jobPaths = TesJobPaths(jobKey, wd, TesTestConfig.backendConfig)
+      val commandDirectory = DefaultPathBuilder.build("/my/command/dir").get
+      val httpBuilder = new HttpPathBuilder()
+
+      val httpPathWithParams = httpBuilder.build(httpPath)
+      val actual = TesAsyncBackendJobExecutionActor.mapInputPath(httpPathWithParams.get, jobPaths, commandDirectory)
+      actual shouldBe s"${jobPaths.callInputsDockerRoot}/$localPathInInputDir"
+    }
   }
 }

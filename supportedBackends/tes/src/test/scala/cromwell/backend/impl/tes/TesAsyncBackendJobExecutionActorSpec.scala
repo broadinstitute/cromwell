@@ -1,9 +1,9 @@
 package cromwell.backend.impl.tes
 
 import common.mock.MockSugar
-import cromwell.backend.standard.StandardAsyncExecutionActorParams
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
+import cromwell.backend.standard.StandardAsyncExecutionActorParams
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, NioPath}
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
@@ -19,11 +19,19 @@ import java.time.Duration
 import java.time.temporal.ChronoUnit
 import scala.util.{Failure, Try}
 
-class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar with TableDrivenPropertyChecks with PrivateMethodTester {
+class TesAsyncBackendJobExecutionActorSpec
+    extends AnyFlatSpec
+    with Matchers
+    with MockSugar
+    with TableDrivenPropertyChecks
+    with PrivateMethodTester {
   behavior of "TesAsyncBackendJobExecutionActor"
 
   val standardParams: StandardAsyncExecutionActorParams = mock[StandardAsyncExecutionActorParams]
-  private val tesAsyncBackendJobExecutorActor = mock[TesAsyncBackendJobExecutionActor] // new TesAsyncBackendJobExecutionActor{override val standardParams: StandardAsyncExecutionActorParams}
+  private val tesAsyncBackendJobExecutorActor =
+    mock[
+      TesAsyncBackendJobExecutionActor
+    ] // new TesAsyncBackendJobExecutionActor{override val standardParams: StandardAsyncExecutionActorParams}
   val fullyQualifiedName = "this.name.is.more.than.qualified"
   val workflowName = "mockWorkflow"
   val someBlobUrl =
@@ -200,7 +208,6 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
 
     cost shouldEqual 0.1
   }
-
 
   private val httpPathTestCases = Table(
     ("test name", "http path", "local path in input dir"),

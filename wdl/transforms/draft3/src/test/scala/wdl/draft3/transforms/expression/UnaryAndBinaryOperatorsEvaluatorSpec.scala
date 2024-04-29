@@ -65,7 +65,7 @@ class UnaryAndBinaryOperatorsEvaluatorSpec extends AnyFlatSpec with CromwellTime
     }
 
     it should s"evaluate the type of the expression '$name'" in {
-      expression.evaluateType(Map.empty) shouldBeValid expectedType
+      expression.evaluateType(Map.empty, Map.empty) shouldBeValid expectedType
     }
   }
 }

@@ -1,0 +1,11 @@
+name: return_codes
+testFormat: workflowsuccess
+
+files {
+  workflow: return_codes/return_codes.wdl
+}
+
+metadata {
+  workflowName: ReturnCodeValidation
+  status: Succeeded
+}

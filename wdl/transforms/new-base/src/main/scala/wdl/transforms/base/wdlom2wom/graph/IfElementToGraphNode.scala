@@ -33,7 +33,7 @@ object IfElementToGraphNode {
     val graphElements = a.node.graphElements
 
     val conditionWomExpressionV: ErrorOr[WdlomWomExpression] =
-      WdlomWomExpression.make(conditionExpression, a.linkableValues)
+      WdlomWomExpression.make(conditionExpression, a.linkableValues, a.availableTypeAliases)
     val conditionExpressionNodeValidation: ErrorOr[AnonymousExpressionNode] = conditionWomExpressionV flatMap {
       conditionWomExpression =>
         AnonymousExpressionNode.fromInputMapping(WomIdentifier("if_condition"),
@@ -43,10 +43,11 @@ object IfElementToGraphNode {
         )
     }
 
-    val conditionVariableTypeValidation: ErrorOr[Unit] = conditionExpression.evaluateType(a.linkableValues) flatMap {
-      case WomBooleanType | WomAnyType => ().validNel
-      case other => s"Invalid type for condition variable: ${other.stableName}".invalidNel
-    }
+    val conditionVariableTypeValidation: ErrorOr[Unit] =
+      conditionExpression.evaluateType(a.linkableValues, a.availableTypeAliases) flatMap {
+        case WomBooleanType | WomAnyType => ().validNel
+        case other => s"Invalid type for condition variable: ${other.stableName}".invalidNel
+      }
 
     final case class RequiredOuterPorts(valueGeneratorPorts: Map[String, OutputPort],
                                         completionPorts: Map[String, CallNode]

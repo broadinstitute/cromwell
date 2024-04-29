@@ -907,6 +907,13 @@ trait StandardAsyncExecutionActor
     */
   def getTerminalMetadata(runStatus: StandardAsyncRunState): Map[String, Any] = Map.empty
 
+  /**
+    * Does a given action when a task has reached a terminal state.
+    *
+    * @param runStatus The run status.
+    * @param handle The handle of the running job.
+    * @return A set of actions when the job is complete
+    */
   def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit = {}
 
   /**

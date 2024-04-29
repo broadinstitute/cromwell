@@ -381,11 +381,11 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val taskMetadataMap = for {
       logs <- getTaskLogs(handle)
       cost = getVmCostPerHour(logs)
-      thisThing = runStatus match {
+      metadata = runStatus match {
         case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> getErrorLogs(handle))
         case _ => Map(CallMetadataKeys.TotalVmCostUsd -> cost)
      }
-    } yield thisThing
+    } yield metadata
 
     taskMetadataMap.onComplete {
       case Success(result) => tellMetadata(result)
@@ -396,11 +396,12 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   private def getVmCostPerHour(logs: TaskLog): Double = {
     val startTime = OffsetDateTime.parse(logs.start_time.getOrElse(""))
     val endTime = OffsetDateTime.parse(logs.end_time.getOrElse(""))
+
     val vmPricePerHour = logs.metadata.get("vm_price_per_hour_usd").toDouble
     val elapsedTime = endTime.toEpochSecond - startTime.toEpochSecond
     val totalCost = (elapsedTime.toDouble/3600) * vmPricePerHour
 
-    BigDecimal(totalCost).setScale(3, BigDecimal.RoundingMode.HALF_UP).toDouble
+    BigDecimal(totalCost).setScale(2, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
 
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {

@@ -1,6 +1,7 @@
 package cromwell.backend.impl.tes
 
 import common.mock.MockSugar
+import cromwell.backend.standard.StandardAsyncExecutionActorParams
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.NioPath
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
@@ -16,6 +17,8 @@ import scala.util.{Failure, Try}
 class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers with MockSugar with PrivateMethodTester {
   behavior of "TesAsyncBackendJobExecutionActor"
 
+  val standardParams: StandardAsyncExecutionActorParams = mock[StandardAsyncExecutionActorParams]
+  private val tesAsyncBackendJobExecutorActor = mock[TesAsyncBackendJobExecutionActor] // new TesAsyncBackendJobExecutionActor{override val standardParams: StandardAsyncExecutionActorParams}
   val fullyQualifiedName = "this.name.is.more.than.qualified"
   val workflowName = "mockWorkflow"
   val someBlobUrl =
@@ -63,11 +66,11 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
   )
 
   val mockTesTaskLog = TaskLog(
-    start_time = Option("add me"),
-    end_time = Option("add me"),
-    metadata = Option(Map()),
-    logs = Option(Seq[ExecutorLog]),
-    outputs = Option(Seq[OutputFileLog]),
+    start_time = Option("2024-04-04T20:20:32.240066+00:00"),
+    end_time = Option("2024-04-04T20:22:32.077818+00:00"),
+    metadata = Option(Map("vm_price_per_hour_usd" -> "0.203")),
+    logs = Option(mock[Seq[ExecutorLog]]),
+    outputs = Option(mock[Seq[OutputFileLog]]),
     system_logs = Option(Seq.empty[String])
   )
 
@@ -188,8 +191,9 @@ class TesAsyncBackendJobExecutionActorSpec extends AnyFlatSpec with Matchers wit
 
   it should "return correct vm cost" in {
     val getVmCostPerHour = PrivateMethod[Double](Symbol("getVmCostPerHour"))
+    val cost = tesAsyncBackendJobExecutorActor invokePrivate getVmCostPerHour(mockTesTaskLog)
 
-    val cost = TesAsyncBackendJobExecutionActor invokePrivate getVmCostPerHour
+    cost shouldEqual 0.01
 
   }
 }

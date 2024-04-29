@@ -44,7 +44,7 @@ backend {
         # Might look something like: https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-d8143fd8-aa07-446d-9ba0-af72203f1794/some/path/"
         root = ""
         dockerRoot = "/cromwell-executions"
-        # TES Endpoint for cromwell to use. Might look something like: "https://lz7388ada396994bb48ea5c87a02eed673689c82c2af423d03.servicebus.windows.net/something/tes/v1/tasks?view=FULL
+        # TES Endpoint for cromwell to use. Might look something like: "https://lz7388ada396994bb48ea5c87a02eed673689c82c2af423d03.servicebus.windows.net/something/tes/v1/tasks
         endpoint = ""
         concurrent-job-limit = 1000
         # Identity to execute the workflow as. Might look something like: "pet-2676571657071603a9eab"

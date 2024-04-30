@@ -75,7 +75,7 @@ case class BulkAccessUrlDownloader(resolvedUrls: List[ResolvedDrsUrl]) extends D
     Files.deleteIfExists(getmManifestPath)
 
   def generateGetmCommand(pathToMainfestJson: Path): String =
-    s"""getm --manifest ${pathToMainfestJson.toString}"""
+    s"""timeout 4h getm --manifest ${pathToMainfestJson.toString} -vv"""
   def runGetm: IO[GetmResult] =
     generateJsonManifest(resolvedUrls).flatMap { manifestPath =>
       val script = generateGetmCommand(manifestPath)

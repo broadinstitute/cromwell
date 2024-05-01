@@ -37,6 +37,4 @@ object WorkflowMetadataKeys {
   val Labels = "labels"
   val MetadataArchiveStatus = "metadataArchiveStatus"
   val Message = "message"
-
-  val CommandLine = "commandLine"
 }

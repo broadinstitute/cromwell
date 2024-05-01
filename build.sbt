@@ -387,11 +387,6 @@ lazy val `cloud-nio-impl-drs` = (project in cloudNio / "cloud-nio-impl-drs")
   .dependsOn(common)
   .dependsOn(common % "test->test")
 
-lazy val perf = project
-  .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
-  .dependsOn(common)
-  .dependsOn(common % "test->test")
-
 lazy val `cromwell-drs-localizer` = project
   .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies, drsLocalizerSettings)
   .dependsOn(`cloud-nio-impl-drs`)
@@ -453,7 +448,6 @@ lazy val root = (project in file("."))
   .aggregate(googleBatch)
   .aggregate(httpFileSystem)
   .aggregate(languageFactoryCore)
-  .aggregate(perf)
   .aggregate(server)
   .aggregate(services)
   .aggregate(sfsBackend)

@@ -59,7 +59,7 @@ class WriteMetadataActor(override val batchSize: Int,
   }
 
   def sanitizeInputs(
-    metadataWriteActions: NonEmptyVector[MetadataWriteAction],
+    metadataWriteActions: NonEmptyVector[MetadataWriteAction]
   ): NonEmptyVector[MetadataWriteAction] =
     metadataWriteActions.map { metadataWriteAction =>
       val metadataEvents =

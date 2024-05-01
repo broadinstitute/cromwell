@@ -50,14 +50,12 @@ object Publishing {
           Seq(version.value)
         case Standard =>
           // Merge to `develop`
-          // Looks like `85-443a6fc`, `latest`
+          // Looks like `85-443a6fc`, `latest`, `develop`
           // TODO: once we automate releases, `latest` should move to `Release`
           Seq(version.value, "latest", "develop")
       }
 
       val versionsCsv = tags.mkString(",")
-
-      // Travis applies (as of 10/22) the `dev` and `develop` tags on merge to `develop`
       sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
     },
     docker / imageNames := dockerTags.value map { tag =>

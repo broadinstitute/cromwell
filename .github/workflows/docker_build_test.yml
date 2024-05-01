@@ -34,4 +34,10 @@ jobs:
         run: |
           set -e
           cd cromwell
-          sbt -Dproject.isSnapshot=false -Dproject.isRelease=false docker
+          sbt -Dproject.isSnapshot=false docker
+      # Rarely used but we really want it always working for emergencies
+      - name: Build Cromwell Debug Docker
+        run: |
+          set -e
+          cd cromwell
+          sbt -Dproject.isDebug=true docker

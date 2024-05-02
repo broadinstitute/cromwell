@@ -110,12 +110,14 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   val metadataWriteStatisticsConfig = MetadataStatisticsRecorderSettings(
     serviceConfig.as[Option[Config]]("metadata-write-statistics")
   )
+  val metadataKeysToClean = serviceConfig.getOrElse[List[String]]("metadata-keys-to-sanitize-utf8mb4", List())
   val writeActor = context.actorOf(
     WriteMetadataActor.props(dbBatchSize,
                              dbFlushRate,
                              serviceRegistryActor,
                              LoadConfig.MetadataWriteThreshold,
-                             metadataWriteStatisticsConfig
+                             metadataWriteStatisticsConfig,
+                             metadataKeysToClean
     ),
     "WriteMetadataActor"
   )

@@ -133,7 +133,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_GIT_USER_EMAIL=""
             CROMWELL_BUILD_GIT_USER_NAME="${GITHUB_ACTOR}"
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
-            CROMWELL_BUILD_GENERATE_COVERAGE=true
+            CROMWELL_BUILD_GENERATE_COVERAGE=false # Changing to false to see if tests pass, revert when code cov issues are fixed
             CROMWELL_BUILD_RUN_TESTS=true
             ;;
         *)

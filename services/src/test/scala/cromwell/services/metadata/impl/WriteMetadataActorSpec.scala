@@ -38,7 +38,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
 
   it should "process jobs in the correct batch sizes" in {
     val registry = TestProbe().ref
-    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue) {
+    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List()) {
       override val metadataDatabaseInterface = mockDatabaseInterface(0)
     })
 
@@ -71,9 +71,10 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
   failuresBetweenSuccessValues foreach { failureRate =>
     it should s"succeed metadata writes and respond to all senders even with $failureRate failures between each success" in {
       val registry = TestProbe().ref
-      val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue) {
-        override val metadataDatabaseInterface = mockDatabaseInterface(failureRate)
-      })
+      val writeActor =
+        TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List()) {
+          override val metadataDatabaseInterface = mockDatabaseInterface(failureRate)
+        })
 
       def metadataEvent(index: Int, probe: ActorRef) =
         PutMetadataActionAndRespond(List(
@@ -111,7 +112,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
 
   it should s"fail metadata writes and respond to all senders with failures" in {
     val registry = TestProbe().ref
-    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue) {
+    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List()) {
       override val metadataDatabaseInterface = mockDatabaseInterface(100)
     })
 
@@ -144,6 +145,90 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
     }
 
     writeActor.stop()
+  }
+
+  it should s"test removing emojis from metadata works as expected" in {
+    val registry = TestProbe().ref
+    val writeActor =
+      TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List("metadata_key")) {
+        override val metadataDatabaseInterface = mockDatabaseInterface(100)
+      })
+
+    def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(
+      List(
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue(s"🎉_$index"))
+      ),
+      probe
+    )
+
+    val probes = (0 until 43)
+      .map { _ =>
+        val probe = TestProbe()
+        probe
+      }
+      .zipWithIndex
+      .map { case (probe, index) =>
+        probe -> metadataEvent(index, probe.ref)
+      }
+
+    val metadataWriteActions = probes.map(probe => probe._2).toVector
+    val metadataWriteActionNE = NonEmptyVector(metadataWriteActions.head, metadataWriteActions.tail)
+
+    val sanitizedWriteActions = writeActor.underlyingActor.sanitizeInputs(metadataWriteActionNE)
+
+    sanitizedWriteActions.map { writeAction =>
+      writeAction.events.map { event =>
+        if (event.value.getOrElse(fail("Removed value from metadata event")).value.matches("[\\x{10000}-\\x{FFFFF}]")) {
+          fail("Metadata event contains emoji")
+        }
+
+        if (!event.value.getOrElse(fail("Removed value from metadata event")).value.contains("\uFFFD")) {
+          fail("Incorrect character used to replace emoji")
+        }
+      }
+    }
+  }
+
+  it should s"test removing emojis from metadata which doesn't contain emojis returns the string" in {
+    val registry = TestProbe().ref
+    val writeActor =
+      TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List("metadata_key")) {
+        override val metadataDatabaseInterface = mockDatabaseInterface(100)
+      })
+
+    def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(
+      List(
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue(s"hello_$index"))
+      ),
+      probe
+    )
+
+    val probes = (0 until 43)
+      .map { _ =>
+        val probe = TestProbe()
+        probe
+      }
+      .zipWithIndex
+      .map { case (probe, index) =>
+        probe -> metadataEvent(index, probe.ref)
+      }
+
+    val metadataWriteActions = probes.map(probe => probe._2).toVector
+    val metadataWriteActionNE = NonEmptyVector(metadataWriteActions.head, metadataWriteActions.tail)
+
+    val sanitizedWriteActions = writeActor.underlyingActor.sanitizeInputs(metadataWriteActionNE)
+
+    sanitizedWriteActions.map { writeAction =>
+      writeAction.events.map { event =>
+        if (event.value.getOrElse(fail("Removed value from metadata event")).value.matches("[\\x{10000}-\\x{FFFFF}]")) {
+          fail("Metadata event contains emoji")
+        }
+
+        if (event.value.getOrElse(fail("Removed value from metadata event")).value.contains("\uFFFD")) {
+          fail("Incorrectly replaced character in metadata event")
+        }
+      }
+    }
   }
 
   // Mock database interface.
@@ -382,8 +467,15 @@ object WriteMetadataActorSpec {
   class BatchSizeCountingWriteMetadataActor(override val batchSize: Int,
                                             override val flushRate: FiniteDuration,
                                             override val serviceRegistryActor: ActorRef,
-                                            override val threshold: Int
-  ) extends WriteMetadataActor(batchSize, flushRate, serviceRegistryActor, threshold, MetadataStatisticsDisabled) {
+                                            override val threshold: Int,
+                                            val metadataKeysToClean: List[String]
+  ) extends WriteMetadataActor(batchSize,
+                               flushRate,
+                               serviceRegistryActor,
+                               threshold,
+                               MetadataStatisticsDisabled,
+                               metadataKeysToClean
+      ) {
 
     var batchSizes: Vector[Int] = Vector.empty
     var failureCount: Int = 0

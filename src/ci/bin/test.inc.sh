@@ -834,7 +834,6 @@ cromwell::private::setup_prior_version_resources() {
 cromwell::private::generate_code_coverage() {
     sbt -Dsbt.supershell=false --warn coverageReport
     sbt -Dsbt.supershell=false --warn coverageAggregate
-    bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
 cromwell::private::start_build_heartbeat() {

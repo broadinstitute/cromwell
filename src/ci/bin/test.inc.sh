@@ -834,9 +834,6 @@ cromwell::private::setup_prior_version_resources() {
 cromwell::private::generate_code_coverage() {
     sbt -Dsbt.supershell=false --warn coverageReport
     sbt -Dsbt.supershell=false --warn coverageAggregate
-    curl -Os https://cli.codecov.io/v0.4.4/linux/codecov
-    sudo chmod +x codecov
-    ./codecov --verbose upload-process --fail-on-error -t ${{ secrets.CODECOV_TOKEN }} -n 'service'-${{ github.run_id }} -F service -f coverage-service.xml
 }
 
 cromwell::private::start_build_heartbeat() {

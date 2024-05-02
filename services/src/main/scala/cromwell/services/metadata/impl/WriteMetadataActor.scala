@@ -64,10 +64,9 @@ class WriteMetadataActor(override val batchSize: Int,
     metadataWriteActions.map { metadataWriteAction =>
       val metadataEvents =
         metadataWriteAction.events.map { event =>
-          if (event.value.isDefined && metadataKeysToClean.contains(event.key.key)) {
-            event.copy(value = Option(MetadataValue(StringUtil.cleanUtf8mb4(event.value.get.value))))
-          } else {
-            event
+          event.value match {
+            case Some(eventVal) => event.copy(value = Option(MetadataValue(StringUtil.cleanUtf8mb4(eventVal.value))))
+            case None => event
           }
         }
       metadataWriteAction match {

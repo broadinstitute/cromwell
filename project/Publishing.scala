@@ -141,7 +141,7 @@ object Publishing {
     import sbtdocker.Instructions
 
     // It is optimal to use a single `Run` instruction to minimize the number of layers in the image.
-    // Do not be tempted to install the default in the repositories, it's from Oracle.
+    // Do not be tempted to install the default JDK in the repositories, it's from Oracle.
     //
     // Documentation:
     // - https://www.yourkit.com/docs/java-profiler/2024.3/help/docker_broker.jsp#setup

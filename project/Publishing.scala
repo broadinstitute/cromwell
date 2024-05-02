@@ -148,7 +148,7 @@ object Publishing {
     // - https://adoptium.net/installation/linux/#_deb_installation_on_debian_or_ubuntu
     Instructions.Run(
       """apt-get update -qq && \
-        |apt-get install -qq --no-install-recommends file gpg htop less nload unzip vim && \
+        |apt-get install -qq --no-install-recommends file gpg htop jq less nload unzip vim && \
         |wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | \
         |  tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null && \
         |echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | \

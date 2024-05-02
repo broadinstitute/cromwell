@@ -60,7 +60,7 @@ jobs:
       run: |
         set -e
         cd cromwell
-        sbt -Dproject.isSnapshot=false -Dproject.isRelease=false dockerBuildAndPush
+        sbt -Dproject.isSnapshot=false dockerBuildAndPush
     - name: Deploy to dev and board release train (Cromwell)
       uses: broadinstitute/repository-dispatch@master
       with:

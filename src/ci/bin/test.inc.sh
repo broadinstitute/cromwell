@@ -133,7 +133,7 @@ cromwell::private::create_build_variables() {
             CROMWELL_BUILD_GIT_USER_EMAIL=""
             CROMWELL_BUILD_GIT_USER_NAME="${GITHUB_ACTOR}"
             CROMWELL_BUILD_HEARTBEAT_PATTERN="…"
-            CROMWELL_BUILD_GENERATE_COVERAGE=false
+            CROMWELL_BUILD_GENERATE_COVERAGE=true
             CROMWELL_BUILD_RUN_TESTS=true
             ;;
         *)
@@ -834,7 +834,7 @@ cromwell::private::setup_prior_version_resources() {
 cromwell::private::generate_code_coverage() {
     sbt -Dsbt.supershell=false --warn coverageReport
     sbt -Dsbt.supershell=false --warn coverageAggregate
-    bash <(curl -s https://codecov.io/bash) > /dev/null || true
+    bash <(curl -s https://codecov.io/bash) -v
 }
 
 cromwell::private::start_build_heartbeat() {

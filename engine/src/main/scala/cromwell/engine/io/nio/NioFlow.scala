@@ -24,8 +24,10 @@ import net.ceedubs.ficus.readers.ValueReader
 
 import java.io._
 import java.nio.charset.StandardCharsets
+import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.language.postfixOps
 
 /**
   * Flow that executes IO operations by calling java.nio.Path methods
@@ -52,7 +54,7 @@ class NioFlow(parallelism: Int,
     }
 
     val operationResult = IORetry.withRetry(
-      handleSingleCommand(commandContext.request),
+      handleSingleCommand(commandContext.request).timeout(50 seconds),
       IoAttempts(1),
       maxRetries = Option(numberOfAttempts),
       backoff = IoCommand.defaultBackoff,
@@ -72,6 +74,12 @@ class NioFlow(parallelism: Int,
   }
 
   private[nio] def handleSingleCommand(ioSingleCommand: IoCommand[_]): IO[IoSuccess[_]] = {
+
+    // Apply cancellation if the command has REALLY been waiting too long to execute
+    if (ioSingleCommand.creation.plusMinutes(1) isAfter OffsetDateTime.now()) {
+      ioSingleCommand.fail(new Exception("I/O command is 1 minute old, cancelling (location 1"))
+    }
+
     val ret = ioSingleCommand match {
       case copyCommand: IoCopyCommand => copy(copyCommand) map copyCommand.success
       case writeCommand: IoWriteCommand => write(writeCommand) map writeCommand.success
@@ -89,6 +97,11 @@ class NioFlow(parallelism: Int,
 
     // Apply backpressure if this command has been waiting too long to execute.
     backpressureIfStale(ioSingleCommand, onBackpressure)
+
+    // Apply cancellation if the command has REALLY been waiting too long to execute
+    if (ioSingleCommand.creation.plusMinutes(1) isAfter OffsetDateTime.now()) {
+      ioSingleCommand.fail(new Exception("I/O command is 1 minute old, cancelling (location 2"))
+    }
     ret
   }
 
@@ -182,7 +195,9 @@ class NioFlow(parallelism: Int,
     getStoredHash(hash.file)
       .flatMap {
         case Some(storedHash) => IO.pure(storedHash)
-        case None => generateMd5FileHashForPath(hash.file)
+        case None =>
+          logger.warn(s"About to download a file for hashing: ${hash.toString}")
+          generateMd5FileHashForPath(hash.file)
       }
       .map(_.hash)
 

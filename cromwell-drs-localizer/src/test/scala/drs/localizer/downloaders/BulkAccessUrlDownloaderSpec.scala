@@ -80,7 +80,7 @@ class BulkAccessUrlDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
   it should "properly construct the invocation command" in {
     val downloader = BulkAccessUrlDownloader(oneElement)
     val filepath: Path = downloader.generateJsonManifest(threeElements).unsafeRunSync()
-    val expected = s"""getm --manifest ${filepath.toString} -v"""
+    val expected = s"""timeout 4h getm --manifest ${filepath.toString} -vv"""
     downloader.generateGetmCommand(filepath) shouldBe expected
   }
 

@@ -115,8 +115,7 @@ jobs:
     - uses: codecov/codecov-action@v4
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        handle_no_reports_found: false #Tolerate missing codecov reports, since not all suites generate them.
-        fail_ci_if_error: true
+        fail_ci_if_error: true # Tolerate missing codecov reports, since not all suites generate them.
         verbose: false
     # always() is some github magic that forces the following step to run, even when the previous fails.
     # Without it, the if statement won't be evaluated on a test failure.

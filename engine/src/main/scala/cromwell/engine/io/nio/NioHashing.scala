@@ -27,7 +27,7 @@ object NioHashing {
           else
             IO.raiseError(
               new Exception(
-                s"Files of type ${file.getClass.getSimpleName} require hash in object metadata, not present for file ${file.pathAsString.maskSensitiveUri}"
+                s"File of type ${file.getClass.getSimpleName} requires hash in object metadata, not present for ${file.pathAsString.maskSensitiveUri}"
               )
             )
       }

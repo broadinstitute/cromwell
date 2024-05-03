@@ -8,13 +8,6 @@ features or fixes, the following are required to build Cromwell from source:
 * [AdoptOpenJDK 11 HotSpot](https://adoptopenjdk.net/)
 * [Git](https://git-scm.com/)
 
-You can also use the [development image](https://github.com/broadinstitute/cromwell/tree/develop/scripts/docker-develop), and build a development container to work inside:
-
-```bash
-$ docker build -t cromwell-dev .
-$ docker run -it cromwell-dev bash
-```
-
 First start by cloning the Cromwell repository from GitHub:
 
 ```bash
@@ -35,15 +28,15 @@ Finally build the Cromwell jar:
 $ sbt assembly
 ```
 
-NOTE: This command will run for a long time the first time.  
-NOTE: Compiling will not succeed on directories encrypted with ecryptfs (ubuntu encrypted home dirs for example), due to long file paths.
-
 `sbt assembly` will build the runnable Cromwell JAR in `server/target/scala-2.13/` with a name like `cromwell-<VERSION>.jar`. It will also build a runnable Womtool JAR in `womtool/target/scala-2.13/` with a name like `womtool-<VERSION>.jar`.
 
-To build a [Docker](https://www.docker.com/) image, run:
+## Docker
 
-```bash
-$ sbt server/docker
-```
+The following Docker build configurations are supported. Most users will want Snapshot, resulting in an image like `broadinstitute/cromwell:<VERSION>-SNAP`.
 
-This will build and tag a Docker image with a name like `broadinstitute/cromwell:<VERSION>-SNAP`.
+| Command                                        | Build Type | Debug Tools | Description                          |
+|------------------------------------------------|------------|-------------|--------------------------------------|
+| `sbt server/docker`                            | Snapshot   | No          | Most common local build              |
+| `sbt -Dproject.isDebug=true server/docker`     | Debug      | Yes         | Local build with debugging/profiling |
+| `sbt -Dproject.isSnapshot=false server/docker` | Standard   | No          | Reserved for CI: commit on `develop` |
+| `sbt -Dproject.isRelease=true server/docker`   | Release    | No          | Reserved for CI: numbered release    |

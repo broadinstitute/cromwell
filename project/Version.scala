@@ -8,24 +8,44 @@ object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
   val cromwellVersion = "87"
 
+  sealed trait BuildType
+  case object Snapshot extends BuildType
+  case object Debug extends BuildType
+  case object Release extends BuildType
+  case object Standard extends BuildType
+
+  def buildType: BuildType = {
+    if (isDebug) Debug
+    else if (isRelease) Release
+    else if (isSnapshot) Snapshot
+    else Standard
+  }
+
   /**
     * Returns true if this project should be considered a snapshot.
     *
     * The value is read in directly from the system property `project.isSnapshot` as there were confusing issues with
     * the multi-project and sbt.Keys#isSnapshot().
     *
-    * Default `true`.
+    * This is the default if no arguments are provided.
     */
-  val isSnapshot: Boolean = sys.props.get("project.isSnapshot").forall(_.toBoolean)
+  private lazy val isSnapshot: Boolean = getPropOrDefault("project.isSnapshot", default = true)
+
+  /**
+    * Returns true if this project should be built in the debugging configuration.
+    *
+    * Note that this image is much larger than the default build!
+    */
+  private lazy val isDebug: Boolean = getPropOrDefault("project.isDebug")
 
   /**
     * Returns `true` if this project should tag a release like `85` in addition to a hash like `85-443a6fc`.
-    *
-    * Has no effect when `isSnapshot` is `true`.
-    *
-    * Default `true`.
     */
-  val isRelease: Boolean = sys.props.get("project.isRelease").forall(_.toBoolean)
+  private lazy val isRelease: Boolean = getPropOrDefault("project.isRelease")
+
+  private def getPropOrDefault(prop: String, default: Boolean = false): Boolean = {
+    sys.props.get(prop).map(_.toBoolean).getOrElse(default)
+  }
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =
@@ -90,6 +110,11 @@ object Version {
     val version = overrideVersion orElse commitVersion getOrElse unknownVersion
 
     // For now, obfuscate SNAPSHOTs from sbt's developers: https://github.com/sbt/sbt/issues/2687#issuecomment-236586241
-    if (isSnapshot) s"$version-SNAP" else version
+    // (by calling it `SNAP` instead of `SNAPSHOT`)
+    buildType match {
+      case Snapshot => s"$version-SNAP"
+      case Debug => s"$version-DEBUG"
+      case _ => version
+    }
   }
 }

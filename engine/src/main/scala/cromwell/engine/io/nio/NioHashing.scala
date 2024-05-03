@@ -15,7 +15,7 @@ import scala.util.Try
 
 object NioHashing {
 
-  def hash(file: Path): IO[String] = {
+  def hash(file: Path): IO[String] =
     // If there is no hash accessible from the file storage system,
     // we'll read the file and generate the hash ourselves if we can.
     getStoredHash(file)
@@ -26,13 +26,14 @@ object NioHashing {
             generateMd5FileHashForPath(file)
           else
             IO.raiseError(
-              new Exception(s"Files of type ${file.getClass.getSimpleName} require hash in object metadata, not present for file ${file.pathAsString.maskSensitiveUri}")
+              new Exception(
+                s"Files of type ${file.getClass.getSimpleName} require hash in object metadata, not present for file ${file.pathAsString.maskSensitiveUri}"
+              )
             )
       }
       .map(_.hash)
-  }
 
-  def getStoredHash(file: Path): IO[Option[FileHash]] = {
+  def getStoredHash(file: Path): IO[Option[FileHash]] =
     file match {
       case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
       case blobPath: BlobPath => getFileHashForBlobPath(blobPath)
@@ -48,7 +49,6 @@ object NioHashing {
         }
       case _ => IO.pure(None)
     }
-  }
 
   /**
     * In some scenarios like SFS it is appropriate for Cromwell to hash files using its own CPU power.
@@ -60,13 +60,12 @@ object NioHashing {
     *
     * @param file The path to consider for local hashing
     */
-  private def canHashLocally(file: Path) = {
+  private def canHashLocally(file: Path) =
     file match {
       case _: HttpPath => false
       case _: BlobPath => false
       case _ => true
     }
-  }
 
   private def generateMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {
     tryWithResource(() => path.newInputStream) { inputStream =>

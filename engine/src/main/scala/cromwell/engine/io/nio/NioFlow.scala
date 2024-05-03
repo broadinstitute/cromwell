@@ -172,9 +172,8 @@ class NioFlow(parallelism: Int,
       case nioPath => IO(nioPath.size)
     }
 
-  private def hash(hash: IoHashCommand): IO[String] = {
+  private def hash(hash: IoHashCommand): IO[String] =
     NioHashing.hash(hash.file)
-  }
 
   private def touch(touch: IoTouchCommand) = IO {
     touch.file.touch()

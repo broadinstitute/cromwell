@@ -12,3 +12,4 @@ build:
 
 mkdocs:
   configuration: docs-rtd/mkdocs.yml
+  docs_dir: docs

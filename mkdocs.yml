@@ -111,4 +111,4 @@ extra_javascript:
     - js/extra.js
 
 hooks:
-    - set_copyright.py
+    - docs/set_copyright.py

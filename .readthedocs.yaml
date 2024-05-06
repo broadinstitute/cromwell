@@ -11,5 +11,4 @@ build:
     python: "3.12"
 
 mkdocs:
-  configuration: docs-rtd/mkdocs.yml
-  docs_dir: docs
+  configuration: mkdocs.yml

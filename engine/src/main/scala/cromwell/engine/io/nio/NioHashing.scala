@@ -54,7 +54,8 @@ object NioHashing {
     * In some scenarios like SFS it is appropriate for Cromwell to hash files using its own CPU power.
     *
     * In cloud scenarios, we don't want this because the files are huge, downloading them is slow & expensive,
-    * and the extreme CPU usage destabilizes the instance. [WX-1566]
+    * and the extreme CPU usage destabilizes the instance (WX-1566). For more context, see also comments
+    * on `cromwell.filesystems.blob.BlobPath#largeBlobFileMetadataKey()`.
     *
     * Cromwell is fundamentally supposed to be a job scheduler, and heavy computation should take place elsewhere.
     *

@@ -1,0 +1,19 @@
+name: 'Set Jira ID'
+
+runs:
+  using: "composite" # <-- this allows these steps to be used by other workflows.
+  steps:
+    - name: "Set ID or fail"
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const title = context.payload.pull_request.title;
+          const regex = /[A-Z][A-Z]+-\d+/;
+          const match = title.match(regex)
+          
+          if (!match) {
+            core.setFailed("PR title must contain a Jira tag");
+          } else {
+            core.setOutput("JIRA_ID", match[0])
+          }

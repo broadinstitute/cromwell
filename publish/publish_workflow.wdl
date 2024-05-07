@@ -1,11 +1,12 @@
 # Releases the next version of Cromwell.
 # Only handles strictly-increasing versions.
 # The current version is retrieved from the GitHub releases page.
-# If `majorRelease` is `false`, then `nextVersion = currentVersion + 0.1`.
-# If `majorRelease` is `true`, then `nextVersion = floor(currentVersion) + 1`.
+# `nextVersion = floor(currentVersion) + 1`.
 
 version 1.0
 
+# Outputs: JAR files
+# Github: git tag, hotfix branch, update version number, merge `develop` into `master`
 task doMajorRelease {
     input {
         File githubTokenFile
@@ -109,101 +110,13 @@ task doMajorRelease {
     }
 }
 
-task doMinorRelease {
-    meta {
-        description: "simply builds jars from the hotfix branch, tags the branch, and push the tag to github"
-    }
-
-    input {
-        File githubTokenFile
-        String githubUser
-        String githubName
-        String githubEmail
-        String organization
-        String releaseVersion
-        String publishDocker
-    }
-
-    Float releaseVersionAsFloat = releaseVersion
-    Int majorReleaseNumber = floor(releaseVersionAsFloat)
-    String hotfixBranchName = "~{majorReleaseNumber}_hotfix"
-    Boolean useEmailForName = githubName == "null"
-
-    command <<<
-        # Do not use `set -x` or it will print the GitHub token!
-        set -euo pipefail
-
-        echo 'Setup Git'
-        /cromwell-publish/git-setup.sh \
-            --tokenFile '~{githubTokenFile}' \
-            --user '~{githubUser}' \
-            --email '~{githubEmail}' \
-            ~{if (useEmailForName) then "" else "--name '~{githubName}'"} \
-
-        echo 'Clone repo and checkout hotfix branch'
-        git clone https://github.com/~{organization}/cromwell.git --branch ~{hotfixBranchName} cromwell
-        cd cromwell
-
-        echo 'Tag the release'
-        git tag --message=~{releaseVersion} ~{releaseVersion}
-
-        # Use sbt.server.forcestart to workaround https://github.com/sbt/sbt/issues/6101
-        echo 'Assemble jars for cromwell and womtool'
-        sbt \
-        -Dsbt.server.forcestart=true \
-        -Dproject.version=~{releaseVersion} \
-        -Dproject.isSnapshot=false \
-        server/assembly \
-        womtool/assembly
-
-        echo 'Smoke test Cromwell and Womtool artifacts'
-        cat > hello.wdl <<FIN
-        task hello {
-          String name
-
-          command {
-            echo 'hello \${name}!'
-          }
-          output {
-            File response = stdout()
-          }
-        }
-
-        workflow test {
-          call hello
-        }
-        FIN
-
-        cat > hello.inputs <<FIN
-        {
-          "test.hello.name": "world"
-        }
-        FIN
-
-        java -jar server/target/scala-2.13/cromwell-~{releaseVersion}.jar run --inputs hello.inputs hello.wdl
-        java -jar womtool/target/scala-2.13/womtool-~{releaseVersion}.jar validate --inputs hello.inputs hello.wdl
-
-        echo 'Push the tags'
-        git push origin ~{releaseVersion}
-    >>>
-
-    output {
-        File cromwellJar = "cromwell/server/target/scala-2.13/cromwell-~{releaseVersion}.jar"
-        File womtoolJar = "cromwell/womtool/target/scala-2.13/womtool-~{releaseVersion}.jar"
-    }
-
-    runtime {
-        docker: publishDocker
-        cpu: 4
-        memory: "8GB"
-    }
-}
-
+# Outputs: parameters for Github
+# Github: get version number, check token scopes, user info
+# - Consider simplifying version check, latest by time is probably fine now
 task prepGithub {
     input {
         String githubToken
         String organization
-        Boolean majorRelease
         String publishDocker
     }
 
@@ -292,8 +205,7 @@ task prepGithub {
         String githubUser = read_string("githubUser.txt")
         String githubEmail = read_string("githubEmail.txt")
         String githubName = read_string("githubName.txt")
-        String currentReleaseVersion =
-            if (majorRelease) then floor(previousReleaseVersionAsFloat) + 1 else previousReleaseVersionAsFloat + 0.1
+        String currentReleaseVersion = floor(previousReleaseVersionAsFloat) + 1
     }
 
     runtime {
@@ -301,11 +213,12 @@ task prepGithub {
     }
 }
 
+# Outputs: url to upload files, release ID to finalize later
+# Github: prepare release notes, create draft release
 task draftGithubRelease {
     input {
         File githubTokenFile
         String organization
-        Boolean majorRelease
         String previousReleaseVersion
         String currentReleaseVersion
         String publishDocker
@@ -316,8 +229,8 @@ task draftGithubRelease {
     Float currentReleaseVersionAsFloat = currentReleaseVersion
     Int currentMajorReleaseNumber = floor(currentReleaseVersionAsFloat)
     String hotfixBranchName = "~{currentMajorReleaseNumber}_hotfix"
-    String changelogPreviousVersion = if (majorRelease) then previousMajorReleaseNumber else previousReleaseVersion
-    String changelogBranchName = if (majorRelease) then "develop" else hotfixBranchName
+    String changelogPreviousVersion = previousMajorReleaseNumber
+    String changelogBranchName = "develop"
 
     command <<<
         # Do not use `set -x` or it will print the GitHub token!
@@ -372,6 +285,8 @@ task draftGithubRelease {
     }
 }
 
+# Outputs: JAR URLs
+# Github: upload JARs, publish draft
 task publishGithubRelease {
     input {
         File githubTokenFile
@@ -432,207 +347,10 @@ task publishGithubRelease {
     }
 }
 
-task releaseHomebrew {
-    input {
-        File githubTokenFile
-        String githubUser
-        String githubName
-        String githubEmail
-        String organization
-        String releaseVersion
-        String cromwellReleaseUrl
-        String womtoolReleaseUrl
-        File cromwellJar
-        File womtoolJar
-        String publishDocker
-    }
-
-    String branchName = "cromwell-~{releaseVersion}"
-    Boolean useEmailForName = githubName == "null"
-
-    # This is to allow for testing. If the organization is not broadinstitute, meaning we're doing a test,
-    # instead of creating the PR in the official homebrew repo make a PR in the test repo.
-    String headBranch = if (organization == "broadinstitute") then "broadinstitute:~{branchName}" else branchName
-    String baseBranch = "master"
-    String pullRepo = if (organization == "broadinstitute") then "Homebrew" else organization
-
-    meta {
-        doc: "https://docs.brew.sh/How-To-Open-a-Homebrew-Pull-Request"
-    }
-
-    # 'brew bump-formula-pr' seems very promising and could simplify a lot of this, however it doesn't seem to update
-    # the womtool version which causes the Homebrew CI checks to fail.
-    command <<<
-        # Do not use `set -x` or it will print the GitHub token!
-        set -euo pipefail
-
-        # Homebrew no longer lets the `root` user run its scripts. The `linuxbrew` user is already set up in the default
-        # `broadinstitute/cromwell-publish:latest` image used for this task so `su linuxbrew` to run with that identity
-        # instead. Despite the name there doesn't appear to be anything special about this user, it just isn't root.
-        su linuxbrew
-
-        echo 'Setup Git'
-        /cromwell-publish/git-setup.sh \
-            --tokenFile '~{githubTokenFile}' \
-            --user '~{githubUser}' \
-            --email '~{githubEmail}' \
-            ~{if (useEmailForName) then "" else "--name '~{githubName}'"} \
-
-        echo 'Clone the homebrew fork'
-        git clone https://github.com/~{organization}/homebrew-core.git --depth=100
-        cd homebrew-core
-
-        echo 'Add the original homebrew repo as a remote'
-        # See https://help.github.com/articles/syncing-a-fork/
-        git remote add upstream https://github.com/Homebrew/homebrew-core
-        echo 'Get the master branch from the original homebrew up to date'
-        git fetch upstream
-        echo 'Checkout our local master branch'
-        git checkout master
-        echo 'Merge upstream homebrew to local master'
-        git merge --no-edit upstream/master
-
-        echo 'Create branch for release'
-
-        git checkout -b ~{branchName} master
-
-        echo '########################################################'
-        echo '##### Update url and hash for cromwell and womtool #####'
-        echo '########################################################'
-
-        echo 'Find the line with the cromwell url. Also grab the next one that we assume will be the sha.'
-        echo 'Push both in an array'
-        cromwell_array=()
-        while IFS='' read -r line; do cromwell_array+=("${line}"); done \
-        < <( \
-            grep \
-                -h -A 1 \
-                'https://github.com/broadinstitute/cromwell/releases/download/.*/cromwell-.*\.jar' \
-                Formula/cromwell.rb \
-            | awk -F '"' '{print $2}' \
-        )
-        # Put the url and sha into separate variables.
-        cromwell_previous_url="${cromwell_array[0]}"
-        cromwell_previous_sha="${cromwell_array[1]}"
-
-        echo 'Same for womtool'
-        womtool_array=()
-        while IFS='' read -r line; do womtool_array+=("${line}"); done \
-        < <( \
-            grep \
-                -h -A 1 \
-                'https://github.com/broadinstitute/cromwell/releases/download/.*/womtool-.*\.jar' \
-                Formula/cromwell.rb \
-            | awk -F '"' '{print $2}' \
-        )
-        womtool_previous_url="${womtool_array[0]}"
-        womtool_previous_sha="${womtool_array[1]}"
-
-        echo 'Compute the SHA of the newly released jars'
-        cromwell_release_sha=$(shasum -a 256 ~{cromwellJar} | cut -c 1-64)
-        womtool_release_sha=$(shasum -a 256 ~{womtoolJar} | cut -c 1-64)
-
-        echo 'Update cromwell url'
-        sed -i -e "s;${cromwell_previous_url};~{cromwellReleaseUrl};g" Formula/cromwell.rb
-        echo 'Update womtool url'
-        sed -i -e "s;${womtool_previous_url};~{womtoolReleaseUrl};g" Formula/cromwell.rb
-        echo 'Update cromwell sha'
-        sed -i -e "s;${cromwell_previous_sha};${cromwell_release_sha};g" Formula/cromwell.rb
-        echo 'Update womtool sha'
-        sed -i -e "s;${womtool_previous_sha};${womtool_release_sha};g" Formula/cromwell.rb
-
-        echo '########################################################'
-        echo '#####   Verify install works and create PR if so   #####'
-        echo '########################################################'
-
-        # Temporarily capture-vs-exit on error, and temporarily debug bash statements
-        set +e
-        set -x
-        brew uninstall --force cromwell
-        brew install --build-from-source Formula/cromwell.rb
-        install_exit_status=$?
-        brew test Formula/cromwell.rb
-        test_exit_status=$?
-        brew style Formula/cromwell.rb
-        style_exit_status=$?
-
-        # Need to add formula to a tap in order to audit it
-        tapName="cromwell~{releaseVersion}test/tap"
-        echo "Tapping ${tapName} in order to audit formula"
-        brew tap-new --no-git ${tapName}
-        cp Formula/cromwell.rb $(brew --repo ${tapName})/Formula
-        brew audit --strict ${tapName}/cromwell
-        audit_exit_status=$?
-        brew untap ${tapName}
-
-        set +x
-        set -e
-
-        if [[ "${install_exit_status}" -eq 0 && "${test_exit_status}" -eq 0 && \
-                "${audit_exit_status}" -eq 0 && "${style_exit_status}" -eq 0 ]]; then
-            echo "Creating Homebrew PR"
-            echo 'Download a template for the homebrew PR'
-            curl \
-                --location --fail --silent --show-error \
-                --output template.md \
-                https://raw.githubusercontent.com/~{pullRepo}/homebrew-core/master/.github/PULL_REQUEST_TEMPLATE.md
-
-            echo 'Check the boxes in the template. Whitelist the boxes to be checked so that if new boxes are added'
-            echo 'they are not automatically checked and should be reviewed manually instead.'
-            sed \
-                -i \
-                -e '/guidelines for contributing/s/\[[[:space:]]\]/[x]/' \
-                -e '/ensured that your commits follow/s/\[[[:space:]]\]/[x]/' \
-                -e "/checked that there aren't other open/s/\[[[:space:]]\]/[x]/" \
-                -e "/built your formula locally/s/\[[[:space:]]\]/[x]/" \
-                -e "/your test running fine/s/\[[[:space:]]\]/[x]/" \
-                -e "/your build pass/s/\[[[:space:]]\]/[x]/" \
-                template.md
-
-            jq \
-                --null-input --rawfile template template.md '{
-                    title: "cromwell ~{releaseVersion}",
-                    head: "~{headBranch}",
-                    base: "~{baseBranch}",
-                    body: $template
-                }' \
-            > template.json
-
-            echo 'Add the changes to our new branch'
-            git add Formula/cromwell.rb
-            git commit --message "cromwell ~{releaseVersion}"
-
-            echo 'Push the branches'
-            git push origin master ~{branchName}
-
-            echo 'Create the pull request'
-            curl \
-                --location --fail --silent --show-error \
-                --header "Content-Type: application/json" \
-                --header "Authorization: token $(cat ~{githubTokenFile})" \
-                --data @template.json \
-                https://api.github.com/repos/~{pullRepo}/homebrew-core/pulls
-        else
-            echo "Homebrew verification failed." 2>&1
-            exit 1
-        fi
-    >>>
-
-    output {
-       Boolean done = true
-    }
-
-    runtime {
-        docker: publishDocker
-    }
-}
-
 workflow publish_workflow {
     input {
         String githubToken
         String organization
-        Boolean majorRelease = true
-        Boolean publishHomebrew = true
         String publishDocker = "broadinstitute/cromwell-publish:latest"
     }
 
@@ -640,14 +358,11 @@ workflow publish_workflow {
         githubToken: "Github token to interact with github API"
         organization:
             "Organization on which the release will be performed. Swap out for a test organization for testing"
-        majorRelease: "Set to false to do a .X minor release"
-        publishHomebrew: "Set to false for most test cases, especially when testing releases to github only"
     }
 
     call prepGithub { input:
         githubToken = githubToken,
         organization = organization,
-        majorRelease = majorRelease,
         publishDocker = publishDocker,
     }
 
@@ -661,40 +376,25 @@ workflow publish_workflow {
     call draftGithubRelease { input:
         githubTokenFile = githubTokenFile,
         organization = organization,
-        majorRelease = majorRelease,
         currentReleaseVersion = currentReleaseVersion,
         previousReleaseVersion = cromwellPreviousVersion,
         publishDocker = publishDocker,
     }
 
     if (draftGithubRelease.done) {
-        if (majorRelease) {
-            call doMajorRelease { input:
-                githubTokenFile = githubTokenFile,
-                githubUser = prepGithub.githubUser,
-                githubName = prepGithub.githubName,
-                githubEmail = prepGithub.githubEmail,
-                organization = organization,
-                releaseVersion = currentReleaseVersion,
-                publishDocker = publishDocker,
-            }
-        }
-
-        if (!majorRelease) {
-            call doMinorRelease { input:
-                githubTokenFile = githubTokenFile,
-                githubUser = prepGithub.githubUser,
-                githubName = prepGithub.githubName,
-                githubEmail = prepGithub.githubEmail,
-                organization = organization,
-                releaseVersion = currentReleaseVersion,
-                publishDocker = publishDocker,
-            }
+        call doMajorRelease { input:
+            githubTokenFile = githubTokenFile,
+            githubUser = prepGithub.githubUser,
+            githubName = prepGithub.githubName,
+            githubEmail = prepGithub.githubEmail,
+            organization = organization,
+            releaseVersion = currentReleaseVersion,
+            publishDocker = publishDocker,
         }
     }
 
-    File cromwellJar = select_first([doMajorRelease.cromwellJar, doMinorRelease.cromwellJar])
-    File womtoolJar = select_first([doMajorRelease.womtoolJar, doMinorRelease.womtoolJar])
+    File cromwellJar = select_first([doMajorRelease.cromwellJar])
+    File womtoolJar = select_first([doMajorRelease.womtoolJar])
 
     call publishGithubRelease { input:
         githubTokenFile = githubTokenFile,
@@ -705,22 +405,6 @@ workflow publish_workflow {
         cromwellJar = cromwellJar,
         womtoolJar = womtoolJar,
         publishDocker = publishDocker,
-    }
-
-    if (publishHomebrew) {
-        call releaseHomebrew { input:
-            githubTokenFile = githubTokenFile,
-            githubUser = prepGithub.githubUser,
-            githubName = prepGithub.githubName,
-            githubEmail = prepGithub.githubEmail,
-            organization = organization,
-            releaseVersion = currentReleaseVersion,
-            cromwellReleaseUrl = publishGithubRelease.cromwellReleaseUrl,
-            womtoolReleaseUrl = publishGithubRelease.womtoolReleaseUrl,
-            cromwellJar = cromwellJar,
-            womtoolJar = womtoolJar,
-            publishDocker = publishDocker,
-        }
     }
 
     output {

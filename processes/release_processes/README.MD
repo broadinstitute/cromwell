@@ -78,7 +78,7 @@ The workflow outputs its status to the console.
 * Check that the workflow succeeded.
 * Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
 * Let `#dsp-workflows-private` know that it's okay to resume merges to `develop`.
-* Announce release in `#dsp-workflows`, set expectations about when the new version will be available in Terra.
+* Announce release in `#dsp-workflows`, with context that it's for standalone Cromwells (the code is already in Terra).
 * **One business day later,** confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) has the latest version. If it doesn't, start investigation by looking at [Homebrew PR's](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+cromwell).
 
 ### Publish Docker Image
@@ -99,7 +99,7 @@ Deploying to CaaS is detailed in the [Quick CaaS Deployment Guide](https://docs.
 
 ### How to be Sure You're Done
 
-Don't forget to confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) was updated!
+Confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) was updated.
 
 ## Bonus Processes
 

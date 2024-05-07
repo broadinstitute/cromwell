@@ -16,4 +16,4 @@ runs:
           } else {
             core.setOutput("JIRA_ID", match[0]);
           }
-          console.log(match[0]);
+          console.log("Found ID" + match[0]);

@@ -11,4 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/library/set_jira_id
+      - id: set_jira_id_subworkflow
+        uses: ./.github/library/set_jira_id
+      - run: echo Jira ID is ${{ steps.set_jira_id_subworkflow.outputs.JIRA_ID }}

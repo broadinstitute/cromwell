@@ -14,7 +14,7 @@ jobs:
     - name: Fetch Jira ID from the commit message
       id: fetch-jira-id
       run: |
-        JIRA_ID=$(echo '${{ github.event.pull_request.title }}' | grep -Eo '[A-Z][A-Z]+-[0-9]+' | xargs echo -n | tr '[:space:]' ',')
+        JIRA_ID=$(printf '%s\n' '${{ github.event.pull_request.title }}' | grep -Eo '[A-Z][A-Z]+-[0-9]+' | xargs echo -n | tr '[:space:]' ',')
         [[ -z "$JIRA_ID" ]] && { echo "No Jira ID found in $1" ; exit 1; }
         echo "JIRA_ID=$JIRA_ID" >> $GITHUB_OUTPUT
     - name: Clone Cromwell

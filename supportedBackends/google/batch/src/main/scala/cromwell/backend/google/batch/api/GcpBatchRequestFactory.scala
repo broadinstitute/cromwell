@@ -47,7 +47,7 @@ object GcpBatchRequestFactory {
   }
 
   /**
-    * Bundle containing all input and output parameters to a PAPI job
+    * Bundle containing all input and output parameters to a Batch job
     * Detrituses and actual inputs / outputs to the job are separated for more clarity and to leave open the possibility
     * to treat them differently.
     */

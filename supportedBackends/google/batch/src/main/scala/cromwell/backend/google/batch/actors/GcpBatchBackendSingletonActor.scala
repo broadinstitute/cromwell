@@ -57,7 +57,7 @@ final class GcpBatchBackendSingletonActor(
     // jesApiQueryManager.forward(abort)
 
     case apiQuery: BatchApiRequest =>
-      log.debug("Forwarding API query to PAPI request manager actor")
+      log.debug("Forwarding API query to Batch request manager actor")
       jesApiQueryManager.forward(apiQuery)
 
     case other =>

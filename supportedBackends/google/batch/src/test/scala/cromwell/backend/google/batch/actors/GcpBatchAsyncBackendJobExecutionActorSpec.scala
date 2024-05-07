@@ -419,7 +419,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
       val drsReadInterpreter: DrsReadInterpreter = (_, _) =>
         throw new UnsupportedOperationException(
-          "PipelinesApiAsyncBackendJobExecutionActorSpec doesn't need to use drs read interpreter."
+          "GcpBatchAsyncBackendJobExecutionActorSpec doesn't need to use drs read interpreter."
         )
 
       DrsPathBuilder(
@@ -1112,13 +1112,12 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       "strs" -> WomArray(WomArrayType(WomStringType), Seq("A", "B", "C").map(WomString))
     )
 
-    class TestPipelinesApiExpressionFunctions
-        extends BatchExpressionFunctions(TestableStandardExpressionFunctionsParams) {
+    class TestBatchApiExpressionFunctions extends BatchExpressionFunctions(TestableStandardExpressionFunctionsParams) {
       override def writeFile(path: String, content: String): Future[WomSingleFile] =
         Future.fromTry(Success(WomSingleFile(s"gs://some/path/file.txt")))
     }
 
-    val functions = new TestPipelinesApiExpressionFunctions
+    val functions = new TestBatchApiExpressionFunctions
     val jesBackend = makeJesActorRef(SampleWdl.ArrayIO, Map.empty, "serialize", inputs, functions).underlyingActor
     val jobDescriptor = jesBackend.jobDescriptor
     val jesInputs = jesBackend.generateInputs()

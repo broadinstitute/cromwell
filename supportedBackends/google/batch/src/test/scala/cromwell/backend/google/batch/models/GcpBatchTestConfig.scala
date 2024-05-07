@@ -85,7 +85,7 @@ object GcpBatchTestConfig {
        |  default = "batch"
        |  providers {
        |    batch {
-       |      actor-factory = "cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory"
+       |      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
        |      config {
        |      $BatchBackendConfigString
        |      }

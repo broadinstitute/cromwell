@@ -60,7 +60,7 @@ object RunStatus {
   }
 
   /**
-   * What Cromwell calls Aborted, PAPI calls Cancelled. This means the job was "cancelled" by the user
+   * What Cromwell calls Aborted, Batch calls Cancelled. This means the job was "cancelled" by the user
    */
   final case class Cancelled(
     errorCode: Status,

@@ -10,4 +10,4 @@ jobs:
   validate_pr_name:
     runs-on: ubuntu-latest
     steps:
-      - uses: library/set_jira_id
+      - uses: ./.github/library/set_jira_id

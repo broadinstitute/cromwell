@@ -1390,7 +1390,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
            * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths
            * (as they were created by the cwl tool).
            * In order to keep things working we need to map those local paths to where they were actually delocalized,
-           * which is determined in cromwell.backend.google.pipelines.v2beta.api.Delocalization.
+           * which is determined in cromwell.backend.google.batch.runnable.Delocalization.
            */
           case _ =>
             (callRootPath /

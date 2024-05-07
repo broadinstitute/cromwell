@@ -14,5 +14,6 @@ runs:
           if (!match) {
             core.setFailed("PR title must contain a Jira tag");
           } else {
-            core.setOutput("JIRA_ID", match[0])
+            core.setOutput("JIRA_ID", match[0]);
           }
+          console.log(match[0]);

@@ -7,7 +7,7 @@ import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import scala.concurrent.ExecutionContext
 
 trait BatchApiRequestHandler {
-  def makeBatchRequest: GcpBatchGroupedRequests
+  def makeBatchRequest: GcpBatchGroupedRequests = GcpBatchGroupedRequests.empty
 
   def enqueue[T <: BatchApiRequestManager.BatchApiRequest](request: T,
                                                            batchRequest: GcpBatchGroupedRequests,
@@ -20,8 +20,6 @@ class RequestHandler
     with RunRequestHandler
     with GetRequestHandler
     with AbortRequestHandler {
-
-  override def makeBatchRequest: GcpBatchGroupedRequests = GcpBatchGroupedRequests.empty
 
   override def enqueue[T <: BatchApiRequestManager.BatchApiRequest](request: T,
                                                                     batchRequest: GcpBatchGroupedRequests,

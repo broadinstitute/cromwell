@@ -1,9 +1,12 @@
-name: 'Set Jira ID'
+name: 'Get Jira ID'
 
 runs:
   using: "composite" # <-- this allows these steps to be used by other workflows.
+  outputs:
+    jira-id: ${{ steps.get-id.outputs.jira-id }}
   steps:
-    - name: "Set ID or fail"
+    - name: "Get ID or fail"
+      id: get-id
       uses: actions/github-script@v7
       with:
         script: |
@@ -14,6 +17,6 @@ runs:
           if (!match) {
             core.setFailed("PR title must contain a Jira tag");
           } else {
-            core.setOutput("JIRA_ID", match[0]);
+            console.log("Set output " + match[0]);
+            core.setOutput("jira-id", match[0]);
           }
-          console.log("Found ID" + match[0]);

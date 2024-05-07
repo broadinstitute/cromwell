@@ -13,7 +13,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{Dispatcher, DockerConfiguration}
-import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
+import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse, DockerSize}
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
@@ -51,8 +51,10 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                           initializationData: Option[BackendInitializationData],
                           val serviceRegistryActor: ActorRef,
                           ioActor: ActorRef,
-                          backendSingletonActor: Option[ActorRef])
-  extends FSM[JobPreparationActorState, JobPreparationActorData] with WorkflowLogging with CallMetadataHelper {
+                          backendSingletonActor: Option[ActorRef]
+) extends FSM[JobPreparationActorState, JobPreparationActorData]
+    with WorkflowLogging
+    with CallMetadataHelper {
 
   override lazy val workflowIdForLogging = workflowDescriptor.possiblyNotRootWorkflowId
   override lazy val workflowIdForCallMetadata = workflowDescriptor.possiblyNotRootWorkflowId
@@ -62,29 +64,39 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private[preparation] val ioEc = context.system.dispatchers.lookup(Dispatcher.IoDispatcher)
 
   private[preparation] lazy val expressionLanguageFunctions = {
-    val ioFunctionSet: IoFunctionSet = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor, jobKey, initializationData, ioActor, ioEc)
+    val ioFunctionSet: IoFunctionSet = factory.expressionLanguageFunctions(workflowDescriptor.backendDescriptor,
+                                                                           jobKey,
+                                                                           initializationData,
+                                                                           ioActor,
+                                                                           ioEc
+    )
     ioFunctionSet.makeInputSpecificFunctions()
   }
 
-  private[preparation] lazy val dockerHashCredentials = factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)
+  private[preparation] lazy val dockerHashCredentials =
+    factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)
   private[preparation] lazy val runtimeAttributeDefinitions = factory.runtimeAttributeDefinitions(initializationData)
-  private[preparation] lazy val hasDockerDefinition = runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)
+  private[preparation] lazy val hasDockerDefinition =
+    runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)
 
   startWith(Idle, JobPreparationActorNoData)
 
-  when(Idle) {
-    case Event(Start(valueStore), JobPreparationActorNoData) =>
-      evaluateInputsAndAttributes(valueStore) match {
-        case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
-        case Invalid(failure) => sendFailureAndStop(new MessageAggregation with NoStackTrace {
-          override def exceptionContext: String = s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
+  when(Idle) { case Event(Start(valueStore), JobPreparationActorNoData) =>
+    evaluateInputsAndAttributes(valueStore) match {
+      case Valid((inputs, attributes)) => fetchDockerHashesIfNecessary(inputs, attributes)
+      case Invalid(failure) =>
+        sendFailureAndStop(new MessageAggregation with NoStackTrace {
+          override def exceptionContext: String =
+            s"Call input and runtime attributes evaluation failed for ${jobKey.call.localName}"
           override def errorMessages: Iterable[String] = failure.toList
         })
-      }
+    }
   }
 
   when(WaitingForDockerHash) {
-    case Event(DockerInfoSuccessResponse(DockerInformation(dockerHash, dockerSize), _), data: JobPreparationDockerLookupData) =>
+    case Event(DockerInfoSuccessResponse(DockerInformation(dockerHash, dockerSize), _),
+               data: JobPreparationDockerLookupData
+        ) =>
       handleDockerHashSuccess(dockerHash, dockerSize, data)
     case Event(WorkflowDockerLookupFailure(reason, _, _), data: JobPreparationDockerLookupData) =>
       workflowLogger.warn("Docker lookup failed", reason)
@@ -94,32 +106,45 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   when(FetchingKeyValueStoreEntries) {
-    case Event(kvResponse: KvResponse, data @ JobPreparationKeyLookupData(keyLookups, maybeCallCachingEligible, dockerSize, inputs, attributes)) =>
+    case Event(kvResponse: KvResponse,
+               data @ JobPreparationKeyLookupData(keyLookups, maybeCallCachingEligible, dockerSize, inputs, attributes)
+        ) =>
       keyLookups.withResponse(kvResponse.key, kvResponse) match {
         case newPartialLookup: PartialKeyValueLookups => stay() using data.copy(keyLookups = newPartialLookup)
         case finished: KeyValueLookupResults =>
-          sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, finished.unscoped, dockerSize))
+          sendResponseAndStop(
+            prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, finished.unscoped, dockerSize)
+          )
       }
   }
 
-  whenUnhandled {
-    case Event(unexpectedMessage, _) =>
-      workflowLogger.warn(s"JobPreparation actor received an unexpected message in state $stateName: $unexpectedMessage")
-      stay()
+  whenUnhandled { case Event(unexpectedMessage, _) =>
+    workflowLogger.warn(s"JobPreparation actor received an unexpected message in state $stateName: $unexpectedMessage")
+    stay()
   }
 
-  private[preparation] lazy val kvStoreKeysToPrefetch: Seq[String] = factory.requestedKeyValueStoreKeys ++ factory.defaultKeyValueStoreKeys
+  private[preparation] lazy val kvStoreKeysToPrefetch: Seq[String] =
+    factory.requestedKeyValueStoreKeys ++ factory.defaultKeyValueStoreKeys
   private[preparation] def scopedKey(key: String) = ScopedKey(workflowDescriptor.id, KvJobKey(jobKey), key)
   private[preparation] def lookupKeyValueEntries(inputs: WomEvaluatedCallInputs,
                                                  attributes: Map[LocallyQualifiedName, WomValue],
                                                  maybeCallCachingEligible: MaybeCallCachingEligible,
-                                                 dockerSize: Option[DockerSize]) = {
+                                                 dockerSize: Option[DockerSize]
+  ) = {
     val keysToLookup = kvStoreKeysToPrefetch map scopedKey
     keysToLookup foreach { serviceRegistryActor ! KvGet(_) }
-    goto(FetchingKeyValueStoreEntries) using JobPreparationKeyLookupData(PartialKeyValueLookups(Map.empty, keysToLookup), maybeCallCachingEligible, dockerSize, inputs, attributes)
+    goto(FetchingKeyValueStoreEntries) using JobPreparationKeyLookupData(
+      PartialKeyValueLookups(Map.empty, keysToLookup),
+      maybeCallCachingEligible,
+      dockerSize,
+      inputs,
+      attributes
+    )
   }
 
-  private [preparation] def evaluateInputsAndAttributes(valueStore: ValueStore): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
+  private[preparation] def evaluateInputsAndAttributes(
+    valueStore: ValueStore
+  ): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
     import common.validation.ErrorOr.{ShortCircuitingFlatMap, NestedErrorOr}
     for {
       evaluatedInputs <- ErrorOr(resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)).flatten
@@ -127,7 +152,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     } yield (evaluatedInputs, runtimeAttributes)
   }
 
-  private def fetchDockerHashesIfNecessary(inputs: WomEvaluatedCallInputs, attributes: Map[LocallyQualifiedName, WomValue]) = {
+  private def fetchDockerHashesIfNecessary(inputs: WomEvaluatedCallInputs,
+                                           attributes: Map[LocallyQualifiedName, WomValue]
+  ) = {
     def sendDockerRequest(dockerImageId: DockerImageIdentifier) = {
       val dockerHashRequest = DockerInfoRequest(dockerImageId, dockerHashCredentials)
       val newData = JobPreparationDockerLookupData(dockerHashRequest, inputs, attributes)
@@ -136,12 +163,17 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     }
 
     def handleDockerValue(value: String) = DockerImageIdentifier.fromString(value) match {
-        // If the backend supports docker, lookup is enabled, and we got a tag - we need to lookup the hash
-      case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition && DockerConfiguration.instance.enabled =>
+      // If the backend supports docker, lookup is enabled, and we got a tag - we need to lookup the hash
+      case Success(dockerImageId: DockerImageIdentifierWithoutHash)
+          if hasDockerDefinition && DockerConfiguration.instance.enabled =>
         sendDockerRequest(dockerImageId)
-        // If the backend supports docker, we got a tag but lookup is disabled, continue with no call caching and no hash
+      // If the backend supports docker, we got a tag but lookup is disabled, continue with no call caching and no hash
       case Success(dockerImageId: DockerImageIdentifierWithoutHash) if hasDockerDefinition =>
-        lookupKvsOrBuildDescriptorAndStop(inputs, attributes, FloatingDockerTagWithoutHash(dockerImageId.fullName), None)
+        lookupKvsOrBuildDescriptorAndStop(inputs,
+                                          attributes,
+                                          FloatingDockerTagWithoutHash(dockerImageId.fullName),
+                                          None
+        )
 
       // If the backend doesn't support docker - no need to lookup and we're ok for call caching
       case Success(_: DockerImageIdentifierWithoutHash) if !hasDockerDefinition =>
@@ -165,8 +197,9 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def updateRuntimeMemory(runtimeAttributes: Map[LocallyQualifiedName, WomValue],
-                                  memoryMultiplierOption: Option[Double]): Map[LocallyQualifiedName, WomValue] = {
-    def multiplyRuntimeMemory(multiplier: Double): Map[LocallyQualifiedName, WomValue] = {
+                                  memoryMultiplierOption: Option[Double]
+  ): Map[LocallyQualifiedName, WomValue] = {
+    def multiplyRuntimeMemory(multiplier: Double): Map[LocallyQualifiedName, WomValue] =
       runtimeAttributes.get(RuntimeAttributesKeys.MemoryKey) match {
         case Some(WomString(memory)) =>
           MemorySize.parse(memory) match {
@@ -177,7 +210,6 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
           }
         case _ => runtimeAttributes
       }
-    }
 
     memoryMultiplierOption match {
       case None => runtimeAttributes
@@ -192,12 +224,16 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private def lookupKvsOrBuildDescriptorAndStop(inputs: WomEvaluatedCallInputs,
                                                 attributes: Map[LocallyQualifiedName, WomValue],
                                                 maybeCallCachingEligible: MaybeCallCachingEligible,
-                                                dockerSize: Option[DockerSize]) = {
+                                                dockerSize: Option[DockerSize]
+  ) =
     if (kvStoreKeysToPrefetch.nonEmpty) lookupKeyValueEntries(inputs, attributes, maybeCallCachingEligible, dockerSize)
-    else sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, Map.empty, dockerSize))
-  }
+    else
+      sendResponseAndStop(prepareBackendDescriptor(inputs, attributes, maybeCallCachingEligible, Map.empty, dockerSize))
 
-  private def handleDockerHashSuccess(dockerHashResult: DockerHashResult, dockerSize: Option[DockerSize], data: JobPreparationDockerLookupData) = {
+  private def handleDockerHashSuccess(dockerHashResult: DockerHashResult,
+                                      dockerSize: Option[DockerSize],
+                                      data: JobPreparationDockerLookupData
+  ) = {
     val hashValue = data.dockerHashRequest.dockerImageID match {
       case withoutHash: DockerImageIdentifierWithoutHash => withoutHash.withHash(dockerHashResult)
       case withHash => withHash
@@ -207,13 +243,19 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   private def sendCompressedDockerSizeToMetadata(dockerSize: DockerSize) = {
-    val event = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.CompressedDockerSize), MetadataValue(dockerSize.compressedSize))
+    val event = MetadataEvent(metadataKeyForCall(jobKey, CallMetadataKeys.CompressedDockerSize),
+                              MetadataValue(dockerSize.compressedSize)
+    )
     serviceRegistryActor ! PutMetadataAction(event)
   }
 
   private def handleDockerHashFailed(data: JobPreparationDockerLookupData) = {
     val floatingDockerTag = data.dockerHashRequest.dockerImageID.fullName
-    lookupKvsOrBuildDescriptorAndStop(data.inputs, data.attributes, FloatingDockerTagWithoutHash(floatingDockerTag), None)
+    lookupKvsOrBuildDescriptorAndStop(data.inputs,
+                                      data.attributes,
+                                      FloatingDockerTagWithoutHash(floatingDockerTag),
+                                      None
+    )
   }
 
   private def sendResponseAndStop(response: CallPreparationActorResponse) = {
@@ -221,44 +263,71 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     stay()
   }
 
-  private def sendFailureAndStop(failure: Throwable) = {
+  private def sendFailureAndStop(failure: Throwable) =
     sendResponseAndStop(CallPreparationFailed(jobKey, failure))
-  }
 
   // 'jobExecutionProps' is broken into a separate function for TestJobPreparationActor to override:
   private[preparation] def jobExecutionProps(jobDescriptor: BackendJobDescriptor,
                                              initializationData: Option[BackendInitializationData],
                                              serviceRegistryActor: ActorRef,
                                              ioActor: ActorRef,
-                                             backendSingletonActor: Option[ActorRef]) = factory.jobExecutionActorProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor)
+                                             backendSingletonActor: Option[ActorRef]
+  ) = factory.jobExecutionActorProps(jobDescriptor,
+                                     initializationData,
+                                     serviceRegistryActor,
+                                     ioActor,
+                                     backendSingletonActor
+  )
 
   private[preparation] def prepareBackendDescriptor(inputEvaluation: WomEvaluatedCallInputs,
                                                     runtimeAttributes: Map[LocallyQualifiedName, WomValue],
                                                     maybeCallCachingEligible: MaybeCallCachingEligible,
                                                     prefetchedJobStoreEntries: Map[String, KvResponse],
-                                                    dockerSize: Option[DockerSize]): BackendJobPreparationSucceeded = {
+                                                    dockerSize: Option[DockerSize]
+  ): BackendJobPreparationSucceeded = {
     val memoryMultiplier: Option[Double] = prefetchedJobStoreEntries.get(MemoryMultiplierKey) match {
-      case Some(KvPair(_,v)) => Try(v.toDouble) match {
-        case Success(m) => Option(m)
-        case Failure(e) =>
-          // should not happen as we are converting a value that Cromwell put in DB after validation
-          log.error(e, s"Programmer error: unexpected failure attempting to convert value of MemoryMultiplierKey from JOB_KEY_VALUE_ENTRY table to Double.")
-          None
-      }
+      case Some(KvPair(_, v)) =>
+        Try(v.toDouble) match {
+          case Success(m) => Option(m)
+          case Failure(e) =>
+            // should not happen as we are converting a value that Cromwell put in DB after validation
+            log.error(
+              e,
+              s"Programmer error: unexpected failure attempting to convert value of MemoryMultiplierKey from JOB_KEY_VALUE_ENTRY table to Double."
+            )
+            None
+        }
       case _ => None
     }
 
     val updatedRuntimeAttributes = updateRuntimeMemory(runtimeAttributes, memoryMultiplier)
 
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor, jobKey, updatedRuntimeAttributes, inputEvaluation, maybeCallCachingEligible, dockerSize, prefetchedJobStoreEntries)
-    BackendJobPreparationSucceeded(jobDescriptor, jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor))
+    val jobDescriptor = BackendJobDescriptor(workflowDescriptor.backendDescriptor,
+                                             jobKey,
+                                             updatedRuntimeAttributes,
+                                             inputEvaluation,
+                                             maybeCallCachingEligible,
+                                             dockerSize,
+                                             prefetchedJobStoreEntries
+    )
+    BackendJobPreparationSucceeded(
+      jobDescriptor,
+      jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor)
+    )
   }
 
-  private [preparation] def prepareRuntimeAttributes(inputEvaluation: Map[InputDefinition, WomValue]): ErrorOr[Map[LocallyQualifiedName, WomValue]] = {
+  private[preparation] def prepareRuntimeAttributes(
+    inputEvaluation: Map[InputDefinition, WomValue]
+  ): ErrorOr[Map[LocallyQualifiedName, WomValue]] = {
     import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
-    val curriedAddDefaultsToAttributes = addDefaultsToAttributes(runtimeAttributeDefinitions, workflowDescriptor.backendDescriptor.workflowOptions) _
+    val curriedAddDefaultsToAttributes =
+      addDefaultsToAttributes(runtimeAttributeDefinitions, workflowDescriptor.backendDescriptor.workflowOptions) _
     val unevaluatedRuntimeAttributes = jobKey.call.callable.runtimeAttributes
-    evaluateRuntimeAttributes(unevaluatedRuntimeAttributes, expressionLanguageFunctions, inputEvaluation) map curriedAddDefaultsToAttributes
+    evaluateRuntimeAttributes(unevaluatedRuntimeAttributes,
+                              expressionLanguageFunctions,
+                              inputEvaluation,
+                              factory.platform
+    ) map curriedAddDefaultsToAttributes
   }
 }
 
@@ -266,14 +335,16 @@ object JobPreparationActor {
 
   sealed trait JobPreparationActorData
   case object JobPreparationActorNoData extends JobPreparationActorData
-  private final case class JobPreparationKeyLookupData(keyLookups: PartialKeyValueLookups,
+  final private case class JobPreparationKeyLookupData(keyLookups: PartialKeyValueLookups,
                                                        maybeCallCachingEligible: MaybeCallCachingEligible,
                                                        dockerSize: Option[DockerSize],
                                                        inputs: WomEvaluatedCallInputs,
-                                                       attributes: Map[LocallyQualifiedName, WomValue]) extends JobPreparationActorData
-  private final case class JobPreparationDockerLookupData(dockerHashRequest: DockerInfoRequest,
+                                                       attributes: Map[LocallyQualifiedName, WomValue]
+  ) extends JobPreparationActorData
+  final private case class JobPreparationDockerLookupData(dockerHashRequest: DockerInfoRequest,
                                                           inputs: WomEvaluatedCallInputs,
-                                                          attributes: Map[LocallyQualifiedName, WomValue]) extends JobPreparationActorData
+                                                          attributes: Map[LocallyQualifiedName, WomValue]
+  ) extends JobPreparationActorData
 
   sealed trait JobPreparationActorState
   case object Idle extends JobPreparationActorState
@@ -287,16 +358,20 @@ object JobPreparationActor {
             initializationData: Option[BackendInitializationData],
             serviceRegistryActor: ActorRef,
             ioActor: ActorRef,
-            backendSingletonActor: Option[ActorRef]) = {
+            backendSingletonActor: Option[ActorRef]
+  ) =
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
-    Props(new JobPreparationActor(workflowDescriptor,
-      jobKey,
-      factory,
-      workflowDockerLookupActor = workflowDockerLookupActor,
-      initializationData,
-      serviceRegistryActor = serviceRegistryActor,
-      ioActor = ioActor,
-      backendSingletonActor = backendSingletonActor)).withDispatcher(EngineDispatcher)
-  }
+    Props(
+      new JobPreparationActor(
+        workflowDescriptor,
+        jobKey,
+        factory,
+        workflowDockerLookupActor = workflowDockerLookupActor,
+        initializationData,
+        serviceRegistryActor = serviceRegistryActor,
+        ioActor = ioActor,
+        backendSingletonActor = backendSingletonActor
+      )
+    ).withDispatcher(EngineDispatcher)
 }

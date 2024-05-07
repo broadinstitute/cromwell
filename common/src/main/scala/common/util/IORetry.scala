@@ -7,7 +7,7 @@ import scala.util.control.NonFatal
 
 object IORetry {
   def noOpOnRetry[S]: (Throwable, S) => S = (_, s) => s
-  
+
   object StatefulIoError {
     def noop[S] = new StatefulIoError[S] {
       override def toThrowable(state: S, throwable: Throwable) = throwable
@@ -35,8 +35,8 @@ object IORetry {
                       backoff: Backoff,
                       isRetryable: Throwable => Boolean = throwableToTrue,
                       isInfinitelyRetryable: Throwable => Boolean = throwableToFalse,
-                      onRetry: (Throwable, S) => S = noOpOnRetry[S])
-                     (implicit timer: Timer[IO], statefulIoException: StatefulIoError[S]): IO[A] = {
+                      onRetry: (Throwable, S) => S = noOpOnRetry[S]
+  )(implicit timer: Timer[IO], statefulIoException: StatefulIoError[S]): IO[A] = {
     lazy val delay = backoff.backoffMillis.millis
 
     def fail(throwable: Throwable) = IO.raiseError(statefulIoException.toThrowable(state, throwable))
@@ -49,10 +49,16 @@ object IORetry {
         if (retriesLeft.forall(_ > 0)) {
           for {
             _ <- IO.sleep(delay)
-            retried <- withRetry(io, onRetry(throwable, state), retriesLeft, backoff.next, isRetryable, isInfinitelyRetryable, onRetry)
+            retried <- withRetry(io,
+                                 onRetry(throwable, state),
+                                 retriesLeft,
+                                 backoff.next,
+                                 isRetryable,
+                                 isInfinitelyRetryable,
+                                 onRetry
+            )
           } yield retried
-        }
-        else fail(throwable)
+        } else fail(throwable)
       case fatal => throw fatal
     }
 

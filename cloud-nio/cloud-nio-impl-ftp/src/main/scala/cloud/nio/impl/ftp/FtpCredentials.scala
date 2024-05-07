@@ -11,7 +11,8 @@ sealed trait FtpCredentials {
 }
 
 // Yes, FTP uses plain text username / password
-case class FtpAuthenticatedCredentials(username: String, password: String, account: Option[String]) extends FtpCredentials {
+case class FtpAuthenticatedCredentials(username: String, password: String, account: Option[String])
+    extends FtpCredentials {
   override def login(ftpClient: FTPClient) = {
     lazy val replyString = Option(ftpClient.getReplyString).getOrElse("N/A")
 

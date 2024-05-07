@@ -34,9 +34,11 @@ case object AzureCredentials {
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)
 
   def getAccessToken(identityClientId: Option[String] = None): ErrorOr[String] = {
-    val credentials = identityClientId.foldLeft(defaultCredentialBuilder) {
-      (builder, clientId) => builder.managedIdentityClientId(clientId)
-    }.build()
+    val credentials = identityClientId
+      .foldLeft(defaultCredentialBuilder) { (builder, clientId) =>
+        builder.managedIdentityClientId(clientId)
+      }
+      .build()
 
     Try(
       credentials

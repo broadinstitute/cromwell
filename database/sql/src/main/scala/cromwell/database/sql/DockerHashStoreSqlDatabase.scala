@@ -11,15 +11,15 @@ trait DockerHashStoreSqlDatabase {
     * Adds a docker hash entry to the store.
     *
     */
-  def addDockerHashStoreEntry(dockerHashStoreEntry: DockerHashStoreEntry)
-                             (implicit ec: ExecutionContext): Future[Unit]
+  def addDockerHashStoreEntry(dockerHashStoreEntry: DockerHashStoreEntry)(implicit ec: ExecutionContext): Future[Unit]
 
   /**
     * Retrieves docker hash entries for a workflow.
     *
     */
-  def queryDockerHashStoreEntries(workflowExecutionUuid: String)
-                                 (implicit ec: ExecutionContext): Future[Seq[DockerHashStoreEntry]]
+  def queryDockerHashStoreEntries(workflowExecutionUuid: String)(implicit
+    ec: ExecutionContext
+  ): Future[Seq[DockerHashStoreEntry]]
 
   /**
     * Deletes docker hash entries related to a workflow, returning the number of rows affected.

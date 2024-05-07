@@ -1,6 +1,5 @@
 package wdl.types
 
-
 import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -9,15 +8,19 @@ import wdl.draft2.parser.WdlParser.SyntaxError
 import wom.types.{WomIntegerType, WomMapType, WomStringType}
 import wom.values.{WomInteger, WomMap, WomString}
 
-class WdlMapTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers  {
-  val stringIntMap = WomMap(WomMapType(WomStringType, WomIntegerType), Map(
-    WomString("a") -> WomInteger(1),
-    WomString("b") -> WomInteger(2),
-    WomString("c") -> WomInteger(3)
-  ))
-  
+class WdlMapTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
+  val stringIntMap = WomMap(WomMapType(WomStringType, WomIntegerType),
+                            Map(
+                              WomString("a") -> WomInteger(1),
+                              WomString("b") -> WomInteger(2),
+                              WomString("c") -> WomInteger(3)
+                            )
+  )
+
   it should "convert WDL source code to WdlMap" in {
-    WomMapType(WomStringType, WomIntegerType).fromWorkflowSource("{\"a\": 1, \"b\": 2, \"c\": 3}") shouldEqual stringIntMap
+    WomMapType(WomStringType, WomIntegerType).fromWorkflowSource(
+      "{\"a\": 1, \"b\": 2, \"c\": 3}"
+    ) shouldEqual stringIntMap
   }
   it should "NOT successfully convert WDL source code to WdlMap if passed a bogus AST" in {
     try {
@@ -52,4 +55,3 @@ class WdlMapTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     }
   }
 }
-

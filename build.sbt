@@ -383,11 +383,7 @@ lazy val `cloud-nio-impl-ftp` = (project in cloudNio / "cloud-nio-impl-ftp")
 lazy val `cloud-nio-impl-drs` = (project in cloudNio / "cloud-nio-impl-drs")
   .withLibrarySettings(libraryName = "cloud-nio-impl-drs", dependencies = implDrsDependencies)
   .dependsOn(`cloud-nio-util`)
-  .dependsOn(common)
-  .dependsOn(common % "test->test")
-
-lazy val perf = project
-  .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
+  .dependsOn(cloudSupport)
   .dependsOn(common)
   .dependsOn(common % "test->test")
 
@@ -399,7 +395,9 @@ lazy val `cromwell-drs-localizer` = project
 
 lazy val pact4s = project.in(file("pact4s"))
   .settings(pact4sSettings)
+  .dependsOn(engine)
   .dependsOn(services)
+  .dependsOn(engine % "test->test")
   .disablePlugins(sbtassembly.AssemblyPlugin)
 
 lazy val server = project
@@ -450,7 +448,6 @@ lazy val root = (project in file("."))
   .aggregate(googleBatch)
   .aggregate(httpFileSystem)
   .aggregate(languageFactoryCore)
-  .aggregate(perf)
   .aggregate(server)
   .aggregate(services)
   .aggregate(sfsBackend)

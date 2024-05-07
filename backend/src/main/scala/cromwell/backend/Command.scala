@@ -3,7 +3,6 @@ package cromwell.backend
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import wom.InstantiatedCommand
-import wom.callable.RuntimeEnvironment
 import wom.expression.IoFunctionSet
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
@@ -24,11 +23,11 @@ object Command {
     */
   def instantiate(jobDescriptor: BackendJobDescriptor,
                   callEngineFunction: IoFunctionSet,
-                  inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] = (i: WomEvaluatedCallInputs) => Success(i),
-                  valueMapper: WomValue => WomValue,
-                  runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
+                  inputsPreProcessor: WomEvaluatedCallInputs => Try[WomEvaluatedCallInputs] =
+                    (i: WomEvaluatedCallInputs) => Success(i),
+                  valueMapper: WomValue => WomValue
+  ): ErrorOr[InstantiatedCommand] =
     inputsPreProcessor(jobDescriptor.evaluatedTaskInputs).toErrorOr flatMap { mappedInputs =>
-      jobDescriptor.taskCall.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper, runtimeEnvironment)
+      jobDescriptor.taskCall.callable.instantiateCommand(mappedInputs, callEngineFunction, valueMapper)
     }
-  }
 }

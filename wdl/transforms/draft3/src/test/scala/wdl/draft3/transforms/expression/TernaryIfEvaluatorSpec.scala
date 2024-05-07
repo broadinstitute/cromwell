@@ -16,7 +16,6 @@ import wom.expression.NoIoFunctionSet
 import wom.types.{WomFloatType, WomIntegerType, WomType}
 import wom.values.{WomBoolean, WomFloat, WomInteger, WomValue}
 
-
 /**
   * Checks that the draft3 value evaluators for ExpressionElements are wired to forward values through to the appropriate
   * underlying methods on WomValue.
@@ -43,7 +42,10 @@ class TernaryIfEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   // Test name, input expression, output type.
   val typeTests: List[(String, ExpressionElement, WomType)] = List(
     ("if true then 5 else 6", TernaryIf(trueLiteral, fiveLiteral, sixLiteral), WomIntegerType),
-    ("if false then 5.5 else 6", TernaryIf(falseLiteral, PrimitiveLiteralExpressionElement(WomFloat(5.5)), sixLiteral), WomFloatType)
+    ("if false then 5.5 else 6",
+     TernaryIf(falseLiteral, PrimitiveLiteralExpressionElement(WomFloat(5.5)), sixLiteral),
+     WomFloatType
+    )
   )
 
   valueTests foreach { case (name, expression, expected) =>
@@ -54,7 +56,7 @@ class TernaryIfEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
   typeTests foreach { case (name, expression, expected) =>
     it should s"evaluate the expression '$name'" in {
-      expression.evaluateType(Map.empty) shouldBeValid expected
+      expression.evaluateType(Map.empty, Map.empty) shouldBeValid expected
     }
   }
 }

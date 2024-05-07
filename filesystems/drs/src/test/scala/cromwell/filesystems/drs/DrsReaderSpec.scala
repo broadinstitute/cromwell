@@ -1,6 +1,6 @@
 package cromwell.filesystems.drs
 
-import cloud.nio.impl.drs.{AccessUrl, DrsPathResolver, DrsResolverResponse, MockEngineDrsPathResolver}
+import cloud.nio.impl.drs.{AccessUrl, DrsPathResolver, DrsResolverResponse, MockDrsPathResolver}
 import common.assertion.CromwellTimeoutSpec
 import cromwell.cloudsupport.gcp.auth.MockAuthMode
 import cromwell.core.WorkflowOptions
@@ -26,12 +26,17 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val googleAuthMode = MockAuthMode("unused")
     val workflowOptions = WorkflowOptions.empty
     val requesterPaysProjectIdOption = None
-    val drsPathResolver = new MockEngineDrsPathResolver()
+    val drsPathResolver = new MockDrsPathResolver()
     val gsUri = "gs://bucket/object"
     val googleServiceAccount = None
     val drsResolverResponse = DrsResolverResponse(gsUri = Option(gsUri), googleServiceAccount = googleServiceAccount)
     val readerIo =
-      DrsReader.reader(Option(googleAuthMode), workflowOptions, requesterPaysProjectIdOption, drsPathResolver, drsResolverResponse)
+      DrsReader.reader(Option(googleAuthMode),
+                       workflowOptions,
+                       requesterPaysProjectIdOption,
+                       drsPathResolver,
+                       drsResolverResponse
+      )
     readerIo.unsafeRunSync() should be(
       GcsReader(googleAuthMode, workflowOptions, requesterPaysProjectIdOption, gsUri, googleServiceAccount)
     )
@@ -41,11 +46,16 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val googleAuthMode = MockAuthMode("unused")
     val workflowOptions = WorkflowOptions.empty
     val requesterPaysProjectIdOption = None
-    val drsPathResolver = new MockEngineDrsPathResolver()
+    val drsPathResolver = new MockDrsPathResolver()
     val accessUrl = AccessUrl("https://host/object/path", Option(Map("hello" -> "world")))
     val drsResolverResponse = DrsResolverResponse(accessUrl = Option(accessUrl))
     val readerIo =
-      DrsReader.reader(Option(googleAuthMode), workflowOptions, requesterPaysProjectIdOption, drsPathResolver, drsResolverResponse)
+      DrsReader.reader(Option(googleAuthMode),
+                       workflowOptions,
+                       requesterPaysProjectIdOption,
+                       drsPathResolver,
+                       drsResolverResponse
+      )
     readerIo.unsafeRunSync() should be(
       AccessUrlReader(drsPathResolver, accessUrl)
     )
@@ -55,10 +65,15 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val googleAuthMode = MockAuthMode("unused")
     val workflowOptions = WorkflowOptions.empty
     val requesterPaysProjectIdOption = None
-    val drsPathResolver = new MockEngineDrsPathResolver()
+    val drsPathResolver = new MockDrsPathResolver()
     val drsResolverResponse = DrsResolverResponse()
     val readerIo =
-      DrsReader.reader(Option(googleAuthMode), workflowOptions, requesterPaysProjectIdOption, drsPathResolver, drsResolverResponse)
+      DrsReader.reader(Option(googleAuthMode),
+                       workflowOptions,
+                       requesterPaysProjectIdOption,
+                       drsPathResolver,
+                       drsResolverResponse
+      )
     the[RuntimeException] thrownBy {
       readerIo.unsafeRunSync()
     } should have message DrsPathResolver.ExtractUriErrorMsg
@@ -75,21 +90,23 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
     val httpClientBuilder = mock[HttpClientBuilder]
     httpClientBuilder.build() returns httpClient
 
-    val drsPathResolver = new MockEngineDrsPathResolver(httpClientBuilderOverride = Option(httpClientBuilder))
+    val drsPathResolver = new MockDrsPathResolver(httpClientBuilderOverride = Option(httpClientBuilder))
 
     val accessUrl = AccessUrl("https://host/object/path", Option(Map("hello" -> "world")))
     val drsResolverResponse = DrsResolverResponse(accessUrl = Option(accessUrl))
     val channelIo =
-      DrsReader.readInterpreter(Option(MockAuthMode("unused")), WorkflowOptions.empty, None)(drsPathResolver, drsResolverResponse)
+      DrsReader.readInterpreter(Option(MockAuthMode("unused")), WorkflowOptions.empty, None)(drsPathResolver,
+                                                                                             drsResolverResponse
+      )
     val channel = channelIo.unsafeRunSync()
 
     val buffer = ByteBuffer.allocate(exampleBytes.length)
-    channel.isOpen should be (true)
+    channel.isOpen should be(true)
     DrsReaderSpec.readToBuffer(channel, buffer)
     channel.close()
 
     val httpGetCapture = capture[HttpGet]
-    channel.isOpen should be (false)
+    channel.isOpen should be(false)
     buffer.array() should be(exampleBytes)
     verify(httpClient).execute(httpGetCapture.capture)
     verify(httpClient).close()
@@ -104,7 +121,7 @@ class DrsReaderSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matche
 
 object DrsReaderSpec {
   @tailrec
-  def readToBuffer(input: ReadableByteChannel, buffer: ByteBuffer): Unit = {
+  def readToBuffer(input: ReadableByteChannel, buffer: ByteBuffer): Unit =
     if (buffer.remaining() > 0) {
       if (input.read(buffer) >= 0) {
         readToBuffer(input, buffer)
@@ -112,5 +129,4 @@ object DrsReaderSpec {
         throw new EOFException(s"input exhausted with ${buffer.remaining()} expected bytes")
       }
     }
-  }
 }

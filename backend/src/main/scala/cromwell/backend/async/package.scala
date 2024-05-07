@@ -2,7 +2,6 @@ package cromwell.backend
 
 import scala.concurrent.{ExecutionContext, Future}
 
-
 package object async {
   implicit class EnhancedFutureFuture[A](val ffa: Future[Future[A]])(implicit ec: ExecutionContext) {
     def flatten: Future[A] = ffa flatMap identity

@@ -32,8 +32,22 @@
 package cromwell.backend.impl.aws
 
 import akka.actor.{ActorRef, Props}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor, JobExecutionMap}
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardFinalizationActor, StandardFinalizationActorParams, StandardInitializationActor, StandardInitializationActorParams, StandardLifecycleActorFactory}
+import cromwell.backend.{
+  Aws,
+  BackendConfigurationDescriptor,
+  BackendInitializationData,
+  BackendWorkflowDescriptor,
+  JobExecutionMap,
+  Platform
+}
+import cromwell.backend.standard.{
+  StandardAsyncExecutionActor,
+  StandardFinalizationActor,
+  StandardFinalizationActorParams,
+  StandardInitializationActor,
+  StandardInitializationActorParams,
+  StandardLifecycleActorFactory
+}
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
 
@@ -43,41 +57,38 @@ import wom.graph.CommandCallNode
   * @param name Factory name
   * @param configurationDescriptor configuration descriptor for the backend
   */
-case class AwsBatchBackendLifecycleActorFactory(
-  name: String,
-  configurationDescriptor: BackendConfigurationDescriptor)
+case class AwsBatchBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
     extends StandardLifecycleActorFactory {
 
-  override lazy val initializationActorClass: Class[_ <: StandardInitializationActor]
-    = classOf[AwsBatchInitializationActor]
+  override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] =
+    classOf[AwsBatchInitializationActor]
 
-  override lazy val asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor]
-    = classOf[AwsBatchAsyncBackendJobExecutionActor]
+  override lazy val asyncExecutionActorClass: Class[_ <: StandardAsyncExecutionActor] =
+    classOf[AwsBatchAsyncBackendJobExecutionActor]
 
-  override lazy val finalizationActorClassOption: Option[Class[_ <: StandardFinalizationActor]]
-    = Option(classOf[AwsBatchFinalizationActor])
+  override lazy val finalizationActorClassOption: Option[Class[_ <: StandardFinalizationActor]] = Option(
+    classOf[AwsBatchFinalizationActor]
+  )
 
-  override lazy val jobIdKey: String
-    = AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey
+  override lazy val jobIdKey: String = AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey
 
   val configuration = new AwsBatchConfiguration(configurationDescriptor)
 
-  override def workflowInitializationActorParams(
-                                                  workflowDescriptor: BackendWorkflowDescriptor,
-                                                  ioActor: ActorRef,
-                                                  calls: Set[CommandCallNode],
-                                                  serviceRegistryActor: ActorRef,
-                                                  restart: Boolean): StandardInitializationActorParams = {
+  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor,
+                                                 ioActor: ActorRef,
+                                                 calls: Set[CommandCallNode],
+                                                 serviceRegistryActor: ActorRef,
+                                                 restart: Boolean
+  ): StandardInitializationActorParams =
     AwsBatchInitializationActorParams(workflowDescriptor, ioActor, calls, configuration, serviceRegistryActor, restart)
-  }
 
-  override def workflowFinalizationActorParams(
-                                                workflowDescriptor: BackendWorkflowDescriptor,
-                                                ioActor: ActorRef,
-                                                calls: Set[CommandCallNode],
-                                                jobExecutionMap: JobExecutionMap,
-                                                workflowOutputs: CallOutputs,
-                                                initializationDataOption: Option[BackendInitializationData]): StandardFinalizationActorParams = {
+  override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor,
+                                               ioActor: ActorRef,
+                                               calls: Set[CommandCallNode],
+                                               jobExecutionMap: JobExecutionMap,
+                                               workflowOutputs: CallOutputs,
+                                               initializationDataOption: Option[BackendInitializationData]
+  ): StandardFinalizationActorParams =
     // The `AwsBatchInitializationActor` will only return a non-`Empty`
     // `AwsBatchBackendInitializationData` from a successful `beforeAll`
     // invocation.  HOWEVER, the finalization actor is created regardless
@@ -86,10 +97,17 @@ case class AwsBatchBackendLifecycleActorFactory(
     // `AwsBatchBackendInitializationData` option, and there is no `.get`
     // on the initialization data as there is with the execution or cache
     // hit copying actor methods.
-    AwsBatchFinalizationActorParams(workflowDescriptor, ioActor, calls, configuration, jobExecutionMap, workflowOutputs, initializationDataOption)
-  }
+    AwsBatchFinalizationActorParams(workflowDescriptor,
+                                    ioActor,
+                                    calls,
+                                    configuration,
+                                    jobExecutionMap,
+                                    workflowOutputs,
+                                    initializationDataOption
+    )
 
-  override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
+  override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] =
     Option(AwsBatchSingletonActor.props(configuration.awsConfig.region, Option(configuration.awsAuth)))
-  }
+
+  override def platform: Option[Platform] = Option(Aws)
 }

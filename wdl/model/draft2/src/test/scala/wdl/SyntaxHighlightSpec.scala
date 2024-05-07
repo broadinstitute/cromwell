@@ -12,96 +12,101 @@ import scala.annotation.nowarn
 
 class SyntaxHighlightSpec extends AnyWordSpec with CromwellTimeoutSpec with Matchers {
   "SyntaxFormatter for typical workflow" should {
-    val namespace = WdlNamespace.loadUsingSource(
-      """
-        |task PairedFastQsToUnmappedBAM {
-        |  File fastq_1
-        |  File fastq_2
-        |  String readgroup_name
-        |  String sample_name
-        |  String library_name
-        |  String platform_unit
-        |  String run_date
-        |  String platform_name
-        |  String sequencing_center
-        |  Int disk_size
-        |  String mem_size
-        |
-        |  command {
-        |    java -Xmx3000m -jar /usr/gitc/picard.jar \
-        |      FastqToSam \
-        |      FASTQ=${fastq_1} \
-        |      FASTQ2=${fastq_2} \
-        |      OUTPUT=${readgroup_name}.bam \
-        |      READ_GROUP_NAME=${readgroup_name} \
-        |      SAMPLE_NAME=${sample_name} \
-        |      LIBRARY_NAME=${library_name} \
-        |      PLATFORM_UNIT=${platform_unit} \
-        |      RUN_DATE=${run_date} \
-        |      PLATFORM=${platform_name} \
-        |      SEQUENCING_CENTER=${sequencing_center}
-        |  }
-        |  runtime {
-        |    docker: "broadinstitute/genomes-in-the-cloud:2.2.4-1469632282"
-        |    memory: mem_size
-        |    cpu: "1"
-        |    disks: "local-disk " + disk_size + " HDD"
-        |  }
-        |  output {
-        |    File output_bam = "${readgroup_name}.bam"
-        |  }
-        |  	parameter_meta {
-        |    memory_mb: "Amount of memory to allocate to the JVM"
-        |    param: "Some arbitrary parameter"
-        |    sample_id: "The ID of the sample in format foo_bar_baz"
-        |  }
-        |  meta {
-        |    author: "Joe Somebody"
-        |    email: "joe@company.org"
-        |  }
-        |}
-        |
-        |# WORKFLOW DEFINITION
-        |workflow ConvertPairedFastQsToUnmappedBamWf {
-        |  Array[String] readgroup_list
-        |  Map[String, Array[File]] fastq_pairs
-        |  Map[String, Array[String]] metadata
-        |
-        |  # Convert multiple pairs of input fastqs in parallel
-        |  scatter (readgroup in readgroup_list) {
-        |
-        |    # Convert pair of FASTQs to uBAM
-        |    call PairedFastQsToUnmappedBAM {
-        |      input:
-        |        fastq_1 = fastq_pairs[readgroup][0],
-        |        fastq_2 = fastq_pairs[readgroup][1],
-        |        readgroup_name = readgroup,
-        |        sample_name = metadata[readgroup][0],
-        |        library_name = metadata[readgroup][1],
-        |        platform_unit = metadata[readgroup][2],
-        |        run_date = metadata[readgroup][3],
-        |        platform_name = metadata[readgroup][4],
-        |        sequencing_center = metadata[readgroup][5]
-        |    }
-        |  }
-        |
-        |  # Outputs that will be retained when execution is complete
-        |  output {
-        |    Array[File] output_bams = PairedFastQsToUnmappedBAM.output_bam
-        |  }
-        |
-        |  	parameter_meta {
-        |    memory_mb: "Amount of memory to allocate to the JVM"
-        |    param: "Some arbitrary parameter"
-        |    sample_id: "The ID of the sample in format foo_bar_baz"
-        |  }
-        |
-        |  meta {
-        |   author: "Joe Somebody"
-        |   email: "joe@company.org"
-        |  }
-        |}
-     """.stripMargin, None, None).get
+    val namespace = WdlNamespace
+      .loadUsingSource(
+        """
+          |task PairedFastQsToUnmappedBAM {
+          |  File fastq_1
+          |  File fastq_2
+          |  String readgroup_name
+          |  String sample_name
+          |  String library_name
+          |  String platform_unit
+          |  String run_date
+          |  String platform_name
+          |  String sequencing_center
+          |  Int disk_size
+          |  String mem_size
+          |
+          |  command {
+          |    java -Xmx3000m -jar /usr/gitc/picard.jar \
+          |      FastqToSam \
+          |      FASTQ=${fastq_1} \
+          |      FASTQ2=${fastq_2} \
+          |      OUTPUT=${readgroup_name}.bam \
+          |      READ_GROUP_NAME=${readgroup_name} \
+          |      SAMPLE_NAME=${sample_name} \
+          |      LIBRARY_NAME=${library_name} \
+          |      PLATFORM_UNIT=${platform_unit} \
+          |      RUN_DATE=${run_date} \
+          |      PLATFORM=${platform_name} \
+          |      SEQUENCING_CENTER=${sequencing_center}
+          |  }
+          |  runtime {
+          |    docker: "broadinstitute/genomes-in-the-cloud:2.2.4-1469632282"
+          |    memory: mem_size
+          |    cpu: "1"
+          |    disks: "local-disk " + disk_size + " HDD"
+          |  }
+          |  output {
+          |    File output_bam = "${readgroup_name}.bam"
+          |  }
+          |  	parameter_meta {
+          |    memory_mb: "Amount of memory to allocate to the JVM"
+          |    param: "Some arbitrary parameter"
+          |    sample_id: "The ID of the sample in format foo_bar_baz"
+          |  }
+          |  meta {
+          |    author: "Joe Somebody"
+          |    email: "joe@company.org"
+          |  }
+          |}
+          |
+          |# WORKFLOW DEFINITION
+          |workflow ConvertPairedFastQsToUnmappedBamWf {
+          |  Array[String] readgroup_list
+          |  Map[String, Array[File]] fastq_pairs
+          |  Map[String, Array[String]] metadata
+          |
+          |  # Convert multiple pairs of input fastqs in parallel
+          |  scatter (readgroup in readgroup_list) {
+          |
+          |    # Convert pair of FASTQs to uBAM
+          |    call PairedFastQsToUnmappedBAM {
+          |      input:
+          |        fastq_1 = fastq_pairs[readgroup][0],
+          |        fastq_2 = fastq_pairs[readgroup][1],
+          |        readgroup_name = readgroup,
+          |        sample_name = metadata[readgroup][0],
+          |        library_name = metadata[readgroup][1],
+          |        platform_unit = metadata[readgroup][2],
+          |        run_date = metadata[readgroup][3],
+          |        platform_name = metadata[readgroup][4],
+          |        sequencing_center = metadata[readgroup][5]
+          |    }
+          |  }
+          |
+          |  # Outputs that will be retained when execution is complete
+          |  output {
+          |    Array[File] output_bams = PairedFastQsToUnmappedBAM.output_bam
+          |  }
+          |
+          |  	parameter_meta {
+          |    memory_mb: "Amount of memory to allocate to the JVM"
+          |    param: "Some arbitrary parameter"
+          |    sample_id: "The ID of the sample in format foo_bar_baz"
+          |  }
+          |
+          |  meta {
+          |   author: "Joe Somebody"
+          |   email: "joe@company.org"
+          |  }
+          |}
+     """.stripMargin,
+        None,
+        None
+      )
+      .get
 
     @nowarn("msg=Unicode escapes in triple quoted strings are deprecated, use the literal character instead")
     val console =
@@ -264,117 +269,116 @@ class SyntaxHighlightSpec extends AnyWordSpec with CromwellTimeoutSpec with Matc
                        |}
                      """.stripMargin
 
-    def resolver(importUri: String): Draft2ResolvedImportBundle = {
+    def resolver(importUri: String): Draft2ResolvedImportBundle =
       importUri match {
         case "foo.wdl" => Draft2ResolvedImportBundle(fooTaskWdl, ResolvedImportRecord("foo.wdl"))
         case _ => throw new RuntimeException(s"Can't resolve $importUri")
       }
-    }
 
     val source = s"""
-        |import "foo.wdl" as foo_ns
-        |
-        |task t {
-        |  String f
-        |  Int p
-        |  command {
-        |    ./cmd $${f} $${p}
-        |  }
-        |}
-        |
-        |task s {
-        |  Array[File] input_file
-        |  command <<<
-        |    cat $${sep=' ' input_file} | awk '{s+=$$1} END {print s}'
-        |  >>>
-        |  output {
-        |    String s = read_string(stdout())
-        |  }
-        |}
-        |
-        |task r {
-        |  command { python -c "import random; print(random.randint(1,100))" }
-        |}
-        |
-        |workflow w {
-        |  Int p = 2+2
-        |  call t
-        |  call t as u {
-        |    input: f="abc", p=p
-        |  }
-        |}""".stripMargin
+                    |import "foo.wdl" as foo_ns
+                    |
+                    |task t {
+                    |  String f
+                    |  Int p
+                    |  command {
+                    |    ./cmd $${f} $${p}
+                    |  }
+                    |}
+                    |
+                    |task s {
+                    |  Array[File] input_file
+                    |  command <<<
+                    |    cat $${sep=' ' input_file} | awk '{s+=$$1} END {print s}'
+                    |  >>>
+                    |  output {
+                    |    String s = read_string(stdout())
+                    |  }
+                    |}
+                    |
+                    |task r {
+                    |  command { python -c "import random; print(random.randint(1,100))" }
+                    |}
+                    |
+                    |workflow w {
+                    |  Int p = 2+2
+                    |  call t
+                    |  call t as u {
+                    |    input: f="abc", p=p
+                    |  }
+                    |}""".stripMargin
 
     val namespace = WdlNamespace.loadUsingSource(source, None, Option(Seq(resolver))).get
 
     val console =
       s"""\u001b[38;5;214mimport\u001b[0m 'foo.wdl' as foo_ns
-        |
-        |\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mt\u001b[0m {
-        |  \u001b[38;5;33mString\u001b[0m \u001b[38;5;112mf\u001b[0m
-        |  \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mp\u001b[0m
-        |  \u001b[38;5;214mcommand\u001b[0m {
-        |    ./cmd $${f} $${p}
-        |  }
-        |}
-        |
-        |\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253ms\u001b[0m {
-        |  \u001b[38;5;33mArray[File]\u001b[0m \u001b[38;5;112minput_file\u001b[0m
-        |  \u001b[38;5;214mcommand\u001b[0m <<<
-        |    cat $${sep=" " input_file} | awk '{s+=$$1} END {print s}'
-        |  >>>
-        |  \u001b[38;5;214moutput\u001b[0m {
-        |    \u001b[38;5;33mString\u001b[0m \u001b[38;5;112ms\u001b[0m = \u001b[38;5;13mread_string\u001b[0m(\u001b[38;5;13mstdout\u001b[0m())
-        |  }
-        |}
-        |
-        |\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mr\u001b[0m {
-        |  \u001b[38;5;214mcommand\u001b[0m {
-        |    python -c "import random; print(random.randint(1,100))"
-        |  }
-        |}
-        |
-        |\u001b[38;5;214mworkflow\u001b[0m \u001b[38;5;253mw\u001b[0m {
-        |  \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mp\u001b[0m = 2 + 2
-        |  \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mt\u001b[0m
-        |  \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mt\u001b[0m as u {
-        |    input: f="abc", p=p
-        |  }
-        |}""".stripMargin
+         |
+         |\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mt\u001b[0m {
+         |  \u001b[38;5;33mString\u001b[0m \u001b[38;5;112mf\u001b[0m
+         |  \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mp\u001b[0m
+         |  \u001b[38;5;214mcommand\u001b[0m {
+         |    ./cmd $${f} $${p}
+         |  }
+         |}
+         |
+         |\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253ms\u001b[0m {
+         |  \u001b[38;5;33mArray[File]\u001b[0m \u001b[38;5;112minput_file\u001b[0m
+         |  \u001b[38;5;214mcommand\u001b[0m <<<
+         |    cat $${sep=" " input_file} | awk '{s+=$$1} END {print s}'
+         |  >>>
+         |  \u001b[38;5;214moutput\u001b[0m {
+         |    \u001b[38;5;33mString\u001b[0m \u001b[38;5;112ms\u001b[0m = \u001b[38;5;13mread_string\u001b[0m(\u001b[38;5;13mstdout\u001b[0m())
+         |  }
+         |}
+         |
+         |\u001b[38;5;214mtask\u001b[0m \u001b[38;5;253mr\u001b[0m {
+         |  \u001b[38;5;214mcommand\u001b[0m {
+         |    python -c "import random; print(random.randint(1,100))"
+         |  }
+         |}
+         |
+         |\u001b[38;5;214mworkflow\u001b[0m \u001b[38;5;253mw\u001b[0m {
+         |  \u001b[38;5;33mInt\u001b[0m \u001b[38;5;112mp\u001b[0m = 2 + 2
+         |  \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mt\u001b[0m
+         |  \u001b[38;5;214mcall\u001b[0m \u001b[38;5;253mt\u001b[0m as u {
+         |    input: f="abc", p=p
+         |  }
+         |}""".stripMargin
 
     val html =
       s"""<span class="keyword">import</span> 'foo.wdl' as foo_ns
-        |
-        |<span class="keyword">task</span> <span class="name">t</span> {
-        |  <span class="type">String</span> <span class="variable">f</span>
-        |  <span class="type">Int</span> <span class="variable">p</span>
-        |  <span class="section">command</span> {
-        |    <span class="command">./cmd $${f} $${p}</span>
-        |  }
-        |}
-        |
-        |<span class="keyword">task</span> <span class="name">s</span> {
-        |  <span class="type">Array[File]</span> <span class="variable">input_file</span>
-        |  <span class="section">command</span> <<<
-        |    <span class="command">cat $${sep=" " input_file} | awk '{s+=$$1} END {print s}'</span>
-        |  >>>
-        |  <span class="section">output</span> {
-        |    <span class="type">String</span> <span class="variable">s</span> = <span class="function">read_string</span>(<span class="function">stdout</span>())
-        |  }
-        |}
-        |
-        |<span class="keyword">task</span> <span class="name">r</span> {
-        |  <span class="section">command</span> {
-        |    <span class="command">python -c "import random; print(random.randint(1,100))"</span>
-        |  }
-        |}
-        |
-        |<span class="keyword">workflow</span> <span class="name">w</span> {
-        |  <span class="type">Int</span> <span class="variable">p</span> = 2 + 2
-        |  <span class="keyword">call</span> <span class="name">t</span>
-        |  <span class="keyword">call</span> <span class="name">t</span> as <span class="alias">u</span> {
-        |    input: f="abc", p=p
-        |  }
-        |}""".stripMargin
+         |
+         |<span class="keyword">task</span> <span class="name">t</span> {
+         |  <span class="type">String</span> <span class="variable">f</span>
+         |  <span class="type">Int</span> <span class="variable">p</span>
+         |  <span class="section">command</span> {
+         |    <span class="command">./cmd $${f} $${p}</span>
+         |  }
+         |}
+         |
+         |<span class="keyword">task</span> <span class="name">s</span> {
+         |  <span class="type">Array[File]</span> <span class="variable">input_file</span>
+         |  <span class="section">command</span> <<<
+         |    <span class="command">cat $${sep=" " input_file} | awk '{s+=$$1} END {print s}'</span>
+         |  >>>
+         |  <span class="section">output</span> {
+         |    <span class="type">String</span> <span class="variable">s</span> = <span class="function">read_string</span>(<span class="function">stdout</span>())
+         |  }
+         |}
+         |
+         |<span class="keyword">task</span> <span class="name">r</span> {
+         |  <span class="section">command</span> {
+         |    <span class="command">python -c "import random; print(random.randint(1,100))"</span>
+         |  }
+         |}
+         |
+         |<span class="keyword">workflow</span> <span class="name">w</span> {
+         |  <span class="type">Int</span> <span class="variable">p</span> = 2 + 2
+         |  <span class="keyword">call</span> <span class="name">t</span>
+         |  <span class="keyword">call</span> <span class="name">t</span> as <span class="alias">u</span> {
+         |    input: f="abc", p=p
+         |  }
+         |}""".stripMargin
 
     "format to console properly" in {
       val actual = new SyntaxFormatter(AnsiSyntaxHighlighter).format(namespace)

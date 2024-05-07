@@ -40,8 +40,8 @@ import scala.util.Try
   * Generates commands for IO operations on S3
   */
 private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder {
-  override def sizeCommand: PartialFunction[Path, Try[S3BatchSizeCommand]] = {
-    case path: S3Path => Try(S3BatchSizeCommand(path))
+  override def sizeCommand: PartialFunction[Path, Try[S3BatchSizeCommand]] = { case path: S3Path =>
+    Try(S3BatchSizeCommand(path))
   }
 
   override def deleteCommand: PartialFunction[(Path, Boolean), Try[S3BatchDeleteCommand]] = {
@@ -52,16 +52,16 @@ private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder
     case (src: S3Path, dest: S3Path) => Try(S3BatchCopyCommand(src, dest))
   }
 
-  override def hashCommand: PartialFunction[Path, Try[S3BatchEtagCommand]] = {
-    case path: S3Path => Try(S3BatchEtagCommand(path))
+  override def hashCommand: PartialFunction[Path, Try[S3BatchEtagCommand]] = { case path: S3Path =>
+    Try(S3BatchEtagCommand(path))
   }
 
-  override def touchCommand: PartialFunction[Path, Try[S3BatchTouchCommand]] = {
-    case path: S3Path => Try(S3BatchTouchCommand(path))
+  override def touchCommand: PartialFunction[Path, Try[S3BatchTouchCommand]] = { case path: S3Path =>
+    Try(S3BatchTouchCommand(path))
   }
 
-  override def existsCommand: PartialFunction[Path, Try[S3BatchExistsCommand]] = {
-    case path: S3Path => Try(S3BatchExistsCommand(path))
+  override def existsCommand: PartialFunction[Path, Try[S3BatchExistsCommand]] = { case path: S3Path =>
+    Try(S3BatchExistsCommand(path))
   }
 }
 

@@ -1,0 +1,64 @@
+name: 'ScalaFmt Fix'
+
+# This GitHub Action runs the ScalaFmt linting tool on the entire codebase.
+# It will fix, commit, and push linted code.
+# It will only run when someone comments "scalafmt" on a PR.
+
+run-name: ScalaFmt Fix
+
+on:
+  issue_comment:
+    types:
+      - created
+  workflow_dispatch:
+    branch_name:
+      description: 'Branch to run ScalaFmt against'
+      required: true
+  pull_request_target:
+    types:
+      - opened
+      - synchronize
+
+jobs:
+  run-scalafmt-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Determine Target Branch
+        id: determine-branch
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "::set-output name=target_branch::${{ inputs.branch_name }}"
+          else
+            echo "::set-output name=target_branch::${{ github.event.pull_request.head.ref }}"
+          fi
+        shell: bash
+        env:
+          inputs.branch_name: ${{ inputs.branch_name }}
+      - name: Check for ScalaFmt Comment
+        id: check-comment
+        run: |
+          if [[ "${{ github.event_name }}" == "issue_comment" && "${{ github.event.comment.body }}" == *"scalafmt"* ]]; then
+            echo "::set-output name=comment-triggered::true"
+          else
+            echo "::set-output name=comment-triggered::false"
+          fi
+        shell: bash
+      - uses: actions/checkout@v3 # checkout the cromwell repo
+        with:
+         ref: ${{ inputs.target-branch }}
+      - uses: ./.github/set_up_cromwell_action
+        with:
+          cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+      - name: Run ScalaFmt Fixup
+        if: steps.check-comment.outputs.comment-triggered == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        run: |
+          sbt scalafmtAll
+          git config --global user.email "broadbot@broadinstitute.org"
+          git config --global user.name "Broad Bot"
+          git add .
+          git commit -m "ScalaFmt fixup via Broad Bot"
+          git push origin ${{ steps.determine-branch.outputs.target_branch }}
+        working-directory: ${{ github.workspace }}

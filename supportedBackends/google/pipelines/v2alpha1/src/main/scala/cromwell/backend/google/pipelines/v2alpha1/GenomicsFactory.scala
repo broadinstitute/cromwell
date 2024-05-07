@@ -26,32 +26,29 @@ import wom.format.MemorySize
 
 import scala.jdk.CollectionConverters._
 
-case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit gcsTransferConfiguration: GcsTransferConfiguration) extends PipelinesApiFactoryInterface
-  with ContainerSetup
-  with MonitoringAction
-  with CheckpointingAction
-  with Localization
-  with UserAction
-  with Delocalization
-  with MemoryRetryCheckAction
-  with SSHAccessAction {
+case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, endpointUrl: URL)(implicit
+  gcsTransferConfiguration: GcsTransferConfiguration
+) extends PipelinesApiFactoryInterface
+    with ContainerSetup
+    with MonitoringAction
+    with CheckpointingAction
+    with Localization
+    with UserAction
+    with Delocalization
+    with MemoryRetryCheckAction
+    with SSHAccessAction {
 
   override def build(initializer: HttpRequestInitializer): PipelinesApiRequestFactory = new PipelinesApiRequestFactory {
-    val genomics: Genomics = new Genomics.Builder(
-      GoogleAuthMode.httpTransport,
-      GoogleAuthMode.jsonFactory,
-      initializer)
+    val genomics: Genomics = new Genomics.Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, initializer)
       .setApplicationName(applicationName)
       .setRootUrl(endpointUrl.toString)
       .build
 
-    override def cancelRequest(job: StandardAsyncJob): HttpRequest = {
+    override def cancelRequest(job: StandardAsyncJob): HttpRequest =
       genomics.projects().operations().cancel(job.jobId, new CancelOperationRequest()).buildHttpRequest()
-    }
 
-    override def getRequest(job: StandardAsyncJob): HttpRequest = {
+    override def getRequest(job: StandardAsyncJob): HttpRequest =
       genomics.projects().operations().get(job.jobId).buildHttpRequest()
-    }
 
     override def runRequest(createPipelineParameters: CreatePipelineParameters, jobLogger: JobLogger): HttpRequest = {
       def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues): Network = {
@@ -66,14 +63,13 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         network
       }
 
-      def createNetwork(): Network = {
+      def createNetwork(): Network =
         createPipelineParameters.vpcNetworkAndSubnetworkProjectLabels match {
           case Some(vpcAndSubnetworkProjectLabelValues) => createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues)
           case _ => new Network().setUsePrivateAddress(createPipelineParameters.runtimeAttributes.noAddress)
         }
-      }
 
-      val allDisksToBeMounted = createPipelineParameters.adjustedSizeDisks ++
+      val allDisksToBeMounted = createPipelineParameters.disks ++
         createPipelineParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
 
       // Disks defined in the runtime attributes and reference-files-localization disks
@@ -95,7 +91,8 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
       // on the machine to utilize in their command blocks if needed
       val runtimeMemory = createPipelineParameters.runtimeAttributes.memory
-      val environment = Map("MEM_UNIT" -> runtimeMemory.unit.toString, "MEM_SIZE" -> runtimeMemory.amount.toString).asJava
+      val environment =
+        Map("MEM_UNIT" -> runtimeMemory.unit.toString, "MEM_SIZE" -> runtimeMemory.amount.toString).asJava
 
       val sortedActions =
         ActionUtils.sortActions[Action](
@@ -109,13 +106,12 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
           checkpointingStart = checkpointingStart,
           checkpointingShutdown = checkpointingShutdown,
           sshAccess = sshAccess,
-          isBackground =
-            action =>
-              Option(action.getFlags)
-                .map(_.asScala)
-                .toList
-                .flatten
-                .contains(ActionFlag.RunInBackground.toString),
+          isBackground = action =>
+            Option(action.getFlags)
+              .map(_.asScala)
+              .toList
+              .flatten
+              .contains(ActionFlag.RunInBackground.toString)
         )
 
       val serviceAccount = new ServiceAccount()
@@ -138,8 +134,7 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
 
       val network: Network = createNetwork()
 
-      val accelerators = createPipelineParameters.runtimeAttributes
-        .gpuResource.map(toAccelerator).toList.asJava
+      val accelerators = createPipelineParameters.runtimeAttributes.gpuResource.map(toAccelerator).toList.asJava
 
       /*
        * Adjust using docker images used by Cromwell as well as the tool's docker image size if available
@@ -147,12 +142,18 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
       val adjustedBootDiskSize = {
         val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize
         // Compute the decompressed size based on the information available
-        val userCommandImageSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize.map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor)).getOrElse(0L)
-        val userCommandImageSizeInGB = MemorySize(userCommandImageSizeInBytes.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).amount
+        val userCommandImageSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize
+          .map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor))
+          .getOrElse(0L)
+        val userCommandImageSizeInGB =
+          MemorySize(userCommandImageSizeInBytes.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).amount
         val userCommandImageSizeRoundedUpInGB = userCommandImageSizeInGB.ceil.toInt
 
-        val totalSize = fromRuntimeAttributes + userCommandImageSizeRoundedUpInGB + ActionUtils.cromwellImagesSizeRoundedUpInGB
-        jobLogger.info(s"Adjusting boot disk size to $totalSize GB: $fromRuntimeAttributes GB (runtime attributes) + $userCommandImageSizeRoundedUpInGB GB (user command image) + ${ActionUtils.cromwellImagesSizeRoundedUpInGB} GB (Cromwell support images)")
+        val totalSize =
+          fromRuntimeAttributes + userCommandImageSizeRoundedUpInGB + ActionUtils.cromwellImagesSizeRoundedUpInGB
+        jobLogger.info(
+          s"Adjusting boot disk size to $totalSize GB: $fromRuntimeAttributes GB (runtime attributes) + $userCommandImageSizeRoundedUpInGB GB (user command image) + ${ActionUtils.cromwellImagesSizeRoundedUpInGB} GB (Cromwell support images)"
+        )
         totalSize
       }
 
@@ -166,10 +167,12 @@ case class GenomicsFactory(applicationName: String, authMode: GoogleAuthMode, en
         .setNetwork(network)
         .setAccelerators(accelerators)
 
-      if(createPipelineParameters.dockerImageCacheDiskOpt.isDefined) {
-        jobLogger.info("Docker image cache requested for the job, but the job is being executed by Google " +
-          "Genomics API v2alpha1, while the feature is only supported by from Google Life Scielnces API starting from" +
-          "the version v2beta")
+      if (createPipelineParameters.dockerImageCacheDiskOpt.isDefined) {
+        jobLogger.info(
+          "Docker image cache requested for the job, but the job is being executed by Google " +
+            "Genomics API v2alpha1, while the feature is only supported by from Google Life Scielnces API starting from" +
+            "the version v2beta"
+        )
       }
 
       createPipelineParameters.runtimeAttributes.gpuResource foreach { resource =>

@@ -13,10 +13,10 @@ object WdlWorkflow {
       throw new UnsupportedOperationException(s"Expecting Workflow AST, got a ${ast.getName} AST")
     }
     val name = ast.getAttribute("name").asInstanceOf[Terminal].getSourceString
-    val callNames = ast.findAsts(AstNodeName.Call).map {call =>
+    val callNames = ast.findAsts(AstNodeName.Call).map { call =>
       ("Call", Option(call.getAttribute("alias")).getOrElse(call.getAttribute("task")))
     }
-    val declarationNames = ast.findAsts(AstNodeName.Declaration).map {decl =>
+    val declarationNames = ast.findAsts(AstNodeName.Declaration).map { decl =>
       ("Declaration", decl.getAttribute("name"))
     }
 
@@ -28,7 +28,8 @@ object WdlWorkflow {
 
     (callNames ++ declarationNames) groupBy { _._2.sourceString } foreach {
       case (_, terminals) if terminals.size > 1 =>
-        val castedToTerminal = terminals map { case (astType, terminalAst) => (astType, terminalAst.asInstanceOf[Terminal])
+        val castedToTerminal = terminals map { case (astType, terminalAst) =>
+          (astType, terminalAst.asInstanceOf[Terminal])
 
         }
 
@@ -48,7 +49,8 @@ case class WdlWorkflow(unqualifiedName: String,
                        wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter,
                        meta: Map[String, String],
                        parameterMeta: Map[String, String],
-                       ast: Ast) extends WdlCallable {
+                       ast: Ast
+) extends WdlCallable {
 
   /**
     * Also include workflow outputs which are not technically children but should be processed as such
@@ -79,9 +81,13 @@ case class WdlWorkflow(unqualifiedName: String,
   /** First tries to find any Call with name `name`.  If not found,
     * Fallback to looking at immediate children or delegating to parent node
     */
-  override def resolveVariable(name: String, relativeTo: Scope = this, ignoreLocal: Boolean = false): Option[WdlGraphNode] = {
-    findCallByName(name) orElse findDeclarationByName(name) orElse findWorkflowOutputByName(name, relativeTo) orElse super.resolveVariable(name, relativeTo)
-  }
+  override def resolveVariable(name: String,
+                               relativeTo: Scope = this,
+                               ignoreLocal: Boolean = false
+  ): Option[WdlGraphNode] =
+    findCallByName(name) orElse findDeclarationByName(name) orElse findWorkflowOutputByName(name,
+                                                                                            relativeTo
+    ) orElse super.resolveVariable(name, relativeTo)
 
   /**
     * Find a Call object by name.  For example,
@@ -104,28 +110,27 @@ case class WdlWorkflow(unqualifiedName: String,
     * Declarations within the workflow scope (including inside scatters and ifs)
     */
   lazy val transitiveDeclarations = {
-    def isValid(d: Declaration) = {
+    def isValid(d: Declaration) =
       d.parent match {
         case Some(w: WdlWorkflow) if w == this => true
         case Some(_: Scatter) => true
         case Some(_: If) => true
         case _ => false
       }
-    }
 
     descendants collect {
       case declaration: Declaration if isValid(declaration) => declaration
     }
   }
 
-  def findDeclarationByName(name: String): Option[Declaration] = {
+  def findDeclarationByName(name: String): Option[Declaration] =
     transitiveDeclarations.find(_.unqualifiedName == name)
-  }
 
   def findWorkflowOutputByName(name: String, relativeTo: Scope) = {
-    val leftOutputs = if (outputs.contains(relativeTo))
-      outputs.dropRight(outputs.size - outputs.indexOf(relativeTo))
-    else outputs
+    val leftOutputs =
+      if (outputs.contains(relativeTo))
+        outputs.dropRight(outputs.size - outputs.indexOf(relativeTo))
+      else outputs
     leftOutputs.find(_.unqualifiedName == name)
   }
 
@@ -142,7 +147,8 @@ case class WdlWorkflow(unqualifiedName: String,
    * @return a Map[FullyQualifiedName, WomType] representing the union
    *         of all outputs from all `call`s within this workflow
    */
-  lazy val expandedWildcardOutputs: Seq[WorkflowOutput] = if (isTopLevelWorkflow) calculateExpandedWildcardOutputs else Seq.empty
+  lazy val expandedWildcardOutputs: Seq[WorkflowOutput] =
+    if (isTopLevelWorkflow) calculateExpandedWildcardOutputs else Seq.empty
 
   private def calculateExpandedWildcardOutputs = {
 
@@ -151,7 +157,12 @@ case class WdlWorkflow(unqualifiedName: String,
         throw new RuntimeException(s"output ${output.fullyQualifiedName} has no parent Scope")
       }
 
-      new WorkflowOutput(locallyQualifiedName, womType, WdlExpression.fromString(locallyQualifiedName), output.ast, Option(this))
+      new WorkflowOutput(locallyQualifiedName,
+                         womType,
+                         WdlExpression.fromString(locallyQualifiedName),
+                         output.ast,
+                         Option(this)
+      )
     }
 
     def toWorkflowOutputs(scope: Scope): Seq[WorkflowOutput] = {
@@ -159,7 +170,7 @@ case class WdlWorkflow(unqualifiedName: String,
       val outputs = scope match {
         case call: WdlCall => call.outputs
         case outputDeclaration: Output => Seq(outputDeclaration)
-          // For non output declaration, don't return an array but return the raw value
+        // For non output declaration, don't return an array but return the raw value
         case otherDeclaration: DeclarationInterface => Seq(otherDeclaration)
         case _ => Seq.empty
       }
@@ -169,7 +180,9 @@ case class WdlWorkflow(unqualifiedName: String,
 
     // No outputs means all outputs
     val effectiveOutputWildcards = if (hasEmptyOutputSection) {
-      calls map { call => WorkflowOutputWildcard(unqualifiedName + "." + call.unqualifiedName, wildcard = true, call.ast) } toSeq
+      calls map { call =>
+        WorkflowOutputWildcard(unqualifiedName + "." + call.unqualifiedName, wildcard = true, call.ast)
+      } toSeq
     } else workflowOutputWildcards
 
     effectiveOutputWildcards flatMap { output =>
@@ -180,13 +193,16 @@ case class WdlWorkflow(unqualifiedName: String,
       }
       namespace.resolveCallOrOutputOrDeclaration(outputFqn) match {
         case Some(call: WdlCall) if output.wildcard && calls.contains(call) => toWorkflowOutputs(call)
-        case Some(declaration: DeclarationInterface) if descendants.contains(declaration) => toWorkflowOutputs(declaration)
+        case Some(declaration: DeclarationInterface) if descendants.contains(declaration) =>
+          toWorkflowOutputs(declaration)
         case _ => throw new SyntaxError(wdlSyntaxErrorFormatter.badOldStyleWorkflowOutput(output.ast))
       }
     }
   }
 
-  override lazy val outputs: Seq[WorkflowOutput] = expandedWildcardOutputs ++ children collect { case o: WorkflowOutput => o }
+  override lazy val outputs: Seq[WorkflowOutput] = expandedWildcardOutputs ++ children collect {
+    case o: WorkflowOutput => o
+  }
 
   override def toString = s"[Workflow $fullyQualifiedName]"
 }

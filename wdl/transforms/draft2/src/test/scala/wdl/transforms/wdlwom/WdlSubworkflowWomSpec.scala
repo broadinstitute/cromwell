@@ -50,19 +50,21 @@ class WdlSubworkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
         |}
       """.stripMargin
 
-
     def innerResolver: Draft2ImportResolver = str => Draft2ResolvedImportBundle(innerWdl, ResolvedImportRecord(str))
 
-    val namespace = WdlNamespace.loadUsingSource(
-      workflowSource = outerWdl,
-      resource = None,
-      importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
+    val namespace = WdlNamespace
+      .loadUsingSource(workflowSource = outerWdl, resource = None, importResolver = Some(Seq(innerResolver)))
+      .get
+      .asInstanceOf[WdlNamespaceWithWorkflow]
 
     val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     outerWorkflowGraph match {
       case Valid(g) => validateOuter(g)
-      case Invalid(errors) => fail(s"Unable to build wom version of workflow with subworkflow from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
+      case Invalid(errors) =>
+        fail(
+          s"Unable to build wom version of workflow with subworkflow from WDL: ${errors.toList.mkString("\n", "\n", "\n")}"
+        )
     }
 
     def validateOuter(workflowGraph: Graph) = {
@@ -75,7 +77,9 @@ class WdlSubworkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
       val innerCall = calls.head.asInstanceOf[WorkflowCallNode]
       innerCall.localName should be("inner")
       innerCall.identifier.fullyQualifiedName.value should be("outer.inner")
-      innerCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(Set(workflowGraph.inputNodes.head))
+      innerCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(
+        Set(workflowGraph.inputNodes.head)
+      )
 
       // One output, "out"
       workflowGraph.outputNodes.map(_.localName) should be(Set("out"))
@@ -92,7 +96,9 @@ class WdlSubworkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
       calls.map(_.localName) should be(Set("foo"))
 
       val fooCall = calls.head.asInstanceOf[CommandCallNode]
-      fooCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(Set(innerGraph.inputNodes.head))
+      fooCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(
+        Set(innerGraph.inputNodes.head)
+      )
 
       innerGraph.outputNodes.map(_.localName) should be(Set("out", "x"))
       innerGraph.outputNodes.map(_.identifier.fullyQualifiedName.value) should be(Set("inner.out", "inner.x"))
@@ -141,26 +147,30 @@ class WdlSubworkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
         |}
       """.stripMargin
 
-
     def innerResolver: Draft2ImportResolver = str => Draft2ResolvedImportBundle(innerWdl, ResolvedImportRecord(str))
 
-    val namespace = WdlNamespace.loadUsingSource(
-      workflowSource = outerWdl,
-      resource = None,
-      importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
+    val namespace = WdlNamespace
+      .loadUsingSource(workflowSource = outerWdl, resource = None, importResolver = Some(Seq(innerResolver)))
+      .get
+      .asInstanceOf[WdlNamespaceWithWorkflow]
 
     val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     outerWorkflowGraph match {
       case Valid(g) => validateOuter(g)
-      case Invalid(errors) => fail(s"Unable to build wom version of workflow with subworkflow from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
+      case Invalid(errors) =>
+        fail(
+          s"Unable to build wom version of workflow with subworkflow from WDL: ${errors.toList.mkString("\n", "\n", "\n")}"
+        )
     }
 
     def validateOuter(workflowGraph: Graph) = {
       workflowGraph.inputNodes.map(_.localName) should be(Set("xs"))
 
       val scatter = workflowGraph.scatters.head
-      val scatterCollectionNode = workflowGraph.nodes.collectFirst({ case e: ExpressionNode if e.localName == "x" => e }).get
+      val scatterCollectionNode = workflowGraph.nodes.collectFirst {
+        case e: ExpressionNode if e.localName == "x" => e
+      }.get
       scatter.upstream should be(Set(scatterCollectionNode))
       scatter.outputPorts.map(_.name) should be(Set("inner.out"))
       scatter.outputPorts.head.womType should be(WomArrayType(WomStringType))
@@ -206,16 +216,19 @@ class WdlSubworkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
 
     def innerResolver: Draft2ImportResolver = str => Draft2ResolvedImportBundle(innerWdl, ResolvedImportRecord(str))
 
-    val namespace = WdlNamespace.loadUsingSource(
-      workflowSource = outerWdl,
-      resource = None,
-      importResolver = Some(Seq(innerResolver))).get.asInstanceOf[WdlNamespaceWithWorkflow]
+    val namespace = WdlNamespace
+      .loadUsingSource(workflowSource = outerWdl, resource = None, importResolver = Some(Seq(innerResolver)))
+      .get
+      .asInstanceOf[WdlNamespaceWithWorkflow]
 
     val outerWorkflowGraph = namespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).map(_.graph)
 
     outerWorkflowGraph match {
       case Valid(g) => validateOuter(g)
-      case Invalid(errors) => fail(s"Unable to build wom version of workflow with subworkflow from WDL: ${errors.toList.mkString("\n", "\n", "\n")}")
+      case Invalid(errors) =>
+        fail(
+          s"Unable to build wom version of workflow with subworkflow from WDL: ${errors.toList.mkString("\n", "\n", "\n")}"
+        )
     }
 
     def validateOuter(workflowGraph: Graph) = {
@@ -250,7 +263,9 @@ class WdlSubworkflowWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
       calls.map(_.localName) should be(Set("foo"))
 
       val fooCall = calls.head.asInstanceOf[CommandCallNode]
-      fooCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(Set(innerGraph.inputNodes.head))
+      fooCall.upstream.head.asInstanceOf[ExpressionNode].inputPorts.map(_.upstream.graphNode) should be(
+        Set(innerGraph.inputNodes.head)
+      )
 
       innerGraph.outputNodes.map(_.localName) should be(Set("out"))
       innerGraph.outputNodes.map(_.identifier.fullyQualifiedName.value) should be(Set("twin.out"))

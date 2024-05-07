@@ -25,10 +25,9 @@ class GcpBatchApiRequestHandler {
     val headerProvider = FixedHeaderProvider.create(headers)
     val batchSettings = BatchServiceSettings.newBuilder.setHeaderProvider(headerProvider).build
     val client = BatchServiceClient.create(batchSettings)
-    try {
+    try
       f(client)
-    } finally {
+    finally
       client.close()
-    }
   }
 }

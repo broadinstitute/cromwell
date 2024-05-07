@@ -15,7 +15,10 @@ object EnhancedCollections {
     * After trying and failing to do this myself, I got this to work by copying the answer from here:
     * https://stackoverflow.com/questions/29886246/scala-filter-by-type
     */
-  implicit class EnhancedIterableOps[T2, Repr[x] <: IterableOps[x, Repr, Repr[x]]](val iterableOps: IterableOps[T2, Repr, Repr[T2]]) extends AnyVal {
+  implicit class EnhancedIterableOps[T2, Repr[x] <: IterableOps[x, Repr, Repr[x]]](
+    val iterableOps: IterableOps[T2, Repr, Repr[T2]]
+  ) extends AnyVal {
+
     /**
       * Lets you filter a collection by type.
       *
@@ -58,27 +61,29 @@ object EnhancedCollections {
     def takeWhileWeighted[W](maxWeight: W,
                              weightFunction: A => W,
                              maxHeadLength: Option[Int],
-                             strict: Boolean = false)
-                            (implicit n: Numeric[W], c: Ordering[W]): DeQueued[A] = {
+                             strict: Boolean = false
+    )(implicit n: Numeric[W], c: Ordering[W]): DeQueued[A] = {
       import n._
 
       @tailrec
-      def takeWhileWeightedRec(tail: Queue[A], head: Vector[A], weight: W): (Vector[A], Queue[A]) = {
+      def takeWhileWeightedRec(tail: Queue[A], head: Vector[A], weight: W): (Vector[A], Queue[A]) =
         // Stay under maxHeadLength if it's specified
         if (maxHeadLength.exists(head.size >= _)) head -> tail
-        else tail.dequeueOption
-          .map({
-            // Compute the dequeued element's weight
-            case (element, dequeued) => (element, weightFunction(element), dequeued)
-          }) match {
-          // If the element's weight is > maxWeight and strict is true, drop the element
-          case Some((_, elementWeight, dequeued)) if c.gteq(elementWeight, maxWeight) && strict => takeWhileWeightedRec(dequeued, head, weight)
-          // If we're under the max weight, add the element to the head and recurse
-          case Some((element, elementWeight, dequeued)) if c.lteq(elementWeight + weight, maxWeight) => takeWhileWeightedRec(dequeued, head :+ element, weight + elementWeight)
-          // Otherwise stop here (make sure to return the original queue so we don't lose the last dequeued element)
-          case _ => head -> tail
-        }
-      }
+        else
+          tail.dequeueOption
+            .map {
+              // Compute the dequeued element's weight
+              case (element, dequeued) => (element, weightFunction(element), dequeued)
+            } match {
+            // If the element's weight is > maxWeight and strict is true, drop the element
+            case Some((_, elementWeight, dequeued)) if c.gteq(elementWeight, maxWeight) && strict =>
+              takeWhileWeightedRec(dequeued, head, weight)
+            // If we're under the max weight, add the element to the head and recurse
+            case Some((element, elementWeight, dequeued)) if c.lteq(elementWeight + weight, maxWeight) =>
+              takeWhileWeightedRec(dequeued, head :+ element, weight + elementWeight)
+            // Otherwise stop here (make sure to return the original queue so we don't lose the last dequeued element)
+            case _ => head -> tail
+          }
 
       if (queue.isEmpty || maxHeadLength.contains(0)) DeQueued(Vector.empty, queue)
       // If strict is enabled, we should never return a head with a weight > maxWeight. So start from the original queue and drop elements over maxWeight if necessary
@@ -88,13 +93,17 @@ object EnhancedCollections {
       }
       // Otherwise to ensure we don't deadlock, start the recursion with the head of the queue, this way even if it's over maxWeight it'll return a single element head
       else {
-        val (head, tail) = takeWhileWeightedRec(queue.tail, queue.headOption.toVector, queue.headOption.map(weightFunction).getOrElse(n.zero))
+        val (head, tail) = takeWhileWeightedRec(queue.tail,
+                                                queue.headOption.toVector,
+                                                queue.headOption.map(weightFunction).getOrElse(n.zero)
+        )
         DeQueued(head, tail)
       }
     }
   }
 
   implicit class EnhancedMapLike[A, +B, +This <: Map[A, B]](val mapLike: Map[A, B]) {
+
     /**
       * 'safe' in that unlike the implementation hiding behind `MapLike#mapValues` this is strict. i.e. this will only
       * evaluate the supplied function once on each value and at the time this method is called.
@@ -104,17 +113,15 @@ object EnhancedCollections {
     /**
       * Based on scalaz's intersectWith, applies `f` to values of keys found in this `mapLike` and map
       */
-    def intersectWith[C, D](map: Map[A, C])(f: (B, C) => D): Map[A, D] = {
+    def intersectWith[C, D](map: Map[A, C])(f: (B, C) => D): Map[A, D] =
       mapLike collect {
         case (mapLikeKey, mapLikeValue) if map.contains(mapLikeKey) =>
           mapLikeKey -> f(mapLikeValue, map(mapLikeKey))
       }
-    }
   }
 
   implicit class EnhancedNonEmptyList[A](val nel: NonEmptyList[A]) extends AnyVal {
-    def foreach(f: A => Unit): Unit = {
+    def foreach(f: A => Unit): Unit =
       nel.toList foreach f
-    }
   }
 }

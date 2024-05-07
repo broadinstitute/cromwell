@@ -30,11 +30,21 @@ trait JobStoreEntryComponent {
 
     def retryableFailure = column[Option[Boolean]]("RETRYABLE_FAILURE")
 
-    override def * = (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, jobSuccessful, returnCode,
-      exceptionMessage, retryableFailure, jobStoreEntryId.?) <> (JobStoreEntry.tupled, JobStoreEntry.unapply)
+    override def * = (workflowExecutionUuid,
+                      callFullyQualifiedName,
+                      jobIndex,
+                      jobAttempt,
+                      jobSuccessful,
+                      returnCode,
+                      exceptionMessage,
+                      retryableFailure,
+                      jobStoreEntryId.?
+    ) <> (JobStoreEntry.tupled, JobStoreEntry.unapply)
 
     def ucJobStoreEntryWeuCfqnJiJa = index("UC_JOB_STORE_ENTRY_WEU_CFQN_JI_JA",
-      (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt), unique = true)
+                                           (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt),
+                                           unique = true
+    )
 
     def ixJobStoreEntryWeu = index("IX_JOB_STORE_ENTRY_WEU", workflowExecutionUuid, unique = false)
   }
@@ -46,8 +56,8 @@ trait JobStoreEntryComponent {
   /**
     * Useful for finding all job stores for a given workflow execution UUID (e.g. so you can delete them! Bwahaha)
     */
-  val jobStoreEntriesForWorkflowExecutionUuid = Compiled(
-    (workflowExecutionUuid: Rep[String]) => for {
+  val jobStoreEntriesForWorkflowExecutionUuid = Compiled((workflowExecutionUuid: Rep[String]) =>
+    for {
       jobStoreEntry <- jobStoreEntries
       if jobStoreEntry.workflowExecutionUuid === workflowExecutionUuid
     } yield jobStoreEntry
@@ -57,8 +67,11 @@ trait JobStoreEntryComponent {
     * Useful for finding the unique job store for a given job key
     */
   val jobStoreEntriesForJobKey = Compiled(
-    (workflowExecutionUuid: Rep[String], callFullyQualifiedName: Rep[String], jobIndex: Rep[Int],
-     jobAttempt: Rep[Int]) =>
+    (workflowExecutionUuid: Rep[String],
+     callFullyQualifiedName: Rep[String],
+     jobIndex: Rep[Int],
+     jobAttempt: Rep[Int]
+    ) =>
       for {
         jobStoreEntry <- jobStoreEntries
         if jobStoreEntry.workflowExecutionUuid === workflowExecutionUuid &&

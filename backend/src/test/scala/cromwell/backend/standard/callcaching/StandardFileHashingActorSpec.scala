@@ -18,8 +18,12 @@ import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Try}
 
-class StandardFileHashingActorSpec extends TestKitSuite with ImplicitSender
-  with AnyFlatSpecLike with Matchers with MockSugar {
+class StandardFileHashingActorSpec
+    extends TestKitSuite
+    with ImplicitSender
+    with AnyFlatSpecLike
+    with Matchers
+    with MockSugar {
 
   behavior of "StandardFileHashingActor"
 
@@ -127,20 +131,21 @@ object StandardFileHashingActorSpec {
 
   def defaultParams(): StandardFileHashingActorParams = defaultParams(testing, testing, testing, testing, testing)
 
-  def ioActorParams(ioActor: ActorRef): StandardFileHashingActorParams = {
-    defaultParams(withJobDescriptor = testing,
+  def ioActorParams(ioActor: ActorRef): StandardFileHashingActorParams =
+    defaultParams(
+      withJobDescriptor = testing,
       withConfigurationDescriptor = testing,
       withIoActor = ioActor,
       withServiceRegistryActor = testing,
-      withBackendInitializationDataOption = testing)
-  }
+      withBackendInitializationDataOption = testing
+    )
 
   def defaultParams(withJobDescriptor: => BackendJobDescriptor,
                     withConfigurationDescriptor: => BackendConfigurationDescriptor,
                     withIoActor: => ActorRef,
                     withServiceRegistryActor: => ActorRef,
                     withBackendInitializationDataOption: => Option[BackendInitializationData]
-                   ): StandardFileHashingActorParams = new StandardFileHashingActorParams {
+  ): StandardFileHashingActorParams = new StandardFileHashingActorParams {
 
     override def jobDescriptor: BackendJobDescriptor = withJobDescriptor
 
@@ -150,10 +155,10 @@ object StandardFileHashingActorSpec {
 
     override def serviceRegistryActor: ActorRef = withServiceRegistryActor
 
-    override def backendInitializationDataOption: Option[BackendInitializationData] = withBackendInitializationDataOption
+    override def backendInitializationDataOption: Option[BackendInitializationData] =
+      withBackendInitializationDataOption
 
     override def fileHashCachingActor: Option[ActorRef] = None
   }
 
 }
-

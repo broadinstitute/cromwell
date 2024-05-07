@@ -14,22 +14,25 @@ import wom.expression.EmptyIoFunctionSet
 import wom.types.{WomArrayType, WomSingleFileType, WomStringType}
 import wom.values.{WomArray, WomSingleFile, WomString}
 
-
 class ArrayCoercionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   var factory: WdlDraft2LanguageFactory = new WdlDraft2LanguageFactory(ConfigFactory.parseString(ConfigString))
-  val arrayLiteralNamespace: WdlNamespaceWithWorkflow = WdlNamespaceWithWorkflow.load(ArrayDeclarationWorkflow, List.empty).get
+  val arrayLiteralNamespace: WdlNamespaceWithWorkflow =
+    WdlNamespaceWithWorkflow.load(ArrayDeclarationWorkflow, List.empty).get
 
   "A static Array[File] declaration" should "be a valid declaration" in {
-    val declaration = arrayLiteralNamespace.workflow.declarations.find {_.unqualifiedName == "arr"}.getOrElse {
+    val declaration = arrayLiteralNamespace.workflow.declarations.find(_.unqualifiedName == "arr").getOrElse {
       fail("Expected declaration 'arr' to be found")
     }
     val expression = declaration.expression.getOrElse {
       fail("Expected an expression for declaration 'arr'")
     }
-    expression.evaluate((_: String) => fail("No lookups"), NoFunctions).toChecked.shouldBeValid(
-      WomArray(WomArrayType(WomStringType), Seq(WomString("f1"), WomString("f2"), WomString("f3")))
-    )
+    expression
+      .evaluate((_: String) => fail("No lookups"), NoFunctions)
+      .toChecked
+      .shouldBeValid(
+        WomArray(WomArrayType(WomStringType), Seq(WomString("f1"), WomString("f2"), WomString("f3")))
+      )
   }
 
   "An Array[File]" should "be usable as an input" in {
@@ -40,9 +43,10 @@ class ArrayCoercionsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
     val catTask = arrayLiteralNamespace.findTask("cat").getOrElse {
       fail("Expected to find task 'cat'")
     }
-    val command = catTask.instantiateCommand(catTask.inputsFromMap(Map("cat.files" -> expectedArray)), NoFunctions).getOrElse {
-      fail("Expected instantiation to work")
-    }
+    val command =
+      catTask.instantiateCommand(catTask.inputsFromMap(Map("cat.files" -> expectedArray)), NoFunctions).getOrElse {
+        fail("Expected instantiation to work")
+      }
     command.head.commandString shouldEqual "cat -s f1 f2 f3"
   }
 

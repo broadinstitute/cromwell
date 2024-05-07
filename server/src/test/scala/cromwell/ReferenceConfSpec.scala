@@ -40,12 +40,11 @@ class ReferenceConfSpec extends Suite with AnyFlatSpecLike with Matchers {
 
         val overlappingKeys = fileKeys.intersect(nonFileKeys).toSeq.sorted
         if (overlappingKeys.nonEmpty) {
-          fail(
-            s"""|Key(s) overlapping
-                |=> ${overlappingKeys.mkString("=> ")}
-                |between $fileUrl
-                |    and $nonFileUrl
-                |""".stripMargin)
+          fail(s"""|Key(s) overlapping
+                   |=> ${overlappingKeys.mkString("=> ")}
+                   |between $fileUrl
+                   |    and $nonFileUrl
+                   |""".stripMargin)
         }
       }
     }

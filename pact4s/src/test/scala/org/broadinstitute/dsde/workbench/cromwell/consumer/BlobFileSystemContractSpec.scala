@@ -13,6 +13,7 @@ class BlobFileSystemContractSpec extends AnyFlatSpec with Matchers with RequestR
 
   val resourceId = "";
   val workspaceId = "";
+
   /**
    * we can define the folder that the pact contracts get written to upon completion of this test suite.
    */
@@ -27,24 +28,27 @@ class BlobFileSystemContractSpec extends AnyFlatSpec with Matchers with RequestR
    * scala tests on build and if the tests pass when run a pact file will be generated locally
    */
   override def pact: RequestResponsePact = ConsumerPactBuilder
-      .consumer("cromwell-blob-filesystem-consumer")
-      .hasPactWith("wsm-provider")
-      .`given`(
-        "resource exists",
-        Map("id" -> resourceId.asJson, "value" -> 123.asJson) // we can use parameters to specify details about the provider state
-      )
-      .`given`(
-        "workspace exists",
-        Map("id" -> workspaceId, "value" -> 123) // we can use parameters to specify details about the provider state
-      )
-      .uponReceiving("Request to fetch SAS Token")
-      .method("POST")
-      .path(s"/api/workspaces/v1/${workspaceId}/resources/controlled/azure/storageContainer/${resourceId}/getSasToken")
-      .headers("Authorization" -> "sampleToken")
-      .willRespondWith()
-      .status(200)
-      .body(
-        Json.obj("id" -> "".asJson, "value" -> 123.asJson)
-      ).toPact()
+    .consumer("cromwell-blob-filesystem-consumer")
+    .hasPactWith("wsm-provider")
+    .`given`(
+      "resource exists",
+      Map("id" -> resourceId.asJson,
+          "value" -> 123.asJson
+      ) // we can use parameters to specify details about the provider state
+    )
+    .`given`(
+      "workspace exists",
+      Map("id" -> workspaceId, "value" -> 123) // we can use parameters to specify details about the provider state
+    )
+    .uponReceiving("Request to fetch SAS Token")
+    .method("POST")
+    .path(s"/api/workspaces/v1/${workspaceId}/resources/controlled/azure/storageContainer/${resourceId}/getSasToken")
+    .headers("Authorization" -> "sampleToken")
+    .willRespondWith()
+    .status(200)
+    .body(
+      Json.obj("id" -> "".asJson, "value" -> 123.asJson)
+    )
+    .toPact()
 
 }

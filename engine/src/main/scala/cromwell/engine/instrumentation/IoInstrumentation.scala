@@ -27,6 +27,7 @@ private object IoInstrumentationImplicits {
     * Augments IoResult to provide instrumentation conversion methods
     */
   implicit class InstrumentedIoResult(val ioResult: IoResult) extends AnyVal {
+
     /**
       * Returns the instrumentation path of this IoResult
       */
@@ -34,6 +35,7 @@ private object IoInstrumentationImplicits {
       case (_: IoSuccess[_], ioCommandContext) => ioCommandContext.request.successPath
       case (f: IoFailAck[_], ioCommandContext) => ioCommandContext.request.failedPath(f.failure)
     }
+
     /**
       * Returns the instrumentation path of this IoResult
       */
@@ -44,19 +46,22 @@ private object IoInstrumentationImplicits {
     * Augments IoCommand to provide instrumentation conversion methods
     */
   implicit class InstrumentedIoCommand(val ioCommand: IoCommand[_]) extends AnyVal {
+
     /**
       * Returns the instrumentation path of this IoCommand
       */
     def toPath: InstrumentationPath = {
       val path = ioCommand match {
-        case copy: IoCopyCommand => (copy.source, copy.destination) match {
-          case (_: GcsPath, _) | (_, _: GcsPath) => GcsPath
-          case _ => LocalPath
-        }
-        case singleFileCommand: SingleFileIoCommand[_] => singleFileCommand.file match {
-          case _: GcsPath => GcsPath
-          case _ => LocalPath
-        }
+        case copy: IoCopyCommand =>
+          (copy.source, copy.destination) match {
+            case (_: GcsPath, _) | (_, _: GcsPath) => GcsPath
+            case _ => LocalPath
+          }
+        case singleFileCommand: SingleFileIoCommand[_] =>
+          singleFileCommand.file match {
+            case _: GcsPath => GcsPath
+            case _ => LocalPath
+          }
         case _ => UnknownFileSystemPath
       }
 
@@ -71,16 +76,14 @@ private object IoInstrumentationImplicits {
     /**
       * Returns a failed instrumentation path for this IoCommand provided a throwable
       */
-    def failedPath(failure: Throwable): InstrumentationPath = {
+    def failedPath(failure: Throwable): InstrumentationPath =
       ioCommand.toPath.concatNel(FailureKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
-    }
 
     /**
       * Returns a retried instrumentation path for this IoCommand provided a throwable
       */
-    def retriedPath(failure: Throwable): InstrumentationPath = {
+    def retriedPath(failure: Throwable): InstrumentationPath =
       ioCommand.toPath.concatNel(RetryKey).withStatusCodeFailure(GoogleUtil.extractStatusCode(failure))
-    }
   }
 }
 
@@ -100,7 +103,9 @@ trait IoInstrumentation extends CromwellInstrumentationActor { this: Actor =>
     */
   final def instrumentIoResult(ioResult: IoResult): Unit = {
     incrementIo(ioResult.toCounterPath)
-    sendTiming(ioResult.toDurationPath, (OffsetDateTime.now.toEpochSecond - ioResult._2.creationTime.toEpochSecond).seconds)
+    sendTiming(ioResult.toDurationPath,
+               (OffsetDateTime.now.toEpochSecond - ioResult._2.creationTime.toEpochSecond).seconds
+    )
   }
 
   final def incrementBackpressure(): Unit = incrementIo(backpressure)
@@ -108,5 +113,7 @@ trait IoInstrumentation extends CromwellInstrumentationActor { this: Actor =>
   /**
     * Increment an IoCommand to the proper bucket depending on the request type.
     */
-  final def incrementIoRetry(ioCommand: IoCommand[_], failure: Throwable): Unit = incrementIo(ioCommand.retriedPath(failure))
+  final def incrementIoRetry(ioCommand: IoCommand[_], failure: Throwable): Unit = incrementIo(
+    ioCommand.retriedPath(failure)
+  )
 }

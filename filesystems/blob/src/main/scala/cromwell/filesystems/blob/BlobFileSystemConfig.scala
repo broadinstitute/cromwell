@@ -10,12 +10,12 @@ import java.util.UUID
 
 // WSM config is needed for accessing WSM-managed blob containers created in Terra workspaces.
 // If the identity executing Cromwell has native access to the blob container, this can be ignored.
-final case class WorkspaceManagerConfig(url: WorkspaceManagerURL,
-                                        overrideWsmAuthToken: Option[String]) // dev-only
+final case class WorkspaceManagerConfig(url: WorkspaceManagerURL, overrideWsmAuthToken: Option[String]) // dev-only
 
 final case class BlobFileSystemConfig(subscriptionId: Option[SubscriptionId],
                                       expiryBufferMinutes: Long,
-                                      workspaceManagerConfig: Option[WorkspaceManagerConfig])
+                                      workspaceManagerConfig: Option[WorkspaceManagerConfig]
+)
 
 object BlobFileSystemConfig {
 
@@ -36,8 +36,7 @@ object BlobFileSystemConfig {
         (wsmURL, overrideWsmAuthToken)
           .mapN(WorkspaceManagerConfig)
           .map(Option(_))
-      }
-      else None.validNel
+      } else None.validNel
 
     (subscriptionId, expiryBufferMinutes, wsmConfig)
       .mapN(BlobFileSystemConfig.apply)
@@ -45,16 +44,16 @@ object BlobFileSystemConfig {
   }
 
   private def parseString(config: Config, path: String) =
-    validate[String] { config.as[String](path) }
+    validate[String](config.as[String](path))
 
   private def parseStringOpt(config: Config, path: String) =
-    validate[Option[String]] { config.as[Option[String]](path) }
+    validate[Option[String]](config.as[Option[String]](path))
 
   private def parseUUIDOpt(config: Config, path: String) =
-    validate[Option[UUID]] { config.as[Option[String]](path).map(UUID.fromString) }
+    validate[Option[UUID]](config.as[Option[String]](path).map(UUID.fromString))
 
   private def parseLongOpt(config: Config, path: String) =
-    validate[Option[Long]] { config.as[Option[Long]](path) }
+    validate[Option[Long]](config.as[Option[Long]](path))
 }
 
 // Our filesystem setup magic can't use BlobFileSystemConfig.apply directly, so we need this

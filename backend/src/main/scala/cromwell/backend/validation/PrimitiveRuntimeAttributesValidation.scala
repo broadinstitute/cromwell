@@ -44,24 +44,24 @@ sealed trait PrimitiveRuntimeAttributesValidation[A, B <: WomPrimitive] extends 
   protected def validateCoercedValue(womValue: B): ErrorOr[A]
 }
 
-class BooleanRuntimeAttributesValidation(override val key: String) extends
-  PrimitiveRuntimeAttributesValidation[Boolean, WomBoolean] {
+class BooleanRuntimeAttributesValidation(override val key: String)
+    extends PrimitiveRuntimeAttributesValidation[Boolean, WomBoolean] {
 
   override val womType = WomBooleanType
 
   override protected def validateCoercedValue(womValue: WomBoolean): ErrorOr[Boolean] = womValue.value.validNel
 }
 
-class FloatRuntimeAttributesValidation(override val key: String) extends
-  PrimitiveRuntimeAttributesValidation[Double, WomFloat] {
+class FloatRuntimeAttributesValidation(override val key: String)
+    extends PrimitiveRuntimeAttributesValidation[Double, WomFloat] {
 
   override val womType = WomFloatType
 
   override protected def validateCoercedValue(womValue: WomFloat): ErrorOr[Double] = womValue.value.validNel
 }
 
-class IntRuntimeAttributesValidation(override val key: String) extends
-  PrimitiveRuntimeAttributesValidation[Int, WomInteger] {
+class IntRuntimeAttributesValidation(override val key: String)
+    extends PrimitiveRuntimeAttributesValidation[Int, WomInteger] {
 
   override val womType = WomIntegerType
 
@@ -70,18 +70,19 @@ class IntRuntimeAttributesValidation(override val key: String) extends
   override protected def typeString: String = "an Integer"
 }
 
-class PositiveIntRuntimeAttributesValidation(override val key: String) extends
-  PrimitiveRuntimeAttributesValidation[Int Refined Positive, WomInteger] {
+class PositiveIntRuntimeAttributesValidation(override val key: String)
+    extends PrimitiveRuntimeAttributesValidation[Int Refined Positive, WomInteger] {
 
   override val womType = WomIntegerType
 
-  override protected def validateCoercedValue(womValue: WomInteger): ErrorOr[Int Refined Positive] = refineV[Positive](womValue.value).leftMap(NonEmptyList.one).toValidated
+  override protected def validateCoercedValue(womValue: WomInteger): ErrorOr[Int Refined Positive] =
+    refineV[Positive](womValue.value).leftMap(NonEmptyList.one).toValidated
 
   override protected def typeString: String = "an Integer"
 }
 
-class StringRuntimeAttributesValidation(override val key: String) extends
-  PrimitiveRuntimeAttributesValidation[String, WomString] {
+class StringRuntimeAttributesValidation(override val key: String)
+    extends PrimitiveRuntimeAttributesValidation[String, WomString] {
 
   override val womType = WomStringType
 

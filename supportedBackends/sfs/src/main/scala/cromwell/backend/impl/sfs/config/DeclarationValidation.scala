@@ -14,9 +14,10 @@ import scala.annotation.tailrec
   * Creates instances of runtime attribute validations from WDL declarations.
   */
 object DeclarationValidation {
-  def fromDeclarations(declarations: Seq[Declaration], callCachedRuntimeAttributes: Map[String, Boolean]): Seq[DeclarationValidation] = {
+  def fromDeclarations(declarations: Seq[Declaration],
+                       callCachedRuntimeAttributes: Map[String, Boolean]
+  ): Seq[DeclarationValidation] =
     declarations map fromDeclaration(callCachedRuntimeAttributesMap = callCachedRuntimeAttributes) _
-  }
 
   /**
     * Create a runtime attribute validation from a WDL declaration.
@@ -24,22 +25,23 @@ object DeclarationValidation {
     * @param declaration The declaration.
     * @return The DeclarationValidation object for the declaration.
     */
-  def fromDeclaration(callCachedRuntimeAttributesMap: Map[String, Boolean])(declaration: Declaration): DeclarationValidation = {
+  def fromDeclaration(
+    callCachedRuntimeAttributesMap: Map[String, Boolean]
+  )(declaration: Declaration): DeclarationValidation =
     declaration.unqualifiedName match {
       // Docker and CPU are special keys understood by cromwell.
       case name if name == DockerValidation.instance.key =>
         new DeclarationValidation(declaration, DockerValidation.instance, usedInCallCachingOverride = None)
       case RuntimeAttributesKeys.CpuKey => new CpuDeclarationValidation(declaration, CpuValidation.instance)
-      case RuntimeAttributesKeys.CpuMinKey => new CpuDeclarationValidation(declaration, CpuValidation.instanceMin)
-      case RuntimeAttributesKeys.CpuMaxKey => new CpuDeclarationValidation(declaration, CpuValidation.instanceMax)
       // See MemoryDeclarationValidation for more info
-      case name if MemoryDeclarationValidation.isMemoryDeclaration(name, MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix) =>
+      case name
+          if MemoryDeclarationValidation.isMemoryDeclaration(name,
+                                                             MemoryRuntimeAttribute,
+                                                             MemoryRuntimeAttributePrefix
+          ) =>
         new MemoryDeclarationValidation(declaration, MemoryRuntimeAttribute, MemoryRuntimeAttributePrefix)
-      case name if MemoryDeclarationValidation.isMemoryDeclaration(name, MemoryMinRuntimeAttribute, MemoryRuntimeAttributePrefix) =>
-        new MemoryDeclarationValidation(declaration, MemoryMinRuntimeAttribute, MemoryMinRuntimeAttributePrefix)
-      case name if MemoryDeclarationValidation.isMemoryDeclaration(name, MemoryMaxRuntimeAttribute, MemoryRuntimeAttributePrefix) =>
-        new MemoryDeclarationValidation(declaration, MemoryMaxRuntimeAttribute, MemoryMaxRuntimeAttributePrefix)
-      case name if MemoryDeclarationValidation.isMemoryDeclaration(name, DiskRuntimeAttribute, DiskRuntimeAttributePrefix) =>
+      case name
+          if MemoryDeclarationValidation.isMemoryDeclaration(name, DiskRuntimeAttribute, DiskRuntimeAttributePrefix) =>
         new MemoryDeclarationValidation(declaration, DiskRuntimeAttribute, DiskRuntimeAttributePrefix)
       // All other declarations must be a Boolean, Float, Integer, or String.
       case _ =>
@@ -50,10 +52,9 @@ object DeclarationValidation {
           usedInCallCachingOverride = callCachedRuntimeAttributesMap.get(declaration.unqualifiedName)
         )
     }
-  }
 
   @tailrec
-  private def validator(womType: WomType, unqualifiedName: String): PrimitiveRuntimeAttributesValidation[_, _] = {
+  private def validator(womType: WomType, unqualifiedName: String): PrimitiveRuntimeAttributesValidation[_, _] =
     womType match {
       case WomBooleanType => new BooleanRuntimeAttributesValidation(unqualifiedName)
       case WomFloatType => new FloatRuntimeAttributesValidation(unqualifiedName)
@@ -62,7 +63,6 @@ object DeclarationValidation {
       case WomOptionalType(x) => validator(x, unqualifiedName)
       case other => throw new RuntimeException(s"Unsupported config runtime attribute $other $unqualifiedName")
     }
-  }
 }
 
 /**
@@ -71,7 +71,10 @@ object DeclarationValidation {
   * @param declaration        The declaration from the config "runtime-attributes".
   * @param instanceValidation A basic instance validation for the declaration.
   */
-class DeclarationValidation(declaration: Declaration, instanceValidation: RuntimeAttributesValidation[_], usedInCallCachingOverride: Option[Boolean]) {
+class DeclarationValidation(declaration: Declaration,
+                            instanceValidation: RuntimeAttributesValidation[_],
+                            usedInCallCachingOverride: Option[Boolean]
+) {
   val key: String = declaration.unqualifiedName
 
   /**
@@ -97,12 +100,16 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     // As a first approximation, think "caseClass.copy, but for validation functions"
     // In this case, we might (or might not) want to make our validations:
     // 1. have defaults:
-    val validationWithDefault = if (declaration.expression.isDefined) default(instanceValidation, declaration.expression.get) else instanceValidation
+    val validationWithDefault =
+      if (declaration.expression.isDefined) default(instanceValidation, declaration.expression.get)
+      else instanceValidation
     // 2. be optional:
-    val validationWithDefaultAndOptionality = if (declaration.womType.isInstanceOf[WomOptionalType]) validationWithDefault.optional else validationWithDefault
+    val validationWithDefaultAndOptionality =
+      if (declaration.womType.isInstanceOf[WomOptionalType]) validationWithDefault.optional else validationWithDefault
     // Or 3. have customized call caching properties:
     val validationWithDefaultAndOptionalityAndCallCaching = usedInCallCachingOverride match {
-      case Some(usedInCallCachingValue) => RuntimeAttributesValidation.withUsedInCallCaching(validationWithDefaultAndOptionality, usedInCallCachingValue)
+      case Some(usedInCallCachingValue) =>
+        RuntimeAttributesValidation.withUsedInCallCaching(validationWithDefaultAndOptionality, usedInCallCachingValue)
       case None => validationWithDefaultAndOptionality
     }
 
@@ -117,9 +124,9 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     * @return A new copy of the validation with the default value.
     */
   protected def default(validation: RuntimeAttributesValidation[_],
-                        wdlExpression: WdlExpression): RuntimeAttributesValidation[_] = {
+                        wdlExpression: WdlExpression
+  ): RuntimeAttributesValidation[_] =
     validation.withDefault(wdlExpression.evaluate(NoLookup, NoFunctions).get)
-  }
 
   /**
     * Utility to get the value of this declaration from a collection of validated runtime attributes.
@@ -127,9 +134,8 @@ class DeclarationValidation(declaration: Declaration, instanceValidation: Runtim
     * @param validatedRuntimeAttributes The validated attributes.
     * @return The value from the collection wrapped in `Some`, or `None` if the value wasn't found.
     */
-  def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WomValue] = {
+  def extractWdlValueOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[WomValue] =
     RuntimeAttributesValidation.extractOption(instanceValidation, validatedRuntimeAttributes) map {
       declaration.womType.coerceRawValue(_).get
     }
-  }
 }

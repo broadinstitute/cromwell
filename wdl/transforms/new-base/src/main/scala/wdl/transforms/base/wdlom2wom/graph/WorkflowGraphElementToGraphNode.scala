@@ -17,16 +17,18 @@ import wom.graph._
 import wom.graph.expression.ExposedExpressionNode
 import wom.types.WomType
 import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.{expressionElementWriter, typeElementWriter}
 
 object WorkflowGraphElementToGraphNode {
-  def convert(a: GraphNodeMakerInputs)
-             (implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
-              fileEvaluator: FileEvaluator[ExpressionElement],
-              typeEvaluator: TypeEvaluator[ExpressionElement],
-              valueEvaluator: ValueEvaluator[ExpressionElement]): ErrorOr[Set[GraphNode]] = a.node match {
+  def convert(a: GraphNodeMakerInputs)(implicit
+    expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+    fileEvaluator: FileEvaluator[ExpressionElement],
+    typeEvaluator: TypeEvaluator[ExpressionElement],
+    valueEvaluator: ValueEvaluator[ExpressionElement]
+  ): ErrorOr[Set[GraphNode]] = a.node match {
     case ie: InputDeclarationElement =>
-      val inputNodeMakerInputs = GraphInputNodeMakerInputs(ie, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName)
+      val inputNodeMakerInputs =
+        GraphInputNodeMakerInputs(ie, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName)
       InputDeclarationElementToGraphNode.convert(inputNodeMakerInputs)
 
     case DeclarationElement(typeElement, name, Some(expr)) =>
@@ -38,11 +40,19 @@ object WorkflowGraphElementToGraphNode {
 
         val graphNode: ErrorOr[Set[GraphNode]] = a.node match {
           case _: InputDeclarationElement =>
-            Set[GraphNode](OptionalGraphInputNodeWithDefault.apply(WomIdentifier(name), womType, womExpr, name)).validNel
+            Set[GraphNode](
+              OptionalGraphInputNodeWithDefault.apply(WomIdentifier(name), womType, womExpr, name)
+            ).validNel
           case _: IntermediateValueDeclarationElement =>
-            ExposedExpressionNode.fromInputMapping(WomIdentifier(name), womExpr, womType, a.linkablePorts) map { Set(_) }
+            ExposedExpressionNode.fromInputMapping(WomIdentifier(name), womExpr, womType, a.linkablePorts) map {
+              Set(_)
+            }
           case _: OutputDeclarationElement =>
-            ExpressionBasedGraphOutputNode.fromInputMapping(WomIdentifier(name, s"${a.workflowName}.$name"), womExpr, womType, a.linkablePorts) map {Set(_)}
+            ExpressionBasedGraphOutputNode.fromInputMapping(WomIdentifier(name, s"${a.workflowName}.$name"),
+                                                            womExpr,
+                                                            womType,
+                                                            a.linkablePorts
+            ) map { Set(_) }
         }
 
         (correctType, graphNode) mapN { (_, gn) => gn }
@@ -50,15 +60,46 @@ object WorkflowGraphElementToGraphNode {
       result.contextualizeErrors(s"process declaration '${typeElement.toWdlV1} $name = ${expr.toWdlV1}'")
 
     case se: ScatterElement =>
-      val scatterMakerInputs = ScatterNodeMakerInputs(se, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.convertNestedScatterToSubworkflow, a.allowNestedInputs, a.callables)
+      val scatterMakerInputs = ScatterNodeMakerInputs(
+        se,
+        a.upstreamCalls,
+        a.linkableValues,
+        a.linkablePorts,
+        a.availableTypeAliases,
+        a.workflowName,
+        a.insideAScatter,
+        a.convertNestedScatterToSubworkflow,
+        a.allowNestedInputs,
+        a.callables
+      )
       ScatterElementToGraphNode.convert(scatterMakerInputs)
 
     case ie: IfElement =>
-      val ifMakerInputs = ConditionalNodeMakerInputs(ie, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.convertNestedScatterToSubworkflow, a.allowNestedInputs, a.callables)
+      val ifMakerInputs = ConditionalNodeMakerInputs(
+        ie,
+        a.upstreamCalls,
+        a.linkableValues,
+        a.linkablePorts,
+        a.availableTypeAliases,
+        a.workflowName,
+        a.insideAScatter,
+        a.convertNestedScatterToSubworkflow,
+        a.allowNestedInputs,
+        a.callables
+      )
       IfElementToGraphNode.convert(ifMakerInputs)
 
     case ce: CallElement =>
-      val callNodeMakerInputs = CallNodeMakerInputs(ce, a.upstreamCalls, a.linkableValues, a.linkablePorts, a.availableTypeAliases, a.workflowName, a.insideAScatter, a.allowNestedInputs, a.callables)
+      val callNodeMakerInputs = CallNodeMakerInputs(ce,
+                                                    a.upstreamCalls,
+                                                    a.linkableValues,
+                                                    a.linkablePorts,
+                                                    a.availableTypeAliases,
+                                                    a.workflowName,
+                                                    a.insideAScatter,
+                                                    a.allowNestedInputs,
+                                                    a.callables
+      )
       CallElementToGraphNode.convert(callNodeMakerInputs)
   }
 
@@ -80,6 +121,7 @@ final case class GraphNodeMakerInputs(node: WorkflowGraphElement,
                                       availableTypeAliases: Map[String, WomType],
                                       workflowName: String,
                                       insideAScatter: Boolean,
-                                      convertNestedScatterToSubworkflow : Boolean,
+                                      convertNestedScatterToSubworkflow: Boolean,
                                       allowNestedInputs: Boolean,
-                                      callables: Map[String, Callable])
+                                      callables: Map[String, Callable]
+)

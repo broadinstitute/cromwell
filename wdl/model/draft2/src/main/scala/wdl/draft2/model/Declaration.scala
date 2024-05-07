@@ -6,12 +6,18 @@ import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import wdl.draft2.model
 import wdl.draft2.model.AstTools.EnhancedAstNode
 import wdl.draft2.parser.WdlParser.{Ast, AstNode}
-import wom.callable.Callable.{InputDefinition, OverridableInputDefinitionWithDefault, OptionalInputDefinition, RequiredInputDefinition}
+import wom.callable.Callable.{
+  InputDefinition,
+  OptionalInputDefinition,
+  OverridableInputDefinitionWithDefault,
+  RequiredInputDefinition
+}
 import wom.graph._
 import wom.graph.expression.{ExposedExpressionNode, ExpressionNode}
 import wom.types.{WomArrayType, WomOptionalType, WomType}
 
 object DeclarationInterface {
+
   /**
     * Depending on who is asking, the type of a declaration can vary.
     * e.g
@@ -30,15 +36,14 @@ object DeclarationInterface {
     *   Array[String] s2 = a.o # Outside the scatter it's an Array[String]
     * }
     */
-  def relativeWdlType(from: Scope, target: DeclarationInterface, womType: WomType): WomType = {
+  def relativeWdlType(from: Scope, target: DeclarationInterface, womType: WomType): WomType =
     target.closestCommonAncestor(from) map { ancestor =>
-      target.ancestrySafe.takeWhile(_ != ancestor).foldLeft(womType){
+      target.ancestrySafe.takeWhile(_ != ancestor).foldLeft(womType) {
         case (acc, _: Scatter) => WomArrayType(acc)
         case (acc, _: If) => WomOptionalType(acc).flatOptionalType
         case (acc, _) => acc
       }
     } getOrElse womType
-  }
 }
 
 /**
@@ -90,9 +95,8 @@ trait DeclarationInterface extends WdlGraphNodeWithUpstreamReferences {
 
   final lazy val upstreamReferences = expression.toSeq.flatMap(_.variableReferences(this))
 
-  override def toString: String = {
+  override def toString: String =
     s"[Declaration type=${womType.stableName} name=$unqualifiedName expr=${expression.map(_.toWomString)}]"
-  }
 }
 
 object Declaration {
@@ -114,7 +118,7 @@ object Declaration {
   final case class IntermediateValueDeclarationNode(expressionNode: ExpressionNode) extends WdlDeclarationNode
   final case class GraphOutputDeclarationNode(graphOutputNode: GraphOutputNode) extends WdlDeclarationNode
 
-  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Declaration = {
+  def apply(ast: Ast, wdlSyntaxErrorFormatter: WdlSyntaxErrorFormatter, parent: Option[Scope]): Declaration =
     Declaration(
       ast.getAttribute("type").womType(wdlSyntaxErrorFormatter),
       ast.getAttribute("name").sourceString,
@@ -125,31 +129,62 @@ object Declaration {
       parent,
       ast
     )
-  }
 
-  def buildWdlDeclarationNode(decl: DeclarationInterface, localLookup: Map[String, GraphNodePort.OutputPort], outerLookup: Map[String, GraphNodePort.OutputPort], preserveIndexForOuterLookups: Boolean): ErrorOr[WdlDeclarationNode] = {
+  def buildWdlDeclarationNode(decl: DeclarationInterface,
+                              localLookup: Map[String, GraphNodePort.OutputPort],
+                              outerLookup: Map[String, GraphNodePort.OutputPort],
+                              preserveIndexForOuterLookups: Boolean
+  ): ErrorOr[WdlDeclarationNode] = {
 
     def declarationAsExpressionNode(wdlExpression: WdlExpression) = {
       val womExpression = WdlWomExpression(wdlExpression, decl)
       for {
-        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups, decl)
-        expressionNode <- ExposedExpressionNode.fromInputMapping(decl.womIdentifier, womExpression, decl.womType, inputMapping)
+        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression,
+                                                                 localLookup,
+                                                                 outerLookup,
+                                                                 preserveIndexForOuterLookups,
+                                                                 decl
+        )
+        expressionNode <- ExposedExpressionNode.fromInputMapping(decl.womIdentifier,
+                                                                 womExpression,
+                                                                 decl.womType,
+                                                                 inputMapping
+        )
       } yield IntermediateValueDeclarationNode(expressionNode)
     }
 
     def workflowOutputAsGraphOutputNode(wdlExpression: WdlExpression) = {
       val womExpression = WdlWomExpression(wdlExpression, decl)
       for {
-        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression, localLookup, outerLookup, preserveIndexForOuterLookups, decl)
-        graphOutputNode <- ExpressionBasedGraphOutputNode.fromInputMapping(decl.womIdentifier, womExpression, decl.womType, inputMapping)
+        inputMapping <- WdlWomExpression.findInputsforExpression(womExpression,
+                                                                 localLookup,
+                                                                 outerLookup,
+                                                                 preserveIndexForOuterLookups,
+                                                                 decl
+        )
+        graphOutputNode <- ExpressionBasedGraphOutputNode.fromInputMapping(decl.womIdentifier,
+                                                                           womExpression,
+                                                                           decl.womType,
+                                                                           inputMapping
+        )
       } yield GraphOutputDeclarationNode(graphOutputNode)
     }
 
     def asWorkflowInput(inputDefinition: InputDefinition): GraphInputNode = inputDefinition match {
-      case RequiredInputDefinition(_, womType, _, _) => RequiredGraphInputNode(decl.womIdentifier, womType, decl.womIdentifier.fullyQualifiedName.value)
-      case OptionalInputDefinition(_, optionalType, _, _) => OptionalGraphInputNode(decl.womIdentifier, optionalType, decl.womIdentifier.fullyQualifiedName.value)
-      case OverridableInputDefinitionWithDefault(_, womType, default, _, _) => OptionalGraphInputNodeWithDefault(decl.womIdentifier, womType, default, decl.womIdentifier.fullyQualifiedName.value)
-      case other => throw new RuntimeException(s"Programmer Error! If you got here you probably changed draft 2 to try to do some draft 3 like things, but this draft 2 function isn't set up to produce or handle ${other.getClass.getSimpleName} yet!")
+      case RequiredInputDefinition(_, womType, _, _) =>
+        RequiredGraphInputNode(decl.womIdentifier, womType, decl.womIdentifier.fullyQualifiedName.value)
+      case OptionalInputDefinition(_, optionalType, _, _) =>
+        OptionalGraphInputNode(decl.womIdentifier, optionalType, decl.womIdentifier.fullyQualifiedName.value)
+      case OverridableInputDefinitionWithDefault(_, womType, default, _, _) =>
+        OptionalGraphInputNodeWithDefault(decl.womIdentifier,
+                                          womType,
+                                          default,
+                                          decl.womIdentifier.fullyQualifiedName.value
+        )
+      case other =>
+        throw new RuntimeException(
+          s"Programmer Error! If you got here you probably changed draft 2 to try to do some draft 3 like things, but this draft 2 function isn't set up to produce or handle ${other.getClass.getSimpleName} yet!"
+        )
     }
 
     (decl.asWorkflowInput, decl) match {
@@ -165,4 +200,5 @@ case class Declaration(womType: WomType,
                        unqualifiedName: String,
                        expression: Option[WdlExpression],
                        override val parent: Option[Scope],
-                       ast: Ast) extends DeclarationInterface
+                       ast: Ast
+) extends DeclarationInterface

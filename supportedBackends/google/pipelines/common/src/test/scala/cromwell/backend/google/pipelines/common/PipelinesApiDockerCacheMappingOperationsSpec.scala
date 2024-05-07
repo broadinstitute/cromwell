@@ -14,7 +14,7 @@ import common.mock.MockSugar
 import scala.io.Source
 
 class PipelinesApiDockerCacheMappingOperationsSpec
-  extends AnyFlatSpecLike
+    extends AnyFlatSpecLike
     with CromwellTimeoutSpec
     with Matchers
     with MockSugar
@@ -25,19 +25,18 @@ class PipelinesApiDockerCacheMappingOperationsSpec
   it should "successfully parse docker image cache manifest JSON file as instance of Map[String, String]" in {
     val expectedManifest = DockerImageCacheManifest(
       manifestFormatVersion = 2,
-      dockerImageCacheMap =
-        Map(
-          "project1/dockerImage1" ->
-            DockerImageCacheEntry(
-              "sha256:c73e11b1a7854f31ff12c607738bef7b0560a880dc9d0445dde084acc0e9da09",
-              "projects/some-google-project/global/images/dockerCacheDiskForDockerImage1"
-            ),
-          "project2/dockerImage2" ->
-            DockerImageCacheEntry(
-              "sha256:7eb386481d87e41ebddceb948f25379bb339784df5247a3dfbdea2ac101b10c0",
-              "projects/another-google-project/global/images/dockerCacheDiskForDockerImage2"
-            )
-        )
+      dockerImageCacheMap = Map(
+        "project1/dockerImage1" ->
+          DockerImageCacheEntry(
+            "sha256:c73e11b1a7854f31ff12c607738bef7b0560a880dc9d0445dde084acc0e9da09",
+            "projects/some-google-project/global/images/dockerCacheDiskForDockerImage1"
+          ),
+        "project2/dockerImage2" ->
+          DockerImageCacheEntry(
+            "sha256:7eb386481d87e41ebddceb948f25379bb339784df5247a3dfbdea2ac101b10c0",
+            "projects/another-google-project/global/images/dockerCacheDiskForDockerImage2"
+          )
+      )
     )
 
     val testJsonFileName = "docker-image-cache-manifest.json"
@@ -46,9 +45,12 @@ class PipelinesApiDockerCacheMappingOperationsSpec
 
     val mockJsonBlob = {
       val mockBlob = mock[Blob]
-      val testJsonAsByteArray = Source.fromInputStream(
-        Thread.currentThread.getContextClassLoader.getResourceAsStream(testJsonFileName)
-      ).mkString.getBytes
+      val testJsonAsByteArray = Source
+        .fromInputStream(
+          Thread.currentThread.getContextClassLoader.getResourceAsStream(testJsonFileName)
+        )
+        .mkString
+        .getBytes
 
       when(mockBlob.getContent()).thenReturn(testJsonAsByteArray)
       mockBlob
@@ -60,8 +62,12 @@ class PipelinesApiDockerCacheMappingOperationsSpec
       mockClient
     }
 
-    val readFileFromGcsPrivateMethod = PrivateMethod[IO[DockerImageCacheManifest]](Symbol("readDockerImageCacheManifestFileFromGCS"))
-    val parsedJsonAsManifestIO = pipelinesApiDockerCacheMappingOperationsMock invokePrivate readFileFromGcsPrivateMethod(mockGcsClient, testJsonGcsPath)
+    val readFileFromGcsPrivateMethod =
+      PrivateMethod[IO[DockerImageCacheManifest]](Symbol("readDockerImageCacheManifestFileFromGCS"))
+    val parsedJsonAsManifestIO =
+      pipelinesApiDockerCacheMappingOperationsMock invokePrivate readFileFromGcsPrivateMethod(mockGcsClient,
+                                                                                              testJsonGcsPath
+      )
     val parsedJsonAsManifest = parsedJsonAsManifestIO.unsafeRunSync()
 
     parsedJsonAsManifest.equals(expectedManifest) shouldBe true
@@ -72,7 +78,8 @@ class PipelinesApiDockerCacheMappingOperationsSpec
     val testDockerImageName = "test_madeup_docker_image"
     val testDockerImageDigest = "fake_docker_image_digest"
     val testDiskImageName = "fake_disk_image_name"
-    val dockerImageToCacheDiskImageMapping = Map(testDockerImageName -> DockerImageCacheEntry(testDockerImageDigest, testDiskImageName))
+    val dockerImageToCacheDiskImageMapping =
+      Map(testDockerImageName -> DockerImageCacheEntry(testDockerImageDigest, testDiskImageName))
     val dockerImageCacheDiskOpt =
       pipelinesApiDockerCacheMappingOperationsMock.getDockerCacheDiskImageForAJob(
         dockerImageToCacheDiskImageMappingOpt = Option(dockerImageToCacheDiskImageMapping),
@@ -89,7 +96,8 @@ class PipelinesApiDockerCacheMappingOperationsSpec
     val testDockerImageName = "test_madeup_docker_image"
     val testDockerImageDigest = "fake_docker_image_digest"
     val expectedDiskImageName = "fake_disk_image_name"
-    val dockerImageToCacheDiskImageMapping = Map(testDockerImageName -> DockerImageCacheEntry(testDockerImageDigest, expectedDiskImageName))
+    val dockerImageToCacheDiskImageMapping =
+      Map(testDockerImageName -> DockerImageCacheEntry(testDockerImageDigest, expectedDiskImageName))
     val dockerImageCacheDiskOpt =
       pipelinesApiDockerCacheMappingOperationsMock.getDockerCacheDiskImageForAJob(
         dockerImageToCacheDiskImageMappingOpt = Option(dockerImageToCacheDiskImageMapping),
@@ -107,7 +115,8 @@ class PipelinesApiDockerCacheMappingOperationsSpec
     val testDockerImageNameSpecifiedByUser = "test_non_cached_docker_image"
     val testDockerImageDigest = "fake_docker_image_digest"
     val testDiskImageName = "fake_disk_image_name"
-    val dockerImageToCacheDiskImageMapping = Map(testCachedDockerImageName -> DockerImageCacheEntry(testDockerImageDigest, testDiskImageName))
+    val dockerImageToCacheDiskImageMapping =
+      Map(testCachedDockerImageName -> DockerImageCacheEntry(testDockerImageDigest, testDiskImageName))
     val dockerImageCacheDiskOpt =
       pipelinesApiDockerCacheMappingOperationsMock.getDockerCacheDiskImageForAJob(
         dockerImageToCacheDiskImageMappingOpt = Option(dockerImageToCacheDiskImageMapping),

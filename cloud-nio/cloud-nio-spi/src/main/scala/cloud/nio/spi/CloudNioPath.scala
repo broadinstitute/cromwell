@@ -9,12 +9,11 @@ import scala.jdk.CollectionConverters._
 
 object CloudNioPath {
 
-  def checkPath(path: Path): CloudNioPath = {
+  def checkPath(path: Path): CloudNioPath =
     path match {
       case cloudNioPath: CloudNioPath => cloudNioPath
-      case _                          => throw new ProviderMismatchException(s"Not a CloudNioPath: $path")
+      case _ => throw new ProviderMismatchException(s"Not a CloudNioPath: $path")
     }
-  }
 }
 
 class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: UnixPath) extends Path {
@@ -65,13 +64,12 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
   /**
     * If is relative, returns just the normalized path. If is absolute, return the host + the absolute path.
     */
-  def relativeDependentPath: String = {
+  def relativeDependentPath: String =
     if (unixPath.isAbsolute) {
       cloudHost + "/" + unixPath.toString.stripPrefix("/")
     } else {
       unixPath.normalize().toString
     }
-  }
 
   /**
     * Returns true if the path probably represents a directory, but won't be known until contacting the host.
@@ -84,30 +82,25 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
 
   override def isAbsolute: Boolean = unixPath.isAbsolute
 
-  override def getRoot: CloudNioPath = {
+  override def getRoot: CloudNioPath =
     unixPath.getRoot.map(newPath).orNull
-  }
 
-  override def getFileName: CloudNioPath = {
+  override def getFileName: CloudNioPath =
     unixPath.getFileName.map(newPath).orNull
-  }
 
-  override def getParent: CloudNioPath = {
+  override def getParent: CloudNioPath =
     unixPath.getParent.map(newPath).orNull
-  }
 
   override def getNameCount: Int = unixPath.getNameCount
 
-  override def getName(index: Int): CloudNioPath = {
+  override def getName(index: Int): CloudNioPath =
     unixPath.getName(index).map(newPath).getOrElse(throw new IllegalArgumentException(s"Bad index $index"))
-  }
 
-  override def subpath(beginIndex: Int, endIndex: Int): CloudNioPath = {
+  override def subpath(beginIndex: Int, endIndex: Int): CloudNioPath =
     unixPath
       .subPath(beginIndex, endIndex)
       .map(newPath)
       .getOrElse(throw new IllegalArgumentException(s"Bad range $beginIndex-$endIndex"))
-  }
 
   override def startsWith(other: Path): Boolean = {
     if (!other.isInstanceOf[CloudNioPath]) {
@@ -122,9 +115,8 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
     unixPath.startsWith(that.unixPath)
   }
 
-  override def startsWith(other: String): Boolean = {
+  override def startsWith(other: String): Boolean =
     unixPath.startsWith(UnixPath.getPath(other))
-  }
 
   override def endsWith(other: Path): Boolean = {
     if (!other.isInstanceOf[CloudNioPath]) {
@@ -138,9 +130,8 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
     unixPath.endsWith(that.unixPath)
   }
 
-  override def endsWith(other: String): Boolean = {
+  override def endsWith(other: String): Boolean =
     unixPath.endsWith(UnixPath.getPath(other))
-  }
 
   override def normalize(): CloudNioPath = newPath(unixPath.normalize())
 
@@ -150,9 +141,8 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
     newPath(unixPath.resolve(that.unixPath))
   }
 
-  override def resolve(other: String): CloudNioPath = {
+  override def resolve(other: String): CloudNioPath =
     newPath(unixPath.resolve(UnixPath.getPath(other)))
-  }
 
   override def resolveSibling(other: Path): CloudNioPath = {
     val that = CloudNioPath.checkPath(other)
@@ -160,9 +150,8 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
     newPath(unixPath.resolveSibling(that.unixPath))
   }
 
-  override def resolveSibling(other: String): CloudNioPath = {
+  override def resolveSibling(other: String): CloudNioPath =
     newPath(unixPath.resolveSibling(UnixPath.getPath(other)))
-  }
 
   override def relativize(other: Path): CloudNioPath = {
     val that = CloudNioPath.checkPath(other)
@@ -170,9 +159,8 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
     newPath(unixPath.relativize(that.unixPath))
   }
 
-  override def toAbsolutePath: CloudNioPath = {
+  override def toAbsolutePath: CloudNioPath =
     newPath(unixPath.toAbsolutePath)
-  }
 
   override def toRealPath(options: LinkOption*): CloudNioPath = toAbsolutePath
 
@@ -187,13 +175,12 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
     modifiers: WatchEvent.Modifier*
   ): WatchKey = throw new UnsupportedOperationException
 
-  override def iterator(): java.util.Iterator[Path] = {
-    if (unixPath.isEmpty || unixPath.isRoot) {
+  override def iterator(): java.util.Iterator[Path] =
+    if (unixPath.izEmpty || unixPath.isRoot) {
       java.util.Collections.emptyIterator()
     } else {
       unixPath.split().to(LazyList).map(part => newPath(UnixPath.getPath(part)).asInstanceOf[Path]).iterator.asJava
     }
-  }
 
   override def compareTo(other: Path): Int = {
     if (other.isInstanceOf[CloudNioPath]) {
@@ -209,22 +196,19 @@ class CloudNioPath(filesystem: CloudNioFileSystem, private[spi] val unixPath: Un
     unixPath.compareTo(that.unixPath)
   }
 
-  override def equals(obj: scala.Any): Boolean = {
+  override def equals(obj: scala.Any): Boolean =
     (this eq obj.asInstanceOf[AnyRef]) ||
-    obj.isInstanceOf[CloudNioPath] &&
-    obj.asInstanceOf[CloudNioPath].cloudHost.equals(cloudHost) &&
-    obj.asInstanceOf[CloudNioPath].unixPath.equals(unixPath)
-  }
+      obj.isInstanceOf[CloudNioPath] &&
+      obj.asInstanceOf[CloudNioPath].cloudHost.equals(cloudHost) &&
+      obj.asInstanceOf[CloudNioPath].unixPath.equals(unixPath)
 
-  override def hashCode(): Int = {
+  override def hashCode(): Int =
     Objects.hash(cloudHost, unixPath)
-  }
 
-  protected def newPath(unixPath: UnixPath): CloudNioPath = {
+  protected def newPath(unixPath: UnixPath): CloudNioPath =
     if (this.unixPath == unixPath) {
       this
     } else {
       new CloudNioPath(filesystem, unixPath)
     }
-  }
 }

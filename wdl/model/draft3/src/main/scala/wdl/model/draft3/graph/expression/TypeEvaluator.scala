@@ -9,6 +9,9 @@ import wom.types.WomType
 @typeclass
 trait TypeEvaluator[A] {
   def evaluateType(a: A,
-                   linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
-                  (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType]
+                   linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                   typeAliases: Map[String, WomType]
+  )(implicit
+    expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+  ): ErrorOr[WomType]
 }

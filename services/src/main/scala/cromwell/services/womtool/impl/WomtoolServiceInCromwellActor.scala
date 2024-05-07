@@ -11,17 +11,18 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with LazyLogging {
+class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends Actor
+    with LazyLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
 
   override def receive: Receive = {
-    case DescribeRequest(filesCollection) =>
-
+    case DescribeRequest(filesCollection, authProviders) =>
       // We are consciously wrapping a Future around the Await.result way down in the HTTP import resolver until we can update the whole call hierarchy to async
       // https://doc.akka.io/docs/akka/2.5.16/actors.html?language=scala#ask-send-and-receive-future
       Future {
-        Describer.describeWorkflow(filesCollection)
+        Describer.describeWorkflow(filesCollection, authProviders)
       } pipeTo sender()
       ()
     case ShutdownCommand =>
@@ -33,5 +34,6 @@ class WomtoolServiceInCromwellActor(serviceConfig: Config, globalConfig: Config,
 
 object WomtoolServiceInCromwellActor {
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) =
-    Props(new WomtoolServiceInCromwellActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
+    Props(new WomtoolServiceInCromwellActor(serviceConfig, globalConfig, serviceRegistryActor))
+      .withDispatcher(ServiceDispatcher)
 }

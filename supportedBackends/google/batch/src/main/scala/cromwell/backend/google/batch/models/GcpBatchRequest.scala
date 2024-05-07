@@ -6,4 +6,5 @@ import cromwell.core.WorkflowId
 case class GcpBatchRequest(workflowId: WorkflowId,
                            createParameters: CreateBatchJobParameters,
                            jobName: String,
-                           gcpBatchParameters: CreateGcpBatchParameters)
+                           gcpBatchParameters: CreateGcpBatchParameters
+)

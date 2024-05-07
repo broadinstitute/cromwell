@@ -12,7 +12,7 @@ package object standard {
       def unapply(arg: StandardAdHocValue): Option[LocalizedAdHocValue] = arg.select[LocalizedAdHocValue]
     }
   }
-  
+
   // This is used to represent an AdHocValue that might have been localized
   type StandardAdHocValue = AdHocValue :+: LocalizedAdHocValue :+: CNil
 }

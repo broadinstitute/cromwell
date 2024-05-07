@@ -98,11 +98,10 @@ object GcpBatchTestConfig {
   val BatchBackendConfig: Config = ConfigFactory.parseString(BatchBackendConfigString)
   val BatchGlobalConfig: Config = ConfigFactory.parseString(BatchGlobalConfigString)
   val BatchBackendNoDefaultConfig: Config = ConfigFactory.parseString(NoDefaultsConfigString)
-  val BatchBackendConfigurationDescriptor: BackendConfigurationDescriptor = {
+  val BatchBackendConfigurationDescriptor: BackendConfigurationDescriptor =
     new BackendConfigurationDescriptor(BatchBackendConfig, BatchGlobalConfig) {
       override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(BatchGlobalConfig)
     }
-  }
   val NoDefaultsConfigurationDescriptor: BackendConfigurationDescriptor =
     BackendConfigurationDescriptor(BatchBackendNoDefaultConfig, BatchGlobalConfig)
   def pathBuilders()(implicit as: ActorSystem): List[PathBuilder] =
@@ -110,5 +109,6 @@ object GcpBatchTestConfig {
   val googleConfiguration: GoogleConfiguration = GoogleConfiguration(BatchGlobalConfig)
   val batchAttributes: GcpBatchConfigurationAttributes =
     GcpBatchConfigurationAttributes(googleConfiguration, BatchBackendConfig, "batch")
-  val gcpBatchConfiguration = new GcpBatchConfiguration(BatchBackendConfigurationDescriptor, googleConfiguration,batchAttributes)
+  val gcpBatchConfiguration =
+    new GcpBatchConfiguration(BatchBackendConfigurationDescriptor, googleConfiguration, batchAttributes)
 }

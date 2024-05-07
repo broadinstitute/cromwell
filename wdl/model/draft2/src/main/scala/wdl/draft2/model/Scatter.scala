@@ -8,7 +8,9 @@ import wdl.draft2.parser.WdlParser.{Ast, Terminal}
   * @param item Item which this block is scattering over
   * @param collection Wdl Expression corresponding to the collection this scatter is looping through
   */
-case class Scatter(index: Int, item: String, collection: WdlExpression, ast: Ast) extends WdlGraphNodeWithUpstreamReferences with WorkflowScoped {
+case class Scatter(index: Int, item: String, collection: WdlExpression, ast: Ast)
+    extends WdlGraphNodeWithUpstreamReferences
+    with WorkflowScoped {
   val unqualifiedName = s"${Scatter.FQNIdentifier}_$index"
   override def appearsInFqn = false
 

@@ -2,10 +2,9 @@ package cromwell.backend.google.batch.models
 
 import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
+import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models.GcpBatchTestConfig._
 import cromwell.backend.validation.ContinueOnReturnCodeSet
-//import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk}
-import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
 import org.scalatest.TestSuite
@@ -21,7 +20,7 @@ import wom.values._
 import scala.util.{Failure, Success, Try}
 
 final class GcpBatchRuntimeAttributesSpec
-  extends AnyWordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with GcpBatchRuntimeAttributesSpecsMixin {
 
@@ -35,7 +34,10 @@ final class GcpBatchRuntimeAttributesSpec
     "use hardcoded defaults if not declared in task, workflow options, or config (except for docker)" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
       val expectedRuntimeAttributes = expectedDefaults
-      assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, batchConfiguration = noDefaultsBatchConfiguration)
+      assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes,
+                                                     expectedRuntimeAttributes,
+                                                     batchConfiguration = noDefaultsBatchConfiguration
+      )
     }
 
     "validate a valid Docker entry" in {
@@ -45,9 +47,8 @@ final class GcpBatchRuntimeAttributesSpec
     }
 
     "fail to validate an invalid Docker entry" in {
-      pending
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be String")
+      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String")
     }
 
     "validate a valid failOnStderr entry" in {
@@ -58,12 +59,19 @@ final class GcpBatchRuntimeAttributesSpec
 
     "fail to validate an invalid failOnStderr entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "failOnStderr" -> WomString("yes"))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'"
+      )
     }
 
     "fail to validate an invalid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomString("value"))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting returnCodes/continueOnReturnCode" +
+          " runtime attribute to be either a String '*', 'true', or 'false', a Boolean, or an Array[Int]."
+      )
     }
 
     "validate a valid cpu entry" in {
@@ -91,18 +99,30 @@ final class GcpBatchRuntimeAttributesSpec
 
     "fail to validate an invalid zones entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomInteger(1))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]")
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]"
+      )
     }
 
     "validate a valid array zones entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomArray(WomArrayType(WomStringType), List(WomString("us-central1-y"), WomString("us-central1-z"))))
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),
+                                  "zones" -> WomArray(WomArrayType(WomStringType),
+                                                      List(WomString("us-central1-y"), WomString("us-central1-z"))
+                                  )
+      )
       val expectedRuntimeAttributes = expectedDefaults.copy(zones = Vector("us-central1-y", "us-central1-z"))
       assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid array zones entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "zones" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2))))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]")
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),
+                                  "zones" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
+      )
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting zones runtime attribute to be either a whitespace separated String or an Array[String]"
+      )
     }
 
     "validate a valid preemptible entry" in {
@@ -114,7 +134,8 @@ final class GcpBatchRuntimeAttributesSpec
     "fail to validate an invalid preemptible entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("value"))
       assertBatchRuntimeAttributesFailedCreation(runtimeAttributes,
-        "Expecting preemptible runtime attribute to be an Integer")
+                                                 "Expecting preemptible runtime attribute to be an Integer"
+      )
     }
 
     "validate a valid bootDiskSizeGb entry" in {
@@ -125,24 +146,36 @@ final class GcpBatchRuntimeAttributesSpec
 
     "fail to validate an invalid bootDiskSizeGb entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "bootDiskSizeGb" -> WomString("4GB"))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting bootDiskSizeGb runtime attribute to be an Integer")
+      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes,
+                                                 "Expecting bootDiskSizeGb runtime attribute to be an Integer"
+      )
     }
 
-    //    "validate a valid disks entry" in {
-    //      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 20 SSD"))
-    //      val expectedRuntimeAttributes = expectedDefaults.copy(disks = Seq(GcpBatchAttachedDisk.parse("local-disk 20 SSD").get))
-    //      assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
-    //    }
+    "validate a valid disks entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 20 SSD"))
+      val expectedRuntimeAttributes =
+        expectedDefaults.copy(disks = Seq(GcpBatchAttachedDisk.parse("local-disk 20 SSD").get))
+      assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
 
-    //"fail to validate an invalid disks entry" in {
-    //  val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomInteger(10))
-    //  assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting disks runtime attribute to be a comma separated String or Array[String]")
-    //}
+    "fail to validate an invalid disks entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomInteger(10))
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting disks runtime attribute to be a comma separated String or Array[String]"
+      )
+    }
 
-    //"fail to validate a valid disks array entry" in {
-    //  val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomArray(WomArrayType(WomStringType), List(WomString("blah"), WomString("blah blah"))))
-    //  assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'")
-    //}
+    "fail to validate a valid disks array entry" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            "disks" -> WomArray(WomArrayType(WomStringType), List(WomString("blah"), WomString("blah blah")))
+        )
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE'"
+      )
+    }
 
     "validate a valid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("1 GB"))
@@ -152,7 +185,10 @@ final class GcpBatchRuntimeAttributesSpec
 
     "fail to validate an invalid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("blah"))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting memory runtime attribute to be an Integer or String with format '8 GB'"
+      )
     }
 
     "validate a valid noAddress entry" in {
@@ -164,7 +200,8 @@ final class GcpBatchRuntimeAttributesSpec
     "fail to validate an invalid noAddress entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "noAddress" -> WomInteger(1))
       assertBatchRuntimeAttributesFailedCreation(runtimeAttributes,
-        "Expecting noAddress runtime attribute to be a Boolean")
+                                                 "Expecting noAddress runtime attribute to be a Boolean"
+      )
     }
 
     "override config default attributes with default attributes declared in workflow options" in {
@@ -226,11 +263,14 @@ final class GcpBatchRuntimeAttributesSpec
 trait GcpBatchRuntimeAttributesSpecsMixin {
   this: TestSuite =>
 
-  def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions = {
-    WorkflowOptions(JsObject(Map(
-      "default_runtime_attributes" -> JsObject(defaults)
-    )))
-  }
+  def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]): WorkflowOptions =
+    WorkflowOptions(
+      JsObject(
+        Map(
+          "default_runtime_attributes" -> JsObject(defaults)
+        )
+      )
+    )
 
   val expectedDefaults = new GcpBatchRuntimeAttributes(
     cpu = refineMV(1),
@@ -253,7 +293,8 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
                                                      expectedRuntimeAttributes: GcpBatchRuntimeAttributes,
                                                      workflowOptions: WorkflowOptions = emptyWorkflowOptions,
                                                      defaultZones: NonEmptyList[String] = defaultZones,
-                                                     batchConfiguration: GcpBatchConfiguration = gcpBatchConfiguration): Unit = {
+                                                     batchConfiguration: GcpBatchConfiguration = gcpBatchConfiguration
+  ): Unit = {
     try {
       val actualRuntimeAttributes = toBatchRuntimeAttributes(runtimeAttributes, workflowOptions, batchConfiguration)
       assert(actualRuntimeAttributes == expectedRuntimeAttributes)
@@ -265,10 +306,13 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
 
   def assertBatchRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
                                                  exMsgs: List[String],
-                                                 workflowOptions: WorkflowOptions): Unit = {
+                                                 workflowOptions: WorkflowOptions
+  ): Unit = {
     Try(toBatchRuntimeAttributes(runtimeAttributes, workflowOptions, gcpBatchConfiguration)) match {
       case Success(oops) =>
-        fail(s"Expected error containing strings: ${exMsgs.map(s => s"'$s'").mkString(", ")} but instead got Success($oops)")
+        fail(
+          s"Expected error containing strings: ${exMsgs.map(s => s"'$s'").mkString(", ")} but instead got Success($oops)"
+        )
       case Failure(ex) => exMsgs foreach { exMsg => assert(ex.getMessage.contains(exMsg)) }
     }
     ()
@@ -276,23 +320,29 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
 
   def assertBatchRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
                                                  exMsg: String,
-                                                 workflowOptions: WorkflowOptions = emptyWorkflowOptions): Unit = {
+                                                 workflowOptions: WorkflowOptions = emptyWorkflowOptions
+  ): Unit =
     assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, List(exMsg), workflowOptions)
-  }
 
   def toBatchRuntimeAttributes(runtimeAttributes: Map[String, WomValue],
                                workflowOptions: WorkflowOptions,
-                               batchConfiguration: GcpBatchConfiguration): GcpBatchRuntimeAttributes = {
+                               batchConfiguration: GcpBatchConfiguration
+  ): GcpBatchRuntimeAttributes = {
     val runtimeAttributesBuilder = GcpBatchRuntimeAttributes.runtimeAttributesBuilder(batchConfiguration)
-    val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
-      staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
+    val defaultedAttributes =
+      RuntimeAttributeDefinition.addDefaultsToAttributes(staticRuntimeAttributeDefinitions, workflowOptions)(
+        runtimeAttributes
+      )
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
     GcpBatchRuntimeAttributes(validatedRuntimeAttributes, batchConfiguration.runtimeConfig)
   }
 
   val emptyWorkflowOptions: WorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
   val defaultZones: NonEmptyList[String] = NonEmptyList.of("us-central1-b", "us-central1-a")
-  val noDefaultsBatchConfiguration = new GcpBatchConfiguration(GcpBatchTestConfig.NoDefaultsConfigurationDescriptor, googleConfiguration, batchAttributes)
+  val noDefaultsBatchConfiguration = new GcpBatchConfiguration(GcpBatchTestConfig.NoDefaultsConfigurationDescriptor,
+                                                               googleConfiguration,
+                                                               batchAttributes
+  )
   val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     GcpBatchRuntimeAttributes.runtimeAttributesBuilder(GcpBatchTestConfig.gcpBatchConfiguration).definitions.toSet
 }

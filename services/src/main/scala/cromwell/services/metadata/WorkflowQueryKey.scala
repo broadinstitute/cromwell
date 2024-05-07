@@ -65,7 +65,7 @@ object WorkflowQueryKey {
 
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList
-      val nels:List[data.ValidatedNel[String,String]] = values map {
+      val nels: List[data.ValidatedNel[String, String]] = values map {
         case Patterns.WorkflowName(n) => n.validNel[String]
         case v => v.invalidNel[String]
       }
@@ -77,17 +77,15 @@ object WorkflowQueryKey {
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[Label]] = {
       val values = valuesFromMap(grouped).toList
 
-      def validateLabelRegex(labelKeyValue: String): ErrorOr[Label] = {
+      def validateLabelRegex(labelKeyValue: String): ErrorOr[Label] =
         labelKeyValue.split("\\:", 2) match {
           case Array(k, v) => Label.validateLabel(k, v)
           case _ => labelKeyValue.invalidNel
         }
-      }
       val nels: List[ErrorOr[Label]] = values map validateLabelRegex
       sequenceListOfValidatedNels("Label values do not match allowed pattern label-key:label-value", nels)
     }
   }
-
 
   case object LabelAndKeyValue extends LabelLikeKeyValue {
     override val name = "Label"
@@ -111,7 +109,8 @@ object WorkflowQueryKey {
     override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[List[String]] = {
       val values = valuesFromMap(grouped).toList
       val nels = values map { v =>
-        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.validNel[String] else s"invalid Id value: '$v'".invalidNel[String]
+        if (Try(WorkflowId.fromString(v.toLowerCase.capitalize)).isSuccess) v.validNel[String]
+        else s"invalid Id value: '$v'".invalidNel[String]
       }
       sequenceListOfValidatedNels("Id values do match allowed workflow id pattern", nels)
     }
@@ -150,11 +149,11 @@ object WorkflowQueryKey {
       /*
         The inclusion of `WorkflowMetadataKeys.ParentWorkflowId` is for backwards compatibility. As of #4381
         parentWorkflowId is always included, but we did not want to break old automated queries
-        */
+       */
       val allowedValues = Seq(WorkflowMetadataKeys.Labels, WorkflowMetadataKeys.ParentWorkflowId)
-      val nels: List[ErrorOr[String]] = values map { v => {
+      val nels: List[ErrorOr[String]] = values map { v =>
         allowedValues.contains(v).fold(v.validNel[String], v.invalidNel[String])
-      }}
+      }
       sequenceListOfValidatedNels(s"Keys should be from $allowedValues. Unrecognized values", nels)
     }
   }
@@ -177,13 +176,12 @@ object WorkflowQueryKey {
 sealed trait WorkflowQueryKey[T] {
   def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[T]
   def name: String
-  def valuesFromMap(grouped: Map[String, Seq[(String, String)]]): Seq[String] = {
+  def valuesFromMap(grouped: Map[String, Seq[(String, String)]]): Seq[String] =
     grouped.getOrElse(name, Seq.empty) map { _._2 }
-  }
 }
 
 sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[OffsetDateTime]] {
-  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[OffsetDateTime]] = {
+  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[OffsetDateTime]] =
     valuesFromMap(grouped).toList match {
       case vs if vs.lengthCompare(1) > 0 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Option[OffsetDateTime]]
@@ -195,11 +193,11 @@ sealed trait DateTimeWorkflowQueryKey extends WorkflowQueryKey[Option[OffsetDate
         }
       case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
-  }
   def displayName: String
 }
 
 sealed trait SeqWorkflowQueryKey[A] extends WorkflowQueryKey[Seq[A]] {
+
   /** `sequence` the `List[ErrorOr[A]]` to a single `ErrorOr[List[A]]` */
   protected def sequenceListOfValidatedNels(prefix: String, errorOrList: List[ErrorOr[A]]): ErrorOr[List[A]] = {
     val errorOr = errorOrList.sequence[ErrorOr, A]
@@ -210,38 +208,36 @@ sealed trait SeqWorkflowQueryKey[A] extends WorkflowQueryKey[Seq[A]] {
 }
 
 sealed trait IntWorkflowQueryKey extends WorkflowQueryKey[Option[Int]] {
-  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Int]] = {
+  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Option[Int]] =
     valuesFromMap(grouped).toList match {
       case vs if vs.lengthCompare(1) > 0 =>
         s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Option[Int]]
       case Nil => None.validNel
       case v :: Nil =>
         Try(v.toInt) match {
-          case Success(intVal) => if (intVal > 0) Option(intVal).validNel else s"Integer value not greater than 0".invalidNel[Option[Int]]
+          case Success(intVal) =>
+            if (intVal > 0) Option(intVal).validNel else s"Integer value not greater than 0".invalidNel[Option[Int]]
           case _ => s"Value given for $displayName does not parse as a integer: $v".invalidNel[Option[Int]]
         }
       case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
-  }
   def displayName: String
 }
 
 sealed trait BooleanWorkflowQueryKey extends WorkflowQueryKey[Boolean] {
-  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Boolean] = {
+  override def validate(grouped: Map[String, Seq[(String, String)]]): ErrorOr[Boolean] =
     valuesFromMap(grouped).toList match {
-      case vs if vs.lengthCompare(1) > 0 => s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Boolean]
+      case vs if vs.lengthCompare(1) > 0 =>
+        s"Found ${vs.size} values for key '$name' but at most one is allowed.".invalidNel[Boolean]
       case Nil => defaultBooleanValue.validNel
-      case v :: Nil => {
+      case v :: Nil =>
         Try(v.toBoolean) match {
           case Success(bool) => bool.validNel
           case _ => s"Value given for $displayName does not parse as a boolean: $v".invalidNel[Boolean]
         }
-      }
       case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
-  }
-   def displayName: String
+  def displayName: String
 
   def defaultBooleanValue: Boolean
 }
-

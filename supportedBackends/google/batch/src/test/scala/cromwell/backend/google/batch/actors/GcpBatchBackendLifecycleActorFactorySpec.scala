@@ -11,7 +11,6 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-
 class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matchers with TableDrivenPropertyChecks {
 
   "GcpBatchBackendLifecycleActorFactory" should "robustly build configuration attributes" in {
@@ -36,7 +35,8 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
       dockerImageToCacheDiskImageMappingOpt = None,
-      checkpointingInterval = 1 second)
+      checkpointingInterval = 1 second
+    )
 
     GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(() => attributes) shouldBe attributes
   }
@@ -54,7 +54,10 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
     forAll(fails) { (attempts, description, function) =>
       it should s"$description: make $attempts attribute creation attempts before giving up" in {
         val e = the[RuntimeException] thrownBy {
-          GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(function, initialIntervalMillis = 1, maxIntervalMillis = 5)
+          GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(function,
+                                                                     initialIntervalMillis = 1,
+                                                                     maxIntervalMillis = 5
+          )
         }
         e.getMessage should startWith(s"Failed to build GcpBatchConfigurationAttributes on attempt $attempts of 3")
       }

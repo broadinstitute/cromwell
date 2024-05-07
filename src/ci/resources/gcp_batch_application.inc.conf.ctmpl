@@ -67,7 +67,7 @@ filesystems.drs.global.config.resolver.url = "https://drshub.dsde-dev.broadinsti
 
 drs {
   localization {
-    docker-image = "Error: BA-6546 The environment variable CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS must be set/export pointing to a valid docker image"
-    docker-image = ${?CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS}
+    docker-image = "Error: BA-6546 The environment variable CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS must be set/export pointing to a valid docker image"
+    docker-image = ${?CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS}
   }
 }

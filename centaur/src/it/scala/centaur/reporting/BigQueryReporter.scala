@@ -14,7 +14,14 @@ import com.google.api.gax.retrying.RetrySettings
 import com.google.api.services.bigquery.BigqueryScopes
 import com.google.auth.Credentials
 import com.google.cloud.bigquery.InsertAllRequest.RowToInsert
-import com.google.cloud.bigquery.{BigQuery, BigQueryError, BigQueryOptions, InsertAllRequest, InsertAllResponse, TableId}
+import com.google.cloud.bigquery.{
+  BigQuery,
+  BigQueryError,
+  BigQueryOptions,
+  InsertAllRequest,
+  InsertAllResponse,
+  TableId
+}
 import common.util.TimeUtil._
 import common.validation.Validation._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -35,8 +42,9 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
 
   override lazy val destination: String = bigQueryProjectOption.map(_ + "/").getOrElse("") + bigQueryDataset
 
-  private val retrySettings: RetrySettings = {
-    RetrySettings.newBuilder()
+  private val retrySettings: RetrySettings =
+    RetrySettings
+      .newBuilder()
       .setMaxAttempts(3)
       .setTotalTimeout(Duration.ofSeconds(30))
       .setInitialRetryDelay(Duration.ofMillis(100))
@@ -46,7 +54,6 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       .setRpcTimeoutMultiplier(1.1)
       .setMaxRpcTimeout(Duration.ofSeconds(5))
       .build()
-  }
 
   private val bigQueryCredentials: Credentials = GoogleConfiguration
     .apply(params.rootConfig)
@@ -54,7 +61,8 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
     .unsafe
     .credentials(Set(BigqueryScopes.BIGQUERY_INSERTDATA))
 
-  private val bigQuery: BigQuery = BigQueryOptions.newBuilder()
+  private val bigQuery: BigQuery = BigQueryOptions
+    .newBuilder()
     .setRetrySettings(retrySettings)
     .setCredentials(bigQueryCredentials)
     .build()
@@ -65,21 +73,19 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
   private val jobKeyValueTableId = bigQueryTable("job_key_value")
   private val metadataTableId = bigQueryTable("metadata")
 
-  def bigQueryTable(table: String): TableId = {
+  def bigQueryTable(table: String): TableId =
     bigQueryProjectOption match {
       case Some(project) => TableId.of(project, bigQueryDataset, table)
       case None => TableId.of(bigQueryDataset, table)
     }
-  }
 
   /**
     * In this ErrorReporter implementation this method will send information about exceptions of type
     * CentaurTestException to BigQuery. Exceptions of other types will be ignored.
     */
-  override def logFailure(testEnvironment: TestEnvironment,
-                          ciEnvironment: CiEnvironment,
-                          throwable: Throwable)
-                         (implicit executionContext: ExecutionContext): IO[Unit] = {
+  override def logFailure(testEnvironment: TestEnvironment, ciEnvironment: CiEnvironment, throwable: Throwable)(implicit
+    executionContext: ExecutionContext
+  ): IO[Unit] =
     throwable match {
       case centaurTestException: CentaurTestException =>
         for {
@@ -98,57 +104,62 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       case _ =>
         IO.unit // this ErrorReporter only supports exceptions of CentaurTestException type
     }
-  }
 
   private def sendBigQueryFailure(testEnvironment: TestEnvironment,
                                   ciEnvironment: CiEnvironment,
                                   centaurTestException: CentaurTestException,
                                   callAttemptFailures: Vector[CallAttemptFailure],
                                   jobKeyValueEntries: Seq[JobKeyValueEntry],
-                                  metadataEntries: Seq[MetadataEntry]): IO[Unit] = {
+                                  metadataEntries: Seq[MetadataEntry]
+  ): IO[Unit] = {
 
     val metadata: IO[List[BigQueryError]] = {
-      val metadataRows: List[util.List[RowToInsert]] = metadataEntries.map(toMetadataRow).grouped(10000).map(_.asJava).toList
+      val metadataRows: List[util.List[RowToInsert]] =
+        metadataEntries.map(toMetadataRow).grouped(10000).map(_.asJava).toList
       val metadataRequest: List[InsertAllRequest] = metadataRows.map(InsertAllRequest.of(metadataTableId, _))
 
       if (metadataEntries.nonEmpty)
-        metadataRequest.traverse[IO, List[BigQueryError]](req => IO(bigQuery.insertAll(req)).map(_.getErrors)).map(_.flatten)
+        metadataRequest
+          .traverse[IO, List[BigQueryError]](req => IO(bigQuery.insertAll(req)).map(_.getErrors))
+          .map(_.flatten)
       else
-        IO{Nil}
+        IO(Nil)
     }
     (IO {
-      val testFailureRow = toTestFailureRow(testEnvironment, ciEnvironment, centaurTestException)
-      val callAttemptFailureRows = callAttemptFailures.map(toCallAttemptFailureRow).asJava
-      val jobKeyValueRows = jobKeyValueEntries.map(toJobKeyValueRow).asJava
+       val testFailureRow = toTestFailureRow(testEnvironment, ciEnvironment, centaurTestException)
+       val callAttemptFailureRows = callAttemptFailures.map(toCallAttemptFailureRow).asJava
+       val jobKeyValueRows = jobKeyValueEntries.map(toJobKeyValueRow).asJava
 
-      val testFailureRequest = InsertAllRequest.of(testFailureTableId, testFailureRow)
-      val callAttemptFailuresRequest = InsertAllRequest.of(callAttemptFailureTableId, callAttemptFailureRows)
-      val jobKeyValuesRequest = InsertAllRequest.of(jobKeyValueTableId, jobKeyValueRows)
-      val testFailureErrors = bigQuery.insertAll(testFailureRequest).getErrors
-      val callAttemptFailuresErrors =
-        if (callAttemptFailures.nonEmpty) bigQuery.insertAll(callAttemptFailuresRequest).getErrors else Nil
-      val jobKeyValuesErrors =
-        if (jobKeyValueEntries.nonEmpty) bigQuery.insertAll(jobKeyValuesRequest).getErrors else Nil
+       val testFailureRequest = InsertAllRequest.of(testFailureTableId, testFailureRow)
+       val callAttemptFailuresRequest = InsertAllRequest.of(callAttemptFailureTableId, callAttemptFailureRows)
+       val jobKeyValuesRequest = InsertAllRequest.of(jobKeyValueTableId, jobKeyValueRows)
+       val testFailureErrors = bigQuery.insertAll(testFailureRequest).getErrors
+       val callAttemptFailuresErrors =
+         if (callAttemptFailures.nonEmpty) bigQuery.insertAll(callAttemptFailuresRequest).getErrors else Nil
+       val jobKeyValuesErrors =
+         if (jobKeyValueEntries.nonEmpty) bigQuery.insertAll(jobKeyValuesRequest).getErrors else Nil
 
-      testFailureErrors ++ callAttemptFailuresErrors ++ jobKeyValuesErrors
-    }, metadata).mapN(_ ++ _).flatMap {
+       testFailureErrors ++ callAttemptFailuresErrors ++ jobKeyValuesErrors
+     },
+     metadata
+    ).mapN(_ ++ _).flatMap {
       case errors if errors.isEmpty => IO.unit
-      case errors => IO.raiseError {
-        val errorCount = errors.size
-        val threeErrors = errors.map(String.valueOf).distinct.sorted.take(3)
-        val continued = if (errorCount > 3) "\n..." else ""
-        val message = threeErrors.mkString(
-          s"$errorCount error(s) occurred uploading to BigQuery: \n",
-          "\n",
-          continued)
-        new RuntimeException(message)
-      }
+      case errors =>
+        IO.raiseError {
+          val errorCount = errors.size
+          val threeErrors = errors.map(String.valueOf).distinct.sorted.take(3)
+          val continued = if (errorCount > 3) "\n..." else ""
+          val message =
+            threeErrors.mkString(s"$errorCount error(s) occurred uploading to BigQuery: \n", "\n", continued)
+          new RuntimeException(message)
+        }
     }
   }
 
   private def toTestFailureRow(testEnvironment: TestEnvironment,
                                ciEnvironment: CiEnvironment,
-                               centaurTestException: CentaurTestException): RowToInsert = {
+                               centaurTestException: CentaurTestException
+  ): RowToInsert =
     RowToInsert of Map(
       "ci_env_branch" -> ciEnvironment.branch,
       "ci_env_event" -> ciEnvironment.event,
@@ -165,13 +176,12 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "test_name" -> Option(testEnvironment.testCase.name),
       "test_stack_trace" -> Option(ExceptionUtils.getStackTrace(centaurTestException)),
       "test_timestamp" -> Option(OffsetDateTime.now.toUtcMilliString),
-      "test_workflow_id" -> centaurTestException.workflowIdOption,
-    ).collect {
-      case (key, Some(value)) => (key, value)
+      "test_workflow_id" -> centaurTestException.workflowIdOption
+    ).collect { case (key, Some(value)) =>
+      (key, value)
     }.asJava
-  }
 
-  private def toCallAttemptFailureRow(callAttemptFailure: CallAttemptFailure): RowToInsert = {
+  private def toCallAttemptFailureRow(callAttemptFailure: CallAttemptFailure): RowToInsert =
     RowToInsert of Map(
       "call_fully_qualified_name" -> Option(callAttemptFailure.callFullyQualifiedName),
       "call_root" -> callAttemptFailure.callRootOption,
@@ -182,24 +192,22 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "start" -> callAttemptFailure.startOption.map(_.toUtcMilliString),
       "stderr" -> callAttemptFailure.stderrOption,
       "stdout" -> callAttemptFailure.stdoutOption,
-      "workflow_id" -> Option(callAttemptFailure.workflowId),
-    ).collect {
-      case (key, Some(value)) => (key, value)
+      "workflow_id" -> Option(callAttemptFailure.workflowId)
+    ).collect { case (key, Some(value)) =>
+      (key, value)
     }.asJava
-  }
 
-  private def toJobKeyValueRow(jobKeyValueEntry: JobKeyValueEntry): RowToInsert = {
+  private def toJobKeyValueRow(jobKeyValueEntry: JobKeyValueEntry): RowToInsert =
     RowToInsert of Map[String, Any](
       "call_fully_qualified_name" -> jobKeyValueEntry.callFullyQualifiedName,
       "job_attempt" -> jobKeyValueEntry.jobAttempt,
       "job_index" -> jobKeyValueEntry.jobIndex,
       "store_key" -> jobKeyValueEntry.storeKey,
       "store_value" -> jobKeyValueEntry.storeValue,
-      "workflow_execution_uuid" -> jobKeyValueEntry.workflowExecutionUuid,
+      "workflow_execution_uuid" -> jobKeyValueEntry.workflowExecutionUuid
     ).asJava
-  }
 
-  private def toMetadataRow(metadataEntry: MetadataEntry): RowToInsert = {
+  private def toMetadataRow(metadataEntry: MetadataEntry): RowToInsert =
     RowToInsert of Map(
       "call_fully_qualified_name" -> metadataEntry.callFullyQualifiedName,
       "job_attempt" -> metadataEntry.jobAttempt,
@@ -208,11 +216,10 @@ class BigQueryReporter(override val params: ErrorReporterParams) extends ErrorRe
       "metadata_timestamp" -> Option(metadataEntry.metadataTimestamp.toSystemOffsetDateTime.toUtcMilliString),
       "metadata_value" -> metadataEntry.metadataValue.map(_.toRawString),
       "metadata_value_type" -> metadataEntry.metadataValueType,
-      "workflow_execution_uuid" -> Option(metadataEntry.workflowExecutionUuid),
-    ).collect {
-      case (key, Some(value)) => (key, value)
+      "workflow_execution_uuid" -> Option(metadataEntry.workflowExecutionUuid)
+    ).collect { case (key, Some(value)) =>
+      (key, value)
     }.asJava
-  }
 }
 
 object BigQueryReporter {

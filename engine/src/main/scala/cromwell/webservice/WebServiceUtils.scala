@@ -18,28 +18,35 @@ trait WebServiceUtils {
 
   type MaterializedFormData = Map[String, ByteString]
 
-  def materializeFormData(formData: Multipart.FormData)(implicit timeout: Timeout, materializer: Materializer, executionContext: ExecutionContext): Future[MaterializedFormData] = {
-    formData.parts.mapAsync[(String, ByteString)](1) {
-      bodyPart => bodyPart.toStrict(timeout.duration)(materializer).map(strict => bodyPart.name -> strict.entity.data)(executionContext)
-    }.runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)(materializer)
-  }
+  def materializeFormData(formData: Multipart.FormData)(implicit
+    timeout: Timeout,
+    materializer: Materializer,
+    executionContext: ExecutionContext
+  ): Future[MaterializedFormData] =
+    formData.parts
+      .mapAsync[(String, ByteString)](1) { bodyPart =>
+        bodyPart
+          .toStrict(timeout.duration)(materializer)
+          .map(strict => bodyPart.name -> strict.entity.data)(executionContext)
+      }
+      .runFold(Map.empty[String, ByteString])((map, tuple) => map + tuple)(materializer)
 
   /**
     * Completes a response of a Product, probably a case class, using an implicit marshaller, probably a json encoder.
     */
-  def completeResponse[A <: Product](statusCode: StatusCode, value: A, warnings: Seq[String])
-                                    (implicit mt: ToEntityMarshaller[A]): Route = {
+  def completeResponse[A <: Product](statusCode: StatusCode, value: A, warnings: Seq[String])(implicit
+    mt: ToEntityMarshaller[A]
+  ): Route =
     complete((statusCode, warningHeaders(warnings), value))
-  }
 
   // 2.13 added this, not sure why the baseline version was compiling actually.
   /**
    * Completes a response of a List of Product (probably a case class), using an implicit marshaller, probably a json encoder.
    */
-  def completeResponse[A <: Product](statusCode: StatusCode, values: List[A], warnings: Seq[String])
-                                    (implicit mt: ToEntityMarshaller[List[A]]): Route = {
+  def completeResponse[A <: Product](statusCode: StatusCode, values: List[A], warnings: Seq[String])(implicit
+    mt: ToEntityMarshaller[List[A]]
+  ): Route =
     complete((statusCode, warningHeaders(warnings), values))
-  }
 
   /**
     * Completes a response of string with the supplied content type.
@@ -52,11 +59,11 @@ trait WebServiceUtils {
   def completeResponse(statusCode: StatusCode,
                        contentType: ContentType.NonBinary,
                        value: String,
-                       warnings: Seq[String]): Route = {
+                       warnings: Seq[String]
+  ): Route =
     complete((statusCode, warningHeaders(warnings), HttpEntity(contentType, value)))
-  }
 
-  def warningHeaders(warnings: Seq[String]): List[HttpHeader] = {
+  def warningHeaders(warnings: Seq[String]): List[HttpHeader] =
     warnings.toList map { warning =>
       /*
       Need a quoted string.
@@ -65,12 +72,11 @@ trait WebServiceUtils {
       Using a poor version of ~~#!
       https://github.com/akka/akka-http/blob/v10.0.9/akka-http-core/src/main/scala/akka/http/impl/util/Rendering.scala#L206
        */
-      val quotedString = "\"" + warning.replaceAll("\"","\\\\\"").replaceAll("[\\r\\n]+", " ").trim + "\""
+      val quotedString = "\"" + warning.replaceAll("\"", "\\\\\"").replaceAll("[\\r\\n]+", " ").trim + "\""
 
       // https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.46
       RawHeader("Warning", s"299 cromwell/$cromwellVersion $quotedString")
     }
-  }
 }
 
 object WebServiceUtils extends WebServiceUtils {
@@ -79,17 +85,14 @@ object WebServiceUtils extends WebServiceUtils {
   // A: There are customers who rely on the pretty printing to display the error directly in a terminal or GUI.
   // AEN 2018-12-05
   implicit class EnhancedThrowable(val e: Throwable) extends AnyVal {
-    def failRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
+    def failRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route =
       completeResponse(statusCode, ContentTypes.`application/json`, prettyPrint(APIResponse.fail(e)), warnings)
-    }
-    def errorRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route = {
+    def errorRequest(statusCode: StatusCode, warnings: Seq[String] = Vector.empty): Route =
       completeResponse(statusCode, ContentTypes.`application/json`, prettyPrint(APIResponse.error(e)), warnings)
-    }
   }
 
-  private def prettyPrint(failureResponse: FailureResponse): String ={
+  private def prettyPrint(failureResponse: FailureResponse): String =
     // .asJson cannot live inside a value class like `EnhancedThrowable`, hence the object method
     failureResponse.asJson.printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
-  }
 
 }

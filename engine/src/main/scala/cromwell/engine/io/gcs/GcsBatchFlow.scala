@@ -35,7 +35,8 @@ object GcsBatchFlow {
     */
   case class BatchFailedException(failure: Throwable) extends IOException(failure)
 
-  private val ReadForbiddenPattern = ".*does not have storage\\.objects\\.(?:get|list|copy) access to ([^/]+).*".r.pattern
+  private val ReadForbiddenPattern =
+    ".*does not have storage\\.objects\\.(?:get|list|copy) access to ([^/]+).*".r.pattern
 
   /* Returns `Some(bucket)` if the specified argument represents a forbidden attempt to read from `bucket`. */
   private[gcs] def getReadForbiddenBucket(errorMsg: String): Option[String] = {
@@ -60,8 +61,9 @@ class GcsBatchFlow(batchSize: Int,
                    onRetry: IoCommandContext[_] => Throwable => Unit,
                    onBackpressure: Option[Double] => Unit,
                    applicationName: String,
-                   backpressureStaleness: FiniteDuration)
-                  (implicit ec: ExecutionContext) extends IoCommandStalenessBackpressuring {
+                   backpressureStaleness: FiniteDuration
+)(implicit ec: ExecutionContext)
+    extends IoCommandStalenessBackpressuring {
 
   // Does not carry any authentication, assumes all underlying requests are properly authenticated
   private val httpRequestInitializer = new HttpRequestInitializer {
@@ -113,9 +115,9 @@ class GcsBatchFlow(batchSize: Int,
   val flow: Graph[
     FlowShape[
       GcsBatchCommandContext[_, _],
-      (IoAck[_], IoCommandContext[_]),
+      (IoAck[_], IoCommandContext[_])
     ],
-    NotUsed,
+    NotUsed
   ] = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
 
@@ -129,21 +131,22 @@ class GcsBatchFlow(batchSize: Int,
     val batchProcessor = builder.add(
       Flow[GcsBatchCommandContext[_, _]]
         // Group commands together in batches so they can be processed as such
-      .groupedWithin(batchSize, batchTimespan)
+        .groupedWithin(batchSize, batchTimespan)
         // execute the batch and outputs each sub-response individually, as a Future
-      .mapConcat[Future[GcsBatchResponse[_]]](executeBatch)
+        .mapConcat[Future[GcsBatchResponse[_]]](executeBatch)
         // Wait for each Future to complete
-      .mapAsyncUnordered[GcsBatchResponse[_]](batchSize) { identity }
+        .mapAsyncUnordered[GcsBatchResponse[_]](batchSize)(identity)
     )
 
     // Partitions the responses: Terminal responses exit the flow, others go back to the sourceMerger
     val responseHandler = builder.add(responseHandlerFlow)
 
     // Buffer commands to be retried to avoid backpressuring too rapidly
-    val nextRequestBuffer = builder.add(Flow[GcsBatchCommandContext[_, _]].buffer(batchSize, OverflowStrategy.backpressure))
+    val nextRequestBuffer =
+      builder.add(Flow[GcsBatchCommandContext[_, _]].buffer(batchSize, OverflowStrategy.backpressure))
 
     source ~> sourceMerger ~> batchProcessor ~> responseHandler.in
-              sourceMerger.preferred <~ nextRequestBuffer <~ responseHandler.out1
+    sourceMerger.preferred <~ nextRequestBuffer <~ responseHandler.out1
 
     FlowShape[GcsBatchCommandContext[_, _], IoResult](source.in, responseHandler.out0)
   }
@@ -156,10 +159,14 @@ class GcsBatchFlow(batchSize: Int,
   private lazy val responseHandlerFlow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
 
-    val source = builder.add(Partition[GcsBatchResponse[_]](2, {
-      case _: GcsBatchTerminal[_] => 0
-      case _ => 1
-    }))
+    val source = builder.add(
+      Partition[GcsBatchResponse[_]](2,
+                                     {
+                                       case _: GcsBatchTerminal[_] => 0
+                                       case _ => 1
+                                     }
+      )
+    )
 
     // Terminal responses: output of this flow
     val terminals = source.out(0) collect { case terminal: GcsBatchTerminal[_] => terminal.ioResult }
@@ -170,7 +177,10 @@ class GcsBatchFlow(batchSize: Int,
       case nextRequest: GcsBatchNextRequest[_] => nextRequest.context
     }
 
-    new FanOutShape2[GcsBatchResponse[_], IoResult, GcsBatchCommandContext[_, _]](source.in, terminals.outlet, nextRequest.outlet)
+    new FanOutShape2[GcsBatchResponse[_], IoResult, GcsBatchCommandContext[_, _]](source.in,
+                                                                                  terminals.outlet,
+                                                                                  nextRequest.outlet
+    )
   }
 
   private def executeBatch(contexts: Seq[GcsBatchCommandContext[_, _]]): List[Future[GcsBatchResponse[_]]] = {
@@ -193,12 +203,16 @@ class GcsBatchFlow(batchSize: Int,
     // Otherwise fail with the original exception
     Try(batchRequest.execute()) match {
       case Failure(failure: IOException) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchRequest.size()} containing commands: " +
-          s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}")
+        logger.info(
+          s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchRequest.size()} containing commands: " +
+            s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}"
+        )
         failAllPromisesWith(BatchFailedException(failure))
       case Failure(failure) =>
-        logger.info(s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchRequest.size()} containing commands: " +
-          s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}")
+        logger.info(
+          s"Failed to execute GCS Batch request. Failed request belonged to batch of size ${batchRequest.size()} containing commands: " +
+            s"${batchCommandNamesList.mkString("\n")}.\n${failure.toPrettyElidedString(limit = 1000)}"
+        )
         failAllPromisesWith(failure)
       case _ =>
     }
@@ -219,7 +233,9 @@ class GcsBatchFlow(batchSize: Int,
     *   Otherwise create a GcsBatchTerminal response with the IoFailure
     *   In both cases, returns a successful Future to avoid failing the stream or dropping elements
     */
-  private def recoverCommand(context: GcsBatchCommandContext[_, _]): PartialFunction[Throwable, Future[GcsBatchResponse[_]]] = {
+  private def recoverCommand(
+    context: GcsBatchCommandContext[_, _]
+  ): PartialFunction[Throwable, Future[GcsBatchResponse[_]]] = {
     // If the failure is retryable - recover with a GcsBatchRetry so it can be retried in the next batch
     case failure if isRetryable(failure) =>
       context.retryIn match {
@@ -246,22 +262,22 @@ class GcsBatchFlow(batchSize: Int,
   /**
     * Fail a command context with a failure.
     */
-  private def fail(context: GcsBatchCommandContext[_, _], failure: Throwable) = {
+  private def fail(context: GcsBatchCommandContext[_, _], failure: Throwable) =
     Future.successful(
       GcsBatchTerminal(
         context.fail(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure))
       )
     )
-  }
 
   /**
     * Fail a command context with a forbidden failure.
     */
-  private def failReadForbidden(context: GcsBatchCommandContext[_, _], failure: Throwable, forbiddenPath: String) = {
+  private def failReadForbidden(context: GcsBatchCommandContext[_, _], failure: Throwable, forbiddenPath: String) =
     Future.successful(
       GcsBatchTerminal(
-        context.failReadForbidden(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure), forbiddenPath)
+        context.failReadForbidden(EnhancedCromwellIoException(IoAttempts(context.currentAttempt), failure),
+                                  forbiddenPath
+        )
       )
     )
-  }
 }

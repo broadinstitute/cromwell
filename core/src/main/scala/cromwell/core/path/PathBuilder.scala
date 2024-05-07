@@ -40,6 +40,7 @@ trait PreResolvePathBuilder extends PathBuilder {
   * @see [[cromwell.core.path.EvenBetterPathMethods]]
   */
 trait Path extends PathObjectMethods with NioPathMethods with BetterFileMethods with EvenBetterPathMethods {
+
   /**
     * A reference to the underlying nioPath, used to create new java.nio.Path's that will then be sent to newPath
     * for wrapping.
@@ -132,11 +133,11 @@ trait Path extends PathObjectMethods with NioPathMethods with BetterFileMethods 
   def pathWithoutScheme: String
 
   // Used by various extension traits within this scala package
-  private[path] final def nioPathPrivate: NioPath = nioPath
+  final private[path] def nioPathPrivate: NioPath = nioPath
 
   // Used within BetterFileMethods
-  private[path] final def betterFile: better.files.File = nioPathPrivate
+  final private[path] def betterFile: better.files.File = nioPathPrivate
 
   // Some Path methods return null.
-  private[path] final def newPathOrNull(nioPath: NioPath) = Option(nioPath).map(newPath).orNull
+  final private[path] def newPathOrNull(nioPath: NioPath) = Option(nioPath).map(newPath).orNull
 }

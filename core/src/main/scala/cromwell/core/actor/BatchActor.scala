@@ -14,7 +14,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.{Failure, Success}
 
-
 /** A collection of state, data, and message types to support BatchActor. */
 object BatchActor {
   type BatchData[C] = WeightedQueue[C, Int]
@@ -45,8 +44,9 @@ object BatchActor {
   * It is backed by a WeightedQueue which makes it possible to decouple the number of messages received from
   * the effective "weight" of the queue.
   */
-abstract class BatchActor[C](val flushRate: FiniteDuration,
-                             val batchSize: Int) extends FSM[BatchActorState, BatchData[C]] with Timers {
+abstract class BatchActor[C](val flushRate: FiniteDuration, val batchSize: Int)
+    extends FSM[BatchActorState, BatchData[C]]
+    with Timers {
   private var shuttingDown: Boolean = false
 
   implicit val ec = context.dispatcher
@@ -63,7 +63,8 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
   protected def routed: Boolean = false
 
   override def preStart(): Unit = {
-    if (logOnStartUp) log.info("{} configured to flush with batch size {} and process rate {}.", name, batchSize, flushRate)
+    if (logOnStartUp)
+      log.info("{} configured to flush with batch size {} and process rate {}.", name, batchSize, flushRate)
     if (flushRate != Duration.Zero) {
       timers.startPeriodicTimer(ScheduledFlushKey, ScheduledProcessAction, flushRate)
     }
@@ -133,10 +134,9 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
     */
   protected def process(data: NonEmptyVector[C]): Future[Int]
 
-  private def processIfBatchSizeReached(data: BatchData[C]) = {
+  private def processIfBatchSizeReached(data: BatchData[C]) =
     if (data.weight >= batchSize) processHead(data)
     else goto(WaitingToProcess) using data
-  }
 
   private def processHead(data: BatchData[C]) = if (data.innerQueue.nonEmpty) {
     val (head, newQueue) = data.behead(batchSize)
@@ -159,8 +159,8 @@ abstract class BatchActor[C](val flushRate: FiniteDuration,
 
     goto(Processing) using newQueue
   } else
-  // This goto is important, even if we're already in WaitingToProcess we want to trigger the onTransition below
-  // to check if it's time to shutdown
+    // This goto is important, even if we're already in WaitingToProcess we want to trigger the onTransition below
+    // to check if it's time to shutdown
     goto(WaitingToProcess) using data
 
   onTransition {

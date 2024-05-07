@@ -11,7 +11,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 
-class GcpBatchConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks with BeforeAndAfterAll {
+class GcpBatchConfigurationSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks
+    with BeforeAndAfterAll {
 
   behavior of "GcpBatchConfigurationSpec"
 
@@ -22,26 +27,25 @@ class GcpBatchConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
     ()
   }
 
-  val globalConfig = ConfigFactory.parseString(
-    s"""
-       |google {
-       |
-       |  application-name = "cromwell"
-       |
-       |  auths = [
-       |    {
-       |      name = "application-default"
-       |      scheme = "application_default"
-       |    },
-       |    {
-       |      name = "service-account"
-       |      scheme = "service_account"
-       |      service-account-id = "my-service-account"
-       |      pem-file = "${mockFile.pathAsString}"
-       |    }
-       |  ]
-       |}
-       |
+  val globalConfig = ConfigFactory.parseString(s"""
+                                                  |google {
+                                                  |
+                                                  |  application-name = "cromwell"
+                                                  |
+                                                  |  auths = [
+                                                  |    {
+                                                  |      name = "application-default"
+                                                  |      scheme = "application_default"
+                                                  |    },
+                                                  |    {
+                                                  |      name = "service-account"
+                                                  |      scheme = "service_account"
+                                                  |      service-account-id = "my-service-account"
+                                                  |      pem-file = "${mockFile.pathAsString}"
+                                                  |    }
+                                                  |  ]
+                                                  |}
+                                                  |
     """.stripMargin)
 
   val backendConfig = ConfigFactory.parseString(
@@ -87,7 +91,8 @@ class GcpBatchConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       |    }
       |  }
       |
-    """.stripMargin)
+    """.stripMargin
+  )
 
   it should "fail to instantiate if any required configuration is missing" in {
 
@@ -113,12 +118,20 @@ class GcpBatchConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
   }
 
   it should "have correct root" in {
-    new GcpBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), googleConfiguration, batchAttributes).root shouldBe "gs://my-cromwell-workflows-bucket"
+    new GcpBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig),
+                              googleConfiguration,
+                              batchAttributes
+    ).root shouldBe "gs://my-cromwell-workflows-bucket"
   }
 
-  //it should "have correct docker" in {
-  //  val dockerConf = new GcpBatchConfiguration(BackendConfigurationDescriptor(backendConfig, globalConfig), googleConfiguration, batchAttributes).dockerCredentials
-  //  dockerConf shouldBe defined
-  //  dockerConf.get.token shouldBe "dockerToken"
-  //}
+  it should "have correct docker" in {
+    val dockerConf = new GcpBatchConfiguration(
+      BackendConfigurationDescriptor(backendConfig, globalConfig),
+      googleConfiguration,
+      batchAttributes
+    ).dockerCredentials
+
+    dockerConf shouldBe defined
+    dockerConf.get.token shouldBe "dockerToken"
+  }
 }

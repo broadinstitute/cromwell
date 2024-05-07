@@ -14,21 +14,18 @@ import scala.language.postfixOps
 trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
   this: GcpBatchAsyncBackendJobExecutionActor with JobLogging =>
 
-  lazy val initializationData: GcpBackendInitializationData = {
+  lazy val initializationData: GcpBackendInitializationData =
     backendInitializationDataAs[GcpBackendInitializationData]
-  }
   lazy val batchConfiguration: GcpBatchConfiguration = initializationData.gcpBatchConfiguration
 
   lazy val gcpBatchCallPaths: GcpBatchJobPaths = jobPaths.asInstanceOf[GcpBatchJobPaths]
 
   lazy val runtimeAttributes = GcpBatchRuntimeAttributes(
     validatedRuntimeAttributes,
-    batchConfiguration
-      .runtimeConfig
+    batchConfiguration.runtimeConfig
   )
 
   lazy val maxPreemption: Int = runtimeAttributes.preemptible
-
 
   lazy val workingDisk: GcpBatchAttachedDisk = runtimeAttributes.disks.find(_.name == GcpBatchWorkingDisk.Name).get
 
@@ -45,16 +42,18 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
     val workflow = jobDescriptor.workflowDescriptor
     val call = jobDescriptor.taskCall
     val subWorkflow = workflow.callable
-    val subWorkflowLabels = if (!subWorkflow.equals(workflow.rootWorkflow))
-      Labels("cromwell-sub-workflow-name" -> subWorkflow.name)
-    else
-      Labels.empty
+    val subWorkflowLabels =
+      if (!subWorkflow.equals(workflow.rootWorkflow))
+        Labels("cromwell-sub-workflow-name" -> subWorkflow.name)
+      else
+        Labels.empty
 
     val alias = call.localName
-    val aliasLabels = if (!alias.equals(call.callable.name))
-      Labels("wdl-call-alias" -> alias)
-    else
-      Labels.empty
+    val aliasLabels =
+      if (!alias.equals(call.callable.name))
+        Labels("wdl-call-alias" -> alias)
+      else
+        Labels.empty
 
     Labels(
       "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
@@ -62,18 +61,16 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
     ) ++ subWorkflowLabels ++ aliasLabels
   }
 
-
   lazy val originalLabels: Labels = defaultLabels
 
   lazy val backendLabels: Seq[GcpLabel] = GcpLabel.safeLabels(originalLabels.asTuple: _*)
 
-  lazy val originalLabelEvents: Map[String, String] = originalLabels.value map { l => s"${CallMetadataKeys.Labels}:${l.key}" -> l.value } toMap
+  lazy val originalLabelEvents: Map[String, String] = originalLabels.value map { l =>
+    s"${CallMetadataKeys.Labels}:${l.key}" -> l.value
+  } toMap
 
   override protected def nonStandardMetadata: Map[String, Any] = {
-    val googleProject = initializationData
-      .workflowPaths
-      .workflowDescriptor
-      .workflowOptions
+    val googleProject = initializationData.workflowPaths.workflowDescriptor.workflowOptions
       .get(WorkflowOptionKeys.GoogleProject)
       .getOrElse(batchAttributes.project)
 

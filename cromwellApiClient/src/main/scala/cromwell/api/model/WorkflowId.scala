@@ -30,4 +30,3 @@ object WorkflowIdJsonFormatter extends DefaultJsonProtocol {
     }
   }
 }
-

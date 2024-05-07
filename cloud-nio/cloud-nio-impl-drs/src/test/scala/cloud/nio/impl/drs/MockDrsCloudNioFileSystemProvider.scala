@@ -7,26 +7,24 @@ import com.google.cloud.NoCredentials
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.http.impl.client.HttpClientBuilder
 
-import scala.concurrent.duration.Duration
-
 class MockDrsCloudNioFileSystemProvider(config: Config = mockConfig,
                                         httpClientBuilder: Option[HttpClientBuilder] = None,
                                         drsReadInterpreter: DrsReadInterpreter = (_, _) =>
                                           IO.raiseError(
                                             new UnsupportedOperationException("mock did not specify a read interpreter")
                                           ),
-                                        mockResolver: Option[EngineDrsPathResolver] = None,
-                                       )
-  extends DrsCloudNioFileSystemProvider(config, GoogleOauthDrsCredentials(NoCredentials.getInstance, config), drsReadInterpreter) {
+                                        mockResolver: Option[DrsPathResolver] = None
+) extends DrsCloudNioFileSystemProvider(config,
+                                        GoogleOauthDrsCredentials(NoCredentials.getInstance, config),
+                                        drsReadInterpreter
+    ) {
 
-  override lazy val drsPathResolver: EngineDrsPathResolver = {
+  override lazy val drsPathResolver: DrsPathResolver =
     mockResolver getOrElse
-      new MockEngineDrsPathResolver(
+      new MockDrsPathResolver(
         drsConfig = drsConfig,
-        httpClientBuilderOverride = httpClientBuilder,
-        accessTokenAcceptableTTL = Duration.Inf,
+        httpClientBuilderOverride = httpClientBuilder
       )
-  }
 }
 
 object MockDrsCloudNioFileSystemProvider {

@@ -61,7 +61,7 @@ class NamespaceCacheSpec extends AnyFlatSpec with CromwellTimeoutSpec with Befor
     )
 
     var lookupCount = 0
-    val countingResolver = new HttpResolver(None, Map.empty, None) {
+    val countingResolver = new HttpResolver(None, Map.empty, None, List.empty) {
       override def pathToLookup(str: String): Checked[String] = {
         lookupCount = lookupCount + 1
         super.pathToLookup(str)
@@ -69,14 +69,18 @@ class NamespaceCacheSpec extends AnyFlatSpec with CromwellTimeoutSpec with Befor
     }
 
     def validate = {
-      val futureNamespace = factory.validateNamespace(
-        source = collection,
-        workflowSource = ThreeStep,
-        workflowOptions = WorkflowOptions(new spray.json.JsObject(Map.empty)),
-        importLocalFilesystem = false,
-        workflowIdForLogging = WorkflowId.randomId(),
-        ioFunctions = NoIoFunctionSet,
-        importResolvers = List(countingResolver)).value.unsafeToFuture()
+      val futureNamespace = factory
+        .validateNamespace(
+          source = collection,
+          workflowSource = ThreeStep,
+          workflowOptions = WorkflowOptions(new spray.json.JsObject(Map.empty)),
+          importLocalFilesystem = false,
+          workflowIdForLogging = WorkflowId.randomId(),
+          ioFunctions = NoIoFunctionSet,
+          importResolvers = List(countingResolver)
+        )
+        .value
+        .unsafeToFuture()
       Await.result(futureNamespace, Duration.Inf).toOption.get
     }
 

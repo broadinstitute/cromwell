@@ -31,9 +31,10 @@ object ExpressionElement {
     override val unescape: String = codePoint.toChar.toString
   }
 
-
   final case class KvPair(key: String, value: ExpressionElement)
   final case class ObjectLiteral(elements: Map[String, ExpressionElement]) extends ExpressionElement
+  final case class StructLiteral(structTypeName: String, elements: Map[String, ExpressionElement])
+      extends ExpressionElement
   final case class ArrayLiteral(elements: Seq[ExpressionElement]) extends ExpressionElement
   final case class MapLiteral(elements: Map[ExpressionElement, ExpressionElement]) extends ExpressionElement
   final case class PairLiteral(left: ExpressionElement, right: ExpressionElement) extends ExpressionElement
@@ -42,6 +43,7 @@ object ExpressionElement {
     * Represents a unary operation (i.e. a operator symbol followed by a single argument expression)
     */
   sealed trait UnaryOperation extends ExpressionElement {
+
     /**
       * The expression which follows the unary operator. The argument to the operation.
       */
@@ -56,6 +58,7 @@ object ExpressionElement {
     * A two-argument expression. Almost certainly comes from an infix operation in WDL (eg the '+' in  '7 + read_int(x)')
     */
   sealed trait BinaryOperation extends ExpressionElement {
+
     /**
       * The left-hand-side of the operation ('7' in the example above).
       */
@@ -67,21 +70,35 @@ object ExpressionElement {
     def right: ExpressionElement
   }
 
-  final case class LogicalOr(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class LogicalAnd(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class Equals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class NotEquals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class LessThan(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class LessThanOrEquals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class GreaterThan(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class GreaterThanOrEquals(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class Add(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class Subtract(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class Multiply(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class Divide(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
-  final case class Remainder(override val left: ExpressionElement, override val right: ExpressionElement) extends BinaryOperation
+  final case class LogicalOr(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class LogicalAnd(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class Equals(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class NotEquals(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class LessThan(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class LessThanOrEquals(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class GreaterThan(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class GreaterThanOrEquals(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class Add(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class Subtract(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class Multiply(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class Divide(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
+  final case class Remainder(override val left: ExpressionElement, override val right: ExpressionElement)
+      extends BinaryOperation
 
-  final case class TernaryIf(condition: ExpressionElement, ifTrue: ExpressionElement, ifFalse: ExpressionElement) extends ExpressionElement
+  final case class TernaryIf(condition: ExpressionElement, ifTrue: ExpressionElement, ifFalse: ExpressionElement)
+      extends ExpressionElement
 
   sealed trait FunctionCallElement extends ExpressionElement
   // 0-param functions
@@ -121,17 +138,22 @@ object ExpressionElement {
   final case class Ceil(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Round(param: ExpressionElement) extends OneParamFunctionCallElement
   final case class Glob(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Quote(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class SQuote(param: ExpressionElement) extends OneParamFunctionCallElement
+  final case class Unzip(param: ExpressionElement) extends OneParamFunctionCallElement
 
   // 1- or 2-param functions:
   sealed trait OneOrTwoParamFunctionCallElement extends FunctionCallElement {
     def firstParam: ExpressionElement
     def secondParam: Option[ExpressionElement]
   }
-  final case class Size(file: ExpressionElement, unit: Option[ExpressionElement]) extends OneOrTwoParamFunctionCallElement {
+  final case class Size(file: ExpressionElement, unit: Option[ExpressionElement])
+      extends OneOrTwoParamFunctionCallElement {
     override def firstParam: ExpressionElement = file
     override def secondParam: Option[ExpressionElement] = unit
   }
-  final case class Basename(param: ExpressionElement, suffixToRemove: Option[ExpressionElement]) extends OneOrTwoParamFunctionCallElement {
+  final case class Basename(param: ExpressionElement, suffixToRemove: Option[ExpressionElement])
+      extends OneOrTwoParamFunctionCallElement {
     override def firstParam: ExpressionElement = param
     override def secondParam: Option[ExpressionElement] = suffixToRemove
   }
@@ -147,6 +169,12 @@ object ExpressionElement {
     override def arg1: ExpressionElement = prefix
     override def arg2: ExpressionElement = array
   }
+
+  final case class Suffix(suffix: ExpressionElement, array: ExpressionElement) extends TwoParamFunctionCallElement {
+    override def arg1: ExpressionElement = suffix
+    override def arg2: ExpressionElement = array
+  }
+
   final case class Min(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
   final case class Max(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
   final case class Sep(arg1: ExpressionElement, arg2: ExpressionElement) extends TwoParamFunctionCallElement
@@ -157,7 +185,18 @@ object ExpressionElement {
     def arg2: ExpressionElement
     def arg3: ExpressionElement
   }
-  final case class Sub(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement) extends ThreeParamFunctionCallElement {
+
+  // Pre-1.1 WDL versions have undefined regex flavor. Cromwell uses the standard Java flavor.
+  final case class Sub(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement)
+      extends ThreeParamFunctionCallElement {
+    override def arg1: ExpressionElement = input
+    override def arg2: ExpressionElement = pattern
+    override def arg3: ExpressionElement = replace
+  }
+
+  // As of WDL 1.1, WDL regular expressions are expected to be POSIX ERE flavor.
+  final case class SubPosix(input: ExpressionElement, pattern: ExpressionElement, replace: ExpressionElement)
+      extends ThreeParamFunctionCallElement {
     override def arg1: ExpressionElement = input
     override def arg2: ExpressionElement = pattern
     override def arg3: ExpressionElement = replace
@@ -203,7 +242,8 @@ object ExpressionElement {
     *  - But, the second element might be part of the identifier to look up (eg my_task.pair_of_pairs) OR it might
     *      be part of a member access chain (eg pair_of_pairs.left.right). We won't know until we do the linking.
     */
-  final case class IdentifierMemberAccess(first: String, second: String, memberAccessTail: Seq[String]) extends ExpressionElement
+  final case class IdentifierMemberAccess(first: String, second: String, memberAccessTail: Seq[String])
+      extends ExpressionElement
 
   /**
     * A member access which is based on an expression rather than an identifier.
@@ -211,7 +251,8 @@ object ExpressionElement {
     * eg:
     * (1, 2).left
     */
-  final case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: NonEmptyList[String]) extends ExpressionElement
+  final case class ExpressionMemberAccess(expression: ExpressionElement, memberAccessTail: NonEmptyList[String])
+      extends ExpressionElement
 
   /**
     *

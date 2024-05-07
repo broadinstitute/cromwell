@@ -10,7 +10,13 @@ import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.{MetadataSqlDatabase, SqlDatabase}
-import cromwell.services.metadata.MetadataService.{MetadataWriteAction, MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
+import cromwell.services.metadata.MetadataService.{
+  MetadataWriteAction,
+  MetadataWriteFailure,
+  MetadataWriteSuccess,
+  PutMetadataAction,
+  PutMetadataActionAndRespond
+}
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsDisabled
 import cromwell.services.metadata.impl.WriteMetadataActorSpec.BatchSizeCountingWriteMetadataActor
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
@@ -32,21 +38,26 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
 
   it should "process jobs in the correct batch sizes" in {
     val registry = TestProbe().ref
-    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue) {
+    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List()) {
       override val metadataDatabaseInterface = mockDatabaseInterface(0)
     })
 
-    def metadataEvent(index: Int) = PutMetadataAction(MetadataEvent(MetadataKey(WorkflowId.randomId(), None, s"metadata_key_$index"), MetadataValue(s"hello_$index")))
+    def metadataEvent(index: Int) = PutMetadataAction(
+      MetadataEvent(MetadataKey(WorkflowId.randomId(), None, s"metadata_key_$index"), MetadataValue(s"hello_$index"))
+    )
 
-    val probes = (0 until 27).map({ _ =>
-      val probe = TestProbe()
-      probe
-    }).zipWithIndex.map {
-      case (probe, index) => probe -> metadataEvent(index)
-    }
+    val probes = (0 until 27)
+      .map { _ =>
+        val probe = TestProbe()
+        probe
+      }
+      .zipWithIndex
+      .map { case (probe, index) =>
+        probe -> metadataEvent(index)
+      }
 
-    probes foreach {
-      case (probe, msg) => probe.send(writeActor, msg)
+    probes foreach { case (probe, msg) =>
+      probe.send(writeActor, msg)
     }
 
     eventually {
@@ -60,28 +71,39 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
   failuresBetweenSuccessValues foreach { failureRate =>
     it should s"succeed metadata writes and respond to all senders even with $failureRate failures between each success" in {
       val registry = TestProbe().ref
-      val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue) {
-        override val metadataDatabaseInterface = mockDatabaseInterface(failureRate)
-      })
+      val writeActor =
+        TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List()) {
+          override val metadataDatabaseInterface = mockDatabaseInterface(failureRate)
+        })
 
-      def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(List(MetadataEvent(MetadataKey(WorkflowId.randomId(), None, s"metadata_key_$index"), MetadataValue(s"hello_$index"))), probe)
+      def metadataEvent(index: Int, probe: ActorRef) =
+        PutMetadataActionAndRespond(List(
+                                      MetadataEvent(MetadataKey(WorkflowId.randomId(), None, s"metadata_key_$index"),
+                                                    MetadataValue(s"hello_$index")
+                                      )
+                                    ),
+                                    probe
+        )
 
-      val probes = (0 until 43).map({ _ =>
-        val probe = TestProbe()
-        probe
-      }).zipWithIndex.map {
-        case (probe, index) => probe -> metadataEvent(index, probe.ref)
+      val probes = (0 until 43)
+        .map { _ =>
+          val probe = TestProbe()
+          probe
+        }
+        .zipWithIndex
+        .map { case (probe, index) =>
+          probe -> metadataEvent(index, probe.ref)
+        }
+
+      probes foreach { case (probe, msg) =>
+        probe.send(writeActor, msg)
       }
 
-      probes foreach {
-        case (probe, msg) => probe.send(writeActor, msg)
-      }
-
-      probes.foreach {
-        case (probe, msg) => probe.expectMsg(MetadataWriteSuccess(msg.events))
+      probes.foreach { case (probe, msg) =>
+        probe.expectMsg(MetadataWriteSuccess(msg.events))
       }
       eventually {
-        writeActor.underlyingActor.failureCount should be (5 * failureRate)
+        writeActor.underlyingActor.failureCount should be(5 * failureRate)
       }
 
       writeActor.stop()
@@ -90,31 +112,123 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
 
   it should s"fail metadata writes and respond to all senders with failures" in {
     val registry = TestProbe().ref
-    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue) {
+    val writeActor = TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List()) {
       override val metadataDatabaseInterface = mockDatabaseInterface(100)
     })
 
-    def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(List(MetadataEvent(MetadataKey(WorkflowId.randomId(), None, s"metadata_key_$index"), MetadataValue(s"hello_$index"))), probe)
-
-    val probes = (0 until 43).map({ _ =>
-      val probe = TestProbe()
+    def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(
+      List(
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, s"metadata_key_$index"), MetadataValue(s"hello_$index"))
+      ),
       probe
-    }).zipWithIndex.map {
-      case (probe, index) => probe -> metadataEvent(index, probe.ref)
+    )
+
+    val probes = (0 until 43)
+      .map { _ =>
+        val probe = TestProbe()
+        probe
+      }
+      .zipWithIndex
+      .map { case (probe, index) =>
+        probe -> metadataEvent(index, probe.ref)
+      }
+
+    probes foreach { case (probe, msg) =>
+      probe.send(writeActor, msg)
     }
 
-    probes foreach {
-      case (probe, msg) => probe.send(writeActor, msg)
-    }
-
-    probes.foreach {
-      case (probe, msg) => probe.expectMsg(MetadataWriteFailure(WriteMetadataActorSpec.IntermittentException, msg.events))
+    probes.foreach { case (probe, msg) =>
+      probe.expectMsg(MetadataWriteFailure(WriteMetadataActorSpec.IntermittentException, msg.events))
     }
     eventually {
-      writeActor.underlyingActor.failureCount should be (5 * 10)
+      writeActor.underlyingActor.failureCount should be(5 * 10)
     }
 
     writeActor.stop()
+  }
+
+  it should s"test removing emojis from metadata works as expected" in {
+    val registry = TestProbe().ref
+    val writeActor =
+      TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List("metadata_key")) {
+        override val metadataDatabaseInterface = mockDatabaseInterface(100)
+      })
+
+    def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(
+      List(
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue(s"🎉_$index"))
+      ),
+      probe
+    )
+
+    val probes = (0 until 43)
+      .map { _ =>
+        val probe = TestProbe()
+        probe
+      }
+      .zipWithIndex
+      .map { case (probe, index) =>
+        probe -> metadataEvent(index, probe.ref)
+      }
+
+    val metadataWriteActions = probes.map(probe => probe._2).toVector
+    val metadataWriteActionNE = NonEmptyVector(metadataWriteActions.head, metadataWriteActions.tail)
+
+    val sanitizedWriteActions = writeActor.underlyingActor.sanitizeInputs(metadataWriteActionNE)
+
+    sanitizedWriteActions.map { writeAction =>
+      writeAction.events.map { event =>
+        if (event.value.getOrElse(fail("Removed value from metadata event")).value.matches("[\\x{10000}-\\x{FFFFF}]")) {
+          fail("Metadata event contains emoji")
+        }
+
+        if (!event.value.getOrElse(fail("Removed value from metadata event")).value.contains("\uFFFD")) {
+          fail("Incorrect character used to replace emoji")
+        }
+      }
+    }
+  }
+
+  it should s"test removing emojis from metadata which doesn't contain emojis returns the string" in {
+    val registry = TestProbe().ref
+    val writeActor =
+      TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List("metadata_key")) {
+        override val metadataDatabaseInterface = mockDatabaseInterface(100)
+      })
+
+    def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(
+      List(
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue(s"hello_$index"))
+      ),
+      probe
+    )
+
+    val probes = (0 until 43)
+      .map { _ =>
+        val probe = TestProbe()
+        probe
+      }
+      .zipWithIndex
+      .map { case (probe, index) =>
+        probe -> metadataEvent(index, probe.ref)
+      }
+
+    val metadataWriteActions = probes.map(probe => probe._2).toVector
+    val metadataWriteActionNE = NonEmptyVector(metadataWriteActions.head, metadataWriteActions.tail)
+
+    val sanitizedWriteActions = writeActor.underlyingActor.sanitizeInputs(metadataWriteActionNE)
+
+    sanitizedWriteActions.map { writeAction =>
+      writeAction.events.map { event =>
+        if (event.value.getOrElse(fail("Removed value from metadata event")).value.matches("[\\x{10000}-\\x{FFFFF}]")) {
+          fail("Metadata event contains emoji")
+        }
+
+        if (event.value.getOrElse(fail("Removed value from metadata event")).value.contains("\uFFFD")) {
+          fail("Incorrectly replaced character in metadata event")
+        }
+      }
+    }
   }
 
   // Mock database interface.
@@ -127,8 +241,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
 
     override def connectionDescription: String = "Mock Database"
 
-    override def existsMetadataEntries()(
-      implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def existsMetadataEntries()(implicit ec: ExecutionContext): Nothing = notImplemented()
 
     var requestsSinceLastSuccess = 0
     // Return successful
@@ -140,8 +253,8 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
                                     submissionMetadataKey: String,
                                     parentWorkflowIdKey: String,
                                     rootWorkflowIdKey: String,
-                                    labelMetadataKey: String)
-                                   (implicit ec: ExecutionContext): Future[Unit] = {
+                                    labelMetadataKey: String
+    )(implicit ec: ExecutionContext): Future[Unit] =
       if (requestsSinceLastSuccess == failuresBetweenEachSuccess) {
         requestsSinceLastSuccess = 0
         Future.successful(())
@@ -149,50 +262,50 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
         requestsSinceLastSuccess += 1
         Future.failed(WriteMetadataActorSpec.IntermittentException)
       }
-    }
 
-    override def metadataEntryExists(workflowExecutionUuid: String)
-                                    (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Nothing =
+      notImplemented()
 
-    override def metadataSummaryEntryExists(workflowExecutionUuid: String)
-                                           (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def metadataSummaryEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Nothing =
+      notImplemented()
 
-    override def queryMetadataEntries(workflowExecutionUuid: String,
-                                      timeout: Duration)
-                                     (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def queryMetadataEntries(workflowExecutionUuid: String, timeout: Duration)(implicit
+      ec: ExecutionContext
+    ): Nothing = notImplemented()
 
     override def streamMetadataEntries(workflowExecutionUuid: String): Nothing = notImplemented()
 
-    override def queryMetadataEntries(workflowExecutionUuid: String,
-                                      metadataKey: String,
-                                      timeout: Duration)(implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def queryMetadataEntries(workflowExecutionUuid: String, metadataKey: String, timeout: Duration)(implicit
+      ec: ExecutionContext
+    ): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowExecutionUuid: String,
                                       callFullyQualifiedName: String,
                                       jobIndex: Option[Int],
                                       jobAttempt: Option[Int],
-                                      timeout: Duration)(implicit ec: ExecutionContext): Nothing = notImplemented()
+                                      timeout: Duration
+    )(implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def queryMetadataEntries(workflowUuid: String,
                                       metadataKey: String,
                                       callFullyQualifiedName: String,
                                       jobIndex: Option[Int],
                                       jobAttempt: Option[Int],
-                                      timeout: Duration)(implicit ec: ExecutionContext): Nothing = notImplemented()
+                                      timeout: Duration
+    )(implicit ec: ExecutionContext): Nothing = notImplemented()
 
     override def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
-                                             metadataKeysToFilterFor: List[String],
-                                             metadataKeysToFilterAgainst: List[String],
-                                             metadataJobQueryValue: MetadataJobQueryValue,
-                                             timeout: Duration)
-                                            (implicit ec: ExecutionContext): Nothing = notImplemented()
+                                                      metadataKeysToFilterFor: List[String],
+                                                      metadataKeysToFilterAgainst: List[String],
+                                                      metadataJobQueryValue: MetadataJobQueryValue,
+                                                      timeout: Duration
+    )(implicit ec: ExecutionContext): Nothing = notImplemented()
 
-    override def summarizeIncreasing(labelMetadataKey: String,
-                                     limit: Int,
-                                     buildUpdatedSummary:
-                                     (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
-                                       => WorkflowMetadataSummaryEntry)
-                                    (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def summarizeIncreasing(
+      labelMetadataKey: String,
+      limit: Int,
+      buildUpdatedSummary: (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry
+    )(implicit ec: ExecutionContext): Nothing = notImplemented()
 
     /**
       * Retrieves a window of summarizable metadata satisfying the specified criteria.
@@ -200,23 +313,23 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
       * @param buildUpdatedSummary Takes in the optional existing summary and the metadata, returns the new summary.
       * @return A `Future` with the maximum metadataEntryId summarized by the invocation of this method.
       */
-    override def summarizeDecreasing(summaryNameDecreasing: String,
-                                     summaryNameIncreasing: String,
-                                     labelMetadataKey: String,
-                                     limit: Int,
-                                     buildUpdatedSummary:
-                                     (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry])
-                                       => WorkflowMetadataSummaryEntry)
-                                    (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def summarizeDecreasing(
+      summaryNameDecreasing: String,
+      summaryNameIncreasing: String,
+      labelMetadataKey: String,
+      limit: Int,
+      buildUpdatedSummary: (Option[WorkflowMetadataSummaryEntry], Seq[MetadataEntry]) => WorkflowMetadataSummaryEntry
+    )(implicit ec: ExecutionContext): Nothing = notImplemented()
 
-    override def getWorkflowStatus(workflowExecutionUuid: String)
-                                  (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def getWorkflowStatus(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Nothing =
+      notImplemented()
 
-    override def getWorkflowLabels(workflowExecutionUuid: String)
-                                  (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Nothing =
+      notImplemented()
 
-    override def getRootAndSubworkflowLabels(rootWorkflowExecutionUuid: String)
-                                  (implicit ec: ExecutionContext): Nothing = notImplemented()
+    override def getRootAndSubworkflowLabels(rootWorkflowExecutionUuid: String)(implicit
+      ec: ExecutionContext
+    ): Nothing = notImplemented()
 
     override def queryWorkflowSummaries(parentWorkflowIdMetadataKey: String,
                                         workflowStatuses: Set[String],
@@ -233,10 +346,9 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
                                         includeSubworkflows: Boolean,
                                         page: Option[Int],
                                         pageSize: Option[Int],
-                                        newestFirst: Boolean)
-                                       (implicit ec: ExecutionContext): Nothing = {
+                                        newestFirst: Boolean
+    )(implicit ec: ExecutionContext): Nothing =
       notImplemented()
-    }
 
     override def countWorkflowSummaries(parentWorkflowIdMetadataKey: String,
                                         workflowStatuses: Set[String],
@@ -250,66 +362,101 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
                                         startTimestampOption: Option[Timestamp],
                                         endTimestampOption: Option[Timestamp],
                                         metadataArchiveStatus: Set[Option[String]],
-                                        includeSubworkflows: Boolean)
-                                       (implicit ec: ExecutionContext): Nothing = {
+                                        includeSubworkflows: Boolean
+    )(implicit ec: ExecutionContext): Nothing =
       notImplemented()
-    }
 
-    override def updateMetadataArchiveStatus(workflowExecutionUuid: String, newArchiveStatus: Option[String]): Future[Int] = notImplemented()
+    override def updateMetadataArchiveStatus(workflowExecutionUuid: String,
+                                             newArchiveStatus: Option[String]
+    ): Future[Int] = notImplemented()
 
-    override def withConnection[A](block: Connection => A): Nothing = {
+    override def withConnection[A](block: Connection => A): Nothing =
       notImplemented()
-    }
 
     override def close(): Nothing = notImplemented()
 
-    override def deleteAllMetadataForWorkflowAndUpdateArchiveStatus(workflowId: String, newArchiveStatus: Option[String])(implicit ec: ExecutionContext): Future[Int] = {
+    override def deleteAllMetadataForWorkflowAndUpdateArchiveStatus(workflowId: String,
+                                                                    newArchiveStatus: Option[String]
+    )(implicit ec: ExecutionContext): Future[Int] =
       notImplemented()
-    }
 
-    override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] = {
+    override def getRootWorkflowId(workflowId: String)(implicit ec: ExecutionContext): Future[Option[String]] =
       notImplemented()
-    }
 
-    override def queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String], thresholdTimestamp: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+    override def queryWorkflowIdsByArchiveStatusAndEndedOnOrBeforeThresholdTimestamp(archiveStatus: Option[String],
+                                                                                     thresholdTimestamp: Timestamp,
+                                                                                     batchSize: Long
+    )(implicit ec: ExecutionContext): Future[Seq[String]] =
       notImplemented()
-    }
 
-    override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] = {
+    override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
       notImplemented()
-    }
 
-    override def countMetadataEntries(workflowExecutionUuid: String, expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    override def countMetadataEntries(workflowExecutionUuid: String, expandSubWorkflows: Boolean, timeout: Duration)(
+      implicit ec: ExecutionContext
+    ): Future[Int] =
       notImplemented()
-    }
 
-    override def countMetadataEntries(workflowExecutionUuid: String, metadataKey: String, expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    override def countMetadataEntries(workflowExecutionUuid: String,
+                                      metadataKey: String,
+                                      expandSubWorkflows: Boolean,
+                                      timeout: Duration
+    )(implicit ec: ExecutionContext): Future[Int] =
       notImplemented()
-    }
 
-    override def countMetadataEntries(workflowExecutionUuid: String, callFullyQualifiedName: String, jobIndex: Option[Int], jobAttempt: Option[Int], expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    override def countMetadataEntries(workflowExecutionUuid: String,
+                                      callFullyQualifiedName: String,
+                                      jobIndex: Option[Int],
+                                      jobAttempt: Option[Int],
+                                      expandSubWorkflows: Boolean,
+                                      timeout: Duration
+    )(implicit ec: ExecutionContext): Future[Int] =
       notImplemented()
-    }
 
-    override def countMetadataEntries(workflowUuid: String, metadataKey: String, callFullyQualifiedName: String, jobIndex: Option[Int], jobAttempt: Option[Int], expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    override def countMetadataEntries(workflowUuid: String,
+                                      metadataKey: String,
+                                      callFullyQualifiedName: String,
+                                      jobIndex: Option[Int],
+                                      jobAttempt: Option[Int],
+                                      expandSubWorkflows: Boolean,
+                                      timeout: Duration
+    )(implicit ec: ExecutionContext): Future[Int] =
       notImplemented()
-    }
 
-    override def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String, metadataKeysToFilterFor: List[String], metadataKeysToFilterAgainst: List[String], metadataJobQueryValue: MetadataJobQueryValue, expandSubWorkflows: Boolean, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
+    override def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
+                                                      metadataKeysToFilterFor: List[String],
+                                                      metadataKeysToFilterAgainst: List[String],
+                                                      metadataJobQueryValue: MetadataJobQueryValue,
+                                                      expandSubWorkflows: Boolean,
+                                                      timeout: Duration
+    )(implicit ec: ExecutionContext): Future[Int] =
       notImplemented()
-    }
 
-    override def getMetadataArchiveStatusAndEndTime(workflowId: String)(implicit ec: ExecutionContext):  Future[(Option[String], Option[Timestamp])] = notImplemented()
+    override def getMetadataArchiveStatusAndEndTime(workflowId: String)(implicit
+      ec: ExecutionContext
+    ): Future[(Option[String], Option[Timestamp])] = notImplemented()
 
-    override def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String], workflowEndTimestampThreshold: Timestamp, batchSize: Long)(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = notImplemented()
+    override def queryWorkflowsToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String],
+                                                                              workflowEndTimestampThreshold: Timestamp,
+                                                                              batchSize: Long
+    )(implicit ec: ExecutionContext): Future[Seq[WorkflowMetadataSummaryEntry]] = notImplemented()
 
-    override def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(workflowStatuses: List[String], workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = notImplemented()
+    override def countWorkflowsLeftToArchiveThatEndedOnOrBeforeThresholdTimestamp(
+      workflowStatuses: List[String],
+      workflowEndTimestampThreshold: Timestamp
+    )(implicit ec: ExecutionContext): Future[Int] = notImplemented()
 
-    override def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(workflowEndTimestampThreshold: Timestamp)(implicit ec: ExecutionContext): Future[Int] = notImplemented()
+    override def countWorkflowsLeftToDeleteThatEndedOnOrBeforeThresholdTimestamp(
+      workflowEndTimestampThreshold: Timestamp
+    )(implicit ec: ExecutionContext): Future[Int] = notImplemented()
 
-    override def getMetadataTableSizeInformation()(implicit ec: ExecutionContext): Future[Option[InformationSchemaEntry]] = notImplemented()
+    override def getMetadataTableSizeInformation()(implicit
+      ec: ExecutionContext
+    ): Future[Option[InformationSchemaEntry]] = notImplemented()
 
-    override def getFailedJobsMetadataWithWorkflowId(rootWorkflowId: String)(implicit ec: ExecutionContext): Future[Vector[MetadataEntry]] = notImplemented()
+    override def getFailedJobsMetadataWithWorkflowId(rootWorkflowId: String)(implicit
+      ec: ExecutionContext
+    ): Future[Vector[MetadataEntry]] = notImplemented()
   }
 }
 
@@ -320,7 +467,15 @@ object WriteMetadataActorSpec {
   class BatchSizeCountingWriteMetadataActor(override val batchSize: Int,
                                             override val flushRate: FiniteDuration,
                                             override val serviceRegistryActor: ActorRef,
-                                            override val threshold: Int) extends WriteMetadataActor(batchSize, flushRate, serviceRegistryActor, threshold, MetadataStatisticsDisabled) {
+                                            override val threshold: Int,
+                                            val metadataKeysToClean: List[String]
+  ) extends WriteMetadataActor(batchSize,
+                               flushRate,
+                               serviceRegistryActor,
+                               threshold,
+                               MetadataStatisticsDisabled,
+                               metadataKeysToClean
+      ) {
 
     var batchSizes: Vector[Int] = Vector.empty
     var failureCount: Int = 0

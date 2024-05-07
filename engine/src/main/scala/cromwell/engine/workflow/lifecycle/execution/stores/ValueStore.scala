@@ -39,9 +39,8 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
     values.asJson.printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
   }
 
-  final def add(values: Map[ValueKey, WomValue]): ValueStore = {
-    this.copy(store = store.addAll(values.map({ case (key, value) => (key.port, key.index, value) })))
-  }
+  final def add(values: Map[ValueKey, WomValue]): ValueStore =
+    this.copy(store = store.addAll(values.map { case (key, value) => (key.port, key.index, value) }))
 
   final def get(outputKey: ValueKey): Option[WomValue] = store.getValue(outputKey.port, outputKey.index)
 
@@ -76,7 +75,8 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
           }
         } else {
           // If we don't find enough shards, this collector was found "runnable" when it shouldn't have
-          s"Some shards are missing from the value store for node ${collector.node.fullyQualifiedName}, expected ${collector.scatterWidth} shards but only got ${collectedValue.size}: ${collectedValue.mkString(", ")}".invalidNel
+          s"Some shards are missing from the value store for node ${collector.node.fullyQualifiedName}, expected ${collector.scatterWidth} shards but only got ${collectedValue.size}: ${collectedValue
+              .mkString(", ")}".invalidNel
         }
       case None if collector.scatterWidth == 0 =>
         // If there's nothing, the scatter was empty, let the scatterCollectionFunction deal with it and just pass it an empty shard list
@@ -92,8 +92,10 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
     val conditionalPort = collector.conditionalOutputPort
     val sourcePort = conditionalPort.outputToExpose.source
     store.getValue(sourcePort, collector.index) match {
-      case Some(womValue) => Map(ValueKey(conditionalPort, collector.index) -> WomOptionalValue(womValue).flattenOptional).validNel
-      case None => s"Conditional collector cannot find a value for output port ${sourcePort.identifier.fullyQualifiedName.value} in value store: $this".invalidNel
+      case Some(womValue) =>
+        Map(ValueKey(conditionalPort, collector.index) -> WomOptionalValue(womValue).flattenOptional).validNel
+      case None =>
+        s"Conditional collector cannot find a value for output port ${sourcePort.identifier.fullyQualifiedName.value} in value store: $this".invalidNel
     }
   }
 
@@ -107,12 +109,16 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
         case Some(womValue: WomArrayLike) =>
           index match {
             case Some(jobIndex) =>
-              womValue.asArray.value.lift(svn.indexForShard(jobIndex, womValue.asArray.value.size))
+              womValue.asArray.value
+                .lift(svn.indexForShard(jobIndex, womValue.asArray.value.size))
                 .toValidNel(s"Shard index $jobIndex exceeds scatter array length: ${womValue.asArray.value.size}")
-            case None => s"Unsharded execution key references a scatter variable: ${p.identifier.fullyQualifiedName}".invalidNel
+            case None =>
+              s"Unsharded execution key references a scatter variable: ${p.identifier.fullyQualifiedName}".invalidNel
           }
-        case Some(other) => s"Value for scatter collection ${p.identifier.fullyQualifiedName} is not an array: ${other.womType.stableName}".invalidNel
-        case None => s"Can't find a value for scatter collection ${p.identifier.fullyQualifiedName} (looking for index $index)".invalidNel
+        case Some(other) =>
+          s"Value for scatter collection ${p.identifier.fullyQualifiedName} is not an array: ${other.womType.stableName}".invalidNel
+        case None =>
+          s"Can't find a value for scatter collection ${p.identifier.fullyQualifiedName} (looking for index $index)".invalidNel
       }
     }
 
@@ -123,7 +129,7 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
         s"Can't find a ValueStore value for $p at index $index in $this".invalidNel
     }
 
-    def findValueStorePort(p: OutputPort, index: ExecutionIndex): ErrorOr[WomValue] = {
+    def findValueStorePort(p: OutputPort, index: ExecutionIndex): ErrorOr[WomValue] =
       p.graphNode match {
         case svn: ScatterVariableNode => forScatterVariable(svn)
         case ogin: OuterGraphInputNode if ogin.preserveScatterIndex => findValueStorePort(ogin.linkToOuterGraph, index)
@@ -131,7 +137,6 @@ case class ValueStore(store: Table[OutputPort, ExecutionIndex, WomValue]) {
         case _: GraphInputNode => forGraphNodePort(p, None) // Must be a workflow input, which never have indices
         case _ => forGraphNodePort(p, index)
       }
-    }
 
     findValueStorePort(outputPort, index)
   }

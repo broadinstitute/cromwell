@@ -54,4 +54,40 @@ metadata {
   "outputs.biscayne_new_engine_functions.bigIntFloatComparison": 10.0
   "outputs.biscayne_new_engine_functions.minMaxIntFloatComposition": 1.0
   "outputs.biscayne_new_engine_functions.maxIntVsMaxFloat": 1.79769313E+308
+
+  "outputs.biscayne_new_engine_functions.substituted": "WATtheWAT"
+
+  "outputs.biscayne_new_engine_functions.with_suffixes.0": "aaaS"
+  "outputs.biscayne_new_engine_functions.with_suffixes.1": "bbbS"
+  "outputs.biscayne_new_engine_functions.with_suffixes.2": "cccS"
+
+  "outputs.biscayne_new_engine_functions.with_quotes.0": "\"1\""
+  "outputs.biscayne_new_engine_functions.with_quotes.1": "\"2\""
+  "outputs.biscayne_new_engine_functions.with_quotes.2": "\"3\""
+
+  "outputs.biscayne_new_engine_functions.string_with_quotes.0": "\"aaa\""
+  "outputs.biscayne_new_engine_functions.string_with_quotes.1": "\"bbb\""
+  "outputs.biscayne_new_engine_functions.string_with_quotes.2": "\"ccc\""
+
+  "outputs.biscayne_new_engine_functions.with_squotes.0": "'1'"
+  "outputs.biscayne_new_engine_functions.with_squotes.1": "'2'"
+  "outputs.biscayne_new_engine_functions.with_squotes.2": "'3'"
+
+  "outputs.biscayne_new_engine_functions.string_with_squotes.0": "'aaa'"
+  "outputs.biscayne_new_engine_functions.string_with_squotes.1": "'bbb'"
+  "outputs.biscayne_new_engine_functions.string_with_squotes.2": "'ccc'"
+  "outputs.biscayne_new_engine_functions.unzipped_a.left.0": "A"
+  "outputs.biscayne_new_engine_functions.unzipped_a.right.0": "a"
+
+  "outputs.biscayne_new_engine_functions.unzipped_b.left.0": "A"
+  "outputs.biscayne_new_engine_functions.unzipped_b.left.1": "B"
+  "outputs.biscayne_new_engine_functions.unzipped_b.right.0": "a"
+  "outputs.biscayne_new_engine_functions.unzipped_b.right.1": "b"
+
+  "outputs.biscayne_new_engine_functions.unzipped_c.left.0": "one"
+  "outputs.biscayne_new_engine_functions.unzipped_c.left.1": "two"
+  "outputs.biscayne_new_engine_functions.unzipped_c.left.2": "three"
+  "outputs.biscayne_new_engine_functions.unzipped_c.right.0": 1.0
+  "outputs.biscayne_new_engine_functions.unzipped_c.right.1": 2.0
+  "outputs.biscayne_new_engine_functions.unzipped_c.right.2": 3.0
 }

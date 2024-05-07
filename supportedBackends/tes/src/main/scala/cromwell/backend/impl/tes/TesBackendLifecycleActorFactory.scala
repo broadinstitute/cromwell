@@ -6,7 +6,7 @@ import cromwell.backend.standard._
 import wom.graph.CommandCallNode
 
 case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
-  extends StandardLifecycleActorFactory {
+    extends StandardLifecycleActorFactory {
 
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[TesInitializationActor]
 
@@ -17,8 +17,13 @@ case class TesBackendLifecycleActorFactory(name: String, configurationDescriptor
 
   val tesConfiguration = new TesConfiguration(configurationDescriptor)
 
-  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor, ioActor: ActorRef, calls: Set[CommandCallNode],
-                                                 serviceRegistryActor: ActorRef, restarting: Boolean): StandardInitializationActorParams = {
+  override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor,
+                                                 ioActor: ActorRef,
+                                                 calls: Set[CommandCallNode],
+                                                 serviceRegistryActor: ActorRef,
+                                                 restarting: Boolean
+  ): StandardInitializationActorParams =
     TesInitializationActorParams(workflowDescriptor, calls, tesConfiguration, serviceRegistryActor)
-  }
+
+  override def platform: Option[Platform] = tesConfiguration.platform
 }

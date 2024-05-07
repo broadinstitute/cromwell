@@ -16,16 +16,15 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration._
 
 class WriteMetadataActorBenchmark extends TestKitSuite with AnyFlatSpecLike with Eventually with Matchers {
-  override implicit val patienceConfig = PatienceConfig(scaled(30.seconds), 1.second)
+  implicit override val patienceConfig = PatienceConfig(scaled(30.seconds), 1.second)
 
   behavior of "WriteMetadataActor"
 
   val workflowId = WorkflowId.randomId()
   val registry = TestProbe().ref
 
-  def makeEvent = {
+  def makeEvent =
     MetadataEvent(MetadataKey(workflowId, None, "metadata_key"), MetadataValue("My Value"))
-  }
 
   def time[T](description: String)(thunk: => T): T = {
     val t1 = System.currentTimeMillis
@@ -38,16 +37,18 @@ class WriteMetadataActorBenchmark extends TestKitSuite with AnyFlatSpecLike with
   private val databaseSystem = MysqlEarliestDatabaseSystem
   private val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)
 
-  private lazy val dataAccess = DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
+  private lazy val dataAccess =
+    DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, MetadataDatabaseType, databaseSystem)
 
   it should "start container if required" taggedAs IntegrationTest in {
-    containerOpt.foreach { _.start }
+    containerOpt.foreach(_.start)
   }
 
   it should "provide good throughput" taggedAs IntegrationTest in {
-    val writeActor = TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry, Int.MaxValue, MetadataStatisticsDisabled) {
-      override val metadataDatabaseInterface: MetadataSlickDatabase = dataAccess
-    })
+    val writeActor =
+      TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry, Int.MaxValue, MetadataStatisticsDisabled, List()) {
+        override val metadataDatabaseInterface: MetadataSlickDatabase = dataAccess
+      })
 
     time("metadata write") {
       (0 to 1 * 1000 * 1000)
@@ -67,6 +68,6 @@ class WriteMetadataActorBenchmark extends TestKitSuite with AnyFlatSpecLike with
   }
 
   it should "stop container if required" taggedAs IntegrationTest in {
-    containerOpt.foreach { _.stop() }
+    containerOpt.foreach(_.stop())
   }
 }

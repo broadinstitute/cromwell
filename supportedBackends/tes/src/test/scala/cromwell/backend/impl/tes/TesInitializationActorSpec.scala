@@ -18,8 +18,7 @@ import wom.graph.CommandCallNode
 
 import scala.concurrent.duration._
 
-class TesInitializationActorSpec extends TestKitSuite
-  with AnyWordSpecLike with Matchers with ImplicitSender {
+class TesInitializationActorSpec extends TestKitSuite with AnyWordSpecLike with Matchers with ImplicitSender {
   val Timeout: FiniteDuration = 10.second.dilated
 
   val HelloWorld: String =
@@ -63,12 +62,14 @@ class TesInitializationActorSpec extends TestKitSuite
       |    # The keys below have been commented out as they are optional runtime attributes.
       |    # dockerWorkingDir
       |    # docker
+      |    # azureSasEnvironmentVariable
       |}
       |""".stripMargin
 
-
-  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor, calls: Set[CommandCallNode],
-                          conf: BackendConfigurationDescriptor) = {
+  private def getActorRef(workflowDescriptor: BackendWorkflowDescriptor,
+                          calls: Set[CommandCallNode],
+                          conf: BackendConfigurationDescriptor
+  ) = {
     val params = TesInitializationActorParams(workflowDescriptor, calls, new TesConfiguration(conf), emptyActor)
     val props = Props(new TesInitializationActor(params))
     system.actorOf(props, "TesInitializationActor" + UUID.randomUUID)
@@ -83,8 +84,8 @@ class TesInitializationActorSpec extends TestKitSuite
   "TesInitializationActor" should {
     "log a warning message when there are unsupported runtime attributes" in {
       within(Timeout) {
-        val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
-          runtime = """runtime { docker: "ubuntu/latest" test: true }""")
+        val workflowDescriptor =
+          buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu/latest" test: true }""")
         val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         val eventPattern =
           "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
@@ -100,14 +101,17 @@ class TesInitializationActorSpec extends TestKitSuite
 
     def initializeActor(workflowOptions: WorkflowOptions): Unit = {
       val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld,
-        runtime = """runtime { docker: "ubuntu/latest" }""",
-        options = workflowOptions)
+                                                          runtime = """runtime { docker: "ubuntu/latest" }""",
+                                                          options = workflowOptions
+      )
       val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
       backend ! Initialize
     }
 
     def nonStringErrorMessage(key: String) = s"Workflow option $key must be a string"
-    val bothRequiredErrorMessage = s"Workflow options ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} and ${TesWorkflowOptionKeys.DataAccessIdentity} are both required if one is provided"
+
+    val bothRequiredErrorMessage =
+      s"Workflow options ${TesWorkflowOptionKeys.WorkflowExecutionIdentity} and ${TesWorkflowOptionKeys.DataAccessIdentity} are both required if one is provided"
 
     "fail when WorkflowExecutionIdentity is not a string and DataAccessIdentity is missing" in {
       within(Timeout) {
@@ -119,9 +123,13 @@ class TesInitializationActorSpec extends TestKitSuite
           case InitializationSuccess(s) => fail(s"InitializationFailed was expected but got $s")
           case InitializationFailed(failure) =>
             val expectedMsg = nonStringErrorMessage(TesWorkflowOptionKeys.WorkflowExecutionIdentity)
-            if (!(failure.getMessage.contains(expectedMsg) &&
-                  failure.getMessage.contains(bothRequiredErrorMessage))) {
-              fail(s"Exception message did not contain both '$expectedMsg' and '$bothRequiredErrorMessage'. Was '$failure'")
+            if (
+              !(failure.getMessage.contains(expectedMsg) &&
+                failure.getMessage.contains(bothRequiredErrorMessage))
+            ) {
+              fail(
+                s"Exception message did not contain both '$expectedMsg' and '$bothRequiredErrorMessage'. Was '$failure'"
+              )
             }
         }
       }
@@ -129,10 +137,14 @@ class TesInitializationActorSpec extends TestKitSuite
 
     "fail when WorkflowExecutionIdentity is a string but DataAccessIdentity is not a string" in {
       within(Timeout) {
-        val workflowOptions = WorkflowOptions(JsObject(Map(
-          TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString("5"),
-          TesWorkflowOptionKeys.DataAccessIdentity -> JsNumber(6)
-        )))
+        val workflowOptions = WorkflowOptions(
+          JsObject(
+            Map(
+              TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString("5"),
+              TesWorkflowOptionKeys.DataAccessIdentity -> JsNumber(6)
+            )
+          )
+        )
         initializeActor(workflowOptions)
         expectMsgPF() {
           case InitializationSuccess(s) => fail(s"InitializationFailed was expected but got $s")
@@ -145,10 +157,14 @@ class TesInitializationActorSpec extends TestKitSuite
 
     "successfully start when both WorkflowExecutionIdentity and DataAccessIdentity are strings" in {
       within(Timeout) {
-        val workflowOptions = WorkflowOptions(JsObject(Map(
-          TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString("5"),
-          TesWorkflowOptionKeys.DataAccessIdentity -> JsString("6")
-        )))
+        val workflowOptions = WorkflowOptions(
+          JsObject(
+            Map(
+              TesWorkflowOptionKeys.WorkflowExecutionIdentity -> JsString("5"),
+              TesWorkflowOptionKeys.DataAccessIdentity -> JsString("6")
+            )
+          )
+        )
         initializeActor(workflowOptions)
         expectMsgPF() {
           case InitializationSuccess(_) =>
@@ -162,13 +178,18 @@ class TesInitializationActorSpec extends TestKitSuite
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
         val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         backend ! Initialize
-        expectMsgPF() {
-          case InitializationFailed(failure) =>
-            failure match {
-              case exception: RuntimeAttributeValidationFailures =>
-                if (!exception.getMessage.equals("Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!"))
-                  fail("Exception message is not equal to 'Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!'.")
-            }
+        expectMsgPF() { case InitializationFailed(failure) =>
+          failure match {
+            case exception: RuntimeAttributeValidationFailures =>
+              if (
+                !exception.getMessage.equals(
+                  "Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!"
+                )
+              )
+                fail(
+                  "Exception message is not equal to 'Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!'."
+                )
+          }
         }
       }
     }

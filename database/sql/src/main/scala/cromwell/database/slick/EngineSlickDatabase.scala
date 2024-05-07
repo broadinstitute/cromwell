@@ -12,7 +12,7 @@ object EngineSlickDatabase {
 }
 
 class EngineSlickDatabase(originalDatabaseConfig: Config)
-  extends SlickDatabase(originalDatabaseConfig)
+    extends SlickDatabase(originalDatabaseConfig)
     with EngineSqlDatabase
     with WorkflowStoreSlickDatabase
     with JobKeyValueSlickDatabase

@@ -46,16 +46,16 @@ import software.amazon.awssdk.regions.Region
 
 final case class AwsConfiguration private (applicationName: String,
                                            authsByName: Map[String, AwsAuthMode],
-                                           strRegion: Option[String]) {
+                                           strRegion: Option[String]
+) {
 
-  def auth(name: String): ErrorOr[AwsAuthMode] = {
+  def auth(name: String): ErrorOr[AwsAuthMode] =
     authsByName.get(name) match {
       case None =>
         val knownAuthNames = authsByName.keys.mkString(", ")
         s"`aws` configuration stanza does not contain an auth named '$name'.  Known auth names: $knownAuthNames".invalidNel
       case Some(a) => a.validNel
     }
-  }
 
   def region: Option[Region] = strRegion.map(Region.of)
 }
@@ -77,7 +77,7 @@ object AwsConfiguration {
 
     val awsConfig = config.getConfig("aws")
 
-    val appName = validate { awsConfig.as[String]("application-name") }
+    val appName = validate(awsConfig.as[String]("application-name"))
 
     val region: Option[String] =
       awsConfig.getAs[String]("region")
@@ -88,13 +88,16 @@ object AwsConfiguration {
         (authConfig.getAs[String]("access-key"), authConfig.getAs[String]("secret-key")) match {
           case (Some(accessKey), Some(secretKey)) =>
             CustomKeyMode(name, accessKey, secretKey, region)
-          case _ => throw new ConfigException.Generic(s"""Access key and/or secret """ +
-            s"""key missing for service account "$name". See reference.conf under the aws.auth, """ +
-            s"""custom key section for details of required configuration.""")
+          case _ =>
+            throw new ConfigException.Generic(
+              s"""Access key and/or secret """ +
+                s"""key missing for service account "$name". See reference.conf under the aws.auth, """ +
+                s"""custom key section for details of required configuration."""
+            )
         }
       }
 
-      def defaultAuth(authConfig: Config, name: String, region: Option[String]): ErrorOr[AwsAuthMode] =  validate {
+      def defaultAuth(authConfig: Config, name: String, region: Option[String]): ErrorOr[AwsAuthMode] = validate {
         DefaultMode(name, region)
       }
 

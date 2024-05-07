@@ -20,8 +20,8 @@ trait SampleWdl {
     def write(x: Any) = x match {
       case n: Int => JsNumber(n)
       case s: String => JsString(s)
-      case b: Boolean => if(b) JsTrue else JsFalse
-      case s: Seq[Any] => JsArray(s map {_.toJson} toVector)
+      case b: Boolean => if (b) JsTrue else JsFalse
+      case s: Seq[Any] => JsArray(s map { _.toJson } toVector)
       case a: WomArray => write(a.value)
       case s: WomString => JsString(s.value)
       case i: WomInteger => JsNumber(i.value)

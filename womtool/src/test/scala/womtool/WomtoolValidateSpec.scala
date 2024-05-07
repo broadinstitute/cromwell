@@ -12,7 +12,6 @@ import womtool.WomtoolMain.{SuccessfulTermination, UnsuccessfulTermination}
 import scala.jdk.CollectionConverters._
 import scala.collection.immutable
 
-
 class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   private val presentWorkingDirectoryName = DefaultPathBuilder.get(".").toAbsolutePath.name
@@ -39,7 +38,8 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     List(validTestCases, invalidTestCases) foreach { path =>
       it should s"be set up for testing $versionName in '${versionDirectory.relativize(path).toString}'" in {
         if (!path.toFile.exists) fail(s"Path doesn't exist: ${path.toAbsolutePath.toString}")
-        if (Option(path.toFile.list).toList.flatten.isEmpty) fail(s"No test cases found in: ${path.toAbsolutePath.toString}")
+        if (Option(path.toFile.list).toList.flatten.isEmpty)
+          fail(s"No test cases found in: ${path.toAbsolutePath.toString}")
         versionDirectory.list.nonEmpty shouldBe true
       }
     }
@@ -59,7 +59,9 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
       }
 
       it should s"successfully validate $versionName workflow: '$validCase'$withInputsAddition" in {
-        WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) should be(SuccessfulTermination("Success!"))
+        WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) should be(
+          SuccessfulTermination("Success!")
+        )
       }
 
       if (!knownUngraphableTests.contains(validCase)) {
@@ -70,21 +72,26 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
           WomtoolMain.runWomtool(Seq("graph", wdl.getAbsolutePath)) match {
             case SuccessfulTermination(womtoolGraph) =>
-
               // Check that every call in the WDL is represented in the 'womtool graph' output, and vice versa:
-              val callsInWdl = Files.readAllLines(wdl.toPath).asScala.collect {
-                case WdlCallRegex(taskName, null, null, null, null) => taskName
-                case WdlCallRegex(_, _, taskName, null, null) =>
-                  taskName
-                case WdlCallRegex(_, _, _, _, callAlias) => callAlias
-              }.toSet
+              val callsInWdl = Files
+                .readAllLines(wdl.toPath)
+                .asScala
+                .collect {
+                  case WdlCallRegex(taskName, null, null, null, null) => taskName
+                  case WdlCallRegex(_, _, taskName, null, null) =>
+                    taskName
+                  case WdlCallRegex(_, _, _, _, callAlias) => callAlias
+                }
+                .toSet
 
-              val callsInWomtoolGraph = womtoolGraph.linesIterator.collect {
-                case WomtoolGraphCallRegex(call) => call
+              val callsInWomtoolGraph = womtoolGraph.linesIterator.collect { case WomtoolGraphCallRegex(call) =>
+                call
               }.toSet
 
               if (!callsInWomtoolGraph.exists(_.startsWith("ScatterAt"))) {
-                withClue(s"In WDL not in Graph: ${callsInWdl -- callsInWomtoolGraph}; In Graph not in WDL: ${callsInWomtoolGraph -- callsInWdl}") {
+                withClue(
+                  s"In WDL not in Graph: ${callsInWdl -- callsInWomtoolGraph}; In Graph not in WDL: ${callsInWomtoolGraph -- callsInWdl}"
+                ) {
                   callsInWdl should be(callsInWomtoolGraph)
                 }
               }
@@ -100,7 +107,9 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
       it should s"fail to validate $versionName workflow: '$invalidCase'$withInputsAddition" in {
         val wdl = mustExist(invalidTestCases.resolve(invalidCase).resolve(invalidCase + ".wdl").toFile)
-        val errorFile = ifExists(invalidTestCases.resolve(invalidCase).resolve("error.txt").toFile).map(f => File(f.getAbsolutePath).contentAsString)
+        val errorFile = ifExists(invalidTestCases.resolve(invalidCase).resolve("error.txt").toFile).map(f =>
+          File(f.getAbsolutePath).contentAsString
+        )
         val inputsArgs = inputsFile match {
           case Some(path) => Seq("-i", path.getAbsolutePath)
           case None => Seq.empty[String]
@@ -109,17 +118,19 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
         val expectedErrorMessage = errorFile map { ef => ef.trim.replace(s"$${PWD_NAME}", presentWorkingDirectoryName) }
 
         WomtoolMain.runWomtool(Seq("validate", wdl.getAbsolutePath) ++ inputsArgs) match {
-          case UnsuccessfulTermination(msg) => expectedErrorMessage match {
-            case Some(expectedError) =>
-              msg should include(expectedError)
-            case None => succeed
-          }
-          case other => fail(s"Expected UnsuccessfulTermination but got $other. Expected error message: ${System.lineSeparator()}${expectedErrorMessage.getOrElse("<<No expected error message specified>>")}")
+          case UnsuccessfulTermination(msg) =>
+            expectedErrorMessage match {
+              case Some(expectedError) =>
+                msg should include(expectedError)
+              case None => succeed
+            }
+          case other =>
+            fail(s"Expected UnsuccessfulTermination but got $other. Expected error message: ${System
+                .lineSeparator()}${expectedErrorMessage.getOrElse("<<No expected error message specified>>")}")
         }
       }
     }
   }
-
 
   behavior of "womtool validate with --list-dependencies flag"
 
@@ -141,12 +152,13 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
 
     Option(versionDirectory.list).toList.flatten.filterNot(s => s.pathAsString.contains(".DS")) foreach { validCase =>
       val caseName = validCase.name
-      val wdlFile = mustExist(versionDirectory.path.resolve(s"../../validate/$versionName/valid/$caseName/$caseName.wdl").toFile)
-       wdlFile.getAbsolutePath.split("cromwell/womtool")(0)
+      val wdlFile =
+        mustExist(versionDirectory.path.resolve(s"../../validate/$versionName/valid/$caseName/$caseName.wdl").toFile)
+      wdlFile.getAbsolutePath.split("cromwell/womtool")(0)
 
       it should s"successfully validate and print the workflow dependencies for $versionName workflow: '$caseName'" in {
         val rawOutput = expectedOutput(versionDirectory, caseName, "expected_imports.txt")
-        //noinspection RegExpRedundantEscape
+        // noinspection RegExpRedundantEscape
         val importsExpectation = rawOutput.replaceAll("\\{REPLACE_WITH_ROOT_PATH\\}", workingDirectory)
 
         val res = WomtoolMain.runWomtool(Seq("validate", "-l", wdlFile.getAbsolutePath))
@@ -157,14 +169,17 @@ class WomtoolValidateSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     }
   }
 
-
-  private def mustExist(file: java.io.File): java.io.File = if (file.exists) file else fail(s"No such file: ${file.getAbsolutePath}")
+  private def mustExist(file: java.io.File): java.io.File =
+    if (file.exists) file else fail(s"No such file: ${file.getAbsolutePath}")
   private def ifExists(file: java.io.File): Option[java.io.File] = if (file.exists) Option(file) else None
 
   // The filterNot(_.contains(".DS")) stuff prevents Mac 'Desktop Services' hidden directories from accidentally being picked up:
-  private def listFilesAndFilterDSFile(path: Path): immutable.Seq[String] =  Option(path.toFile.list).toList.flatten.filterNot(_.contains(".DS"))
+  private def listFilesAndFilterDSFile(path: Path): immutable.Seq[String] =
+    Option(path.toFile.list).toList.flatten.filterNot(_.contains(".DS"))
 
-  //noinspection SameParameterValue
+  // noinspection SameParameterValue
   private def expectedOutput(versionDirectory: File, caseName: String, outputTextFileName: String): String =
-    File(mustExist(versionDirectory.path.resolve(caseName).resolve(outputTextFileName).toFile).getAbsolutePath).contentAsString.trim
+    File(
+      mustExist(versionDirectory.path.resolve(caseName).resolve(outputTextFileName).toFile).getAbsolutePath
+    ).contentAsString.trim
 }

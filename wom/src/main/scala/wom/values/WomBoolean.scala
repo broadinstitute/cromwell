@@ -14,23 +14,23 @@ object WomBoolean {
 /** The constructor is private to force access through the companion
   * object `apply` which ensures the use of one of the canonical instances.
   */
-class WomBoolean private(val value: Boolean) extends WomPrimitive {
+class WomBoolean private (val value: Boolean) extends WomPrimitive {
   val womType = WomBooleanType
 
   override def equals(rhs: WomValue): Try[WomBoolean] = rhs match {
-    case r:WomBoolean => Success(WomBoolean(value == r.value))
+    case r: WomBoolean => Success(WomBoolean(value == r.value))
     case r: WomOptionalValue => evaluateIfDefined("==", r, equals)
     case _ => invalid(s"$value || $rhs")
   }
 
   override def lessThan(rhs: WomValue): Try[WomBoolean] = rhs match {
-    case r:WomBoolean => Success(WomBoolean(value < r.value))
+    case r: WomBoolean => Success(WomBoolean(value < r.value))
     case r: WomOptionalValue => evaluateIfDefined("<", r, lessThan)
     case _ => invalid(s"$value < $rhs")
   }
 
   override def greaterThan(rhs: WomValue): Try[WomBoolean] = rhs match {
-    case r:WomBoolean => Success(WomBoolean(value > r.value))
+    case r: WomBoolean => Success(WomBoolean(value > r.value))
     case r: WomOptionalValue => evaluateIfDefined(">", r, greaterThan)
     case _ => invalid(s"$value > $rhs")
   }
@@ -42,7 +42,7 @@ class WomBoolean private(val value: Boolean) extends WomPrimitive {
   }
 
   override def and(rhs: WomValue): Try[WomBoolean] = rhs match {
-    case r:WomBoolean => Success(WomBoolean(value && r.value))
+    case r: WomBoolean => Success(WomBoolean(value && r.value))
     case r: WomOptionalValue => evaluateIfDefined("&&", r, and)
     case _ => invalid(s"$value && $rhs")
   }

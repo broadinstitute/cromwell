@@ -12,13 +12,11 @@ import scala.util.Try
   * to `WdlSingleFile` instances.
   */
 object Simpletons {
-  def toSimpleton(entry: CallCachingSimpletonEntry): WomValueSimpleton = {
+  def toSimpleton(entry: CallCachingSimpletonEntry): WomValueSimpleton =
     toSimpleton(entry.wdlType, entry.simpletonKey, entry.simpletonValue.toRawString)
-  }
 
-  def toSimpleton(entry: JobStoreSimpletonEntry): WomValueSimpleton = {
+  def toSimpleton(entry: JobStoreSimpletonEntry): WomValueSimpleton =
     toSimpleton(entry.wdlType, entry.simpletonKey, entry.simpletonValue.toRawString)
-  }
 
   private def toSimpleton(womType: String, simpletonKey: String, simpletonValue: String): WomValueSimpleton = {
     val womValue: String => Try[WomValue] = womType match {

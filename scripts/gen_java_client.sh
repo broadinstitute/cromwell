@@ -46,7 +46,8 @@ docker run --rm -v ${PWD}:/local ${OPENAPI_DOCKER} generate \
   --http-user-agent "Cromwell-Java-Client/${CROMWELL_HASH}" \
   --skip-validate-spec \
   --api-package ${BASE_PACKAGE}.api \
-  --model-package ${BASE_PACKAGE}.model
+  --model-package ${BASE_PACKAGE}.model \
+  --additional-properties=disallowAdditionalPropertiesIfNotPresent=false
 
 # 2. Remove the generator's build.sbt
 rm codegen_java/build.sbt

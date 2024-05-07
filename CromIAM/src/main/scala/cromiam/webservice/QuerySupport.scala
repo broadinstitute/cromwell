@@ -43,7 +43,7 @@ trait QuerySupport extends RequestSupport {
     post {
       preprocessQuery { (user, collections, request) =>
         processLabelsForPostQuery(user, collections) { entity =>
-          complete { cromwellClient.forwardToCromwell(request.withEntity(entity)).asHttpResponse }
+          complete(cromwellClient.forwardToCromwell(request.withEntity(entity)).asHttpResponse)
         }
       }
     }
@@ -54,7 +54,7 @@ trait QuerySupport extends RequestSupport {
     * retrieves the collections for the user, grabs the underlying HttpRequest and forwards it on to the specific
     * directive
     */
-  private def preprocessQuery: Directive[(User, List[Collection], HttpRequest)] = {
+  private def preprocessQuery: Directive[(User, List[Collection], HttpRequest)] =
     extractUserAndStrictRequest tflatMap { case (user, cromIamRequest) =>
       log.info("Received query " + cromIamRequest.method.value + " request for user " + user.userId)
 
@@ -71,13 +71,12 @@ trait QuerySupport extends RequestSupport {
           throw new RuntimeException(s"Unable to look up collections for user ${user.userId}: ${e.getMessage}", e)
       }
     }
-  }
 
   /**
     * Will verify that none of the GET query parameters are specifying the collection label, and then tack
     * on query parameters for the user's collections on to the query URI
     */
-  private def processLabelsForGetQuery(user: User, collections: List[Collection]): Directive1[Uri] = {
+  private def processLabelsForGetQuery(user: User, collections: List[Collection]): Directive1[Uri] =
     extractUri flatMap { uri =>
       val query = uri.query()
 
@@ -95,7 +94,6 @@ trait QuerySupport extends RequestSupport {
 
       provide(uri.withQuery(newQueryBuilder.result()))
     }
-  }
 
   /**
     * Will verify that none of the POSTed query parameters are specifying the collection label, and then tack
@@ -115,7 +113,7 @@ trait QuerySupport extends RequestSupport {
               case jsObject if jsObject.fields.keySet.exists(key => key.equalsIgnoreCase(LabelOrKey)) =>
                 jsObject.fields.values.map(_.convertTo[String])
             }
-            ).flatten
+          ).flatten
           // DO NOT REMOVE THE NEXT LINE WITHOUT READING THE SCALADOC ON ensureNoLabelOrs
           ensureNoLabelOrs(user, labelOrs)
 
@@ -152,12 +150,11 @@ trait QuerySupport extends RequestSupport {
     * - https://github.com/persvr/rql#rql-rules
     * - https://github.com/jirutka/rsql-parser#grammar-and-semantic
     */
-  protected[this] def ensureNoLabelOrs(user: User, labelOrs: Iterable[String]): Unit = {
+  protected[this] def ensureNoLabelOrs(user: User, labelOrs: Iterable[String]): Unit =
     labelOrs.toList match {
       case Nil => ()
       case head :: tail => throw new LabelContainsOrException(user, NonEmptyList(head, tail))
     }
-  }
 
   /**
     * Returns the user's collections as a set of labels
@@ -169,12 +166,14 @@ trait QuerySupport extends RequestSupport {
 }
 
 object QuerySupport {
-  final case class InvalidQueryException(e: Throwable) extends
-    Exception(s"Invalid JSON in query POST body: ${e.getMessage}", e)
+  final case class InvalidQueryException(e: Throwable)
+      extends Exception(s"Invalid JSON in query POST body: ${e.getMessage}", e)
 
-  final class LabelContainsOrException(val user: User, val labelOrs: NonEmptyList[String]) extends
-    Exception(s"User ${user.userId} submitted a labels query containing an OR which CromIAM is blocking: " +
-      labelOrs.toList.mkString("LABELS CONTAIN '", "' OR LABELS CONTAIN '", "'"))
+  final class LabelContainsOrException(val user: User, val labelOrs: NonEmptyList[String])
+      extends Exception(
+        s"User ${user.userId} submitted a labels query containing an OR which CromIAM is blocking: " +
+          labelOrs.toList.mkString("LABELS CONTAIN '", "' OR LABELS CONTAIN '", "'")
+      )
 
   val LabelAndKey = "label"
   val LabelOrKey = "labelor"

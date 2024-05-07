@@ -4,7 +4,6 @@ import common.assertion.CromwellTimeoutSpec
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-
 class WeightedQueueSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "WeightedQueue"
@@ -39,7 +38,8 @@ class WeightedQueueSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
   it should "behead the queue" in {
     // A queue of strings for which the weight is the number of char in the string
     val q = WeightedQueue.empty[String, Int](_.length)
-    val q2 = q.enqueue("hello")
+    val q2 = q
+      .enqueue("hello")
       .enqueue("hola")
       .enqueue("bonjour")
     val (head, q3) = q2.behead(10)

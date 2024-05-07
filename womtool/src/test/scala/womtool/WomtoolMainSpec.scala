@@ -8,7 +8,6 @@ import org.scalatest.matchers.should.Matchers
 import womtool.SampleWdl.{EmptyTask, EmptyWorkflow, ThreeStep}
 import womtool.WomtoolMainSpec._
 
-
 class WomtoolMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with BeforeAndAfterAll {
 
   import WomtoolMain._
@@ -18,8 +17,11 @@ class WomtoolMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
   val threeStep = ThreeStep.wdlSource()
 
   it should "print usage" in {
-    WomtoolMain.runWomtool(Seq.empty[String]) match{
-      case BadUsageTermination(msg) => msg should include("Usage: java -jar womtool.jar [validate|inputs|outputs|parse|highlight|graph|upgrade|womgraph] [options] workflow-source")
+    WomtoolMain.runWomtool(Seq.empty[String]) match {
+      case BadUsageTermination(msg) =>
+        msg should include(
+          "Usage: java -jar womtool.jar [validate|inputs|outputs|parse|highlight|graph|womgraph] [options] workflow-source"
+        )
       case other => fail(s"Expected BadUsageTermination but got $other")
     }
   }
@@ -59,12 +61,15 @@ class WomtoolMainSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
   it should "not return inputs when there is no workflow" in {
     testWdl(EmptyTask) { wdlAndInputs =>
       val res = WomtoolMain.runWomtool(Seq("inputs", wdlAndInputs.wdl))
-      res should be(UnsuccessfulTermination("Cannot convert WOM bundle to executable. No primary callable was available."))
+      res should be(
+        UnsuccessfulTermination("Cannot convert WOM bundle to executable. No primary callable was available.")
+      )
     }
   }
 }
 
 object WomtoolMainSpec {
+
   /**
     * Tests running a sample wdl, providing the inputs, and cleaning up the temp files only if no exceptions occur.
     *
@@ -168,7 +173,6 @@ object WomtoolMainSpec {
     def deleteTempFiles() = tempFiles.foreach(_.delete(swallowIOExceptions = true))
   }
 
-  def swapExt(filePath: File, oldExt: String, newExt: String): File = {
+  def swapExt(filePath: File, oldExt: String, newExt: String): File =
     File(filePath.toString.stripSuffix(oldExt) + newExt)
-  }
 }

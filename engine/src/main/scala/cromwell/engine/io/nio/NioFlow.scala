@@ -4,8 +4,7 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
 import cats.effect._
 
-import scala.util.Try
-import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess, FileHash, HashType}
+import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess, FileHash}
 import com.typesafe.config.Config
 import common.util.IORetry
 import cromwell.core.io._
@@ -15,10 +14,7 @@ import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetr
 import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
 import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.DrsPath
-import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
-import cromwell.filesystems.s3.S3Path
-import cromwell.util.TryWithResource._
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 
@@ -26,7 +22,6 @@ import java.io._
 import java.nio.charset.StandardCharsets
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-
 
 /**
   * Flow that executes IO operations by calling java.nio.Path methods
@@ -36,7 +31,8 @@ class NioFlow(parallelism: Int,
               onBackpressure: Option[Double] => Unit,
               numberOfAttempts: Int,
               commandBackpressureStaleness: FiniteDuration
-              )(implicit system: ActorSystem) extends IoCommandStalenessBackpressuring {
+)(implicit system: ActorSystem)
+    extends IoCommandStalenessBackpressuring {
 
   implicit private val ec: ExecutionContext = system.dispatcher
   implicit private val timer: Timer[IO] = IO.timer(ec)
@@ -66,18 +62,19 @@ class NioFlow(parallelism: Int,
       result <- operationResult
     } yield (result, commandContext)
 
-    io handleErrorWith {
-      failure => IO.pure(commandContext.fail(failure))
+    io handleErrorWith { failure =>
+      IO.pure(commandContext.fail(failure))
     }
   }
 
-  private [nio] def handleSingleCommand(ioSingleCommand: IoCommand[_]): IO[IoSuccess[_]] = {
+  private[nio] def handleSingleCommand(ioSingleCommand: IoCommand[_]): IO[IoSuccess[_]] = {
     val ret = ioSingleCommand match {
       case copyCommand: IoCopyCommand => copy(copyCommand) map copyCommand.success
       case writeCommand: IoWriteCommand => write(writeCommand) map writeCommand.success
       case deleteCommand: IoDeleteCommand => delete(deleteCommand) map deleteCommand.success
       case sizeCommand: IoSizeCommand => size(sizeCommand) map sizeCommand.success
-      case readAsStringCommand: IoContentAsStringCommand => readAsString(readAsStringCommand) map readAsStringCommand.success
+      case readAsStringCommand: IoContentAsStringCommand =>
+        readAsString(readAsStringCommand) map readAsStringCommand.success
       case hashCommand: IoHashCommand => hash(hashCommand) map hashCommand.success
       case touchCommand: IoTouchCommand => touch(touchCommand) map touchCommand.success
       case existsCommand: IoExistsCommand => exists(existsCommand) map existsCommand.success
@@ -131,9 +128,9 @@ class NioFlow(parallelism: Int,
       )
     }
 
-    def readFileAndChecksum: IO[String] = {
+    def readFileAndChecksum: IO[String] =
       for {
-        fileHash <- getStoredHash(command.file)
+        fileHash <- NioHashing.getStoredHash(command.file)
         uncheckedValue <- readFile
         checksumResult <- fileHash match {
           case Some(hash) => checkHash(uncheckedValue, hash)
@@ -145,23 +142,25 @@ class NioFlow(parallelism: Int,
         verifiedValue <- checksumResult match {
           case _: ChecksumSkipped => IO.pure(uncheckedValue)
           case _: ChecksumSuccess => IO.pure(uncheckedValue)
-          case failure: ChecksumFailure => IO.raiseError(
-            ChecksumFailedException(
-              fileHash match {
-                case Some(hash) => s"Failed checksum for '${command.file}'. Expected '${hash.hashType}' hash of '${hash.hash}'. Calculated hash '${failure.calculatedHash}'"
-                case None => s"Failed checksum for '${command.file}'. Couldn't find stored file hash." // This should never happen
-              }
+          case failure: ChecksumFailure =>
+            IO.raiseError(
+              ChecksumFailedException(
+                fileHash match {
+                  case Some(hash) =>
+                    s"Failed checksum for '${command.file}'. Expected '${hash.hashType}' hash of '${hash.hash}'. Calculated hash '${failure.calculatedHash}'"
+                  case None =>
+                    s"Failed checksum for '${command.file}'. Couldn't find stored file hash." // This should never happen
+                }
+              )
             )
-          )
         }
       } yield verifiedValue
-    }
 
     val fileContentIo = command.file match {
-      case _: DrsPath  => readFileAndChecksum
+      case _: DrsPath => readFileAndChecksum
       // Temporarily disable since our hashing algorithm doesn't match the stored hash
       // https://broadworkbench.atlassian.net/browse/WX-1257
-      case _: BlobPath => readFile//readFileAndChecksum
+      case _: BlobPath => readFile // readFileAndChecksum
       case _ => readFile
     }
     fileContentIo.map(_.replaceAll("\\r\\n", "\\\n"))
@@ -173,30 +172,8 @@ class NioFlow(parallelism: Int,
       case nioPath => IO(nioPath.size)
     }
 
-  private def hash(hash: IoHashCommand): IO[String] = {
-    // If there is no hash accessible from the file storage system,
-    // we'll read the file and generate the hash ourselves.
-    getStoredHash(hash.file).flatMap {
-      case Some(storedHash) => IO.pure(storedHash)
-      case None => generateMd5FileHashForPath(hash.file)
-    }.map(_.hash)
-  }
-
-  private def getStoredHash(file: Path): IO[Option[FileHash]] = {
-    file match {
-      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
-      case blobPath: BlobPath => getFileHashForBlobPath(blobPath)
-      case drsPath: DrsPath => IO {
-        // We assume all DRS files have a stored hash; this will throw
-        // if the file does not.
-        drsPath.getFileHash
-      }.map(Option(_))
-      case s3Path: S3Path => IO {
-        Option(FileHash(HashType.S3Etag, s3Path.eTag))
-      }
-      case _ => IO.pure(None)
-    }
-  }
+  private def hash(hash: IoHashCommand): IO[String] =
+    NioHashing.hash(hash.file)
 
   private def touch(touch: IoTouchCommand) = IO {
     touch.file.touch()
@@ -217,28 +194,6 @@ class NioFlow(parallelism: Int,
   }
 
   private def createDirectories(path: Path) = path.parent.createDirectories()
-
-  /**
-    * Lazy evaluation of a Try in a delayed IO. This avoids accidentally eagerly evaluating the Try.
-    *
-    * IMPORTANT: Use this instead of IO.fromTry to make sure the Try will be reevaluated if the
-    * IoCommand is retried.
-    */
-  private def delayedIoFromTry[A](t: => Try[A]): IO[A] = IO[A] { t.get }
-
-  private def getFileHashForGcsPath(gcsPath: GcsPath): IO[FileHash] = delayedIoFromTry {
-    gcsPath.objectBlobId.map(id => FileHash(HashType.GcsCrc32c, gcsPath.cloudStorage.get(id).getCrc32c))
-  }
-
-  private def getFileHashForBlobPath(blobPath: BlobPath): IO[Option[FileHash]] = delayedIoFromTry {
-    blobPath.md5HexString.map(md5 => md5.map(FileHash(HashType.Md5, _)))
-  }
-
-  private def generateMd5FileHashForPath(path: Path): IO[FileHash] = delayedIoFromTry {
-    tryWithResource(() => path.newInputStream) { inputStream =>
-      FileHash(HashType.Md5, org.apache.commons.codec.digest.DigestUtils.md5Hex(inputStream))
-    }
-  }
 }
 
 object NioFlow {

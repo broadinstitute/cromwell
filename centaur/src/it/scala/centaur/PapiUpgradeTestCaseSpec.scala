@@ -5,7 +5,7 @@ import org.scalatest.DoNotDiscover
 
 @DoNotDiscover
 class PapiUpgradeTestCaseSpec(cromwellBackends: List[String])
-  extends AbstractCromwellEngineOrBackendUpgradeTestCaseSpec(cromwellBackends) {
+    extends AbstractCromwellEngineOrBackendUpgradeTestCaseSpec(cromwellBackends) {
 
   def this() = this(CentaurTestSuite.cromwellBackends)
 

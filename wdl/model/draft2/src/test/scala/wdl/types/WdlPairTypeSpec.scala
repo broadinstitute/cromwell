@@ -17,26 +17,35 @@ class WdlPairTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
 
   val simplePair = WomPair(WomString("a"), WomInteger(1))
 
-  val stringIntMap = WomMap(WomMapType(WomStringType, WomIntegerType), Map(
-    WomString("a") -> WomInteger(1),
-    WomString("b") -> WomInteger(2),
-    WomString("c") -> WomInteger(3)
-  ))
+  val stringIntMap = WomMap(WomMapType(WomStringType, WomIntegerType),
+                            Map(
+                              WomString("a") -> WomInteger(1),
+                              WomString("b") -> WomInteger(2),
+                              WomString("c") -> WomInteger(3)
+                            )
+  )
 
-  val arrayOfPairs = WomArray(WomArrayType(WomPairType(WomStringType, WomIntegerType)), Seq(
-    WomPair(WomString("a"),WomInteger(1)),
-    WomPair(WomString("b"),WomInteger(2)),
-    WomPair(WomString("c"),WomInteger(3))
-  ))
-
-  val arrayOfPairsOfArrays = WomArray(WomArrayType(WomPairType(WomArrayType(WomStringType), WomArrayType(WomIntegerType))),
+  val arrayOfPairs = WomArray(
+    WomArrayType(WomPairType(WomStringType, WomIntegerType)),
     Seq(
-    WomPair(WomArray(WomArrayType(WomStringType), Seq(WomString("a"), WomString("b"))),
-      WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(11)))),
-    WomPair(WomArray(WomArrayType(WomStringType), Seq(WomString("c"), WomString("d"))),
-      WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(2), WomInteger(21)))),
-    WomPair(WomArray(WomArrayType(WomStringType), Seq(WomString("e"), WomString("f"))),
-      WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(3), WomInteger(31))))
+      WomPair(WomString("a"), WomInteger(1)),
+      WomPair(WomString("b"), WomInteger(2)),
+      WomPair(WomString("c"), WomInteger(3))
+    )
+  )
+
+  val arrayOfPairsOfArrays = WomArray(
+    WomArrayType(WomPairType(WomArrayType(WomStringType), WomArrayType(WomIntegerType))),
+    Seq(
+      WomPair(WomArray(WomArrayType(WomStringType), Seq(WomString("a"), WomString("b"))),
+              WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(11)))
+      ),
+      WomPair(WomArray(WomArrayType(WomStringType), Seq(WomString("c"), WomString("d"))),
+              WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(2), WomInteger(21)))
+      ),
+      WomPair(WomArray(WomArrayType(WomStringType), Seq(WomString("e"), WomString("f"))),
+              WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(3), WomInteger(31)))
+      )
     )
   )
 
@@ -47,31 +56,41 @@ class WdlPairTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
       WomPairType(WomStringType, WomStringType),
       Some(WomPair(WomString("1"), WomString("2")))
     ),
-
     (
-      WomPair(WomMap(WomMapType(WomIntegerType, WomStringType), Map(
-      WomInteger(1) -> WomString("100"),
-      WomInteger(2) -> WomString("200")
-      )), WomString("300")),
+      WomPair(WomMap(WomMapType(WomIntegerType, WomStringType),
+                     Map(
+                       WomInteger(1) -> WomString("100"),
+                       WomInteger(2) -> WomString("200")
+                     )
+              ),
+              WomString("300")
+      ),
       WomPairType(WomMapType(WomStringType, WomIntegerType), WomIntegerType),
-      Some(WomPair(WomMap(WomMapType(WomStringType, WomIntegerType), Map(
-        WomString("1") -> WomInteger(100),
-        WomString("2") -> WomInteger(200)
-      )), WomInteger(300)))
+      Some(
+        WomPair(WomMap(WomMapType(WomStringType, WomIntegerType),
+                       Map(
+                         WomString("1") -> WomInteger(100),
+                         WomString("2") -> WomInteger(200)
+                       )
+                ),
+                WomInteger(300)
+        )
+      )
     ),
-
-    (
-      WomPair(WomMap(WomMapType(WomIntegerType, WomStringType), Map(
-        WomInteger(1) -> WomString("100"),
-        WomInteger(2) -> WomString("200")
-      )), WomString("300")),
-      WomPairType(WomArrayType(WomStringType), WomStringType),
-      None)
-
+    (WomPair(WomMap(WomMapType(WomIntegerType, WomStringType),
+                    Map(
+                      WomInteger(1) -> WomString("100"),
+                      WomInteger(2) -> WomString("200")
+                    )
+             ),
+             WomString("300")
+     ),
+     WomPairType(WomArrayType(WomStringType), WomStringType),
+     None
+    )
   )
 
   coerceables foreach { case (fromValue, toType, coercedValue) =>
-
     val notString = coercedValue map { _ => "" } getOrElse "not "
     val coercionDefined = coercedValue.isDefined
 
@@ -85,7 +104,8 @@ class WdlPairTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
         case (Success(actualValue), Some(expectedValue)) => actualValue should be(expectedValue)
         case (Success(actualValue), None) => fail(s"Coercion should have failed but instead got $actualValue")
         case (Failure(_), None) => // Correctly failed to coerce
-        case (Failure(t), Some(expectedValue)) => fail(s"Expected coercion to produce $expectedValue but instead got exception $t")
+        case (Failure(t), Some(expectedValue)) =>
+          fail(s"Expected coercion to produce $expectedValue but instead got exception $t")
       }
     }
   }
@@ -153,7 +173,8 @@ class WdlPairTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
         |]
       """.stripMargin.parseJson
 
-    WomArrayType(WomPairType(WomArrayType(WomStringType), WomArrayType(WomIntegerType))).coerceRawValue(complexJsArray) match {
+    WomArrayType(WomPairType(WomArrayType(WomStringType), WomArrayType(WomIntegerType)))
+      .coerceRawValue(complexJsArray) match {
       case Success(array) => array shouldEqual arrayOfPairsOfArrays
       case Failure(f) => fail(s"exception while coercing JsObject to WdlPair: $f")
     }
@@ -196,7 +217,9 @@ class WdlPairTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
     val results = WomPairType(WomStringType, WomIntegerType).coerceRawValue(invalidPair)
     results match {
       case Failure(ex) =>
-        ex.getMessage should (startWith("Failed to coerce") and endWith("requires for Right/Left value(s) to be defined.)"))
+        ex.getMessage should (startWith("Failed to coerce") and endWith(
+          "requires for Right/Left value(s) to be defined.)"
+        ))
       case Success(_) => fail("Unexpected successful coercion to WdlPair")
     }
   }

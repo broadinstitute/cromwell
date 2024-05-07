@@ -17,8 +17,7 @@ import cromwell.backend.validation._
   */
 object StandardValidatedRuntimeAttributesBuilder {
 
-  private case class StandardValidatedRuntimeAttributesBuilderImpl
-  (
+  private case class StandardValidatedRuntimeAttributesBuilderImpl(
     override val requiredValidations: Seq[RuntimeAttributesValidation[_]],
     override val customValidations: Seq[RuntimeAttributesValidation[_]]
   ) extends StandardValidatedRuntimeAttributesBuilder
@@ -41,8 +40,8 @@ object StandardValidatedRuntimeAttributesBuilder {
   }
 
   private def withValidations(builder: StandardValidatedRuntimeAttributesBuilder,
-                              customValidations: Seq[RuntimeAttributesValidation[_]]):
-  StandardValidatedRuntimeAttributesBuilder = {
+                              customValidations: Seq[RuntimeAttributesValidation[_]]
+  ): StandardValidatedRuntimeAttributesBuilder = {
     val required = builder.requiredValidations
     val custom = builder.customValidations ++ customValidations
     StandardValidatedRuntimeAttributesBuilderImpl(custom, required)
@@ -50,19 +49,18 @@ object StandardValidatedRuntimeAttributesBuilder {
 }
 
 sealed trait StandardValidatedRuntimeAttributesBuilder extends ValidatedRuntimeAttributesBuilder {
+
   /**
     * Returns a new builder with the additional validation(s).
     *
     * @param validation Additional validation.
     * @return New builder with the validation.
     */
-  final def withValidation(validation: RuntimeAttributesValidation[_]*):
-  StandardValidatedRuntimeAttributesBuilder = {
+  final def withValidation(validation: RuntimeAttributesValidation[_]*): StandardValidatedRuntimeAttributesBuilder =
     StandardValidatedRuntimeAttributesBuilder.withValidations(this, validation)
-  }
 
   /** Returns all the validations, those required for the standard backend, plus custom addons for the subclass. */
-  override final lazy val validations: Seq[RuntimeAttributesValidation[_]] = requiredValidations ++ customValidations
+  final override lazy val validations: Seq[RuntimeAttributesValidation[_]] = requiredValidations ++ customValidations
 
   private[standard] def requiredValidations: Seq[RuntimeAttributesValidation[_]]
 

@@ -28,9 +28,9 @@ object GcpBatchRequestFactory {
     * Input parameters that are not strictly needed by the user's command but are Cromwell byproducts.
     */
   case class DetritusInputParameters(
-                                      executionScriptInputParameter: GcpBatchFileInput,
-                                      monitoringScriptInputParameter: Option[GcpBatchFileInput]
-                                    ) {
+    executionScriptInputParameter: GcpBatchFileInput,
+    monitoringScriptInputParameter: Option[GcpBatchFileInput]
+  ) {
     def all: List[GcpBatchFileInput] = List(executionScriptInputParameter) ++ monitoringScriptInputParameter
   }
 
@@ -38,11 +38,12 @@ object GcpBatchRequestFactory {
     * Output parameters that are not produced by the user's command but are Cromwell byproducts.
     */
   case class DetritusOutputParameters(
-                                       monitoringScriptOutputParameter: Option[GcpBatchFileOutput],
-                                       rcFileOutputParameter: GcpBatchFileOutput,
-                                       memoryRetryRCFileOutputParameter: GcpBatchFileOutput
-                                     ) {
-    def all: List[GcpBatchFileOutput] = memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
+    monitoringScriptOutputParameter: Option[GcpBatchFileOutput],
+    rcFileOutputParameter: GcpBatchFileOutput,
+    memoryRetryRCFileOutputParameter: GcpBatchFileOutput
+  ) {
+    def all: List[GcpBatchFileOutput] =
+      memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
   }
 
   /**
@@ -51,12 +52,12 @@ object GcpBatchRequestFactory {
     * to treat them differently.
     */
   case class InputOutputParameters(
-                                    detritusInputParameters: DetritusInputParameters,
-                                    jobInputParameters: List[GcpBatchInput],
-                                    jobOutputParameters: List[GcpBatchOutput],
-                                    detritusOutputParameters: DetritusOutputParameters,
-                                    literalInputParameters: List[GcpBatchLiteralInput]
-                                  ) {
+    detritusInputParameters: DetritusInputParameters,
+    jobInputParameters: List[GcpBatchInput],
+    jobOutputParameters: List[GcpBatchOutput],
+    detritusOutputParameters: DetritusOutputParameters,
+    literalInputParameters: List[GcpBatchLiteralInput]
+  ) {
     lazy val fileInputParameters: List[GcpBatchInput] = jobInputParameters ++ detritusInputParameters.all
     lazy val fileOutputParameters: List[GcpBatchOutput] = detritusOutputParameters.all ++ jobOutputParameters
   }
@@ -79,7 +80,7 @@ object GcpBatchRequestFactory {
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreateBatchDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
-                                      adjustedSizeDisks: Seq[GcpBatchAttachedDisk],
+                                      disks: Seq[GcpBatchAttachedDisk],
                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,
@@ -89,7 +90,7 @@ object GcpBatchRequestFactory {
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
                                       dockerhubCredentials: (String, String)
-                                     ) {
+  ) {
     def literalInputs = inputOutputParameters.literalInputParameters
 
     def inputParameters = inputOutputParameters.fileInputParameters

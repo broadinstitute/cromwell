@@ -1,8 +1,9 @@
 package cloud.nio.impl.drs
 
+import cats.data.NonEmptyList
+
 import java.nio.file.attribute.FileTime
 import java.time.OffsetDateTime
-
 import cloud.nio.impl.drs.DrsCloudNioRegularFileAttributes._
 import cloud.nio.spi.{FileHash, HashType}
 import common.assertion.CromwellTimeoutSpec
@@ -12,7 +13,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
-  private val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key"-> Json.fromString("value"))))
+  private val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key" -> Json.fromString("value"))))
   private val crcHashValue = "8a366443"
   private val md5HashValue = "336ea55913bc261b72875bd259753046"
   private val shaHashValue = "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"
@@ -40,54 +41,70 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
       .copy(timeUpdated = fullDrsResolverResponse.timeUpdated.map(_.stripSuffix("Z") + "BADTZ"))
 
   private val etagHashValue = "something"
-  private val completeHashesMap = Option(Map(
-    "betty" -> "abc123",
-    "charles" -> "456",
-    "alfred" -> "xrd",
-    "sha256" -> shaHashValue,
-    "crc32c" -> crcHashValue,
-    "md5" -> md5HashValue,
-    "etag" -> etagHashValue,
-  ))
+  private val completeHashesMap = Option(
+    Map(
+      "betty" -> "abc123",
+      "charles" -> "456",
+      "alfred" -> "xrd",
+      "sha256" -> shaHashValue,
+      "crc32c" -> crcHashValue,
+      "md5" -> md5HashValue,
+      "etag" -> etagHashValue
+    )
+  )
 
-  private val missingCRCHashesMap = Option(Map(
-    "alfred" -> "xrd",
-    "sha256" -> shaHashValue,
-    "betty" -> "abc123",
-    "md5" -> md5HashValue,
-    "charles" -> "456",
-  ))
+  private val missingCRCHashesMap = Option(
+    Map(
+      "alfred" -> "xrd",
+      "sha256" -> shaHashValue,
+      "betty" -> "abc123",
+      "md5" -> md5HashValue,
+      "charles" -> "456"
+    )
+  )
 
-  private val onlySHAHashesMap = Option(Map(
-    "betty" -> "abc123",
-    "charles" -> "456",
-    "alfred" -> "xrd",
-    "sha256" -> shaHashValue,
-  ))
+  private val onlySHAHashesMap = Option(
+    Map(
+      "betty" -> "abc123",
+      "charles" -> "456",
+      "alfred" -> "xrd",
+      "sha256" -> shaHashValue
+    )
+  )
 
-  private val onlyEtagHashesMap = Option(Map(
-    "alfred" -> "xrd",
-    "betty" -> "abc123",
-    "charles" -> "456",
-    "etag" -> etagHashValue,
-  ))
+  private val onlyEtagHashesMap = Option(
+    Map(
+      "alfred" -> "xrd",
+      "betty" -> "abc123",
+      "charles" -> "456",
+      "etag" -> etagHashValue
+    )
+  )
 
   behavior of "fileHash()"
 
   it should "return crc32c hash from `hashes` in DRS Resolver response when there is a crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(completeHashesMap) shouldBe Option(FileHash(HashType.Crc32c, crcHashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(completeHashesMap) shouldBe Option(
+      FileHash(HashType.Crc32c, crcHashValue)
+    )
   }
 
   it should "return md5 hash from `hashes` in DRS Resolver response when there is no crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(missingCRCHashesMap) shouldBe Option(FileHash(HashType.Md5, md5HashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(missingCRCHashesMap) shouldBe Option(
+      FileHash(HashType.Md5, md5HashValue)
+    )
   }
 
   it should "return sha256 hash from `hashes` in DRS Resolver response when there is only a sha256" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(onlySHAHashesMap) shouldBe Option(FileHash(HashType.Sha256, shaHashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(onlySHAHashesMap) shouldBe Option(
+      FileHash(HashType.Sha256, shaHashValue)
+    )
   }
 
   it should "return etag hash from `hashes` in DRS Resolver response when there is only an etag" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(onlyEtagHashesMap) shouldBe Option(FileHash(HashType.S3Etag, etagHashValue))
+    DrsCloudNioRegularFileAttributes.getPreferredHash(onlyEtagHashesMap) shouldBe Option(
+      FileHash(HashType.S3Etag, etagHashValue)
+    )
   }
 
   it should "return None when no hashes object is returned" in {
@@ -138,19 +155,39 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   import org.apache.http.message.BasicStatusLine
 
   val drsPathForDebugging = "drs://my_awesome_drs"
-  val responseStatusLine = new BasicStatusLine(new ProtocolVersion("http", 1, 2) , 345, "test-reason")
+  val responseStatusLine = new BasicStatusLine(new ProtocolVersion("http", 1, 2), 345, "test-reason")
   val testDrsResolverUri = "www.drshub_v4.com"
+
+  it should "construct the right request when using Azure creds" in {
+    val resolver = new MockDrsPathResolver(drsCredentials = AzureDrsCredentials())
+    val drsRequest = resolver.makeDrsResolverRequest(drsPathForDebugging, NonEmptyList.of(DrsResolverField.AccessUrl))
+    drsRequest.cloudPlatform shouldBe Option(DrsCloudPlatform.Azure)
+  }
+
+  it should "construct the right request when using Google creds" in {
+    val resolver = new MockDrsPathResolver()
+    val drsRequest = resolver.makeDrsResolverRequest(drsPathForDebugging, NonEmptyList.of(DrsResolverField.AccessUrl))
+    drsRequest.cloudPlatform shouldBe Option(DrsCloudPlatform.GoogleStorage)
+  }
 
   it should "construct an error message from a populated, well-formed failure response" in {
     val failureResponse = Option(failureResponseJson)
 
-    DrsResolverResponseSupport.errorMessageFromResponse(drsPathForDebugging, failureResponse, responseStatusLine, testDrsResolverUri) shouldBe {
+    DrsResolverResponseSupport.errorMessageFromResponse(drsPathForDebugging,
+                                                        failureResponse,
+                                                        responseStatusLine,
+                                                        testDrsResolverUri
+    ) shouldBe {
       "Could not access object 'drs://my_awesome_drs'. Status: 345, reason: 'test-reason', DRS Resolver location: 'www.drshub_v4.com', message: '{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}'"
     }
   }
 
   it should "construct an error message from an empty failure response" in {
-    DrsResolverResponseSupport.errorMessageFromResponse(drsPathForDebugging, None, responseStatusLine, testDrsResolverUri) shouldBe {
+    DrsResolverResponseSupport.errorMessageFromResponse(drsPathForDebugging,
+                                                        None,
+                                                        responseStatusLine,
+                                                        testDrsResolverUri
+    ) shouldBe {
       "Could not access object 'drs://my_awesome_drs'. Status: 345, reason: 'test-reason', DRS Resolver location: 'www.drshub_v4.com', message: (empty response)"
     }
   }
@@ -160,7 +197,11 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   it should "construct an error message from a malformed failure response" in {
     val unparsableFailureResponse = Option("something went horribly wrong")
 
-    DrsResolverResponseSupport.errorMessageFromResponse(drsPathForDebugging, unparsableFailureResponse, responseStatusLine, testDrsResolverUri) shouldBe {
+    DrsResolverResponseSupport.errorMessageFromResponse(drsPathForDebugging,
+                                                        unparsableFailureResponse,
+                                                        responseStatusLine,
+                                                        testDrsResolverUri
+    ) shouldBe {
       "Could not access object 'drs://my_awesome_drs'. Status: 345, reason: 'test-reason', DRS Resolver location: 'www.drshub_v4.com', message: 'something went horribly wrong'"
     }
   }
@@ -169,7 +210,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
     val lastModifiedTimeIO = convertToFileTime(
       "drs://my_awesome_drs",
       DrsResolverField.TimeUpdated,
-      fullDrsResolverResponse.timeUpdated,
+      fullDrsResolverResponse.timeUpdated
     )
     lastModifiedTimeIO.unsafeRunSync() should
       be(Option(FileTime.from(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toInstant)))
@@ -179,7 +220,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
     val lastModifiedTimeIO = convertToFileTime(
       "drs://my_awesome_drs",
       DrsResolverField.TimeUpdated,
-      fullDrsResolverResponseNoTz.timeUpdated,
+      fullDrsResolverResponseNoTz.timeUpdated
     )
     lastModifiedTimeIO.unsafeRunSync() should
       be(Option(FileTime.from(OffsetDateTime.parse("2020-04-27T15:56:09.696Z").toInstant)))
@@ -189,7 +230,7 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
     val lastModifiedTimeIO = convertToFileTime(
       "drs://my_awesome_drs",
       DrsResolverField.TimeUpdated,
-      fullDrsResolverResponseNoTime.timeUpdated,
+      fullDrsResolverResponseNoTime.timeUpdated
     )
     lastModifiedTimeIO.unsafeRunSync() should be(None)
   }
@@ -198,10 +239,10 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
     val lastModifiedTimeIO = convertToFileTime(
       "drs://my_awesome_drs",
       DrsResolverField.TimeUpdated,
-      fullDrsResolverResponseBadTz.timeUpdated,
+      fullDrsResolverResponseBadTz.timeUpdated
     )
     the[RuntimeException] thrownBy lastModifiedTimeIO.unsafeRunSync() should have message
       "Error while parsing 'timeUpdated' value from DRS Resolver to FileTime for DRS path drs://my_awesome_drs. " +
-        "Reason: DateTimeParseException: Text '2020-04-27T15:56:09.696BADTZ' could not be parsed at index 23."
+      "Reason: DateTimeParseException: Text '2020-04-27T15:56:09.696BADTZ' could not be parsed at index 23."
   }
 }

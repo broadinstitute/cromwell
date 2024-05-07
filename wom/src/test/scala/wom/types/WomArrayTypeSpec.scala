@@ -9,8 +9,7 @@ import wom.values._
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success}
 
-
-class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers  {
+class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   val intArray = WomArray(WomArrayType(WomIntegerType), Seq(WomInteger(1), WomInteger(2), WomInteger(3)))
   "WomArray" should "stringify its value" in {
     intArray.toWomString shouldEqual "[1, 2, 3]"
@@ -42,7 +41,7 @@ class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
     }
   }
   "WomArrayType" should "coerce Seq(1,2,3) into a WomArray" in {
-    WomArrayType(WomIntegerType).coerceRawValue(Seq(1,2,3)) match {
+    WomArrayType(WomIntegerType).coerceRawValue(Seq(1, 2, 3)) match {
       case Success(array) => array shouldEqual intArray
       case Failure(f) => fail(s"exception while coercing array: $f")
     }
@@ -54,7 +53,7 @@ class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
     }
   }
   it should "coerce a Java List into a WomArray" in {
-    WomArrayType(WomIntegerType).coerceRawValue(List(1,2,3).asJava) match {
+    WomArrayType(WomIntegerType).coerceRawValue(List(1, 2, 3).asJava) match {
       case Success(array) => array shouldEqual intArray
       case Failure(f) => fail(s"exception while coercing Java List: $f")
     }
@@ -62,7 +61,8 @@ class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
   it should "not coerce single values into one-element arrays" in {
     WomArrayType(WomStringType).coerceRawValue(WomString("edamame is tasty")) match {
       case Success(_) => fail("Unexpected success coercing single value to array")
-      case Failure(f) => f.getMessage shouldEqual "No coercion defined from wom value(s) '\"edamame is tasty\"' of type 'String' to 'Array[String]'."
+      case Failure(f) =>
+        f.getMessage shouldEqual "No coercion defined from wom value(s) '\"edamame is tasty\"' of type 'String' to 'Array[String]'."
     }
   }
   it should "stringify its type" in {
@@ -96,7 +96,13 @@ class WomArrayTypeSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
     val map = WomMap(WomMapType(WomIntegerType, WomStringType), Map(WomInteger(1) -> WomString("one")))
     val arrayOfPairsType = WomArrayType(WomPairType(WomIntegerType, WomStringType))
     arrayOfPairsType.isCoerceableFrom(map.womType) should be(true)
-    arrayOfPairsType.coerceRawValue(map) should be(Success(WomArray(WomArrayType(WomPairType(WomIntegerType, WomStringType)), List(WomPair(WomInteger(1), WomString("one"))))))
+    arrayOfPairsType.coerceRawValue(map) should be(
+      Success(
+        WomArray(WomArrayType(WomPairType(WomIntegerType, WomStringType)),
+                 List(WomPair(WomInteger(1), WomString("one")))
+        )
+      )
+    )
 
   }
 }

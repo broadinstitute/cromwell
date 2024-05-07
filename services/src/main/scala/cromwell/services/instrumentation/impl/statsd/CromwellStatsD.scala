@@ -12,10 +12,9 @@ object CromwellStatsD {
   */
 case class CromwellStatsD(hostname: String, port: Int) extends StatsD(hostname, port) {
   val MetricSuffixesToFilter = Set("max", "min", "p50", "p75", "p98", "p99", "p999", "mean_rate", "m5_rate", "m15_rate")
-  
-  override def send(name: String, value: String): Unit = {
+
+  override def send(name: String, value: String): Unit =
     if (MetricSuffixesToFilter.exists(suffix => name.endsWith(suffix)))
       CromwellStatsD.logger.debug(s"Filtering metric with name [$name] and value [$value]")
     else super.send(name, value)
-  }
 }

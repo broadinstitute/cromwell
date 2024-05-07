@@ -1,4 +1,4 @@
-import Version.cromwellVersion
+import Version.{Debug, Release, Snapshot, Standard, cromwellVersion}
 import org.apache.ivy.Ivy
 import org.apache.ivy.core.IvyPatternHelper
 import org.apache.ivy.core.module.descriptor.{DefaultModuleDescriptor, MDArtifact}
@@ -34,22 +34,28 @@ object Publishing {
     `CROMWELL_SBT_DOCKER_TAGS=dev,develop sbt 'show docker::imageNames'` returns:
       ArrayBuffer(broadinstitute/womtool:dev, broadinstitute/womtool:develop)
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
-    */
+     */
     dockerTags := {
-      val versionsCsv = if (Version.isSnapshot) {
-        // Tag looks like `85-443a6fc-SNAP`
-        version.value
-      } else {
-        if (Version.isRelease) {
-          // Tags look like `85`, `85-443a6fc`
-          s"$cromwellVersion,${version.value}"
-        } else {
-          // Tag looks like `85-443a6fc`
-          version.value
-        }
+      val tags = Version.buildType match {
+        case Snapshot =>
+          // Ordinary local build
+          // Looks like `85-443a6fc-SNAP`
+          Seq(version.value)
+        case Release =>
+          // Looks like `85`, `85-443a6fc`
+          Seq(cromwellVersion, version.value)
+        case Debug =>
+          // Ordinary local build with debug stuff
+          // Looks like `85-443a6fc-DEBUG`
+          Seq(version.value)
+        case Standard =>
+          // Merge to `develop`
+          // Looks like `85-443a6fc`, `latest`, `develop`
+          // TODO: once we automate releases, `latest` should move to `Release`
+          Seq(version.value, "latest", "develop")
       }
 
-      // Travis applies (as of 10/22) the `dev` and `develop` tags on merge to `develop`
+      val versionsCsv = tags.mkString(",")
       sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
     },
     docker / imageNames := dockerTags.value map { tag =>
@@ -67,6 +73,11 @@ object Publishing {
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")
+
+        // Extra tools in debug mode only
+        if (Version.buildType == Debug) {
+          addInstruction(installDebugFacilities)
+        }
 
         /*
         If you use the 'exec' form for an entry point, shell processing is not performed and
@@ -113,19 +124,57 @@ object Publishing {
     docker / buildOptions := BuildOptions(
       cache = false,
       removeIntermediateContainers = BuildOptions.Remove.Always
-    ),
+    )
   )
 
-  def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] = {
+  /**
+    * Install packages needed for debugging when shelled in to a running image.
+    *
+    * This includes:
+    * - The JDK, which includes tools like `jstack` not present in the JRE
+    * - The YourKit Java Profiler
+    * - Various Linux system & development utilities
+    *
+    * @return Instruction to run in the build
+    */
+  def installDebugFacilities: Instruction = {
+    import sbtdocker.Instructions
+
+    // It is optimal to use a single `Run` instruction to minimize the number of layers in the image.
+    // Do not be tempted to install the default JDK in the repositories, it's from Oracle.
+    //
+    // Documentation:
+    // - https://www.yourkit.com/docs/java-profiler/2024.3/help/docker_broker.jsp#setup
+    // - https://adoptium.net/installation/linux/#_deb_installation_on_debian_or_ubuntu
+    Instructions.Run(
+      """apt-get update -qq && \
+        |apt-get install -qq --no-install-recommends file gpg htop jq less nload unzip vim && \
+        |wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | \
+        |  tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null && \
+        |echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | \
+        |  tee /etc/apt/sources.list.d/adoptium.list && \
+        |apt-get update -qq && \
+        |apt-get install -qq temurin-11-jdk && \
+        |rm -rf /var/lib/apt/lists/* && \
+        |wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2024.3-docker.zip -P /tmp/docker-build-cache/ && \
+        |unzip /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3-docker.zip -d /tmp/docker-build-cache && \
+        |mkdir -p /usr/local/YourKit-JavaProfiler-2024.3/bin/ && \
+        |cp -R /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ /usr/local/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ && \
+        |rm -rf /tmp/docker-build-cache
+        |""".stripMargin
+    )
+  }
+
+  def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] =
     if (pushEnabled) {
       List(
         dockerPushCheck := {
           val projectName = name.value
           val repositoryName = s"broadinstitute/$projectName"
           val repositoryUrl = s"https://registry.hub.docker.com/v2/repositories/$repositoryName/"
-          try {
+          try
             url(repositoryUrl).cat.lineStream
-          } catch {
+          catch {
             case exception: Exception =>
               throw new IllegalStateException(
                 s"""|Verify that public repository https://hub.docker.com/r/$repositoryName exists.
@@ -144,7 +193,6 @@ object Publishing {
         }
       )
     }
-  }
 
   private val broadArtifactoryResolver: Resolver =
     "Broad Artifactory" at
@@ -170,12 +218,11 @@ object Publishing {
   private val artifactoryCredentialsFile =
     file("target/ci/resources/artifactory_credentials.properties").getAbsoluteFile
 
-  private val artifactoryCredentials: Seq[Credentials] = {
+  private val artifactoryCredentials: Seq[Credentials] =
     if (artifactoryCredentialsFile.exists)
       List(Credentials(artifactoryCredentialsFile))
     else
       Nil
-  }
 
   // BT-250 Check if publishing will fail due to already published artifacts
   val checkAlreadyPublished = taskKey[Boolean]("Verifies if publishing has already occurred")
@@ -183,7 +230,8 @@ object Publishing {
 
   private case class CromwellMDArtifactType(artifactType: String,
                                             artifactExtension: String,
-                                            classifierOption: Option[String])
+                                            classifierOption: Option[String]
+  )
 
   /**
     * The types of MDArtifacts published by this sbt build.
@@ -201,18 +249,18 @@ object Publishing {
   /**
     * Retrieve the IBiblioResolver from sbt's Ivy setup.
     */
-  private def getIBiblioResolver(ivy: Ivy): IBiblioResolver = {
+  private def getIBiblioResolver(ivy: Ivy): IBiblioResolver =
     ivy.getSettings.getResolver(broadArtifactoryResolver.name) match {
       case iBiblioResolver: IBiblioResolver => iBiblioResolver
       case other => sys.error(s"Expected an IBiblioResolver, got $other")
     }
-  }
 
   /**
     * Maps an sbt artifact to the Apache Ivy artifact type.
     */
-  private def makeMDArtifact(moduleDescriptor: DefaultModuleDescriptor)
-                            (cromwellMDArtifactType: CromwellMDArtifactType): MDArtifact = {
+  private def makeMDArtifact(moduleDescriptor: DefaultModuleDescriptor)(
+    cromwellMDArtifactType: CromwellMDArtifactType
+  ): MDArtifact =
     new MDArtifact(
       moduleDescriptor,
       moduleDescriptor.getModuleRevisionId.getName,
@@ -221,7 +269,6 @@ object Publishing {
       null,
       cromwellMDArtifactType.classifierOption.map("classifier" -> _).toMap.asJava
     )
-  }
 
   /**
     * Returns true and prints out an error if an artifact already exists.
@@ -243,20 +290,19 @@ object Publishing {
       val module = ivyModule.value
       val log = streams.value.log
 
-      module.withModule(log) {
-        case (ivy, moduleDescriptor, _) =>
-          val resolver = getIBiblioResolver(ivy)
-          cromwellMDArtifactTypes
-            .map(makeMDArtifact(moduleDescriptor))
-            .map(existsMDArtifact(resolver, log))
-            .exists(identity)
+      module.withModule(log) { case (ivy, moduleDescriptor, _) =>
+        val resolver = getIBiblioResolver(ivy)
+        cromwellMDArtifactTypes
+          .map(makeMDArtifact(moduleDescriptor))
+          .map(existsMDArtifact(resolver, log))
+          .exists(identity)
       }
     },
     errorIfAlreadyPublished := {
       if (checkAlreadyPublished.value) {
         sys.error(
           s"Some ${version.value} artifacts were already published and will need to be manually deleted. " +
-          "See the errors above for the list of published artifacts."
+            "See the errors above for the list of published artifacts."
         )
       }
     }

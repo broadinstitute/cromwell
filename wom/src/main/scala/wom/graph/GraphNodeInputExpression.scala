@@ -11,7 +11,12 @@ import wom.types.WomType
   * - This one remembers which input the expression is being assigned to.
   * - InstantiatedExpression has created InputPorts for the expression inputs. This one only has references to OutputPorts.
   */
-case class GraphNodeInputExpression(inputName: String, expression: WomExpression, inputMapping: Map[String, OutputPort]) {
+case class GraphNodeInputExpression(inputName: String,
+                                    expression: WomExpression,
+                                    inputMapping: Map[String, OutputPort]
+) {
 
-  private[graph] lazy val evaluateType: ErrorOr[WomType] = expression.evaluateType(inputMapping.map { case (name, port) => (name, port.womType) })
+  private[graph] lazy val evaluateType: ErrorOr[WomType] = expression.evaluateType(inputMapping.map {
+    case (name, port) => (name, port.womType)
+  })
 }

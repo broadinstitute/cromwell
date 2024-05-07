@@ -78,7 +78,7 @@ object Dependencies {
   private val kindProjectorV = "0.13.2"
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
-  private val logbackV = "1.2.11"
+  private val logbackV = "1.2.13"
   private val lz4JavaV = "1.8.0"
   private val mariadbV = "2.7.4"
   /*
@@ -100,9 +100,10 @@ object Dependencies {
   private val nettyV = "4.1.72.Final"
   private val owlApiV = "5.1.19"
   private val pact4sV = "0.9.0"
-  private val postgresV = "42.4.1"
+  private val postgresV = "42.4.4"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
+  private val re2jV = "1.6"
   private val refinedV = "0.10.1"
   private val rhinoV = "1.7.14"
 
@@ -499,7 +500,7 @@ object Dependencies {
     List("scalatest", "mysql", "mariadb", "postgresql")
       .map(name => "com.dimafeng" %% s"testcontainers-scala-$name" % testContainersScalaV % Test)
 
-  val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ wsmDependencies
+  val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ wsmDependencies ++ akkaHttpDependencies
 
   val s3FileSystemDependencies: List[ModuleID] = junitDependencies
 
@@ -517,7 +518,8 @@ object Dependencies {
   val wdlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,
     "org.scala-graph" %% "graph-core" % scalaGraphV,
-    "com.chuusai" %% "shapeless" % shapelessV
+    "com.chuusai" %% "shapeless" % shapelessV,
+    "com.google.re2j" % "re2j" % re2jV,
   ) ++ betterFilesDependencies
 
   val languageFactoryDependencies = List(
@@ -591,7 +593,7 @@ object Dependencies {
   val servicesDependencies: List[ModuleID] = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
-  ) ++ testDatabaseDependencies
+  ) ++ testDatabaseDependencies ++ akkaHttpDependencies
 
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 
@@ -628,7 +630,7 @@ object Dependencies {
     "org.lz4" % "lz4-java" % lz4JavaV
   )
   val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
-  
+
   val testDependencies: List[ModuleID] = List(
     "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
@@ -641,9 +643,6 @@ object Dependencies {
   // Version of the swagger UI to write into config files
   val swaggerUiVersion: String = swaggerUiV
 
-  val perfDependencies: List[ModuleID] = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
-    googleApiClientDependencies ++ googleCloudDependencies
-
   val drsLocalizerDependencies: List[ModuleID] = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
@@ -652,6 +651,7 @@ object Dependencies {
     "com.softwaremill.sttp" %% "circe" % sttpV,
     "com.github.scopt" %% "scopt" % scoptV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
+    "io.spray" %% "spray-json" % sprayJsonV,
   ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies ++ azureDependencies
 
   val allProjectDependencies: List[ModuleID] =
@@ -672,7 +672,6 @@ object Dependencies {
       implDrsDependencies ++
       implFtpDependencies ++
       languageFactoryDependencies ++
-      perfDependencies ++
       serverDependencies ++
       sfsBackendDependencies ++
       spiDependencies ++
@@ -838,14 +837,16 @@ object Dependencies {
   val http4sCirce = "org.http4s" %% "http4s-circe" % http4sV
   val pact4sScalaTest = "io.github.jbwheatley" %% "pact4s-scalatest" % pact4sV % Test
   val pact4sCirce = "io.github.jbwheatley" %% "pact4s-circe" % pact4sV
+  val pact4sSpray = "io.github.jbwheatley" %% "pact4s-spray-json" % pact4sV
 
   val pact4sDependencies = Seq(
     pact4sScalaTest,
     pact4sCirce,
+    pact4sSpray,
     http4sEmberClient,
     http4sDsl,
     http4sEmberServer,
     http4sCirce,
     scalaTest,
-  )
+  ) ++ akkaDependencies
 }

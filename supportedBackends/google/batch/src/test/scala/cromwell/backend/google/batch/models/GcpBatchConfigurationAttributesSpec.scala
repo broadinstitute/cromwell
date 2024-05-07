@@ -17,8 +17,11 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 //import java.net.URL
 import scala.concurrent.duration._
 
-class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers
-  with TableDrivenPropertyChecks {
+class GcpBatchConfigurationAttributesSpec
+    extends AnyFlatSpec
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks {
 
   behavior of "GcpBatchAttributes"
 
@@ -50,7 +53,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
     gcpBatchAttributes.maxPollingInterval should be(600)
   }
 
-  it should "parse batch-requests.timeouts values correctly" in  {
+  it should "parse batch-requests.timeouts values correctly" in {
 
     val customContent =
       """
@@ -66,7 +69,9 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
 
     gcpBatchAttributes.batchRequestTimeoutConfiguration.readTimeoutMillis.get.value should be(100.hours.toMillis.toInt)
-    gcpBatchAttributes.batchRequestTimeoutConfiguration.connectTimeoutMillis.get.value should be(10.seconds.toMillis.toInt)
+    gcpBatchAttributes.batchRequestTimeoutConfiguration.connectTimeoutMillis.get.value should be(
+      10.seconds.toMillis.toInt
+    )
   }
 
   it should "parse an empty batch-requests.timeouts section correctly" in {
@@ -143,8 +148,8 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
         |""".stripMargin,
       VirtualPrivateCloudConfiguration(
         Option(VirtualPrivateCloudLabels("my-network", Option("my-subnetwork"), mockAuth)),
-        None,
-      ),
+        None
+      )
     ),
     (
       "labels config without subnetwork key",
@@ -155,8 +160,8 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
         |""".stripMargin,
       VirtualPrivateCloudConfiguration(
         Option(VirtualPrivateCloudLabels("my-network", None, mockAuth)),
-        None,
-      ),
+        None
+      )
     ),
     (
       "literal config",
@@ -167,8 +172,8 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
         |""".stripMargin,
       VirtualPrivateCloudConfiguration(
         None,
-        Option(VirtualPrivateCloudLiterals("my-network", Option("my-subnetwork"))),
-      ),
+        Option(VirtualPrivateCloudLiterals("my-network", Option("my-subnetwork")))
+      )
     ),
     (
       "literal config without subnetwork name",
@@ -178,9 +183,9 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
         |""".stripMargin,
       VirtualPrivateCloudConfiguration(
         None,
-        Option(VirtualPrivateCloudLiterals("my-network", None)),
-      ),
-    ),
+        Option(VirtualPrivateCloudLiterals("my-network", None))
+      )
+    )
   )
 
   private val invalidVPCConfigTests = Table(
@@ -191,7 +196,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
         |  network-label-key = my-network
         |}
         |""".stripMargin,
-      List("Virtual Private Cloud configuration is invalid. Missing keys: `auth`."),
+      List("Virtual Private Cloud configuration is invalid. Missing keys: `auth`.")
     ),
     (
       "without network label-key",
@@ -199,7 +204,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
         |  auth = mock
         |}
         |""".stripMargin,
-      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key`."),
+      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key`.")
     ),
     (
       "with just a subnetwork label key",
@@ -207,7 +212,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
         |  subnetwork-label-key = my-subnetwork
         |}
         |""".stripMargin,
-      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key,auth`."),
+      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key,auth`.")
     ),
     (
       "with subnetwork label network key and auth",
@@ -216,8 +221,8 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
         |   auth = mock
         | }
         |""".stripMargin,
-      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key`."),
-    ),
+      List("Virtual Private Cloud configuration is invalid. Missing keys: `network-label-key`.")
+    )
   )
 
   forAll(validVpcConfigTests) { (description, customConfig, vpcConfig) =>
@@ -243,13 +248,12 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
   it should "not parse invalid config" in {
 
     val nakedConfig =
-      ConfigFactory.parseString(
-        """
-          |{
-          |   genomics {
-          |
-          |   }
-          |}
+      ConfigFactory.parseString("""
+                                  |{
+                                  |   genomics {
+                                  |
+                                  |   }
+                                  |}
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
@@ -302,7 +306,8 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
     val invalids = List("-1", "150MB", "14PB")
 
     invalids foreach {
-      case invalid@GcpBatchConfigurationAttributes.GsutilHumanBytes(_, _) => fail(s"Memory specification $invalid not expected to be accepted")
+      case invalid @ GcpBatchConfigurationAttributes.GsutilHumanBytes(_, _) =>
+        fail(s"Memory specification $invalid not expected to be accepted")
       case _ =>
     }
   }
@@ -332,32 +337,32 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
     // Highly abridged versions of hg19 and hg38 manifests just to test for correctness
     // of parsing.
     val manifestConfig =
-    """
-      |reference-disk-localization-manifests = [
-      |{
-      |  "imageIdentifier" : "hg19-public-2020-10-26",
-      |  "diskSizeGb" : 10,
-      |  "files" : [ {
-      |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai",
-      |    "crc32c" : 159565724
-      |  }, {
-      |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.dict",
-      |    "crc32c" : 1679459712
-      |  }]
-      |},
-      |{
-      |  "imageIdentifier" : "hg38-public-2020-10-26",
-      |  "diskSizeGb" : 20,
-      |  "files" : [ {
-      |    "path" : "gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
-      |    "crc32c" : 930173616
-      |  }, {
-      |    "path" : "gcp-public-data--broad-references/hg38/v0/exome_evaluation_regions.v1.interval_list",
-      |    "crc32c" : 289077232
-      |  }]
-      |}
-      |]
-      |""".stripMargin
+      """
+        |reference-disk-localization-manifests = [
+        |{
+        |  "imageIdentifier" : "hg19-public-2020-10-26",
+        |  "diskSizeGb" : 10,
+        |  "files" : [ {
+        |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai",
+        |    "crc32c" : 159565724
+        |  }, {
+        |    "path" : "gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.dict",
+        |    "crc32c" : 1679459712
+        |  }]
+        |},
+        |{
+        |  "imageIdentifier" : "hg38-public-2020-10-26",
+        |  "diskSizeGb" : 20,
+        |  "files" : [ {
+        |    "path" : "gcp-public-data--broad-references/hg38/v0/Mills_and_1000G_gold_standard.indels.hg38.vcf.gz",
+        |    "crc32c" : 930173616
+        |  }, {
+        |    "path" : "gcp-public-data--broad-references/hg38/v0/exome_evaluation_regions.v1.interval_list",
+        |    "crc32c" : 289077232
+        |  }]
+        |}
+        |]
+        |""".stripMargin
     val backendConfig = ConfigFactory.parseString(configString(manifestConfig))
     val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "batch")
     val manifests: List[ManifestFile] = validation.toEither.toOption.get.get
@@ -422,7 +427,7 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
          |   "imageIdentifier" : "hg19-public-2020-10-26",
          |   "diskSizeGb" : 10,
          |   # missing files
-         |}]""",
+         |}]"""
     )
 
     badValues foreach { badValue =>
@@ -433,19 +438,21 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
     }
   }
 
-
   it should "parse correct existing docker-image-cache-manifest-file config" in {
 
     val dockerImageCacheManifest1Path = "gs://bucket/manifest1.json"
     val dockerImageCacheManifestConfigStr = s"""docker-image-cache-manifest-file = "$dockerImageCacheManifest1Path""""
     val backendConfig = ConfigFactory.parseString(configString(dockerImageCacheManifestConfigStr))
 
-    val validatedGcsPathToDockerImageCacheManifestFileErrorOr = GcpBatchConfigurationAttributes.validateGcsPathToDockerImageCacheManifestFile(backendConfig)
+    val validatedGcsPathToDockerImageCacheManifestFileErrorOr =
+      GcpBatchConfigurationAttributes.validateGcsPathToDockerImageCacheManifestFile(backendConfig)
     validatedGcsPathToDockerImageCacheManifestFileErrorOr match {
       case Valid(validatedGcsPathToDockerImageCacheManifestFileOpt) =>
         validatedGcsPathToDockerImageCacheManifestFileOpt match {
           case Some(validatedGcsPathToDockerCacheManifestFile) =>
-            validatedGcsPathToDockerCacheManifestFile shouldBe GcsPathBuilder.validateGcsPath(dockerImageCacheManifest1Path)
+            validatedGcsPathToDockerCacheManifestFile shouldBe GcsPathBuilder.validateGcsPath(
+              dockerImageCacheManifest1Path
+            )
           case None =>
             fail("GCS paths to docker image cache manifest files, parsed from config, should not be empty")
         }
@@ -458,7 +465,8 @@ class GcpBatchConfigurationAttributesSpec extends AnyFlatSpec with CromwellTimeo
 
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val validatedGcsPathsToDockerImageCacheManifestFilesErrorOr = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "unit-test-backend")
+    val validatedGcsPathsToDockerImageCacheManifestFilesErrorOr =
+      GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "unit-test-backend")
     validatedGcsPathsToDockerImageCacheManifestFilesErrorOr match {
       case Valid(validatedGcsPathsToDockerImageCacheManifestFilesOpt) =>
         validatedGcsPathsToDockerImageCacheManifestFilesOpt shouldBe None

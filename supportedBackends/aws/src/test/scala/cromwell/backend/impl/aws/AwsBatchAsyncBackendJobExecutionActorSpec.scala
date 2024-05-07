@@ -43,7 +43,13 @@ import cromwell.backend.impl.aws.AwsBatchAsyncBackendJobExecutionActor.AwsBatchP
 import cromwell.backend.impl.aws.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctions, StandardExpressionFunctionsParams}
+import cromwell.backend.standard.{
+  DefaultStandardAsyncExecutionActorParams,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob,
+  StandardExpressionFunctions,
+  StandardExpressionFunctionsParams
+}
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.Tags.AwsTest
 import cromwell.core._
@@ -80,8 +86,14 @@ import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.util.Success
 
-class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
-  with AnyFlatSpecLike with Matchers with ImplicitSender with BackendSpec with BeforeAndAfter with DefaultJsonProtocol {
+class AwsBatchAsyncBackendJobExecutionActorSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with ImplicitSender
+    with BackendSpec
+    with BeforeAndAfter
+    with DefaultJsonProtocol {
   lazy val mockPathBuilderS3: S3PathBuilder = S3PathBuilder.fromProvider(
     AnonymousCredentialsProvider.create,
     S3Storage.DefaultConfiguration,
@@ -98,23 +110,23 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
   val YoSup: String =
     s"""
-      |task sup {
-      |  String addressee
-      |  command {
-      |    echo "yo sup $${addressee}!"
-      |  }
-      |  output {
-      |    String salutation = read_string(stdout())
-      |  }
-      |  runtime {
-      |    docker: "alpine:latest"
-      |    queueArn: "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"
-      |  }
-      |}
-      |
-      |workflow wf_sup {
-      |  call sup
-      |}
+       |task sup {
+       |  String addressee
+       |  command {
+       |    echo "yo sup $${addressee}!"
+       |  }
+       |  output {
+       |    String salutation = read_string(stdout())
+       |  }
+       |  runtime {
+       |    docker: "alpine:latest"
+       |    queueArn: "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"
+       |  }
+       |}
+       |
+       |workflow wf_sup {
+       |  call sup
+       |}
     """.stripMargin
 
   private val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
@@ -128,11 +140,11 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
   lazy val TestableStandardExpressionFunctionsParamsS3: StandardExpressionFunctionsParams =
     new StandardExpressionFunctionsParams {
-    override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilderS3)
-    override lazy val callContext: CallContext = TestableCallContextS3
-    override val ioActorProxy: ActorRef = simpleIoActor
-    override val executionContext: ExecutionContext = system.dispatcher
-  }
+      override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilderS3)
+      override lazy val callContext: CallContext = TestableCallContextS3
+      override val ioActorProxy: ActorRef = simpleIoActor
+      override val executionContext: ExecutionContext = system.dispatcher
+    }
   lazy val TestableStandardExpressionFunctionsParamsLocal: StandardExpressionFunctionsParams =
     new StandardExpressionFunctionsParams {
       override lazy val pathBuilders: List[PathBuilder] = List(mockPathBuilderLocal)
@@ -140,12 +152,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       override val ioActorProxy: ActorRef = simpleIoActor
       override val executionContext: ExecutionContext = system.dispatcher
     }
-  lazy val TestableAwsBatchExpressionFunctions: AwsBatchExpressionFunctions = {
+  lazy val TestableAwsBatchExpressionFunctions: AwsBatchExpressionFunctions =
     new AwsBatchExpressionFunctions(TestableStandardExpressionFunctionsParamsS3)
-  }
-  lazy val TestableAwsBatchExpressionFunctionsLocal: AwsBatchExpressionFunctions = {
+  lazy val TestableAwsBatchExpressionFunctionsLocal: AwsBatchExpressionFunctions =
     new AwsBatchExpressionFunctions(TestableStandardExpressionFunctionsParamsLocal)
-  }
   private def buildInitializationData(jobDescriptor: BackendJobDescriptor, configuration: AwsBatchConfiguration) = {
     val workflowPaths = AwsBatchWorkflowPaths(
       jobDescriptor.workflowDescriptor,
@@ -156,17 +166,18 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     AwsBatchBackendInitializationData(workflowPaths, runtimeAttributesBuilder, configuration, null)
   }
 
-  class TestableAwsBatchJobExecutionActor(params: StandardAsyncExecutionActorParams, functions: StandardExpressionFunctions)
-    extends AwsBatchAsyncBackendJobExecutionActor(params) {
+  class TestableAwsBatchJobExecutionActor(params: StandardAsyncExecutionActorParams,
+                                          functions: StandardExpressionFunctions
+  ) extends AwsBatchAsyncBackendJobExecutionActor(params) {
 
     def this(jobDescriptor: BackendJobDescriptor,
              promise: Promise[BackendJobExecutionResponse],
              configuration: AwsBatchConfiguration,
-             //functions: AwsBatchExpressionFunctions = TestableAwsBatchExpressionFunctions,
+             // functions: AwsBatchExpressionFunctions = TestableAwsBatchExpressionFunctions,
              functions: StandardExpressionFunctions = TestableAwsBatchExpressionFunctions,
              singletonActor: ActorRef = emptyActor,
-             ioActor: ActorRef = mockIoActor) = {
-
+             ioActor: ActorRef = mockIoActor
+    ) =
       this(
         DefaultStandardAsyncExecutionActorParams(
           jobIdKey = AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey,
@@ -181,7 +192,6 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
         ),
         functions
       )
-    }
 
     override lazy val jobLogger: JobLogger = new JobLogger(
       "TestLogger",
@@ -213,7 +223,9 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
   private def buildJobDescriptor(): BackendJobDescriptor = {
     val attempt = 1
     val wdlNamespace = WdlNamespaceWithWorkflow.load(YoSup, Seq.empty[Draft2ImportResolver]).get
-    val womDefinition = wdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    val womDefinition = wdlNamespace.workflow
+      .toWomWorkflowDefinition(isASubworkflow = false)
+      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
 
     wdlNamespace.toWomExecutable(Option(Inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
       case Right(womExecutable) =>
@@ -238,7 +250,14 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
         val key = BackendJobDescriptorKey(job, None, attempt)
         val runtimeAttributes = makeRuntimeAttributes(job)
         val prefetchedKvEntries = Map[String, KvResponse]()
-        BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(Inputs), NoDocker, None, prefetchedKvEntries)
+        BackendJobDescriptor(workflowDescriptor,
+                             key,
+                             runtimeAttributes,
+                             fqnWdlMapToDeclarationMap(Inputs),
+                             NoDocker,
+                             None,
+                             prefetchedKvEntries
+        )
       case Left(badtimes) => fail(badtimes.toList.mkString(", "))
     }
   }
@@ -282,15 +301,19 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
   //   Await.result(promise.future, Timeout)
   // }
 
-  def buildTestActorRef(functions:StandardExpressionFunctions): TestActorRef[TestableAwsBatchJobExecutionActor] = {
+  def buildTestActorRef(functions: StandardExpressionFunctions): TestActorRef[TestableAwsBatchJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildJobDescriptor()
-    val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(),
-      configuration,
-      //TestableAwsBatchExpressionFunctions,
-      functions,
-      emptyActor,
-      failIoActor))
+    val props = Props(
+      new TestableAwsBatchJobExecutionActor(jobDescriptor,
+                                            Promise(),
+                                            configuration,
+                                            // TestableAwsBatchExpressionFunctions,
+                                            functions,
+                                            emptyActor,
+                                            failIoActor
+      )
+    )
     TestActorRef(props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
   }
 
@@ -427,7 +450,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     checkFailedResult(None).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     // TODO: Determine the actual error message that comes back and special-case it in handlExecutionFailure
     //       in AwsBatchBackendJobExecutionActor
-    //checkFailedResult(Option("Operation canceled at")) shouldBe AbortedExecutionHandle
+    // checkFailedResult(Option("Operation canceled at")) shouldBe AbortedExecutionHandle
 
     actorRef.stop()
   }
@@ -446,12 +469,15 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       fileKey -> fileVal
     )
 
-    val wdlNamespace = WdlNamespaceWithWorkflow.load(YoSup,
-      Seq.empty[Draft2ImportResolver]).get
-    val womWorkflow = wdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    val wdlNamespace = WdlNamespaceWithWorkflow.load(YoSup, Seq.empty[Draft2ImportResolver]).get
+    val womWorkflow = wdlNamespace.workflow
+      .toWomWorkflowDefinition(isASubworkflow = false)
+      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
     wdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
       case Right(womExecutable) =>
-        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
+        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap { case (port, v) =>
+          v.select[WomValue] map { port -> _ }
+        }
 
         val workflowDescriptor = BackendWorkflowDescriptor(
           WorkflowId.randomId(),
@@ -464,19 +490,34 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
           None
         )
 
-        val call: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst({ case t: CommandCallNode => t }).get
+        val call: CommandCallNode = workflowDescriptor.callable.graph.nodes.collectFirst { case t: CommandCallNode =>
+          t
+        }.get
         val key = BackendJobDescriptorKey(call, None, 1)
         val runtimeAttributes = makeRuntimeAttributes(call)
-        val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
+        val jobDescriptor = BackendJobDescriptor(workflowDescriptor,
+                                                 key,
+                                                 runtimeAttributes,
+                                                 fqnWdlMapToDeclarationMap(inputs),
+                                                 NoDocker,
+                                                 None,
+                                                 Map.empty
+        )
 
-        val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration, TestableAwsBatchExpressionFunctions))
+        val props = Props(
+          new TestableAwsBatchJobExecutionActor(jobDescriptor,
+                                                Promise(),
+                                                configuration,
+                                                TestableAwsBatchExpressionFunctions
+          )
+        )
         val testActorRef = TestActorRef[TestableAwsBatchJobExecutionActor](
-          props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+          props,
+          s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+        )
 
-
-        def pathToLocal(womValue: WomValue): WomValue = {
+        def pathToLocal(womValue: WomValue): WomValue =
           WomFileMapper.mapWomFiles(testActorRef.underlyingActor.mapCommandLineWomFile)(womValue).get
-        }
 
         val mappedInputs = jobDescriptor.localInputs safeMapValues pathToLocal
 
@@ -498,37 +539,59 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     }
   }
 
-  private val dockerAndDiskWdlNamespace = WdlNamespaceWithWorkflow.load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
-    Seq.empty[Draft2ImportResolver]).get
+  private val dockerAndDiskWdlNamespace = WdlNamespaceWithWorkflow
+    .load(SampleWdl.CurrentDirectory.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
+          Seq.empty[Draft2ImportResolver]
+    )
+    .get
 
   it should "generate correct AwsBatchFileInputs from a WdlMap" taggedAs AwsTest ignore {
     val inputs: Map[String, WomValue] = Map(
-      "stringToFileMap" -> WomMap(WomMapType(WomStringType, WomSingleFileType), Map(
-        WomString("stringTofile1") -> WomSingleFile("s3://path/to/stringTofile1"),
-        WomString("stringTofile2") -> WomSingleFile("s3://path/to/stringTofile2")
-      )),
-      "fileToStringMap" -> WomMap(WomMapType(WomSingleFileType, WomStringType), Map(
-        WomSingleFile("s3://path/to/fileToString1") -> WomString("fileToString1"),
-        WomSingleFile("s3://path/to/fileToString2") -> WomString("fileToString2")
-      )),
-      "fileToFileMap" -> WomMap(WomMapType(WomSingleFileType, WomSingleFileType), Map(
-        WomSingleFile("s3://path/to/fileToFile1Key") -> WomSingleFile("s3://path/to/fileToFile1Value"),
-        WomSingleFile("s3://path/to/fileToFile2Key") -> WomSingleFile("s3://path/to/fileToFile2Value")
-      )),
-      "stringToString" -> WomMap(WomMapType(WomStringType, WomStringType), Map(
-        WomString("stringToString1") -> WomString("path/to/stringToString1"),
-        WomString("stringToString2") -> WomString("path/to/stringToString2")
-      ))
+      "stringToFileMap" -> WomMap(
+        WomMapType(WomStringType, WomSingleFileType),
+        Map(
+          WomString("stringTofile1") -> WomSingleFile("s3://path/to/stringTofile1"),
+          WomString("stringTofile2") -> WomSingleFile("s3://path/to/stringTofile2")
+        )
+      ),
+      "fileToStringMap" -> WomMap(
+        WomMapType(WomSingleFileType, WomStringType),
+        Map(
+          WomSingleFile("s3://path/to/fileToString1") -> WomString("fileToString1"),
+          WomSingleFile("s3://path/to/fileToString2") -> WomString("fileToString2")
+        )
+      ),
+      "fileToFileMap" -> WomMap(
+        WomMapType(WomSingleFileType, WomSingleFileType),
+        Map(
+          WomSingleFile("s3://path/to/fileToFile1Key") -> WomSingleFile("s3://path/to/fileToFile1Value"),
+          WomSingleFile("s3://path/to/fileToFile2Key") -> WomSingleFile("s3://path/to/fileToFile2Value")
+        )
+      ),
+      "stringToString" -> WomMap(
+        WomMapType(WomStringType, WomStringType),
+        Map(
+          WomString("stringToString1") -> WomString("path/to/stringToString1"),
+          WomString("stringToString2") -> WomString("path/to/stringToString2")
+        )
+      )
     )
 
-    val workflowInputs = inputs map {
-      case (k, v) => s"wf_whereami.whereami$k" -> v
+    val workflowInputs = inputs map { case (k, v) =>
+      s"wf_whereami.whereami$k" -> v
     }
 
-    val womWorkflow = dockerAndDiskWdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-    dockerAndDiskWdlNamespace.toWomExecutable(Option(workflowInputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
+    val womWorkflow = dockerAndDiskWdlNamespace.workflow
+      .toWomWorkflowDefinition(isASubworkflow = false)
+      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    dockerAndDiskWdlNamespace.toWomExecutable(Option(workflowInputs.toJson.compactPrint),
+                                              NoIoFunctionSet,
+                                              strictValidation = true
+    ) match {
       case Right(womExecutable) =>
-        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
+        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap { case (port, v) =>
+          v.select[WomValue] map { port -> _ }
+        }
         val workflowDescriptor = BackendWorkflowDescriptor(
           WorkflowId.randomId(),
           womWorkflow,
@@ -543,43 +606,103 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
         val runtimeAttributes = makeRuntimeAttributes(job)
         val key = BackendJobDescriptorKey(job, None, 1)
-        val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
+        val jobDescriptor = BackendJobDescriptor(workflowDescriptor,
+                                                 key,
+                                                 runtimeAttributes,
+                                                 fqnWdlMapToDeclarationMap(inputs),
+                                                 NoDocker,
+                                                 None,
+                                                 Map.empty
+        )
 
         val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration))
         val testActorRef = TestActorRef[TestableAwsBatchJobExecutionActor](
-          props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+          props,
+          s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+        )
 
         val batchInputs = testActorRef.underlyingActor.generateAwsBatchInputs(jobDescriptor)
         batchInputs should have size 8
-        batchInputs should contain(AwsBatchFileInput(
-          "stringToFileMap-0", "s3://path/to/stringTofile1", DefaultPathBuilder.get("path/to/stringTofile1"), workingDisk))
-        batchInputs should contain(AwsBatchFileInput(
-          "stringToFileMap-1", "s3://path/to/stringTofile2", DefaultPathBuilder.get("path/to/stringTofile2"), workingDisk))
-        batchInputs should contain(AwsBatchFileInput(
-          "fileToStringMap-0", "s3://path/to/fileToString1", DefaultPathBuilder.get("path/to/fileToString1"), workingDisk))
-        batchInputs should contain(AwsBatchFileInput(
-          "fileToStringMap-1", "s3://path/to/fileToString2", DefaultPathBuilder.get("path/to/fileToString2"), workingDisk))
-        batchInputs should contain(AwsBatchFileInput(
-          "fileToFileMap-0", "s3://path/to/fileToFile1Key", DefaultPathBuilder.get("path/to/fileToFile1Key"), workingDisk))
-        batchInputs should contain(AwsBatchFileInput(
-          "fileToFileMap-1", "s3://path/to/fileToFile1Value", DefaultPathBuilder.get("path/to/fileToFile1Value"), workingDisk))
-        batchInputs should contain(AwsBatchFileInput(
-          "fileToFileMap-2", "s3://path/to/fileToFile2Key", DefaultPathBuilder.get("path/to/fileToFile2Key"), workingDisk))
-        batchInputs should contain(AwsBatchFileInput(
-          "fileToFileMap-3", "s3://path/to/fileToFile2Value", DefaultPathBuilder.get("path/to/fileToFile2Value"), workingDisk))
+        batchInputs should contain(
+          AwsBatchFileInput("stringToFileMap-0",
+                            "s3://path/to/stringTofile1",
+                            DefaultPathBuilder.get("path/to/stringTofile1"),
+                            workingDisk
+          )
+        )
+        batchInputs should contain(
+          AwsBatchFileInput("stringToFileMap-1",
+                            "s3://path/to/stringTofile2",
+                            DefaultPathBuilder.get("path/to/stringTofile2"),
+                            workingDisk
+          )
+        )
+        batchInputs should contain(
+          AwsBatchFileInput("fileToStringMap-0",
+                            "s3://path/to/fileToString1",
+                            DefaultPathBuilder.get("path/to/fileToString1"),
+                            workingDisk
+          )
+        )
+        batchInputs should contain(
+          AwsBatchFileInput("fileToStringMap-1",
+                            "s3://path/to/fileToString2",
+                            DefaultPathBuilder.get("path/to/fileToString2"),
+                            workingDisk
+          )
+        )
+        batchInputs should contain(
+          AwsBatchFileInput("fileToFileMap-0",
+                            "s3://path/to/fileToFile1Key",
+                            DefaultPathBuilder.get("path/to/fileToFile1Key"),
+                            workingDisk
+          )
+        )
+        batchInputs should contain(
+          AwsBatchFileInput("fileToFileMap-1",
+                            "s3://path/to/fileToFile1Value",
+                            DefaultPathBuilder.get("path/to/fileToFile1Value"),
+                            workingDisk
+          )
+        )
+        batchInputs should contain(
+          AwsBatchFileInput("fileToFileMap-2",
+                            "s3://path/to/fileToFile2Key",
+                            DefaultPathBuilder.get("path/to/fileToFile2Key"),
+                            workingDisk
+          )
+        )
+        batchInputs should contain(
+          AwsBatchFileInput("fileToFileMap-3",
+                            "s3://path/to/fileToFile2Value",
+                            DefaultPathBuilder.get("path/to/fileToFile2Value"),
+                            workingDisk
+          )
+        )
 
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
   }
 
-  def makeAwsBatchActorRef(sampleWdl: SampleWdl, callName: LocallyQualifiedName, inputs: Map[FullyQualifiedName, WomValue],
-                      functions: StandardExpressionFunctions = TestableAwsBatchExpressionFunctions):
-  TestActorRef[TestableAwsBatchJobExecutionActor] = {
-    val womWorkflow = WdlNamespaceWithWorkflow.load(sampleWdl.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
-      Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-    dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
+  def makeAwsBatchActorRef(sampleWdl: SampleWdl,
+                           callName: LocallyQualifiedName,
+                           inputs: Map[FullyQualifiedName, WomValue],
+                           functions: StandardExpressionFunctions = TestableAwsBatchExpressionFunctions
+  ): TestActorRef[TestableAwsBatchJobExecutionActor] = {
+    val womWorkflow = WdlNamespaceWithWorkflow
+      .load(sampleWdl.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get, Seq.empty[Draft2ImportResolver])
+      .get
+      .workflow
+      .toWomWorkflowDefinition(isASubworkflow = false)
+      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint),
+                                              NoIoFunctionSet,
+                                              strictValidation = true
+    ) match {
       case Right(womExecutable) =>
-        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
+        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap { case (port, v) =>
+          v.select[WomValue] map { port -> _ }
+        }
         val workflowDescriptor = BackendWorkflowDescriptor(
           WorkflowId.randomId(),
           womWorkflow,
@@ -594,10 +717,20 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
         val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == callName).get
         val key = BackendJobDescriptorKey(call, None, 1)
         val runtimeAttributes = makeRuntimeAttributes(call)
-        val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
+        val jobDescriptor = BackendJobDescriptor(workflowDescriptor,
+                                                 key,
+                                                 runtimeAttributes,
+                                                 fqnWdlMapToDeclarationMap(inputs),
+                                                 NoDocker,
+                                                 None,
+                                                 Map.empty
+        )
 
         val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration, functions))
-        TestActorRef[TestableAwsBatchJobExecutionActor](props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+        TestActorRef[TestableAwsBatchJobExecutionActor](
+          props,
+          s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+        )
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
   }
@@ -611,11 +744,18 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val workflowId = backend.workflowDescriptor.id
     val batchInputs = backend.generateAwsBatchInputs(jobDescriptor)
     batchInputs should have size 1
-    batchInputs should contain(AwsBatchFileInput("in-0", "s3://blah/b/c.txt", DefaultPathBuilder.get("blah/b/c.txt"), workingDisk))
+    batchInputs should contain(
+      AwsBatchFileInput("in-0", "s3://blah/b/c.txt", DefaultPathBuilder.get("blah/b/c.txt"), workingDisk)
+    )
     val outputs = backend.generateAwsBatchOutputs(jobDescriptor)
     outputs should have size 1
-    outputs should contain(AwsBatchFileOutput("out",
-      s"s3://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out", DefaultPathBuilder.get("out"), workingDisk))
+    outputs should contain(
+      AwsBatchFileOutput("out",
+                         s"s3://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out",
+                         DefaultPathBuilder.get("out"),
+                         workingDisk
+      )
+    )
   }
 
   it should "generate correct AwsBatchInputs when a command line contains a write_lines call in it" taggedAs AwsTest ignore {
@@ -623,23 +763,28 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       "strs" -> WomArray(WomArrayType(WomStringType), Seq("A", "B", "C").map(WomString))
     )
 
-    class TestAwsBatchExpressionFunctions extends AwsBatchExpressionFunctions(TestableStandardExpressionFunctionsParamsS3) {
-      override def writeFile(path: String, content: String): Future[WomSingleFile] = {
+    class TestAwsBatchExpressionFunctions
+        extends AwsBatchExpressionFunctions(TestableStandardExpressionFunctionsParamsS3) {
+      override def writeFile(path: String, content: String): Future[WomSingleFile] =
         Future.fromTry(Success(WomSingleFile(s"s3://some/path/file.txt")))
-      }
     }
-    class TestAwsBatchExpressionFunctionsLocal extends AwsBatchExpressionFunctionsForFS(TestableStandardExpressionFunctionsParamsLocal) {
-      override def writeFile(path: String, content: String): Future[WomSingleFile] = {
+    class TestAwsBatchExpressionFunctionsLocal
+        extends AwsBatchExpressionFunctionsForFS(TestableStandardExpressionFunctionsParamsLocal) {
+      override def writeFile(path: String, content: String): Future[WomSingleFile] =
         Future.fromTry(Success(WomSingleFile(s"/some/path/file.txt")))
-      }
     }
     val functions = new TestAwsBatchExpressionFunctions
     val backend = makeAwsBatchActorRef(SampleWdl.ArrayIO, "serialize", inputs, functions).underlyingActor
     val jobDescriptor = backend.jobDescriptor
     val batchInputs = backend.generateAwsBatchInputs(jobDescriptor)
     batchInputs should have size 1
-    batchInputs should contain(AwsBatchFileInput(
-      "c6fd5c91-0", "s3://some/path/file.txt", DefaultPathBuilder.get("some/path/file.txt"), workingDisk))
+    batchInputs should contain(
+      AwsBatchFileInput("c6fd5c91-0",
+                        "s3://some/path/file.txt",
+                        DefaultPathBuilder.get("some/path/file.txt"),
+                        workingDisk
+      )
+    )
     val outputs = backend.generateAwsBatchOutputs(jobDescriptor)
     outputs should have size 0
 
@@ -648,8 +793,9 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val jobDescriptorLocal = backendLocal.jobDescriptor
     val batchInputsLocal = backend.generateAwsBatchInputs(jobDescriptorLocal)
     batchInputsLocal should have size 1
-    batchInputsLocal should contain(AwsBatchFileInput(
-      "c6fd5c91-0", "/some/path/file.txt", DefaultPathBuilder.get("some/path/file.txt"), workingDisk))
+    batchInputsLocal should contain(
+      AwsBatchFileInput("c6fd5c91-0", "/some/path/file.txt", DefaultPathBuilder.get("some/path/file.txt"), workingDisk)
+    )
     val outputsLocal = backendLocal.generateAwsBatchOutputs(jobDescriptorLocal)
     outputsLocal should have size 0
   }
@@ -657,13 +803,22 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
   it should "generate correct AwsBatchFileInputs from a WdlArray" taggedAs AwsTest ignore {
     val inputs: Map[String, WomValue] = Map(
       "fileArray" ->
-        WomArray(WomArrayType(WomSingleFileType), Seq(WomSingleFile("s3://path/to/file1"), WomSingleFile("s3://path/to/file2")))
+        WomArray(WomArrayType(WomSingleFileType),
+                 Seq(WomSingleFile("s3://path/to/file1"), WomSingleFile("s3://path/to/file2"))
+        )
     )
 
-    val womWorkflow = dockerAndDiskWdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-    dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
+    val womWorkflow = dockerAndDiskWdlNamespace.workflow
+      .toWomWorkflowDefinition(isASubworkflow = false)
+      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint),
+                                              NoIoFunctionSet,
+                                              strictValidation = true
+    ) match {
       case Right(womExecutable) =>
-        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
+        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap { case (port, v) =>
+          v.select[WomValue] map { port -> _ }
+        }
         val workflowDescriptor = BackendWorkflowDescriptor(
           WorkflowId.randomId(),
           womWorkflow,
@@ -678,16 +833,29 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
         val runtimeAttributes = makeRuntimeAttributes(job)
         val key = BackendJobDescriptorKey(job, None, 1)
-        val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
+        val jobDescriptor = BackendJobDescriptor(workflowDescriptor,
+                                                 key,
+                                                 runtimeAttributes,
+                                                 fqnWdlMapToDeclarationMap(inputs),
+                                                 NoDocker,
+                                                 None,
+                                                 Map.empty
+        )
 
         val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration))
         val testActorRef = TestActorRef[TestableAwsBatchJobExecutionActor](
-          props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+          props,
+          s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+        )
 
         val batchInputs = testActorRef.underlyingActor.generateAwsBatchInputs(jobDescriptor)
         batchInputs should have size 2
-        batchInputs should contain(AwsBatchFileInput("fileArray-0", "s3://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
-        batchInputs should contain(AwsBatchFileInput("fileArray-1", "s3://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
+        batchInputs should contain(
+          AwsBatchFileInput("fileArray-0", "s3://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk)
+        )
+        batchInputs should contain(
+          AwsBatchFileInput("fileArray-1", "s3://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk)
+        )
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
   }
@@ -698,10 +866,17 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
       "file2" -> WomSingleFile("s3://path/to/file2")
     )
 
-    val womWorkflow = dockerAndDiskWdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-    dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
+    val womWorkflow = dockerAndDiskWdlNamespace.workflow
+      .toWomWorkflowDefinition(isASubworkflow = false)
+      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+    dockerAndDiskWdlNamespace.toWomExecutable(Option(inputs.toJson.compactPrint),
+                                              NoIoFunctionSet,
+                                              strictValidation = true
+    ) match {
       case Right(womExecutable) =>
-        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap({case (port, v) => v.select[WomValue] map { port -> _ }})
+        val wdlInputs = womExecutable.resolvedExecutableInputs.flatMap { case (port, v) =>
+          v.select[WomValue] map { port -> _ }
+        }
         val workflowDescriptor = BackendWorkflowDescriptor(
           WorkflowId.randomId(),
           womWorkflow,
@@ -716,16 +891,29 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
         val job: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
         val runtimeAttributes = makeRuntimeAttributes(job)
         val key = BackendJobDescriptorKey(job, None, 1)
-        val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, fqnWdlMapToDeclarationMap(inputs), NoDocker, None, Map.empty)
+        val jobDescriptor = BackendJobDescriptor(workflowDescriptor,
+                                                 key,
+                                                 runtimeAttributes,
+                                                 fqnWdlMapToDeclarationMap(inputs),
+                                                 NoDocker,
+                                                 None,
+                                                 Map.empty
+        )
 
         val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration))
         val testActorRef = TestActorRef[TestableAwsBatchJobExecutionActor](
-          props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+          props,
+          s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+        )
 
         val batchInputs = testActorRef.underlyingActor.generateAwsBatchInputs(jobDescriptor)
         batchInputs should have size 2
-        batchInputs should contain(AwsBatchFileInput("file1-0", "s3://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk))
-        batchInputs should contain(AwsBatchFileInput("file2-0", "s3://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk))
+        batchInputs should contain(
+          AwsBatchFileInput("file1-0", "s3://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk)
+        )
+        batchInputs should contain(
+          AwsBatchFileInput("file2-0", "s3://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk)
+        )
 
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
@@ -733,30 +921,54 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
   it should "convert local Paths back to corresponding foreign paths in AwsBatchOutputs" taggedAs AwsTest in {
     val outputs = Set(
-      AwsBatchFileOutput("/cromwell_root/path/to/file1", "s3://path/to/file1",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file1"), workingDisk),
-      AwsBatchFileOutput("/cromwell_root/path/to/file2", "s3://path/to/file2",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file2"), workingDisk),
-      AwsBatchFileOutput("/cromwell_root/path/to/file3", "s3://path/to/file3",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file3"), workingDisk),
-      AwsBatchFileOutput("/cromwell_root/path/to/file4", "s3://path/to/file4",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file4"), workingDisk),
-      AwsBatchFileOutput("/cromwell_root/path/to/file5", "s3://path/to/file5",
-        DefaultPathBuilder.get("/cromwell_root/path/to/file5"), workingDisk)
+      AwsBatchFileOutput("/cromwell_root/path/to/file1",
+                         "s3://path/to/file1",
+                         DefaultPathBuilder.get("/cromwell_root/path/to/file1"),
+                         workingDisk
+      ),
+      AwsBatchFileOutput("/cromwell_root/path/to/file2",
+                         "s3://path/to/file2",
+                         DefaultPathBuilder.get("/cromwell_root/path/to/file2"),
+                         workingDisk
+      ),
+      AwsBatchFileOutput("/cromwell_root/path/to/file3",
+                         "s3://path/to/file3",
+                         DefaultPathBuilder.get("/cromwell_root/path/to/file3"),
+                         workingDisk
+      ),
+      AwsBatchFileOutput("/cromwell_root/path/to/file4",
+                         "s3://path/to/file4",
+                         DefaultPathBuilder.get("/cromwell_root/path/to/file4"),
+                         workingDisk
+      ),
+      AwsBatchFileOutput("/cromwell_root/path/to/file5",
+                         "s3://path/to/file5",
+                         DefaultPathBuilder.get("/cromwell_root/path/to/file5"),
+                         workingDisk
+      )
     )
     val outputValues = Seq(
       WomSingleFile("/cromwell_root/path/to/file1"),
-      WomArray(WomArrayType(WomSingleFileType), Seq(
-        WomSingleFile("/cromwell_root/path/to/file2"), WomSingleFile("/cromwell_root/path/to/file3"))),
-      WomMap(WomMapType(WomSingleFileType, WomSingleFileType), Map(
-        WomSingleFile("/cromwell_root/path/to/file4") -> WomSingleFile("/cromwell_root/path/to/file5")
-      ))
+      WomArray(WomArrayType(WomSingleFileType),
+               Seq(WomSingleFile("/cromwell_root/path/to/file2"), WomSingleFile("/cromwell_root/path/to/file3"))
+      ),
+      WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
+             Map(
+               WomSingleFile("/cromwell_root/path/to/file4") -> WomSingleFile("/cromwell_root/path/to/file5")
+             )
+      )
     )
 
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId.randomId(),
-      WdlNamespaceWithWorkflow.load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
-        Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      WdlNamespaceWithWorkflow
+        .load(SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
+              Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       NoOptions,
       Labels.empty,
@@ -768,33 +980,44 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.head
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
+    val jobDescriptor =
+      BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
 
     val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration))
     val testActorRef = TestActorRef[TestableAwsBatchJobExecutionActor](
-      props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+      props,
+      s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+    )
 
-    def wdlValueToS3Path(outputs: Set[AwsBatchFileOutput])(womValue: WomValue): WomValue = {
+    def wdlValueToS3Path(outputs: Set[AwsBatchFileOutput])(womValue: WomValue): WomValue =
       WomFileMapper.mapWomFiles(testActorRef.underlyingActor.womFileToPath(outputs))(womValue).get
-    }
 
     val result = outputValues map wdlValueToS3Path(outputs)
     result should have size 3
     result should contain(WomSingleFile("s3://path/to/file1"))
-    result should contain(WomArray(WomArrayType(WomSingleFileType),
-      Seq(WomSingleFile("s3://path/to/file2"), WomSingleFile("s3://path/to/file3")))
+    result should contain(
+      WomArray(WomArrayType(WomSingleFileType),
+               Seq(WomSingleFile("s3://path/to/file2"), WomSingleFile("s3://path/to/file3"))
+      )
     )
-    result should contain(WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
-      Map(WomSingleFile("s3://path/to/file4") -> WomSingleFile("s3://path/to/file5")))
+    result should contain(
+      WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
+             Map(WomSingleFile("s3://path/to/file4") -> WomSingleFile("s3://path/to/file5"))
+      )
     )
   }
 
   it should "return log paths for non-scattered call" taggedAs AwsTest in {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7c")),
-      WdlNamespaceWithWorkflow.load(
-        SampleWdl.HelloWorld.asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource.get,
-        Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      WdlNamespaceWithWorkflow
+        .load(SampleWdl.HelloWorld.asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource.get,
+              Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"aws_s3_root": "s3://path/to/root"} """).get,
       Labels.empty,
@@ -806,11 +1029,14 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "hello").get
     val key = BackendJobDescriptorKey(call, None, 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
+    val jobDescriptor =
+      BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
 
     val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration))
     val testActorRef = TestActorRef[TestableAwsBatchJobExecutionActor](
-      props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+      props,
+      s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+    )
 
     val backend = testActorRef.underlyingActor
 
@@ -825,9 +1051,15 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
   it should "return log paths for scattered call" taggedAs AwsTest ignore {
     val workflowDescriptor = BackendWorkflowDescriptor(
       WorkflowId(UUID.fromString("e6236763-c518-41d0-9688-432549a8bf7d")),
-      WdlNamespaceWithWorkflow.load(
-        new SampleWdl.ScatterWdl().asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource.get,
-        Seq.empty[Draft2ImportResolver]).get.workflow.toWomWorkflowDefinition(isASubworkflow = false).getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      WdlNamespaceWithWorkflow
+        .load(
+          new SampleWdl.ScatterWdl().asWorkflowSources(""" runtime {docker: "ubuntu:latest"} """).workflowSource.get,
+          Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
       Map.empty,
       WorkflowOptions.fromJsonString(""" {"root": "s3://path/to/root"} """).get,
       Labels.empty,
@@ -839,11 +1071,14 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
     val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "B").get
     val key = BackendJobDescriptorKey(call, Option(2), 1)
     val runtimeAttributes = makeRuntimeAttributes(call)
-    val jobDescriptor = BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
+    val jobDescriptor =
+      BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
 
     val props = Props(new TestableAwsBatchJobExecutionActor(jobDescriptor, Promise(), configuration))
     val testActorRef = TestActorRef[TestableAwsBatchJobExecutionActor](
-      props, s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
+      props,
+      s"TestableAwsBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+    )
 
     val backend = testActorRef.underlyingActor
 
@@ -862,11 +1097,12 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
 
     val jobId = "the-job-id"
 
-    def execute:Future[ExecutionHandle] ={ backend.recoverAsync(StandardAsyncJob(jobId)) }
+    def execute: Future[ExecutionHandle] = backend.recoverAsync(StandardAsyncJob(jobId))
 
     whenReady(execute, PatienceConfiguration.Timeout(10.seconds.dilated)) { executionResponse =>
-      executionResponse should be(a[PendingExecutionHandle[_,_,_]])
-      val pendingExecutionResponse = executionResponse.asInstanceOf[PendingExecutionHandle[StandardAsyncJob, AwsBatchJob, RunStatus]]
+      executionResponse should be(a[PendingExecutionHandle[_, _, _]])
+      val pendingExecutionResponse =
+        executionResponse.asInstanceOf[PendingExecutionHandle[StandardAsyncJob, AwsBatchJob, RunStatus]]
       pendingExecutionResponse.isDone should be(false)
       pendingExecutionResponse.jobDescriptor should be(jobDescriptor)
       pendingExecutionResponse.pendingJob should be(StandardAsyncJob(jobId))
@@ -876,8 +1112,10 @@ class AwsBatchAsyncBackendJobExecutionActorSpec extends TestKitSuite
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {
-    val evaluatedAttributes = RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.callable.runtimeAttributes, null, Map.empty)
-    RuntimeAttributeDefinition.addDefaultsToAttributes(
-      runtimeAttributesBuilder.definitions.toSet, NoOptions)(evaluatedAttributes.getOrElse(fail("Failed to evaluate runtime attributes")))
+    val evaluatedAttributes =
+      RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.callable.runtimeAttributes, null, Map.empty)
+    RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributesBuilder.definitions.toSet, NoOptions)(
+      evaluatedAttributes.getOrElse(fail("Failed to evaluate runtime attributes"))
+    )
   }
 }

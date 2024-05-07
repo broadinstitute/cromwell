@@ -4,7 +4,6 @@ import cromwell.backend.BackendCacheHitCopyingActor.CopyOutputsCommand
 import cromwell.core.io.{IoCommand, IoCopyCommand}
 import cromwell.services.CallCaching.CallCachingEntryId
 
-
 object CopyingActorBlacklistCacheSupport {
   trait HasFormatting {
     def metricFormat: String = getClass.getName.toLowerCase.split('$').last
@@ -52,13 +51,12 @@ trait CopyingActorBlacklistCacheSupport {
   }
 
   def publishBlacklistMetric(verb: Verb, entityType: EntityType, value: BlacklistStatus): Unit = {
-    val metricPath = NonEmptyList.of(
-      "job",
-      "callcaching", "blacklist", verb.metricFormat, entityType.metricFormat, value.toString)
+    val metricPath =
+      NonEmptyList.of("job", "callcaching", "blacklist", verb.metricFormat, entityType.metricFormat, value.toString)
     increment(metricPath)
   }
 
-  def blacklistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
+  def blacklistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit =
     blacklistCache.getBlacklistStatus(hit) match {
       case UntestedCacheResult =>
         blacklistCache.blacklist(hit)
@@ -71,13 +69,13 @@ trait CopyingActorBlacklistCacheSupport {
         // mark the hit as BadCacheResult and log this strangeness.
         log.warning(
           "Cache hit {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
-          hit.id)
+          hit.id
+        )
         blacklistCache.blacklist(hit)
         publishBlacklistMetric(Write, Hit, value = BadCacheResult)
     }
-  }
 
-  def blacklistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
+  def blacklistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit =
     blacklistCache.getBlacklistStatus(bucket) match {
       case UntestedCacheResult =>
         blacklistCache.blacklist(bucket)
@@ -90,13 +88,13 @@ trait CopyingActorBlacklistCacheSupport {
         // mark the bucket as BadCacheResult and log this strangeness.
         log.warning(
           "Bucket {} found in GoodCacheResult blacklist state, but cache hit copying has failed for permissions reasons. Overwriting status to BadCacheResult state.",
-          bucket)
+          bucket
+        )
         blacklistCache.blacklist(bucket)
         publishBlacklistMetric(Write, Bucket, value = BadCacheResult)
     }
-  }
 
-  def whitelistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit = {
+  def whitelistAndMetricHit(blacklistCache: BlacklistCache, hit: CallCachingEntryId): Unit =
     blacklistCache.getBlacklistStatus(hit) match {
       case UntestedCacheResult =>
         blacklistCache.whitelist(hit)
@@ -107,11 +105,11 @@ trait CopyingActorBlacklistCacheSupport {
         // Don't overwrite this to GoodCacheResult, hopefully there are less weird cache hits out there.
         log.warning(
           "Cache hit {} found in BadCacheResult blacklist state, not overwriting to GoodCacheResult despite successful copy.",
-          hit.id)
+          hit.id
+        )
     }
-  }
 
-  def whitelistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit = {
+  def whitelistAndMetricBucket(blacklistCache: BlacklistCache, bucket: String): Unit =
     blacklistCache.getBlacklistStatus(bucket) match {
       case UntestedCacheResult =>
         blacklistCache.whitelist(bucket)
@@ -122,11 +120,11 @@ trait CopyingActorBlacklistCacheSupport {
         // of a successful copy. Don't overwrite this to GoodCacheResult, hopefully there are less weird cache hits out there.
         log.warning(
           "Bucket {} found in BadCacheResult blacklist state, not overwriting to GoodCacheResult despite successful copy.",
-          bucket)
+          bucket
+        )
     }
-  }
 
-  def publishBlacklistReadMetrics(command: CopyOutputsCommand, cacheHit: CallCachingEntryId, cacheReadType: Product) = {
+  def publishBlacklistReadMetrics(command: CopyOutputsCommand, cacheHit: CallCachingEntryId, cacheReadType: Product) =
     for {
       c <- standardParams.blacklistCache
       hitBlacklistStatus = c.getBlacklistStatus(cacheHit)
@@ -139,7 +137,6 @@ trait CopyingActorBlacklistCacheSupport {
       bucketBlacklistStatus = c.getBlacklistStatus(prefix)
       _ = publishBlacklistMetric(Read, Bucket, bucketBlacklistStatus)
     } yield ()
-  }
 
   def isSourceBlacklisted(command: CopyOutputsCommand): Boolean = {
     val path = sourcePathFromCopyOutputsCommand(command)
@@ -150,10 +147,9 @@ trait CopyingActorBlacklistCacheSupport {
     } yield value == BadCacheResult).getOrElse(false)
   }
 
-  def isSourceBlacklisted(hit: CallCachingEntryId): Boolean = {
+  def isSourceBlacklisted(hit: CallCachingEntryId): Boolean =
     (for {
       cache <- standardParams.blacklistCache
       value = cache.getBlacklistStatus(hit)
     } yield value == BadCacheResult).getOrElse(false)
-  }
 }

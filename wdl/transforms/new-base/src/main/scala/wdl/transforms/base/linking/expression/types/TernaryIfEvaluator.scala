@@ -13,14 +13,18 @@ import wom.types.{WomBooleanType, WomType}
 
 object TernaryIfEvaluator {
   implicit val ternaryIfEvaluator: TypeEvaluator[TernaryIf] = new TypeEvaluator[TernaryIf] {
-    override def evaluateType(a: TernaryIf, linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle])
-                             (implicit expressionTypeEvaluator: TypeEvaluator[ExpressionElement]): ErrorOr[WomType] = {
-      a.condition.evaluateType(linkedValues) flatMap {
+    override def evaluateType(a: TernaryIf,
+                              linkedValues: Map[UnlinkedConsumedValueHook, GeneratedValueHandle],
+                              typeAliases: Map[String, WomType]
+    )(implicit
+      expressionTypeEvaluator: TypeEvaluator[ExpressionElement]
+    ): ErrorOr[WomType] =
+      a.condition.evaluateType(linkedValues, typeAliases) flatMap {
         case WomBooleanType =>
-          (a.ifTrue.evaluateType(linkedValues): ErrorOr[WomType],
-            a.ifFalse.evaluateType(linkedValues): ErrorOr[WomType]) mapN { (tType, fType) => WomType.homogeneousTypeFromTypes(Seq(tType, fType)) }
+          (a.ifTrue.evaluateType(linkedValues, typeAliases): ErrorOr[WomType],
+           a.ifFalse.evaluateType(linkedValues, typeAliases): ErrorOr[WomType]
+          ) mapN { (tType, fType) => WomType.homogeneousTypeFromTypes(Seq(tType, fType)) }
         case other => s"Condition should have evaluated to a Boolean but instead got ${other.stableName}".invalidNel
       }
-    }
   }
 }

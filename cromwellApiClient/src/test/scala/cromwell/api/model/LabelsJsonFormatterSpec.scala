@@ -4,18 +4,17 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
-
 class LabelsJsonFormatterSpec extends AnyFlatSpec with Matchers {
   import cromwell.api.model.LabelsJsonFormatter._
 
   behavior of "WdlValueJsonFormat"
 
   val sampleLabels = List(Label("key-1", "value-1"), Label("key-2", "value-2"), Label("key-3", "value-3"))
-  val sampleJson =  """|{
-                       |  "key-1":"value-1",
-                       |  "key-2":"value-2",
-                       |  "key-3":"value-3"
-                       |}""".stripMargin.parseJson.asJsObject
+  val sampleJson = """|{
+                      |  "key-1":"value-1",
+                      |  "key-2":"value-2",
+                      |  "key-3":"value-3"
+                      |}""".stripMargin.parseJson.asJsObject
 
   it should "write a Label as a structured JsObject" in {
     val label = List(Label("test-key", "test-value"))

@@ -2,7 +2,8 @@ package cromwell.core
 
 object ExecutionStatus extends Enumeration {
   type ExecutionStatus = Value
-  val NotStarted, WaitingForQueueSpace, QueuedInCromwell, Starting, Running, Aborting, Failed, RetryableFailure, Done, Bypassed, Aborted, Unstartable = Value
+  val NotStarted, WaitingForQueueSpace, QueuedInCromwell, Starting, Running, Aborting, Failed, RetryableFailure, Done,
+    Bypassed, Aborted, Unstartable = Value
   val TerminalStatuses = Set(Failed, Done, Aborted, Bypassed, Unstartable)
   val TerminalOrRetryableStatuses = TerminalStatuses + RetryableFailure
   val NonTerminalStatuses = values.diff(TerminalOrRetryableStatuses)
@@ -24,7 +25,7 @@ object ExecutionStatus extends Enumeration {
       case Done => 11
     }
   }
-  
+
   implicit class EnhancedExecutionStatus(val status: ExecutionStatus) extends AnyVal {
     def isTerminal: Boolean = TerminalStatuses contains status
 

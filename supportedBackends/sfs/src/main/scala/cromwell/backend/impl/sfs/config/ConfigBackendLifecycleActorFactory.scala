@@ -14,22 +14,26 @@ import org.slf4j.{Logger, LoggerFactory}
   * @param configurationDescriptor The config information.
   */
 class ConfigBackendLifecycleActorFactory(val name: String, val configurationDescriptor: BackendConfigurationDescriptor)
-  extends SharedFileSystemBackendLifecycleActorFactory {
+    extends SharedFileSystemBackendLifecycleActorFactory {
 
   lazy val logger: Logger = LoggerFactory.getLogger(getClass)
-  lazy val hashingStrategy: ConfigHashingStrategy = {
-    configurationDescriptor.backendConfig.as[Option[Config]]("filesystems.local.caching") map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
-  }
+  lazy val hashingStrategy: ConfigHashingStrategy =
+    configurationDescriptor.backendConfig.as[Option[Config]](
+      "filesystems.local.caching"
+    ) map ConfigHashingStrategy.apply getOrElse ConfigHashingStrategy.defaultStrategy
 
   override lazy val initializationActorClass: Class[ConfigInitializationActor] = classOf[ConfigInitializationActor]
 
   override lazy val asyncExecutionActorClass: Class[_ <: ConfigAsyncJobExecutionActor] = {
-    val runInBackground = configurationDescriptor.backendConfig.as[Option[Boolean]](RunInBackgroundConfig).getOrElse(false)
+    val runInBackground =
+      configurationDescriptor.backendConfig.as[Option[Boolean]](RunInBackgroundConfig).getOrElse(false)
     if (runInBackground)
       classOf[BackgroundConfigAsyncJobExecutionActor]
     else
       classOf[DispatchedConfigAsyncJobExecutionActor]
   }
 
-  override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(classOf[ConfigBackendFileHashingActor])
+  override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(
+    classOf[ConfigBackendFileHashingActor]
+  )
 }

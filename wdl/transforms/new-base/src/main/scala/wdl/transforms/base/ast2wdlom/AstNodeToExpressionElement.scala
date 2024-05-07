@@ -18,38 +18,51 @@ object AstNodeToExpressionElement {
 
   type EngineFunctionMaker = Vector[ExpressionElement] => ErrorOr[ExpressionElement]
 
-  def astNodeToExpressionElement(customEngineFunctionMakers: Map[String, EngineFunctionMaker]): CheckedAtoB[GenericAstNode, ExpressionElement] = {
+  def astNodeToExpressionElement(
+    customEngineFunctionMakers: Map[String, EngineFunctionMaker]
+  ): CheckedAtoB[GenericAstNode, ExpressionElement] =
     CheckedAtoB.fromErrorOr("parse expression")(convert(customEngineFunctionMakers) _)
-  }
 
-  protected def convert(customEngineFunctionMakers: Map[String, EngineFunctionMaker])(ast: GenericAstNode): ErrorOr[ExpressionElement] = {
+  protected def convert(
+    customEngineFunctionMakers: Map[String, EngineFunctionMaker]
+  )(ast: GenericAstNode): ErrorOr[ExpressionElement] = {
     implicit val recursiveConverter = CheckedAtoB.fromErrorOr(convert(customEngineFunctionMakers) _)
     implicit val recursiveKvConverter = AstNodeToKvPair.astNodeToKvPair
     ast match {
 
-      case t: GenericTerminal if asPrimitive.isDefinedAt((t.getTerminalStr, t.getSourceString)) => asPrimitive((t.getTerminalStr, t.getSourceString)).map(PrimitiveLiteralExpressionElement)
+      case t: GenericTerminal if asPrimitive.isDefinedAt((t.getTerminalStr, t.getSourceString)) =>
+        asPrimitive((t.getTerminalStr, t.getSourceString)).map(PrimitiveLiteralExpressionElement)
       case t: GenericTerminal if t.getTerminalStr == "identifier" => IdentifierLookup(t.getSourceString).validNel
       case t: GenericTerminal if t.getTerminalStr == "none" => NoneLiteralElement.validNel
 
       case a: GenericAst if a.getName == "StringLiteral" => handleStringLiteral(a)
       case a: GenericAst if lhsRhsOperators.contains(a.getName) => useValidatedLhsAndRhs(a, lhsRhsOperators(a.getName))
-      case a: GenericAst if unaryOperators.contains(a.getName) => a.getAttributeAs[ExpressionElement]("expression").map(unaryOperators(a.getName)).toValidated
-      case a: GenericAst if a.getName == "TupleLiteral" => (a.getAttributeAsVector[ExpressionElement]("values") flatMap {
-        case pair if pair.length == 2 => PairLiteral(pair.head, pair(1)).validNelCheck
-        case singleton if singleton.length == 1 => singleton.head.validNelCheck
-        case more => s"No WDL support for ${more.size}-tuples in draft 3".invalidNelCheck
-      }).toValidated
-      case a: GenericAst if a.getName == "ArrayLiteral" => a.getAttributeAsVector[ExpressionElement]("values").toValidated.map(ArrayLiteral)
-      case a: GenericAst if a.getName == "ArrayOrMapLookup" => {
+      case a: GenericAst if unaryOperators.contains(a.getName) =>
+        a.getAttributeAs[ExpressionElement]("expression").map(unaryOperators(a.getName)).toValidated
+      case a: GenericAst if a.getName == "TupleLiteral" =>
+        (a.getAttributeAsVector[ExpressionElement]("values") flatMap {
+          case pair if pair.length == 2 => PairLiteral(pair.head, pair(1)).validNelCheck
+          case singleton if singleton.length == 1 => singleton.head.validNelCheck
+          case more => s"No WDL support for ${more.size}-tuples".invalidNelCheck
+        }).toValidated
+      case a: GenericAst if a.getName == "ArrayLiteral" =>
+        a.getAttributeAsVector[ExpressionElement]("values").toValidated.map(ArrayLiteral)
+      case a: GenericAst if a.getName == "ArrayOrMapLookup" =>
         (a.getAttributeAs[ExpressionElement]("lhs").toValidated: ErrorOr[ExpressionElement],
-          a.getAttributeAs[ExpressionElement]("rhs").toValidated: ErrorOr[ExpressionElement]) mapN IndexAccess
-      }
+         a.getAttributeAs[ExpressionElement]("rhs").toValidated: ErrorOr[ExpressionElement]
+        ) mapN IndexAccess
       case a: GenericAst if a.getName == "MemberAccess" => handleMemberAccess(a)
       case a: GenericAst if a.getName == "ObjectLiteral" =>
         (for {
           objectKvs <- a.getAttributeAsVector[KvPair]("map")
           asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
         } yield ObjectLiteral(asMap)).toValidated
+      case a: GenericAst if a.getName == "StructLiteral" =>
+        (for {
+          objectKvs <- a.getAttributeAsVector[KvPair]("map")
+          asMap = objectKvs.map(kv => kv.key -> kv.value).toMap
+          structTypeName <- a.getAttributeAs[String]("name")
+        } yield StructLiteral(structTypeName, asMap)).toValidated
       case a: GenericAst if a.getName == "MapLiteral" =>
         final case class MapKvPair(key: ExpressionElement, value: ExpressionElement)
         def convertOnePair(astNode: GenericAstNode): ErrorOr[MapKvPair] = astNode match {
@@ -69,10 +82,13 @@ object AstNodeToExpressionElement {
         val conditionValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("cond").toValidated
         val ifTrueValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("iftrue").toValidated
         val ifFalseValidation: ErrorOr[ExpressionElement] = a.getAttributeAs[ExpressionElement]("iffalse").toValidated
-        (conditionValidation, ifTrueValidation, ifFalseValidation) mapN { (cond, ifTrue, ifFalse) => TernaryIf(cond, ifTrue, ifFalse) }
+        (conditionValidation, ifTrueValidation, ifFalseValidation) mapN { (cond, ifTrue, ifFalse) =>
+          TernaryIf(cond, ifTrue, ifFalse)
+        }
       case a: GenericAst if a.getName == "FunctionCall" =>
         val functionNameValidation: ErrorOr[String] = a.getAttributeAs[String]("name").toValidated
-        val argsValidation: ErrorOr[Vector[ExpressionElement]] = a.getAttributeAsVector[ExpressionElement]("params").toValidated
+        val argsValidation: ErrorOr[Vector[ExpressionElement]] =
+          a.getAttributeAsVector[ExpressionElement]("params").toValidated
 
         val allEngineFunctionMakers = engineFunctionMakers ++ customEngineFunctionMakers
         (functionNameValidation, argsValidation) flatMapN {
@@ -80,9 +96,10 @@ object AstNodeToExpressionElement {
           case (other, _) => s"Unknown engine function: '$other'".invalidNel
         }
 
-
-      case unknownTerminal: GenericTerminal => s"No rule available to create ExpressionElement from terminal: ${unknownTerminal.getTerminalStr} ${unknownTerminal.getSourceString}".invalidNel
-      case unknownAst: GenericAst => s"No rule available to create ExpressionElement from Ast: ${unknownAst.getName}".invalidNel
+      case unknownTerminal: GenericTerminal =>
+        s"No rule available to create ExpressionElement from terminal: ${unknownTerminal.getTerminalStr} ${unknownTerminal.getSourceString}".invalidNel
+      case unknownAst: GenericAst =>
+        s"No rule available to create ExpressionElement from Ast: ${unknownAst.getName}".invalidNel
     }
   }
 
@@ -104,14 +121,19 @@ object AstNodeToExpressionElement {
     "Remainder" -> Remainder.apply
   )
 
-  private def useValidatedLhsAndRhs(a: GenericAst, combiner: BinaryOperatorElementMaker)
-                                   (implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]): ErrorOr[ExpressionElement] = {
+  private def useValidatedLhsAndRhs(a: GenericAst, combiner: BinaryOperatorElementMaker)(implicit
+    astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]
+  ): ErrorOr[ExpressionElement] = {
     val lhsValidation: ErrorOr[ExpressionElement] =
-      a.getAttributeAs[ExpressionElement]("lhs").toValidated.contextualizeErrors(s"read left hand side of ${a.getName} expression")
+      a.getAttributeAs[ExpressionElement]("lhs")
+        .toValidated
+        .contextualizeErrors(s"read left hand side of ${a.getName} expression")
     val rhsValidation: ErrorOr[ExpressionElement] =
-      a.getAttributeAs[ExpressionElement]("rhs").toValidated.contextualizeErrors(s"read right-hand side of ${a.getName} expression")
+      a.getAttributeAs[ExpressionElement]("rhs")
+        .toValidated
+        .contextualizeErrors(s"read right-hand side of ${a.getName} expression")
 
-    (lhsValidation, rhsValidation) mapN { combiner }
+    (lhsValidation, rhsValidation) mapN combiner
   }
 
   private type UnaryOperatorElementMaker = ExpressionElement => ExpressionElement
@@ -176,25 +198,28 @@ object AstNodeToExpressionElement {
     "sub" -> validateThreeParamEngineFunction(Sub, "sub")
   )
 
-  private def validateNoParamEngineFunction(element: ExpressionElement, functionName: String)
-                                           (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+  private def validateNoParamEngineFunction(element: ExpressionElement, functionName: String)(
+    params: Vector[ExpressionElement]
+  ): ErrorOr[ExpressionElement] =
     if (params.isEmpty) {
       element.validNel
     } else {
       s"Function $functionName expects 0 arguments but got ${params.size}".invalidNel
     }
 
-  def validateOneParamEngineFunction(elementMaker: ExpressionElement => ExpressionElement, functionName: String)
-                                            (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+  def validateOneParamEngineFunction(elementMaker: ExpressionElement => ExpressionElement, functionName: String)(
+    params: Vector[ExpressionElement]
+  ): ErrorOr[ExpressionElement] =
     if (params.size == 1) {
       elementMaker.apply(params.head).validNel
     } else {
       s"Function $functionName expects exactly 1 argument but got ${params.size}".invalidNel
     }
 
-  private def validateOneOrTwoParamEngineFunction(elementMaker: (ExpressionElement, Option[ExpressionElement]) => ExpressionElement,
-                                                  functionName: String)
-                                                 (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+  private def validateOneOrTwoParamEngineFunction(
+    elementMaker: (ExpressionElement, Option[ExpressionElement]) => ExpressionElement,
+    functionName: String
+  )(params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
     if (params.size == 1) {
       elementMaker(params.head, None).validNel
     } else if (params.size == 2) {
@@ -203,30 +228,35 @@ object AstNodeToExpressionElement {
       s"Function $functionName expects 1 or 2 arguments but got ${params.size}".invalidNel
     }
 
-  def validateTwoParamEngineFunction(elementMaker: (ExpressionElement, ExpressionElement) => ExpressionElement, functionName: String)
-                                            (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+  def validateTwoParamEngineFunction(elementMaker: (ExpressionElement, ExpressionElement) => ExpressionElement,
+                                     functionName: String
+  )(params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
     if (params.size == 2) {
       elementMaker.apply(params.head, params(1)).validNel
     } else {
       s"Function $functionName expects exactly 2 arguments but got ${params.size}".invalidNel
     }
 
-  private def validateThreeParamEngineFunction(elementMaker: (ExpressionElement, ExpressionElement, ExpressionElement) => ExpressionElement, functionName: String)
-                                              (params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
+  def validateThreeParamEngineFunction(
+    elementMaker: (ExpressionElement, ExpressionElement, ExpressionElement) => ExpressionElement,
+    functionName: String
+  )(params: Vector[ExpressionElement]): ErrorOr[ExpressionElement] =
     if (params.size == 3) {
       elementMaker.apply(params.head, params(1), params(2)).validNel
     } else {
       s"Function $functionName expects exactly 3 arguments but got ${params.size}".invalidNel
     }
 
-  private def handleMemberAccess(ast: GenericAst)
-                                (implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]): ErrorOr[ExpressionElement] = {
+  private def handleMemberAccess(
+    ast: GenericAst
+  )(implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]): ErrorOr[ExpressionElement] = {
 
     // Internal simplify method:
     // If the left-hand side is another member access, we can simplify them together.
     // If not, we can build a new member access:
     def simplify(leftExpression: ExpressionElement, suffix: String): ExpressionElement = leftExpression match {
-      case ExpressionMemberAccess(lefterExpression, tail) => ExpressionMemberAccess(lefterExpression, NonEmptyList(tail.head, tail.tail :+ suffix))
+      case ExpressionMemberAccess(lefterExpression, tail) =>
+        ExpressionMemberAccess(lefterExpression, NonEmptyList(tail.head, tail.tail :+ suffix))
       case IdentifierMemberAccess(first, second, tail) => IdentifierMemberAccess(first, second, tail :+ suffix)
       case IdentifierLookup(identifier) => IdentifierMemberAccess(identifier, suffix, Vector.empty)
       case _ => ExpressionMemberAccess(leftExpression, NonEmptyList(suffix, List.empty))
@@ -241,10 +271,12 @@ object AstNodeToExpressionElement {
 
   }
 
-  private def handleStringLiteral(ast: GenericAst)
-                                 (implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]): ErrorOr[ExpressionElement] = {
+  private def handleStringLiteral(
+    ast: GenericAst
+  )(implicit astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]): ErrorOr[ExpressionElement] = {
 
-    implicit val astNodeToStringPiece: CheckedAtoB[GenericAstNode, StringPiece] = AstNodeToStringPiece.astNodeToStringPiece(Some(astNodeToExpressionElement))
+    implicit val astNodeToStringPiece: CheckedAtoB[GenericAstNode, StringPiece] =
+      AstNodeToStringPiece.astNodeToStringPiece(Some(astNodeToExpressionElement))
     ast.getAttributeAsVector[StringPiece]("pieces").toValidated map { pieces =>
       if (pieces.isEmpty) {
         StringLiteral("")

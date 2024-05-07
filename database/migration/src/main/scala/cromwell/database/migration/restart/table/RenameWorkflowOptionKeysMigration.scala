@@ -11,7 +11,6 @@ object RenameWorkflowOptionKeysMigration {
   private val UpdateWorkflowStore = " UPDATE WORKFLOW_STORE SET WORKFLOW_OPTIONS = ? WHERE WORKFLOW_STORE_ID = ? "
 }
 
-
 class RenameWorkflowOptionKeysMigration extends AbstractRestartMigration {
 
   override protected def description: String = "Workflow option renaming"
@@ -27,7 +26,8 @@ class RenameWorkflowOptionKeysMigration extends AbstractRestartMigration {
         val optionsJson = options.parseJson
         val newOptionsJson = optionsJson match {
           case JsObject(fields) => JsObject(fields map renameOptionKeys)
-          case other => other // There really shouldn't be workflow options of other types, but if there are pass them through.
+          case other =>
+            other // There really shouldn't be workflow options of other types, but if there are pass them through.
         }
 
         insert.setString(1, newOptionsJson.prettyPrint)

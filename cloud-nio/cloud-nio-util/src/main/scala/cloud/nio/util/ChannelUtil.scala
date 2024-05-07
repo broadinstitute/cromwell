@@ -26,13 +26,12 @@ object ChannelUtil {
   def pipedStreamWriter(threadName: String)(consumer: InputStream => Unit): WritableByteChannel = {
     val pipe = Pipe.open()
     var threadResult: Option[Try[Unit]] = None
-    val runnable: Runnable = () => {
+    val runnable: Runnable = () =>
       threadResult = Option(
         Try(
           consumer(Channels.newInputStream(pipe.source))
         )
       )
-    }
     val thread = new Thread(runnable, threadName)
     thread.setDaemon(true)
     thread.start()

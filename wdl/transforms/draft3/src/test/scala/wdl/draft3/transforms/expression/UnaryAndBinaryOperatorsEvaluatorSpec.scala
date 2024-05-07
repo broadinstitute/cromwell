@@ -15,7 +15,6 @@ import wom.expression.NoIoFunctionSet
 import wom.types.{WomBooleanType, WomIntegerType, WomType}
 import wom.values.{WomBoolean, WomInteger, WomValue}
 
-
 /**
   * Checks that the draft3 value evaluators for ExpressionElements are wired to forward values through to the appropriate
   * underlying methods on WomValue.
@@ -41,22 +40,18 @@ class UnaryAndBinaryOperatorsEvaluatorSpec extends AnyFlatSpec with CromwellTime
     ("-(+(-5))", UnaryNegation(UnaryPlus(UnaryNegation(fiveLiteral))), WomInteger(-5), WomIntegerType),
     ("!true", LogicalNot(trueLiteral), WomBoolean(false), WomBooleanType),
     ("!(!true)", LogicalNot(LogicalNot(trueLiteral)), WomBoolean(true), WomBooleanType),
-
     ("true || false", LogicalOr(trueLiteral, falseLiteral), WomBoolean(true), WomBooleanType),
     ("true && false", LogicalAnd(trueLiteral, falseLiteral), WomBoolean(false), WomBooleanType),
     ("true == false", Equals(trueLiteral, falseLiteral), WomBoolean(false), WomBooleanType),
     ("true != false", NotEquals(trueLiteral, falseLiteral), WomBoolean(true), WomBooleanType),
-
     ("5 < 6", LessThan(fiveLiteral, sixLiteral), WomBoolean(true), WomBooleanType),
     ("5 < 5", LessThan(fiveLiteral, fiveLiteral), WomBoolean(false), WomBooleanType),
     ("5 <= 6", LessThanOrEquals(fiveLiteral, sixLiteral), WomBoolean(true), WomBooleanType),
     ("5 <= 5", LessThanOrEquals(fiveLiteral, fiveLiteral), WomBoolean(true), WomBooleanType),
-
     ("6 > 5", GreaterThan(sixLiteral, fiveLiteral), WomBoolean(true), WomBooleanType),
     ("5 > 5", GreaterThan(fiveLiteral, fiveLiteral), WomBoolean(false), WomBooleanType),
     ("6 >= 6", GreaterThanOrEquals(sixLiteral, fiveLiteral), WomBoolean(true), WomBooleanType),
     ("5 >= 5", GreaterThanOrEquals(fiveLiteral, fiveLiteral), WomBoolean(true), WomBooleanType),
-
     ("5 + 5", Add(fiveLiteral, fiveLiteral), WomInteger(10), WomIntegerType),
     ("5 - 5", Subtract(fiveLiteral, fiveLiteral), WomInteger(0), WomIntegerType),
     ("5 * 5", Multiply(fiveLiteral, fiveLiteral), WomInteger(25), WomIntegerType),
@@ -70,7 +65,7 @@ class UnaryAndBinaryOperatorsEvaluatorSpec extends AnyFlatSpec with CromwellTime
     }
 
     it should s"evaluate the type of the expression '$name'" in {
-      expression.evaluateType(Map.empty) shouldBeValid expectedType
+      expression.evaluateType(Map.empty, Map.empty) shouldBeValid expectedType
     }
   }
 }

@@ -23,21 +23,24 @@ object CommandTaskDefinition {
   type EvaluatedOutputs = Checked[Map[OutputPort, WomValue]]
 
   /*
-    * Result type of the OutputEvaluationFunction. Equivalent to Future[Option[EvaluatedOutputs]]
-    * - Future because it might involve I/O
-    * - Option because it might not return any value (dependent on the task)
-    * - Checked because the evaluation could fail (invalid types, missing values etc...)
-  */
+   * Result type of the OutputEvaluationFunction. Equivalent to Future[Option[EvaluatedOutputs]]
+   * - Future because it might involve I/O
+   * - Option because it might not return any value (dependent on the task)
+   * - Checked because the evaluation could fail (invalid types, missing values etc...)
+   */
   type OutputFunctionResponse = OptionT[Future, EvaluatedOutputs]
 
   // Function definition to evaluate task outputs
-  type OutputEvaluationFunction = (Set[OutputPort], Map[String, WomValue], IoFunctionSet, ExecutionContext) => OutputFunctionResponse
+  type OutputEvaluationFunction =
+    (Set[OutputPort], Map[String, WomValue], IoFunctionSet, ExecutionContext) => OutputFunctionResponse
 
   object OutputEvaluationFunction {
-    val none: OutputEvaluationFunction = { case (_ ,_, _, _) => OptionT[Future, EvaluatedOutputs](Future.successful(None)) }
+    val none: OutputEvaluationFunction = { case (_, _, _, _) =>
+      OptionT[Future, EvaluatedOutputs](Future.successful(None))
+    }
   }
 
-  private implicit val instantiatedCommandMonoid = cats.derived.MkMonoid[InstantiatedCommand]
+  implicit private val instantiatedCommandMonoid = cats.derived.MkMonoid[InstantiatedCommand]
   object CommandTemplateBuilder {
     def fromValues(values: Seq[CommandPart]) = new CommandTemplateBuilder {
       override def build(inputs: WomEvaluatedCallInputs): ErrorOr[Seq[CommandPart]] = values.validNel
@@ -63,11 +66,12 @@ sealed trait TaskDefinition extends Callable {
     * Transform the Callable TaskDefinition to an ExecutableCallable that can be executed on its own.
     */
   def toExecutable: ErrorOr[ExecutableCallable]
+
   /**
     * Provides a custom way to evaluate outputs of the task definition.
     * Return None to leave the evaluation method to the engine.
     */
-  private [wom] def customizedOutputEvaluation: OutputEvaluationFunction
+  private[wom] def customizedOutputEvaluation: OutputEvaluationFunction
 }
 
 /**
@@ -80,26 +84,27 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
   def stderrOverride: Option[WomExpression]
   def commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]]
   // TODO ErrorOrify this ? Throw for now
-  def commandTemplate(taskInputs: WomEvaluatedCallInputs): Seq[CommandPart] = commandTemplateBuilder(taskInputs).toTry("Failed to build command").get
+  def commandTemplate(taskInputs: WomEvaluatedCallInputs): Seq[CommandPart] =
+    commandTemplateBuilder(taskInputs).toTry("Failed to build command").get
   def prefixSeparator: String
   def commandPartSeparator: String
   def stdinRedirection: Option[WomExpression]
   def adHocFileCreation: Set[ContainerizedInputExpression]
   def environmentExpressions: Map[String, WomExpression]
   def additionalGlob: Option[WomGlobFile]
-  def homeOverride: Option[RuntimeEnvironment => String]
+
   /**
     * Provides a custom way to evaluate outputs of the task definition.
     * Return None to leave the evaluation method to the engine.
     */
-  private [wom] def customizedOutputEvaluation: OutputEvaluationFunction
+  private[wom] def customizedOutputEvaluation: OutputEvaluationFunction
 
   lazy val unqualifiedName: LocallyQualifiedName = name
 
   def instantiateCommand(taskInputs: WomEvaluatedCallInputs,
                          functions: IoFunctionSet,
-                         valueMapper: WomValue => WomValue,
-                         runtimeEnvironment: RuntimeEnvironment): ErrorOr[InstantiatedCommand] = {
+                         valueMapper: WomValue => WomValue
+  ): ErrorOr[InstantiatedCommand] = {
 
     val inputsByLocalName = taskInputs map { case (k, v) => k.localName -> v }
     val valueMappedInputsByLocalName = inputsByLocalName map { case (k, v) => k -> valueMapper(v) }
@@ -107,26 +112,30 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
 
     // Just raw command parts, no separators.
     val rawCommandParts: List[ErrorOr[InstantiatedCommand]] =
-      commandTemplate(taskInputs).toList.flatMap({ commandPart =>
-        commandPart.instantiate(inputsByLocalName, functions, valueMapper, runtimeEnvironment).sequence
-      })
+      commandTemplate(taskInputs).toList.flatMap { commandPart =>
+        commandPart.instantiate(inputsByLocalName, functions, valueMapper).sequence
+      }
 
     // Add separator command parts and monoid smash down to one `ErrorOr[InstantiatedCommand]`.
     val instantiatedCommand: ErrorOr[InstantiatedCommand] =
       rawCommandParts.intercalate(InstantiatedCommand(commandPartSeparator).validNel)
 
     // `normalize` the instantiation (i.e. don't break Python code indentation) and add in the inputs.
-    instantiatedCommand map { c => c.copy(
-      commandString = StringUtil.normalize(c.commandString),
-      preprocessedInputs = inputsByLocalName.toList,
-      valueMappedPreprocessedInputs = valueMappedInputsByLocalName.toList
-    )}
+    instantiatedCommand map { c =>
+      c.copy(
+        commandString = StringUtil.normalize(c.commandString),
+        preprocessedInputs = inputsByLocalName.toList,
+        valueMappedPreprocessedInputs = valueMappedInputsByLocalName.toList
+      )
+    }
   }
 
-  def commandTemplateString(taskInputs: WomEvaluatedCallInputs): String = StringUtil.normalize(commandTemplate(taskInputs).map(_.toString).mkString)
+  def commandTemplateString(taskInputs: WomEvaluatedCallInputs): String =
+    StringUtil.normalize(commandTemplate(taskInputs).map(_.toString).mkString)
 
   override def toString: String = {
-    val template = Try(commandTemplate(Map.empty).toString()).getOrElse("Could not generate command template without inputs")
+    val template =
+      Try(commandTemplate(Map.empty).toString()).getOrElse("Could not generate command template without inputs")
     s"[Task name=$name commandTemplate=$template]"
   }
 }
@@ -150,12 +159,14 @@ final case class CallableTaskDefinition(name: String,
                                         stdoutOverride: Option[WomExpression] = None,
                                         stderrOverride: Option[WomExpression] = None,
                                         additionalGlob: Option[WomGlobFile] = None,
-                                        private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none,
-                                        homeOverride: Option[RuntimeEnvironment => String] = None,
+                                        private[wom] val customizedOutputEvaluation: OutputEvaluationFunction =
+                                          OutputEvaluationFunction.none,
                                         dockerOutputDirectory: Option[String] = None,
-                                        override val sourceLocation : Option[SourceFileLocation]
-                                       ) extends CommandTaskDefinition {
-  def toExecutable: ErrorOr[ExecutableTaskDefinition] = TaskCall.graphFromDefinition(this) map { ExecutableTaskDefinition(this, _) }
+                                        override val sourceLocation: Option[SourceFileLocation]
+) extends CommandTaskDefinition {
+  def toExecutable: ErrorOr[ExecutableTaskDefinition] = TaskCall.graphFromDefinition(this) map {
+    ExecutableTaskDefinition(this, _)
+  }
 }
 
 /**
@@ -164,7 +175,8 @@ final case class CallableTaskDefinition(name: String,
   */
 final case class ExecutableTaskDefinition private (callableTaskDefinition: CallableTaskDefinition,
                                                    override val graph: Graph
-                                                  ) extends CommandTaskDefinition with ExecutableCallable {
+) extends CommandTaskDefinition
+    with ExecutableCallable {
   override def name = callableTaskDefinition.name
   override def inputs = callableTaskDefinition.inputs
   override def outputs = callableTaskDefinition.outputs
@@ -181,9 +193,8 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def adHocFileCreation = callableTaskDefinition.adHocFileCreation
   override def environmentExpressions = callableTaskDefinition.environmentExpressions
   override def additionalGlob = callableTaskDefinition.additionalGlob
-  override private [wom]  def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
+  override private[wom] def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
   override def toExecutable = this.validNel
-  override def homeOverride = callableTaskDefinition.homeOverride
   override def dockerOutputDirectory = callableTaskDefinition.dockerOutputDirectory
 }
 
@@ -191,22 +202,24 @@ sealed trait ExpressionTaskDefinition extends TaskDefinition {
   def evaluate: (Map[String, WomValue], IoFunctionSet, List[OutputPort]) => Checked[Map[OutputPort, WomValue]]
 }
 
-
 /**
   * An expression task definition only.
   * Can be called but cannot be used in an Executable as a standalone execution.
   */
-final case class CallableExpressionTaskDefinition(name: String,
-                                                  evaluate: (Map[String, WomValue], IoFunctionSet, List[OutputPort]) => Checked[Map[OutputPort, WomValue]],
-                                                  runtimeAttributes: RuntimeAttributes,
-                                                  meta: Map[String, MetaValueElement],
-                                                  parameterMeta: Map[String, MetaValueElement],
-                                                  outputs: List[Callable.OutputDefinition],
-                                                  inputs: List[_ <: Callable.InputDefinition],
-                                                  prefixSeparator: String = ".",
-                                                  private [wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none
-                                       ) extends ExpressionTaskDefinition {
-  def toExecutable: ErrorOr[ExecutableExpressionTaskDefinition] = TaskCall.graphFromDefinition(this) map { ExecutableExpressionTaskDefinition(this, _) }
+final case class CallableExpressionTaskDefinition(
+  name: String,
+  evaluate: (Map[String, WomValue], IoFunctionSet, List[OutputPort]) => Checked[Map[OutputPort, WomValue]],
+  runtimeAttributes: RuntimeAttributes,
+  meta: Map[String, MetaValueElement],
+  parameterMeta: Map[String, MetaValueElement],
+  outputs: List[Callable.OutputDefinition],
+  inputs: List[_ <: Callable.InputDefinition],
+  prefixSeparator: String = ".",
+  private[wom] val customizedOutputEvaluation: OutputEvaluationFunction = OutputEvaluationFunction.none
+) extends ExpressionTaskDefinition {
+  def toExecutable: ErrorOr[ExecutableExpressionTaskDefinition] = TaskCall.graphFromDefinition(this) map {
+    ExecutableExpressionTaskDefinition(this, _)
+  }
 }
 
 /**
@@ -214,8 +227,9 @@ final case class CallableExpressionTaskDefinition(name: String,
   * Can be called from a workflow but can also be run as a standalone execution.
   */
 final case class ExecutableExpressionTaskDefinition private (callableTaskDefinition: CallableExpressionTaskDefinition,
-                                                   override val graph: Graph
-                                                  ) extends ExpressionTaskDefinition with ExecutableCallable {
+                                                             override val graph: Graph
+) extends ExpressionTaskDefinition
+    with ExecutableCallable {
   override def name = callableTaskDefinition.name
   override def inputs = callableTaskDefinition.inputs
   override def outputs = callableTaskDefinition.outputs
@@ -225,5 +239,5 @@ final case class ExecutableExpressionTaskDefinition private (callableTaskDefinit
   override def meta = callableTaskDefinition.meta
   override def parameterMeta = callableTaskDefinition.parameterMeta
   override def toExecutable = this.validNel
-  override private [wom]  def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
+  override private[wom] def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
 }

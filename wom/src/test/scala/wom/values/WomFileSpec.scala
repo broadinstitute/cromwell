@@ -9,7 +9,6 @@ import wom.types._
 
 import scala.util.{Success, Try}
 
-
 class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
   behavior of "WomFile"
@@ -39,16 +38,24 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
   )
   lazy val nestedFilesAndDirs = WomMaybePopulatedFile(
     valueOption = Option(singleFile.value),
-    secondaryFiles = List(WomMaybeListedDirectory(
-      valueOption = Option(listedDir1.value),
-      listingOption = Option(List(WomMaybePopulatedFile(
-        valueOption = Option(secondaryFile1.value),
-        secondaryFiles = List(WomMaybeListedDirectory(
-          valueOption = Option(listedDir2.value),
-          listingOption = Option(List(secondaryFile2))
-        ))
-      )))
-    ))
+    secondaryFiles = List(
+      WomMaybeListedDirectory(
+        valueOption = Option(listedDir1.value),
+        listingOption = Option(
+          List(
+            WomMaybePopulatedFile(
+              valueOption = Option(secondaryFile1.value),
+              secondaryFiles = List(
+                WomMaybeListedDirectory(
+                  valueOption = Option(listedDir2.value),
+                  listingOption = Option(List(secondaryFile2))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
   )
 
   val mapFileTests = Table(
@@ -56,47 +63,62 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     ("a single directory", singleDir, WomUnlistedDirectory("prepend/single/dir")),
     ("a single file", singleFile, WomSingleFile("prepend/single/file")),
     ("a glob file", globFile, WomGlobFile("prepend/glob/*")),
-    ("a dir with listed dirs", dirWithListedDirs,
-      WomMaybeListedDirectory(
-        valueOption = Option("prepend/single/dir"),
-        listingOption = Option(List(
-          WomUnlistedDirectory("prepend/listed/dir1"),
-          WomUnlistedDirectory("prepend/listed/dir2")
-        ))
-      )
+    ("a dir with listed dirs",
+     dirWithListedDirs,
+     WomMaybeListedDirectory(
+       valueOption = Option("prepend/single/dir"),
+       listingOption = Option(
+         List(
+           WomUnlistedDirectory("prepend/listed/dir1"),
+           WomUnlistedDirectory("prepend/listed/dir2")
+         )
+       )
+     )
     ),
-    ("a dir with listed files", dirWithListedFiles,
-      WomMaybeListedDirectory(
-        valueOption = Option("prepend/single/dir"),
-        listingOption = Option(List(WomSingleFile("prepend/secondary/file1"), WomSingleFile("prepend/secondary/file2")))
-      )
+    ("a dir with listed files",
+     dirWithListedFiles,
+     WomMaybeListedDirectory(
+       valueOption = Option("prepend/single/dir"),
+       listingOption = Option(List(WomSingleFile("prepend/secondary/file1"), WomSingleFile("prepend/secondary/file2")))
+     )
     ),
-    ("a file with secondary files", fileWithSecondaryFiles,
-      WomMaybePopulatedFile(
-        valueOption = Option("prepend/single/file"),
-        secondaryFiles = List(WomSingleFile("prepend/secondary/file1"), WomSingleFile("prepend/secondary/file2"))
-      )
+    ("a file with secondary files",
+     fileWithSecondaryFiles,
+     WomMaybePopulatedFile(
+       valueOption = Option("prepend/single/file"),
+       secondaryFiles = List(WomSingleFile("prepend/secondary/file1"), WomSingleFile("prepend/secondary/file2"))
+     )
     ),
-    ("a file with secondary dirs", fileWithSecondaryDirs,
-      WomMaybePopulatedFile(
-        valueOption = Option("prepend/single/file"),
-        secondaryFiles = List(WomUnlistedDirectory("prepend/listed/dir1"), WomUnlistedDirectory("prepend/listed/dir2"))
-      )
+    ("a file with secondary dirs",
+     fileWithSecondaryDirs,
+     WomMaybePopulatedFile(
+       valueOption = Option("prepend/single/file"),
+       secondaryFiles = List(WomUnlistedDirectory("prepend/listed/dir1"), WomUnlistedDirectory("prepend/listed/dir2"))
+     )
     ),
-    ("a nested file/dir", nestedFilesAndDirs,
-      WomMaybePopulatedFile(
-        valueOption = Option("prepend/single/file"),
-        secondaryFiles = List(WomMaybeListedDirectory(
-          valueOption = Option("prepend/listed/dir1"),
-          listingOption = Option(List(WomMaybePopulatedFile(
-            valueOption = Option("prepend/secondary/file1"),
-            secondaryFiles = List(WomMaybeListedDirectory(
-              valueOption = Option("prepend/listed/dir2"),
-              listingOption = Option(List(WomSingleFile("prepend/secondary/file2")))
-            ))
-          )))
-        ))
-      )
+    ("a nested file/dir",
+     nestedFilesAndDirs,
+     WomMaybePopulatedFile(
+       valueOption = Option("prepend/single/file"),
+       secondaryFiles = List(
+         WomMaybeListedDirectory(
+           valueOption = Option("prepend/listed/dir1"),
+           listingOption = Option(
+             List(
+               WomMaybePopulatedFile(
+                 valueOption = Option("prepend/secondary/file1"),
+                 secondaryFiles = List(
+                   WomMaybeListedDirectory(
+                     valueOption = Option("prepend/listed/dir2"),
+                     listingOption = Option(List(WomSingleFile("prepend/secondary/file2")))
+                   )
+                 )
+               )
+             )
+           )
+         )
+       )
+     )
     )
   )
 
@@ -117,38 +139,43 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     ("a single directory", singleDir, List(WomUnlistedDirectory("single/dir"))),
     ("a single file", singleFile, List(WomSingleFile("single/file"))),
     ("a glob file", globFile, List(WomGlobFile("glob/*"))),
-    ("a dir with listed dirs", dirWithListedDirs,
-      List(
-        WomUnlistedDirectory("listed/dir1"),
-        WomUnlistedDirectory("listed/dir2")
-      )
+    ("a dir with listed dirs",
+     dirWithListedDirs,
+     List(
+       WomUnlistedDirectory("listed/dir1"),
+       WomUnlistedDirectory("listed/dir2")
+     )
     ),
-    ("a dir with listed files", dirWithListedFiles,
-      List(
-        WomSingleFile("secondary/file1"),
-        WomSingleFile("secondary/file2")
-      )
+    ("a dir with listed files",
+     dirWithListedFiles,
+     List(
+       WomSingleFile("secondary/file1"),
+       WomSingleFile("secondary/file2")
+     )
     ),
-    ("a file with secondary files", fileWithSecondaryFiles,
-      List(
-        WomSingleFile("single/file"),
-        WomSingleFile("secondary/file1"),
-        WomSingleFile("secondary/file2")
-      )
+    ("a file with secondary files",
+     fileWithSecondaryFiles,
+     List(
+       WomSingleFile("single/file"),
+       WomSingleFile("secondary/file1"),
+       WomSingleFile("secondary/file2")
+     )
     ),
-    ("a file with secondary dirs", fileWithSecondaryDirs,
-      List(
-        WomSingleFile("single/file"),
-        WomUnlistedDirectory("listed/dir1"),
-        WomUnlistedDirectory("listed/dir2")
-      )
+    ("a file with secondary dirs",
+     fileWithSecondaryDirs,
+     List(
+       WomSingleFile("single/file"),
+       WomUnlistedDirectory("listed/dir1"),
+       WomUnlistedDirectory("listed/dir2")
+     )
     ),
-    ("a nested file/dir", nestedFilesAndDirs,
-      List(
-        WomSingleFile("single/file"),
-        WomSingleFile("secondary/file1"),
-        WomSingleFile("secondary/file2")
-      )
+    ("a nested file/dir",
+     nestedFilesAndDirs,
+     List(
+       WomSingleFile("single/file"),
+       WomSingleFile("secondary/file1"),
+       WomSingleFile("secondary/file2")
+     )
     )
   )
 
@@ -169,7 +196,6 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     singleFile.toWomString should be(""""single/file"""")
     globFile.toWomString should be("""glob("glob/*")""")
   }
-
 
   val addTests = Table(
     ("description", "womFile", "expectedPrefix", "expectedSuffix"),
@@ -235,17 +261,21 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
 
     it should s"fail to add an optional string prefix to $description" in {
       a[WomExpressionException] should be thrownBy {
-        WomOptionalValue(WomStringType, Option(WomString("prefix/"))).add(
-          WomOptionalValue(womFile.womType, Option(womFile))
-        ).get
+        WomOptionalValue(WomStringType, Option(WomString("prefix/")))
+          .add(
+            WomOptionalValue(womFile.womType, Option(womFile))
+          )
+          .get
       }
     }
 
     it should s"fail to add an optional string suffix to $description" in {
       a[WomExpressionException] should be thrownBy {
-        WomOptionalValue(womFile.womType, Option(womFile)).add(
-          WomOptionalValue(WomStringType, Option(WomString("/suffix")))
-        ).get
+        WomOptionalValue(womFile.womType, Option(womFile))
+          .add(
+            WomOptionalValue(WomStringType, Option(WomString("/suffix")))
+          )
+          .get
       }
     }
   }
@@ -263,9 +293,12 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     }
 
     it should s"fail to add an optional int to $description" in {
-      WomOptionalValue(womFile.womType, Option(womFile)).add(
-        WomOptionalValue(WomIntegerType, Option(WomInteger(42)))
-      ).failed.get should have message expected
+      WomOptionalValue(womFile.womType, Option(womFile))
+        .add(
+          WomOptionalValue(WomIntegerType, Option(WomInteger(42)))
+        )
+        .failed
+        .get should have message expected
     }
   }
 
@@ -274,8 +307,11 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     ("a single directory matched to a similar directory", singleDir, WomUnlistedDirectory(singleDir.value), true),
     ("a single file matched to a similar file", singleFile, WomSingleFile(singleFile.value), true),
     ("a glob file matched to a similar glob", globFile, WomGlobFile(globFile.value), true),
-    ("a single directory matched to a dissimilar directory", singleDir, WomUnlistedDirectory("should/not/match"),
-      false),
+    ("a single directory matched to a dissimilar directory",
+     singleDir,
+     WomUnlistedDirectory("should/not/match"),
+     false
+    ),
     ("a single file matched to a dissimilar file", singleFile, WomSingleFile("should/not/match"), false),
     ("a glob file matched to a dissimilar glob", globFile, WomGlobFile("should/not/match"), false)
   )
@@ -311,8 +347,10 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     ("a single directory matched to a similar glob", singleDir, WomGlobFile(globFile.value)),
     ("a single file matched to a similar glob", singleFile, WomGlobFile(globFile.value)),
     ("a dir with listed dirs matched to a similar directory", dirWithListedDirs, WomUnlistedDirectory(singleDir.value)),
-    ("a dir with listed files matched to a similar directory", dirWithListedFiles,
-      WomUnlistedDirectory(singleDir.value)),
+    ("a dir with listed files matched to a similar directory",
+     dirWithListedFiles,
+     WomUnlistedDirectory(singleDir.value)
+    ),
     ("a file with secondary files matched to a similar file", fileWithSecondaryFiles, WomSingleFile(singleFile.value)),
     ("a file with secondary dirs matched to a similar file", fileWithSecondaryDirs, WomSingleFile(singleFile.value)),
     ("a nested file/dir matched to a similar file", nestedFilesAndDirs, WomSingleFile(singleFile.value))
@@ -333,17 +371,21 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
 
     it should s"fail comparing (optionally) $description" in {
       a[WomExpressionException] should be thrownBy {
-        WomOptionalValue(womFileA.womType, Option(womFileA)).equals(
-          WomOptionalValue(womFileB.womType, Option(womFileB))
-        ).get
+        WomOptionalValue(womFileA.womType, Option(womFileA))
+          .equals(
+            WomOptionalValue(womFileB.womType, Option(womFileB))
+          )
+          .get
       }
     }
 
     it should s"fail symmetrically comparing (optionally) $description" in {
       a[WomExpressionException] should be thrownBy {
-        WomOptionalValue(womFileB.womType, Option(womFileB)).equals(
-          WomOptionalValue(womFileA.womType, Option(womFileA))
-        ).get
+        WomOptionalValue(womFileB.womType, Option(womFileB))
+          .equals(
+            WomOptionalValue(womFileA.womType, Option(womFileA))
+          )
+          .get
       }
     }
   }
@@ -412,17 +454,21 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
 
     it should s"expect $expected comparing $description as an optional string" in {
       a[WomExpressionException] should be thrownBy {
-        WomOptionalValue(womFile.womType, Option(womFile)).equals(
-          WomOptionalValue(WomStringType, Option(WomString(string)))
-        ).get
+        WomOptionalValue(womFile.womType, Option(womFile))
+          .equals(
+            WomOptionalValue(WomStringType, Option(WomString(string)))
+          )
+          .get
       }
     }
 
     it should s"expect $expected symmetrically comparing $description as an optional string" in {
       a[WomExpressionException] should be thrownBy {
-        WomOptionalValue(WomStringType, Option(WomString(string))).equals(
-          WomOptionalValue(womFile.womType, Option(womFile))
-        ).get
+        WomOptionalValue(WomStringType, Option(WomString(string)))
+          .equals(
+            WomOptionalValue(womFile.womType, Option(womFile))
+          )
+          .get
       }
     }
   }

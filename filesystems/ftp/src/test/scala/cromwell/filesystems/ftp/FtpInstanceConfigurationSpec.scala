@@ -15,21 +15,19 @@ class FtpInstanceConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec 
   }
 
   it should "parse authenticated credentials" in {
-    FtpInstanceConfiguration(ConfigFactory.parseString(
-      """
-        |auth {
-        |  username = "me"
-        |  password = "mot de passe"
-        |}
+    FtpInstanceConfiguration(ConfigFactory.parseString("""
+                                                         |auth {
+                                                         |  username = "me"
+                                                         |  password = "mot de passe"
+                                                         |}
       """.stripMargin)).ftpCredentials shouldBe FtpAuthenticatedCredentials("me", "mot de passe", None)
 
-    FtpInstanceConfiguration(ConfigFactory.parseString(
-      """
-        |auth {
-        |  username = "me"
-        |  password = "mot de passe"
-        |  account = "account"
-        |}
+    FtpInstanceConfiguration(ConfigFactory.parseString("""
+                                                         |auth {
+                                                         |  username = "me"
+                                                         |  password = "mot de passe"
+                                                         |  account = "account"
+                                                         |}
       """.stripMargin)).ftpCredentials shouldBe FtpAuthenticatedCredentials("me", "mot de passe", Option("account"))
   }
 

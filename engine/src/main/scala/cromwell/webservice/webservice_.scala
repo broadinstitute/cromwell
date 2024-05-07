@@ -35,5 +35,5 @@ object Patterns {
         \.                               #   Literal dot.
         (\d+)                            #   Captured shard digits.
       )?                                 # End outer optional noncapturing group for shard.
-                               """.trim.r                         // The trim is necessary as (?x) must be at the beginning of the regex.
+                               """.trim.r // The trim is necessary as (?x) must be at the beginning of the regex.
 }

@@ -7,8 +7,12 @@ import wom.graph.GraphNodePort.OutputPort
 import scala.concurrent.{ExecutionContext, Future}
 
 trait JobStore {
-  def writeToDatabase(workflowCompletions: Seq[WorkflowCompletion], jobCompletions: Seq[JobCompletion], batchSize: Int)(implicit ec: ExecutionContext): Future[Unit]
-  def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputPort])(implicit ec: ExecutionContext): Future[Option[JobResult]]
+  def writeToDatabase(workflowCompletions: Seq[WorkflowCompletion], jobCompletions: Seq[JobCompletion], batchSize: Int)(
+    implicit ec: ExecutionContext
+  ): Future[Unit]
+  def readJobResult(jobStoreKey: JobStoreKey, taskOutputs: Seq[OutputPort])(implicit
+    ec: ExecutionContext
+  ): Future[Option[JobResult]]
 }
 
 object JobStore {

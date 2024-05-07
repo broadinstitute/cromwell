@@ -58,10 +58,9 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
   it should "not parse invalid config" taggedAs IntegrationTest in {
     val nakedConfig =
-      ConfigFactory.parseString(
-        """
-          |{
-          |}
+      ConfigFactory.parseString("""
+                                  |{
+                                  |}
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
@@ -76,21 +75,21 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
   def configString(): String =
     s"""
-      |{
-      |   root = "s3://myBucket"
-      |   maximum-polling-interval = 600
-      |   numSubmitAttempts = 6
-      |   numCreateDefinitionAttempts = 6
-      |
-      |
-      |   filesystems = {
-      |     local {
-      |       // A reference to a potentially different auth for manipulating files via engine functions.
-      |       auth = "default"
-      |     }
-      |   }
-      |}
-      | """.stripMargin
+       |{
+       |   root = "s3://myBucket"
+       |   maximum-polling-interval = 600
+       |   numSubmitAttempts = 6
+       |   numCreateDefinitionAttempts = 6
+       |
+       |
+       |   filesystems = {
+       |     local {
+       |       // A reference to a potentially different auth for manipulating files via engine functions.
+       |       auth = "default"
+       |     }
+       |   }
+       |}
+       | """.stripMargin
   def configStringS3(): String =
     s"""
        |{

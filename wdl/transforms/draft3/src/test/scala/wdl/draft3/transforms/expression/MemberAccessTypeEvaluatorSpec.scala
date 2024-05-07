@@ -13,7 +13,6 @@ import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wom.types._
 import wom.values.WomInteger
 
-
 class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
   behavior of "member access type evaluator"
@@ -24,10 +23,10 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
   it should "find the left and right hand sides of a pair expression" in {
     val pair = PairLiteral(fiveLiteral, sixLiteral)
     val leftExpression: ExpressionElement = ExpressionMemberAccess(pair, NonEmptyList("left", List.empty))
-    leftExpression.evaluateType(Map.empty) shouldBeValid WomIntegerType
+    leftExpression.evaluateType(Map.empty, Map.empty) shouldBeValid WomIntegerType
 
     val rightExpression: ExpressionElement = ExpressionMemberAccess(pair, NonEmptyList("right", List.empty))
-    rightExpression.evaluateType(Map.empty) shouldBeValid WomIntegerType
+    rightExpression.evaluateType(Map.empty, Map.empty) shouldBeValid WomIntegerType
   }
 
   it should "find the appropriate value in a deeply nested Pair" in {
@@ -47,16 +46,20 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
       ),
       memberAccessTail = NonEmptyList("left", List("right", "right", "left"))
     )
-     nestedPairLookup.evaluateType(Map.empty) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
+    nestedPairLookup.evaluateType(Map.empty, Map.empty) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
   }
 
   it should "evaluate a nested member access on a call output" in {
     val callOutputLookup: ExpressionElement = IdentifierMemberAccess("t", "out", List("left", "right"))
     val linkedValues = Map[UnlinkedConsumedValueHook, GeneratedValueHandle](
-      UnlinkedCallOutputOrIdentifierAndMemberAccessHook("t", "out") -> GeneratedCallOutputValueHandle("t", "out", WomPairType(WomPairType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)), WomStringType))
+      UnlinkedCallOutputOrIdentifierAndMemberAccessHook("t", "out") -> GeneratedCallOutputValueHandle(
+        "t",
+        "out",
+        WomPairType(WomPairType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)), WomStringType)
+      )
     )
 
-    callOutputLookup.evaluateType(linkedValues) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
+    callOutputLookup.evaluateType(linkedValues, Map.empty) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
   }
 
   it should "evaluate a nested member access on a struct" in {
@@ -64,11 +67,17 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
     val linkedValues = Map[UnlinkedConsumedValueHook, GeneratedValueHandle](
       UnlinkedCallOutputOrIdentifierAndMemberAccessHook("t", "out") -> GeneratedIdentifierValueHandle(
         linkableName = "t",
-        womType = WomCompositeType(Map("out" -> WomPairType(WomPairType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)), WomIntegerType)))
+        womType = WomCompositeType(
+          Map(
+            "out" -> WomPairType(WomPairType(WomIntegerType, WomPairType(WomIntegerType, WomIntegerType)),
+                                 WomIntegerType
+            )
+          )
+        )
       )
     )
 
-    objectLookup.evaluateType(linkedValues) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
+    objectLookup.evaluateType(linkedValues, Map.empty) shouldBeValid WomPairType(WomIntegerType, WomIntegerType)
   }
 
   it should "evaluate a nested member access type on an object" in {
@@ -80,16 +89,19 @@ class MemberAccessTypeEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec
       )
     )
 
-    objectLookup.evaluateType(linkedValues) shouldBeValid WomAnyType
+    objectLookup.evaluateType(linkedValues, Map.empty) shouldBeValid WomAnyType
   }
 
   it should "evaluate an identifier lookup" in {
     val identifierLookup: ExpressionElement = IdentifierLookup("foo")
     val linkedValues = Map[UnlinkedConsumedValueHook, GeneratedValueHandle](
-      UnlinkedIdentifierHook("foo") -> GeneratedIdentifierValueHandle(linkableName = "foo", womType = WomPairType(WomStringType, WomStringType))
+      UnlinkedIdentifierHook("foo") -> GeneratedIdentifierValueHandle(linkableName = "foo",
+                                                                      womType =
+                                                                        WomPairType(WomStringType, WomStringType)
+      )
     )
 
-    identifierLookup.evaluateType(linkedValues) shouldBeValid WomPairType(WomStringType, WomStringType)
+    identifierLookup.evaluateType(linkedValues, Map.empty) shouldBeValid WomPairType(WomStringType, WomStringType)
   }
 
 }

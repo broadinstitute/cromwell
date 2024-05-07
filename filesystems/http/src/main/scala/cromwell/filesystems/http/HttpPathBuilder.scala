@@ -16,19 +16,20 @@ object HttpPathBuilder {
   def accepts(url: String): Boolean = url.matches("^http[s]?://.*")
 }
 
-
 class HttpPathBuilder extends PathBuilder {
   override def name: String = "HTTP"
 
-  override def build(pathAsString: String): Try[Path] = {
+  override def build(pathAsString: String): Try[Path] =
     if (HttpPathBuilder.accepts(pathAsString)) Try {
       HttpPath(Paths.get(pathAsString))
-    } else {
+    }
+    else {
       Failure(new IllegalArgumentException(s"$pathAsString does not have an http or https scheme"))
     }
-  }
 
-  def content(url: String)(implicit actorContext: ActorContext, actorMaterializer: ActorMaterializer): Future[NioPath] = {
+  def content(
+    url: String
+  )(implicit actorContext: ActorContext, actorMaterializer: ActorMaterializer): Future[NioPath] = {
     implicit val actorSystem: ActorSystem = actorContext.system
     implicit val executionContext: ExecutionContext = actorContext.dispatcher
 
@@ -54,19 +55,21 @@ case class HttpPath(nioPath: NioPath) extends Path {
 
   override def pathWithoutScheme: String = pathAsString.replaceFirst("http[s]?://", "")
 
-  def fetchSize(implicit executionContext: ExecutionContext, actorSystem: ActorSystem): Future[Long] = {
+  def pathWithoutSchemeOrQueryOrFragment: String = pathWithoutScheme.split("[?#]").head
+
+  def fetchSize(implicit executionContext: ExecutionContext, actorSystem: ActorSystem): Future[Long] =
     Http().singleRequest(HttpRequest(uri = pathAsString, method = HttpMethods.HEAD)).map { response =>
       response.discardEntityBytes()
-      val length = if (response.status.isSuccess())
-        response.entity.contentLengthOption
-      else
-        None
+      val length =
+        if (response.status.isSuccess())
+          response.entity.contentLengthOption
+        else
+          None
       length.getOrElse(
         throw new RuntimeException(
           s"Couldn't fetch size for $pathAsString, missing Content-Length header or path doesn't exist (HTTP ${response.status.toString()})."
         )
       )
     }
-  }
 
 }

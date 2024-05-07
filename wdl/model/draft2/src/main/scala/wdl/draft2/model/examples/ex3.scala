@@ -7,24 +7,24 @@ import wom.ResolvedImportRecord
 object ex3 {
   def main(args: Array[String]): Unit = {
     val wdl = """
-      |import "some_string" as my_namespace
-      |task a {
-      |  command { ps }
-      |}
-      |workflow wf {
-      | call a
-      |}""".stripMargin
+                |import "some_string" as my_namespace
+                |task a {
+                |  command { ps }
+                |}
+                |workflow wf {
+                | call a
+                |}""".stripMargin
 
-    def resolver(importString: String): Draft2ResolvedImportBundle = {
+    def resolver(importString: String): Draft2ResolvedImportBundle =
       importString match {
-        case "some_string" => Draft2ResolvedImportBundle("task imported { command {ps} }", ResolvedImportRecord("some_string"))
+        case "some_string" =>
+          Draft2ResolvedImportBundle("task imported { command {ps} }", ResolvedImportRecord("some_string"))
         case _ => throw new UnsupportedOperationException()
       }
-    }
 
     val ns = WdlNamespaceWithWorkflow.load(wdl, Seq(resolver _)).get
 
-    ns.tasks foreach {task =>
+    ns.tasks foreach { task =>
       println(s"Task: ${task.name}")
     }
 

@@ -14,21 +14,25 @@ import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 
 package object expression {
 
-  implicit def expressionElementToWomExpression(implicit expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
-                                                fileEvaluator: FileEvaluator[ExpressionElement],
-                                                typeEvaluator: TypeEvaluator[ExpressionElement],
-                                                valueEvaluator: ValueEvaluator[ExpressionElement]): WomExpressionMaker[ExpressionElement] = new WomExpressionMaker[ExpressionElement] {
+  implicit def expressionElementToWomExpression(implicit
+    expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
+    fileEvaluator: FileEvaluator[ExpressionElement],
+    typeEvaluator: TypeEvaluator[ExpressionElement],
+    valueEvaluator: ValueEvaluator[ExpressionElement]
+  ): WomExpressionMaker[ExpressionElement] = new WomExpressionMaker[ExpressionElement] {
     override def makeWomExpression(a: ExpressionElement,
                                    typeAliases: Map[String, WomType],
-                                   consumedValueLookup: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]): ErrorOr[WomExpression] = {
+                                   consumedValueLookup: Map[UnlinkedConsumedValueHook, GeneratedValueHandle]
+    ): ErrorOr[WomExpression] = {
       val consumedValueHooks = a.expressionConsumedValueHooks
 
       val neededLinkedValues = consumedValueHooks.toList.traverse {
         case c if consumedValueLookup.contains(c) => (c -> consumedValueLookup(c)).validNel
-        case missing => s"Could not create WOM expression for '$a': Found no generated value for consumed value $missing".invalidNel
+        case missing =>
+          s"Could not create WOM expression for '$a': Found no generated value for consumed value $missing".invalidNel
       }
 
-      neededLinkedValues flatMap { lookup => WdlomWomExpression.make(a, lookup.toMap) }
+      neededLinkedValues flatMap { lookup => WdlomWomExpression.make(a, lookup.toMap, typeAliases) }
 
     }
   }

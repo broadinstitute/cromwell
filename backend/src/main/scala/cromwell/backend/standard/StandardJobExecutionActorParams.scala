@@ -1,12 +1,18 @@
 package cromwell.backend.standard
 
 import akka.actor.ActorRef
-import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor, MinimumRuntimeSettings}
+import cromwell.backend.{
+  BackendConfigurationDescriptor,
+  BackendInitializationData,
+  BackendJobDescriptor,
+  MinimumRuntimeSettings
+}
 
 /**
   * Base trait for params passed to both the sync and async backend actors.
   */
 trait StandardJobExecutionActorParams {
+
   /** The service registry actor for key/value and metadata. */
   def serviceRegistryActor: ActorRef
 

@@ -1,42 +1,49 @@
 package cromwell.engine.workflow.lifecycle.finalization
 
-import akka.testkit._
 import akka.http.scaladsl.client.RequestBuilding.Post
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
-import akka.testkit.TestProbe
+import akka.testkit.{TestProbe, _}
 import common.mock.MockSugar
 import cromwell.core.retry.SimpleExponentialBackoff
-import org.mockito.Mockito._
-import cromwell.core.{CallOutputs, TestKitSuite, WorkflowFailed, WorkflowId, WorkflowSucceeded}
+import cromwell.core._
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackActor.PerformCallbackCommand
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
-import cromwell.util.{GracefulShutdownHelper, WomMocks}
+import cromwell.util.GracefulShutdownHelper
+import org.mockito.Mockito._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import wom.graph.GraphNodePort.GraphNodeOutputPort
+import wom.graph.WomIdentifier
+import wom.types.WomStringType
 import wom.values.WomString
 
 import java.net.URI
 import java.time.Instant
-import scala.concurrent.duration._
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
-class WorkflowCallbackActorSpec
-  extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar {
+class WorkflowCallbackActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar {
 
   behavior of "WorkflowCallbackActor"
 
-  private implicit val ec = system.dispatcher
+  implicit private val ec = system.dispatcher
 
   private val msgWait = 10.second.dilated
   private val awaitAlmostNothing = 1.second
   private val serviceRegistryActor = TestProbe("testServiceRegistryActor")
   private val deathWatch = TestProbe("deathWatch")
   private val mockUri = new URI("http://example.com")
-  private val basicConfig = WorkflowCallbackConfig.empty.copy(enabled = true).copy(retryBackoff = SimpleExponentialBackoff(100.millis, 200.millis, 1.1))
-  private val basicOutputs = WomMocks.mockOutputExpectations(List("foo" -> WomString("bar")).toMap)
+  private val basicConfig = WorkflowCallbackConfig.empty
+    .copy(enabled = true)
+    .copy(retryBackoff = SimpleExponentialBackoff(100.millis, 200.millis, 1.1))
+  private val basicOutputs = CallOutputs(
+    Map(
+      GraphNodeOutputPort(WomIdentifier("foo", "wf.foo"), WomStringType, null) -> WomString("bar")
+    )
+  )
 
   private val httpSuccess = Future.successful(HttpResponse.apply(StatusCodes.OK))
   private val httpFailure = Future.successful(HttpResponse.apply(StatusCodes.GatewayTimeout))
@@ -64,7 +71,7 @@ class WorkflowCallbackActorSpec
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowSucceeded.toString,
-      basicOutputs.outputs.map(entry => (entry._1.name, entry._2)),
+      Map(("wf.foo", WomString("bar"))),
       List.empty
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)
@@ -81,7 +88,11 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs, List.empty
+      workflowId = workflowId,
+      uri = None,
+      terminalState = WorkflowSucceeded,
+      workflowOutputs = basicOutputs,
+      List.empty
     )
     workflowCallbackActor ! cmd
 
@@ -93,7 +104,7 @@ class WorkflowCallbackActorSpec
         uriEvent.key shouldBe expectedUriMetadata.key
         uriEvent.value shouldBe expectedUriMetadata.value
         timestampEvent.key shouldBe expectedTimestampMetadata.key
-        // Not checking timestamp value because it won't match
+      // Not checking timestamp value because it won't match
       case _ =>
     }
 
@@ -114,7 +125,7 @@ class WorkflowCallbackActorSpec
     val expectedPostBody = CallbackMessage(
       workflowId.toString,
       WorkflowSucceeded.toString,
-      basicOutputs.outputs.map(entry => (entry._1.name, entry._2)),
+      Map(("wf.foo", WomString("bar"))),
       List.empty
     )
     val expectedRequest = Post(mockUri.toString, expectedPostBody)
@@ -132,7 +143,11 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs, List.empty
+      workflowId = workflowId,
+      uri = None,
+      terminalState = WorkflowSucceeded,
+      workflowOutputs = basicOutputs,
+      List.empty
     )
     workflowCallbackActor ! cmd
 
@@ -179,7 +194,7 @@ class WorkflowCallbackActorSpec
       serviceRegistryActor.ref,
       basicConfig.copy(
         retryBackoff = SimpleExponentialBackoff(500.millis, 1.minute, 1.1),
-        maxRetries = 5,
+        maxRetries = 5
       ),
       httpClient = mockHttpClient
     )
@@ -230,7 +245,11 @@ class WorkflowCallbackActorSpec
 
     // Do the thing
     val cmd = PerformCallbackCommand(
-      workflowId = workflowId, uri = None, terminalState = WorkflowSucceeded, workflowOutputs = basicOutputs, List.empty
+      workflowId = workflowId,
+      uri = None,
+      terminalState = WorkflowSucceeded,
+      workflowOutputs = basicOutputs,
+      List.empty
     )
     workflowCallbackActor ! cmd
 

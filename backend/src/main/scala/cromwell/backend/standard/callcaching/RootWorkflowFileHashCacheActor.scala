@@ -11,8 +11,10 @@ import cromwell.core.WorkflowId
 import cromwell.core.actor.RobustClientHelper.RequestTimeout
 import cromwell.core.io._
 
-
-class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: ActorRef, workflowId: WorkflowId) extends Actor with ActorLogging with IoClientHelper {
+class RootWorkflowFileHashCacheActor private[callcaching] (override val ioActor: ActorRef, workflowId: WorkflowId)
+    extends Actor
+    with ActorLogging
+    with IoClientHelper {
   case class FileHashRequester(replyTo: ActorRef, fileHashContext: FileHashContext, ioCommand: IoCommand[_])
 
   sealed trait FileHashValue
@@ -25,8 +27,9 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
   // Hashing failed.
   case class FileHashFailure(error: String) extends FileHashValue
 
-  val cache: LoadingCache[String, FileHashValue] = CacheBuilder.newBuilder().build(
-    new CacheLoader[String, FileHashValue] {
+  val cache: LoadingCache[String, FileHashValue] = CacheBuilder
+    .newBuilder()
+    .build(new CacheLoader[String, FileHashValue] {
       override def load(key: String): FileHashValue = FileHashValueNotRequested
     })
 
@@ -66,44 +69,49 @@ class RootWorkflowFileHashCacheActor private[callcaching](override val ioActor: 
         requesters foreach { case FileHashRequester(replyTo, fileHashContext, ioCommand) =>
           replyTo ! Tuple2(fileHashContext, IoFailure(ioCommand, failure.failure))
         }
-        cache.put(hashContext.file, FileHashFailure(s"Error hashing file '${hashContext.file}': ${failure.failure.getMessage}"))
+        cache.put(hashContext.file,
+                  FileHashFailure(s"Error hashing file '${hashContext.file}': ${failure.failure.getMessage}")
+        )
       }
     case other =>
       log.warning(s"Root workflow file hash caching actor received unexpected message: $other")
   }
 
   // Invoke the supplied block on the happy path, handle unexpected states for IoSuccess and IoFailure with common code.
-  private def handleHashResult(ioAck: IoAck[_], fileHashContext: FileHashContext)
-                              (notifyRequestersAndCacheValue: List[FileHashRequester] => Unit): Unit = {
+  private def handleHashResult(ioAck: IoAck[_], fileHashContext: FileHashContext)(
+    notifyRequestersAndCacheValue: List[FileHashRequester] => Unit
+  ): Unit =
     cache.get(fileHashContext.file) match {
       case FileHashValueRequested(requesters) => notifyRequestersAndCacheValue(requesters.toList)
       case FileHashValueNotRequested =>
         log.info(msgIoAckWithNoRequesters.format(fileHashContext.file))
         notifyRequestersAndCacheValue(List.empty[FileHashRequester])
       case _ =>
-        // IoAck arrived when hash result is already saved in cache. This is a result of benign race condition.
-        // No further action is required.
+      // IoAck arrived when hash result is already saved in cache. This is a result of benign race condition.
+      // No further action is required.
     }
-  }
 
-  override protected def onTimeout(message: Any, to: ActorRef): Unit = {
+  override protected def onTimeout(message: Any, to: ActorRef): Unit =
     message match {
       case (fileHashContext: FileHashContext, _) =>
         // Send this message to all requestors.
         cache.get(fileHashContext.file) match {
           case FileHashValueRequested(requesters) =>
-            requesters.toList foreach { case FileHashRequester(replyTo, requestContext, ioCommand) => replyTo ! RequestTimeout(Tuple2(requestContext, ioCommand), replyTo) }
+            requesters.toList foreach { case FileHashRequester(replyTo, requestContext, ioCommand) =>
+              replyTo ! RequestTimeout(Tuple2(requestContext, ioCommand), replyTo)
+            }
             // Allow for the possibility of trying again on a timeout.
             cache.put(fileHashContext.file, FileHashValueNotRequested)
           case FileHashValueNotRequested =>
-            // Due to race condition, timeout came after the actual response. This is fine and no further action required.
+          // Due to race condition, timeout came after the actual response. This is fine and no further action required.
           case v =>
             log.info(msgTimeoutAfterIoAck.format(v, fileHashContext.file))
         }
       case other =>
-        log.error(s"Programmer error! Root workflow file hash caching actor received unexpected timeout message: $other")
+        log.error(
+          s"Programmer error! Root workflow file hash caching actor received unexpected timeout message: $other"
+        )
     }
-  }
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     log.error(reason, s"RootWorkflowFileHashCacheActor for workflow '$workflowId' is unexpectedly being restarted")
@@ -121,5 +129,7 @@ object RootWorkflowFileHashCacheActor {
 
   case class IoHashCommandWithContext(ioHashCommand: IoHashCommand, fileHashContext: FileHashContext)
 
-  def props(ioActor: ActorRef, workflowId: WorkflowId): Props = Props(new RootWorkflowFileHashCacheActor(ioActor, workflowId))
+  def props(ioActor: ActorRef, workflowId: WorkflowId): Props = Props(
+    new RootWorkflowFileHashCacheActor(ioActor, workflowId)
+  )
 }

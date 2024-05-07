@@ -12,7 +12,8 @@ class WorkflowOutputSymbolTableMigration extends SymbolTableMigration {
                              symbolScope: String,
                              symbolIndex: Option[Int],
                              symbolAttempt: Option[Int],
-                             womValue: WomValue): Int = {
+                             womValue: WomValue
+  ): Int = {
     val metadataStatementForWorkflow = new MetadataStatementForWorkflow(statement, workflowUuid)
     addWdlValue(s"outputs:$symbolScope.$symbolName", womValue, metadataStatementForWorkflow)
   }

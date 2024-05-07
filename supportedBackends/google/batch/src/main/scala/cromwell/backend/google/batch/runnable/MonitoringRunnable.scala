@@ -5,9 +5,9 @@ import cromwell.backend.google.batch.api.GcpBatchRequestFactory.CreateBatchJobPa
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 
 trait MonitoringRunnable {
-  def monitoringSetupRunnables(createParameters: CreateBatchJobParameters,
-                               volumes: List[Volume]
-                            )(implicit gcsTransferConfiguration: GcsTransferConfiguration): List[Runnable] = {
+  def monitoringSetupRunnables(createParameters: CreateBatchJobParameters, volumes: List[Volume])(implicit
+    gcsTransferConfiguration: GcsTransferConfiguration
+  ): List[Runnable] = {
 
     val monitoringImageScriptRunnables =
       createParameters.monitoringImage.monitoringImageScriptOption match {
@@ -21,7 +21,7 @@ trait MonitoringRunnable {
           val describeLocalizeScriptRunnable =
             RunnableBuilder.describeDocker(
               "localizing monitoring image script runnable",
-              localizeScriptRunnable,
+              localizeScriptRunnable
             )
           List(describeLocalizeScriptRunnable, localizeScriptRunnable)
         case None => Nil
@@ -30,7 +30,6 @@ trait MonitoringRunnable {
     val monitoringImageRunnables =
       createParameters.monitoringImage.monitoringImageOption match {
         case Some(image) =>
-
           val monitoringImage = image
           val monitoringImageCommand = createParameters.monitoringImage.monitoringImageCommand
           val monitoringImageEnvironment = createParameters.monitoringImage.monitoringImageEnvironment
@@ -52,15 +51,15 @@ trait MonitoringRunnable {
     (monitoringImageScriptRunnables ++ monitoringImageRunnables).map(_.build)
   }
 
-  def monitoringShutdownRunnables(createParameters: CreateBatchJobParameters): List[Runnable] = {
+  def monitoringShutdownRunnables(createParameters: CreateBatchJobParameters): List[Runnable] =
     createParameters.monitoringImage.monitoringImageOption match {
       case Some(_) =>
         val terminationRunnable = RunnableBuilder.terminateBackgroundRunnablesRunnable()
 
-        val describeTerminationRunnable = RunnableBuilder.describeDocker("terminate monitoring runnable", terminationRunnable)
+        val describeTerminationRunnable =
+          RunnableBuilder.describeDocker("terminate monitoring runnable", terminationRunnable)
 
         List(describeTerminationRunnable, terminationRunnable).map(_.build)
       case None => Nil
     }
-  }
 }

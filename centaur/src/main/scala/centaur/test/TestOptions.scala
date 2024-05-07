@@ -18,15 +18,13 @@ object TestOptions {
     Apply[ErrorOr].map2(tags, ignore)((t, i) => TestOptions(t, i))
   }
 
-  def tagsFromConfig(conf: Config): ErrorOr[List[String]] = {
+  def tagsFromConfig(conf: Config): ErrorOr[List[String]] =
     conf.get[List[String]]("tags") match {
       case Success(tagStrings) => Valid(tagStrings.map(_.toLowerCase).distinct)
       case Failure(_) => Valid(List.empty[String])
     }
-  }
 
-  def ignoreFromConfig(conf: Config): ErrorOr[Boolean] = {
-
+  def ignoreFromConfig(conf: Config): ErrorOr[Boolean] =
     if (conf.hasPath("ignore")) {
       conf.get[Boolean]("ignore") match {
         case Success(ignore) => Valid(ignore)
@@ -35,6 +33,4 @@ object TestOptions {
     } else {
       Valid(false)
     }
-  }
 }
-

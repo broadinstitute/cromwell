@@ -50,8 +50,11 @@ sealed trait RunStatus {
 }
 
 object RunStatus {
-  def fromJobStatus(status: JobStatus, jobId: String, errorMessage: Option[String] = None,
-                    eventList: Seq[ExecutionEvent] = Seq.empty): Try[RunStatus] = {
+  def fromJobStatus(status: JobStatus,
+                    jobId: String,
+                    errorMessage: Option[String] = None,
+                    eventList: Seq[ExecutionEvent] = Seq.empty
+  ): Try[RunStatus] =
     status match {
       case JobStatus.FAILED => Success(Failed(jobId, errorMessage, eventList))
       case JobStatus.PENDING => Success(Initializing)
@@ -63,7 +66,6 @@ object RunStatus {
       // JobStatus.UNKNOWN_TO_SDK_VERSION
       case _ => Failure(new RuntimeException(s"job {$jobId} has an unknown status {$status}"))
     }
-  }
 
   case object Initializing extends RunStatus
   case object Running extends RunStatus
@@ -82,33 +84,30 @@ object RunStatus {
   }
 
   object UnsuccessfulRunStatus {
-    def apply(jobId: String, status: String, errorMessage: Option[String], eventList: Seq[ExecutionEvent]): UnsuccessfulRunStatus = {
+    def apply(jobId: String,
+              status: String,
+              errorMessage: Option[String],
+              eventList: Seq[ExecutionEvent]
+    ): UnsuccessfulRunStatus =
       if (status == "Stopped") { // TODO: Verify this
         Stopped(jobId, errorMessage, eventList)
       } else {
         Failed(jobId, errorMessage, eventList)
       }
-    }
   }
 
-  final case class Stopped(jobId: String,
-                          errorMessage: Option[String],
-                          eventList: Seq[ExecutionEvent],
-                          ) extends UnsuccessfulRunStatus {
+  final case class Stopped(jobId: String, errorMessage: Option[String], eventList: Seq[ExecutionEvent])
+      extends UnsuccessfulRunStatus {
     override def toString = "Stopped"
   }
 
-  final case class Failed(jobId: String,
-                          errorMessage: Option[String],
-                          eventList: Seq[ExecutionEvent],
-                          ) extends UnsuccessfulRunStatus {
+  final case class Failed(jobId: String, errorMessage: Option[String], eventList: Seq[ExecutionEvent])
+      extends UnsuccessfulRunStatus {
     override def toString = "Failed"
   }
 
-  final case class Cancelled(jobId: String,
-                          errorMessage: Option[String],
-                          eventList: Seq[ExecutionEvent],
-                          ) extends UnsuccessfulRunStatus {
+  final case class Cancelled(jobId: String, errorMessage: Option[String], eventList: Seq[ExecutionEvent])
+      extends UnsuccessfulRunStatus {
     override def toString = "Cancelled"
   }
 }

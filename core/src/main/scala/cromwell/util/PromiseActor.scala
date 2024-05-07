@@ -17,7 +17,10 @@ private class PromiseActor(promise: Promise[Any], sendTo: ActorRef, msg: Any) ex
       if (actorRef == sendTo) {
         promise.tryFailure(new RuntimeException("Promise-watched actor completed before sending back a message"))
       } else {
-        log.error("Spooky happenstances! A Terminated({}) message  was sent to a private Promise actor which wasn't watching it!?", actorRef)
+        log.error(
+          "Spooky happenstances! A Terminated({}) message  was sent to a private Promise actor which wasn't watching it!?",
+          actorRef
+        )
       }
       context.stop(self)
     case success =>
@@ -27,6 +30,7 @@ private class PromiseActor(promise: Promise[Any], sendTo: ActorRef, msg: Any) ex
 }
 
 object PromiseActor {
+
   /**
     * Sends a message to an actor and returns the future associated with the fullfilment of the reply
     * Can be used instead of the akka `ask` semantics, without any timeout
@@ -42,11 +46,11 @@ object PromiseActor {
     promise.future
   }
 
-  def props(promise: Promise[Any], sendTo: ActorRef, msg: Any): Props = Props(new PromiseActor(promise, sendTo, msg)).withDispatcher(EngineDispatcher)
+  def props(promise: Promise[Any], sendTo: ActorRef, msg: Any): Props =
+    Props(new PromiseActor(promise, sendTo, msg)).withDispatcher(EngineDispatcher)
 
   implicit class EnhancedActorRef(val actorRef: ActorRef) extends AnyVal {
-    def askNoTimeout(message: Any)(implicit actorRefFactory: ActorRefFactory): Future[Any] = {
+    def askNoTimeout(message: Any)(implicit actorRefFactory: ActorRefFactory): Future[Any] =
       PromiseActor.askNoTimeout(message, actorRef)
-    }
   }
 }

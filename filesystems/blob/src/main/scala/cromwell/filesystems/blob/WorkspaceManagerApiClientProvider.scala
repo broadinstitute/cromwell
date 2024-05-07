@@ -20,9 +20,11 @@ import scala.util.Try
 trait WorkspaceManagerApiClientProvider {
   def getControlledAzureResourceApi(token: String): WsmControlledAzureResourceApi
   def getResourceApi(token: String): WsmResourceApi
+  def getBaseWorkspaceManagerUrl: String
 }
 
-class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManagerURL) extends WorkspaceManagerApiClientProvider {
+class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManagerURL)
+    extends WorkspaceManagerApiClientProvider {
   private def getApiClient: ApiClient = {
     val client: ApiClient = new ApiClient()
     client.setBasePath(baseWorkspaceManagerUrl.value)
@@ -40,29 +42,40 @@ class HttpWorkspaceManagerClientProvider(baseWorkspaceManagerUrl: WorkspaceManag
     apiClient.setAccessToken(token)
     WsmControlledAzureResourceApi(new ControlledAzureResourceApi(apiClient))
   }
+  def getBaseWorkspaceManagerUrl: String = baseWorkspaceManagerUrl.value
 }
 
-case class WsmResourceApi(resourcesApi : ResourceApi) {
-  def findContainerResourceId(workspaceId : UUID, container: BlobContainerName): Try[UUID] = {
+case class WsmResourceApi(resourcesApi: ResourceApi) {
+  def findContainerResourceId(workspaceId: UUID, container: BlobContainerName): Try[UUID] =
     for {
-      workspaceResources <- Try(resourcesApi.enumerateResources(workspaceId, 0, 10, ResourceType.AZURE_STORAGE_CONTAINER, StewardshipType.CONTROLLED).getResources())
-      workspaceStorageContainerOption = workspaceResources.asScala.find(r => r.getMetadata().getName() == container.value)
-      workspaceStorageContainer <- workspaceStorageContainerOption.toRight(new Exception("No storage container found for this workspace")).toTry
+      workspaceResources <- Try(
+        resourcesApi
+          .enumerateResources(workspaceId, 0, 10, ResourceType.AZURE_STORAGE_CONTAINER, StewardshipType.CONTROLLED)
+          .getResources()
+      )
+      workspaceStorageContainerOption = workspaceResources.asScala.find(r =>
+        r.getMetadata().getName() == container.value
+      )
+      workspaceStorageContainer <- workspaceStorageContainerOption
+        .toRight(new Exception("No storage container found for this workspace"))
+        .toTry
       resourceId = workspaceStorageContainer.getMetadata().getResourceId()
     } yield resourceId
-  }
 }
-case class WsmControlledAzureResourceApi(controlledAzureResourceApi : ControlledAzureResourceApi) {
-  def createAzureStorageContainerSasToken(workspaceId: UUID, resourceId: UUID): Try[AzureSasCredential] = {
+case class WsmControlledAzureResourceApi(controlledAzureResourceApi: ControlledAzureResourceApi) {
+  def createAzureStorageContainerSasToken(workspaceId: UUID, resourceId: UUID): Try[AzureSasCredential] =
     for {
-      sas <- Try(controlledAzureResourceApi.createAzureStorageContainerSasToken(
-        workspaceId,
-        resourceId,
-        null,
-        null,
-        null,
-        null
-      ).getToken)
+      sas <- Try(
+        controlledAzureResourceApi
+          .createAzureStorageContainerSasToken(
+            workspaceId,
+            resourceId,
+            null,
+            null,
+            null,
+            null
+          )
+          .getToken
+      )
     } yield new AzureSasCredential(sas)
-  }
 }

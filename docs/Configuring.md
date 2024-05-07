@@ -134,18 +134,18 @@ system.max-concurrent-workflows = 5000
 
 **New Workflow Poll Rate**
 
-Cromwell will look for new workflows to start on a regular interval, configured as a number of seconds. You can change the polling rate from the default `2` seconds by editing the value:
+Cromwell will look for new workflows to start on a regular interval, configured as a number of seconds. You can change the polling rate from the default `20` seconds by editing the value:
 
 ```hocon
-system.new-workflow-poll-rate = 2
+system.new-workflow-poll-rate = 20
 ```
 
 **Max Workflow Launch Count**
 
-On every poll, Cromwell will take at limited number of new submissions, provided there are new workflows to launch and the `system.max-concurrent-workflows` number has not been reached. While the default is to launch up to `50` workflows, you can override this by setting:
+On every poll, Cromwell will take at limited number of new submissions, provided there are new workflows to launch and the `system.max-concurrent-workflows` number has not been reached. While the default is to launch up to `1` workflow, you can override this by setting:
 
 ```hocon
-system.max-workflow-launch-count = 50
+system.max-workflow-launch-count = 1
 ```
 
 ***Abort configuration***
@@ -313,6 +313,34 @@ Postgresql configuration in Cromwell is very similar to MySQL.  An example:
 ```hocon
 database {
   profile = "slick.jdbc.PostgresProfile$"
+  db {
+    driver = "org.postgresql.Driver"
+    url = "jdbc:postgresql://localhost:5432/cromwell"
+    user = "user"
+    password = "pass"
+    port = 5432
+    connectionTimeout = 5000
+  }
+}
+```
+
+If you want multiple database users to be able to read Cromwell's data from a Postgresql database, you'll need to create a
+role that all relevant users have access to, and adjust Cromwell to use this role. This is because each Large Object is owned
+by, and only readable by, the role that wrote it.
+
+First, pass these options when executing Cromwell. They will ensure that Cromwell's database tables are 
+owned by the role, not the initial login user.
+ * `-DengineSharedCromwellDbRole=your_role` to control the role that owns the engine tables
+ * `-DsharedCromwellDbRole=your_role` to control the role that owns the metadata tables
+
+Next, use the config key `pgLargeObjectWriteRole` to set the role that should own all large objects, as shown below. 
+This config will have no effect if you aren't using Postgresql. The configured login user can be any user that is
+granted the shared role.
+
+```hocon
+database {
+  profile = "slick.jdbc.PostgresProfile$"
+  pgLargeObjectWriteRole = "your_role"
   db {
     driver = "org.postgresql.Driver"
     url = "jdbc:postgresql://localhost:5432/cromwell"

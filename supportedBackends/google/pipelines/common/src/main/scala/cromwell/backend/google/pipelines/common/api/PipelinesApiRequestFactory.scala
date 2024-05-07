@@ -31,9 +31,9 @@ object PipelinesApiRequestFactory {
     * Input parameters that are not strictly needed by the user's command but are Cromwell byproducts.
     */
   case class DetritusInputParameters(
-                                      executionScriptInputParameter: PipelinesApiFileInput,
-                                      monitoringScriptInputParameter: Option[PipelinesApiFileInput]
-                                    ) {
+    executionScriptInputParameter: PipelinesApiFileInput,
+    monitoringScriptInputParameter: Option[PipelinesApiFileInput]
+  ) {
     def all: List[PipelinesApiFileInput] = List(executionScriptInputParameter) ++ monitoringScriptInputParameter
   }
 
@@ -41,11 +41,12 @@ object PipelinesApiRequestFactory {
     * Output parameters that are not produced by the user's command but are Cromwell byproducts.
     */
   case class DetritusOutputParameters(
-                                       monitoringScriptOutputParameter: Option[PipelinesApiFileOutput],
-                                       rcFileOutputParameter: PipelinesApiFileOutput,
-                                       memoryRetryRCFileOutputParameter: PipelinesApiFileOutput
-                                    ) {
-    def all: List[PipelinesApiFileOutput] = memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
+    monitoringScriptOutputParameter: Option[PipelinesApiFileOutput],
+    rcFileOutputParameter: PipelinesApiFileOutput,
+    memoryRetryRCFileOutputParameter: PipelinesApiFileOutput
+  ) {
+    def all: List[PipelinesApiFileOutput] =
+      memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
   }
 
   /**
@@ -54,12 +55,12 @@ object PipelinesApiRequestFactory {
     * to treat them differently.
     */
   case class InputOutputParameters(
-                                    detritusInputParameters: DetritusInputParameters,
-                                    jobInputParameters: List[PipelinesApiInput],
-                                    jobOutputParameters: List[PipelinesApiOutput],
-                                    detritusOutputParameters: DetritusOutputParameters,
-                                    literalInputParameters: List[PipelinesApiLiteralInput]
-                                  ) {
+    detritusInputParameters: DetritusInputParameters,
+    jobInputParameters: List[PipelinesApiInput],
+    jobOutputParameters: List[PipelinesApiOutput],
+    detritusOutputParameters: DetritusOutputParameters,
+    literalInputParameters: List[PipelinesApiLiteralInput]
+  ) {
     lazy val fileInputParameters: List[PipelinesApiInput] = jobInputParameters ++ detritusInputParameters.all
     lazy val fileOutputParameters: List[PipelinesApiOutput] = detritusOutputParameters.all ++ jobOutputParameters
   }
@@ -82,7 +83,7 @@ object PipelinesApiRequestFactory {
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreatePipelineDockerKeyAndToken],
                                       womOutputRuntimeExtractor: Option[WomOutputRuntimeExtractor],
-                                      adjustedSizeDisks: Seq[PipelinesApiAttachedDisk],
+                                      disks: Seq[PipelinesApiAttachedDisk],
                                       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
                                       retryWithMoreMemoryKeys: Option[List[String]],
                                       fuseEnabled: Boolean,
@@ -92,7 +93,7 @@ object PipelinesApiRequestFactory {
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
                                       dockerImageCacheDiskOpt: Option[String]
-                                     ) {
+  ) {
     def literalInputs = inputOutputParameters.literalInputParameters
     def inputParameters = inputOutputParameters.fileInputParameters
     def outputParameters = inputOutputParameters.fileOutputParameters

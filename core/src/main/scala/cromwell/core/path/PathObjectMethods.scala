@@ -8,12 +8,11 @@ trait PathObjectMethods {
 
   override def toString: String = pathAsString
 
-  override def equals(obj: Any) = {
+  override def equals(obj: Any) =
     obj match {
       case other: Path => nioPathPrivate == other.nioPathPrivate
       case _ => false
     }
-  }
 
   override def hashCode = nioPathPrivate.hashCode()
 }

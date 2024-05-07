@@ -73,14 +73,16 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     //
     // N.B. the `asJson` is highly significant as it exercises the entire serialization module and compares
     // the end product instead of an intermediate case class hierarchy
-    Describer.describeWorkflow(wsfc).asInstanceOf[DescribeSuccess].description.asJson shouldBe expectedJson
+    Describer.describeWorkflow(wsfc, List.empty).asInstanceOf[DescribeSuccess].description.asJson shouldBe expectedJson
   }
 }
 
 object DescriberSpec {
   sealed trait DescriberSpecTestCase { def expectedDescription: String }
-  final case class FileAndDescription(file: String, override val expectedDescription: String) extends DescriberSpecTestCase
-  final case class UrlAndDescription(url: String, override val expectedDescription: String) extends DescriberSpecTestCase
+  final case class FileAndDescription(file: String, override val expectedDescription: String)
+      extends DescriberSpecTestCase
+  final case class UrlAndDescription(url: String, override val expectedDescription: String)
+      extends DescriberSpecTestCase
 
   def interpretTestCase(caseDirectory: Path): DescriberSpecTestCase = {
     val description = caseDirectory.resolve("description.json").contentAsString

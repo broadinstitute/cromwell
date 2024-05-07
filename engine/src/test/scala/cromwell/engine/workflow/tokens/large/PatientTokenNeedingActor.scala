@@ -60,5 +60,7 @@ object PatientTokenNeedingActor {
   // Indicate to myself that I'm done (and gets forwarded to my parent)
   case object AllDone
 
-  def props(tokenDispenser: ActorRef, tokenType: JobTokenType, hogGroup: String): Props = Props(new PatientTokenNeedingActor(tokenDispenser, tokenType, hogGroup))
+  def props(tokenDispenser: ActorRef, tokenType: JobTokenType, hogGroup: String): Props = Props(
+    new PatientTokenNeedingActor(tokenDispenser, tokenType, hogGroup)
+  )
 }

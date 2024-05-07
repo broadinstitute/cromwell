@@ -7,18 +7,24 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 
 import scala.util.{Failure, Success}
 
-class DockerCliClientSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
+class DockerCliClientSpec
+    extends AnyFlatSpecLike
+    with CromwellTimeoutSpec
+    with Matchers
+    with TableDrivenPropertyChecks {
   behavior of "DockerCliClient"
 
   private val lookupSuccessStdout = Seq(
     "<none>\t<none>\t<none>",
     "fauxbuntu\tlatest\tsha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "fauxbuntu\tmytag\tsha256:00001111222233334444555566667777888899990000aaaabbbbccccddddeeee")
+    "fauxbuntu\tmytag\tsha256:00001111222233334444555566667777888899990000aaaabbbbccccddddeeee"
+  )
 
   private val lookupSuccessHashes = Table(
     ("dockerCliKey", "hashValue"),
     (DockerCliKey("fauxbuntu", "latest"), "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
-    (DockerCliKey("fauxbuntu", "mytag"), "00001111222233334444555566667777888899990000aaaabbbbccccddddeeee"))
+    (DockerCliKey("fauxbuntu", "mytag"), "00001111222233334444555566667777888899990000aaaabbbbccccddddeeee")
+  )
 
   forAll(lookupSuccessHashes) { (dockerCliKey, hashValue) =>
     it should s"successfully lookup simulated hash for ${dockerCliKey.fullName}" in {
@@ -47,7 +53,8 @@ class DockerCliClientSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
       """|Error running: docker images --digests --format {{printf "%s\t%s\t%s" .Repository .Tag .Digest}}
          |Exit code: 1
          |Error response from daemon: Bad response from Docker engine
-         |""".stripMargin)
+         |""".stripMargin
+    )
   }
 }
 

@@ -48,7 +48,11 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 rootConfig: Config,
                                 totalJobsByRootWf: AtomicInteger,
                                 fileHashCacheActor: Option[ActorRef],
-                                blacklistCache: Option[BlacklistCache]) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData] with JobLogging with WorkflowMetadataHelper with CallMetadataHelper {
+                                blacklistCache: Option[BlacklistCache]
+) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData]
+    with JobLogging
+    with WorkflowMetadataHelper
+    with CallMetadataHelper {
 
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() { case _ => Escalate }
 
@@ -66,14 +70,13 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
 
   private var eventList: Seq[ExecutionEvent] = Seq(ExecutionEvent(stateName.toString))
 
-  when(SubWorkflowPendingState) {
-    case Event(Execute, _) =>
-      if (startState.restarted) {
-        subWorkflowStoreActor ! QuerySubWorkflow(parentWorkflow.id, key)
-        goto(SubWorkflowCheckingStoreState)
-      } else {
-        requestValueStore(createSubWorkflowId())
-      }
+  when(SubWorkflowPendingState) { case Event(Execute, _) =>
+    if (startState.restarted) {
+      subWorkflowStoreActor ! QuerySubWorkflow(parentWorkflow.id, key)
+      goto(SubWorkflowCheckingStoreState)
+    } else {
+      requestValueStore(createSubWorkflowId())
+    }
   }
 
   when(SubWorkflowCheckingStoreState) {
@@ -87,18 +90,23 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   }
 
   /*
-    * ! Hot Potato Warning !
-    * We ask explicitly for the `ValueStore` so we can use it on the fly and more importantly not store it as a
-    * variable in this actor, which would prevent it from being garbage collected for the duration of the
-    * subworkflow and would lead to memory leaks.
-    */
+   * ! Hot Potato Warning !
+   * We ask explicitly for the `ValueStore` so we can use it on the fly and more importantly not store it as a
+   * variable in this actor, which would prevent it from being garbage collected for the duration of the
+   * subworkflow and would lead to memory leaks.
+   */
   when(WaitingForValueStore) {
     case Event(valueStore: ValueStore, SubWorkflowExecutionActorLiveData(Some(subWorkflowId), _)) =>
       prepareSubWorkflow(subWorkflowId, valueStore)
     case Event(_: ValueStore, _) =>
-      context.parent ! SubWorkflowFailedResponse(key, Map.empty, new IllegalStateException(
-        "This is a programmer error, we're ready to prepare the job and should have" +
-          " a SubWorkflowId to use by now but somehow haven't. Failing the workflow."))
+      context.parent ! SubWorkflowFailedResponse(
+        key,
+        Map.empty,
+        new IllegalStateException(
+          "This is a programmer error, we're ready to prepare the job and should have" +
+            " a SubWorkflowId to use by now but somehow haven't. Failing the workflow."
+        )
+      )
       context stop self
       stay()
   }
@@ -108,16 +116,36 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       startSubWorkflow(subWorkflowEngineDescriptor, inputs, data)
     case Event(failure: CallPreparationFailed, data) =>
       // No subworkflow ID yet, so no need to record the status. Fail here and let the parent handle the fallout:
-      recordTerminalState(SubWorkflowFailedState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowFailedResponse(key, Map.empty, failure.throwable)))
+      recordTerminalState(
+        SubWorkflowFailedState,
+        SubWorkflowExecutionActorTerminalData(data.subWorkflowId,
+                                              SubWorkflowFailedResponse(key, Map.empty, failure.throwable)
+        )
+      )
   }
 
   when(SubWorkflowRunningState) {
-    case Event(WorkflowExecutionSucceededResponse(executedJobKeys, rootAndSubworklowIds, outputs, cumulativeOutputs), data) =>
-      recordTerminalState(SubWorkflowSucceededState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowSucceededResponse(key, executedJobKeys, rootAndSubworklowIds, outputs, cumulativeOutputs)))
+    case Event(WorkflowExecutionSucceededResponse(executedJobKeys, rootAndSubworklowIds, outputs, cumulativeOutputs),
+               data
+        ) =>
+      recordTerminalState(
+        SubWorkflowSucceededState,
+        SubWorkflowExecutionActorTerminalData(
+          data.subWorkflowId,
+          SubWorkflowSucceededResponse(key, executedJobKeys, rootAndSubworklowIds, outputs, cumulativeOutputs)
+        )
+      )
     case Event(WorkflowExecutionFailedResponse(executedJobKeys, reason), data) =>
-      recordTerminalState(SubWorkflowFailedState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowFailedResponse(key, executedJobKeys, reason)))
+      recordTerminalState(SubWorkflowFailedState,
+                          SubWorkflowExecutionActorTerminalData(data.subWorkflowId,
+                                                                SubWorkflowFailedResponse(key, executedJobKeys, reason)
+                          )
+      )
     case Event(WorkflowExecutionAbortedResponse(executedJobKeys), data) =>
-      recordTerminalState(SubWorkflowAbortedState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowAbortedResponse(key, executedJobKeys)))
+      recordTerminalState(
+        SubWorkflowAbortedState,
+        SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowAbortedResponse(key, executedJobKeys))
+      )
     case Event(EngineLifecycleActorAbortCommand, SubWorkflowExecutionActorLiveData(_, Some(actorRef))) =>
       actorRef ! EngineLifecycleActorAbortCommand
       stay()
@@ -134,14 +162,22 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       // If the final state can't be written, it's fairly likely that other metadata has also been lost, so
       // the best answer may unfortunately be to fail the workflow rather than retry. Assuming the call cache is working
       // correctly, a retry of the workflow should at least cache-hit instead of having to re-run the work:
-      recordTerminalState(SubWorkflowFailedState, terminalData.copy(terminalStateResponse = SubWorkflowFailedResponse(key,
-        terminalData.terminalStateResponse.jobExecutionMap,
-        new Exception("Sub workflow execution actor unable to write final state to metadata", reason) with NoStackTrace)))
+      recordTerminalState(
+        SubWorkflowFailedState,
+        terminalData.copy(terminalStateResponse =
+          SubWorkflowFailedResponse(
+            key,
+            terminalData.terminalStateResponse.jobExecutionMap,
+            new Exception("Sub workflow execution actor unable to write final state to metadata", reason)
+              with NoStackTrace
+          )
+        )
+      )
   }
 
-  when(SubWorkflowSucceededState) { terminalMetadataWriteResponseHandler }
-  when(SubWorkflowFailedState) { terminalMetadataWriteResponseHandler }
-  when(SubWorkflowAbortedState) { terminalMetadataWriteResponseHandler }
+  when(SubWorkflowSucceededState)(terminalMetadataWriteResponseHandler)
+  when(SubWorkflowFailedState)(terminalMetadataWriteResponseHandler)
+  when(SubWorkflowAbortedState)(terminalMetadataWriteResponseHandler)
 
   whenUnhandled {
     case Event(SubWorkflowStoreRegisterSuccess(_), _) =>
@@ -151,10 +187,15 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       jobLogger.error(reason, s"SubWorkflowStore failure for command $command")
       stay()
     case Event(EngineLifecycleActorAbortCommand, data) =>
-      recordTerminalState(SubWorkflowAbortedState, SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowAbortedResponse(key, Map.empty)))
+      recordTerminalState(
+        SubWorkflowAbortedState,
+        SubWorkflowExecutionActorTerminalData(data.subWorkflowId, SubWorkflowAbortedResponse(key, Map.empty))
+      )
   }
 
-  def recordTerminalState(terminalState: SubWorkflowTerminalState, newStateData: SubWorkflowExecutionActorTerminalData): State = {
+  def recordTerminalState(terminalState: SubWorkflowTerminalState,
+                          newStateData: SubWorkflowExecutionActorTerminalData
+  ): State =
     newStateData.subWorkflowId match {
       case Some(id) =>
         pushWorkflowEnd(id)
@@ -165,23 +206,27 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         jobLogger.error("Programmer Error: Sub workflow completed without ever having a Sub Workflow UUID.")
         // Same situation as if we fail to write the final state metadata. Bail out and hope the workflow is more
         // successful next time:
-        context.parent ! SubWorkflowFailedResponse(key,
+        context.parent ! SubWorkflowFailedResponse(
+          key,
           Map.empty,
-          new Exception("Programmer Error: Sub workflow completed without ever having a Sub Workflow UUID") with NoStackTrace)
+          new Exception("Programmer Error: Sub workflow completed without ever having a Sub Workflow UUID")
+            with NoStackTrace
+        )
         context.stop(self)
         stay()
     }
+
+  onTransition { case (_, toState) =>
+    eventList :+= ExecutionEvent(toState.toString)
+    if (!toState.isInstanceOf[SubWorkflowTerminalState]) {
+      stateData.subWorkflowId foreach { id => pushCurrentStateToMetadataService(id, toState.workflowState) }
+    }
   }
 
-  onTransition {
-    case (_, toState) =>
-      eventList :+= ExecutionEvent(toState.toString)
-      if (!toState.isInstanceOf[SubWorkflowTerminalState]) {
-        stateData.subWorkflowId foreach { id => pushCurrentStateToMetadataService(id, toState.workflowState) }
-      }
-  }
-
-  private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor, inputs: WomEvaluatedCallInputs, data: SubWorkflowExecutionActorData) = {
+  private def startSubWorkflow(subWorkflowEngineDescriptor: EngineWorkflowDescriptor,
+                               inputs: WomEvaluatedCallInputs,
+                               data: SubWorkflowExecutionActorData
+  ) = {
     val subWorkflowActor = createSubWorkflowActor(subWorkflowEngineDescriptor)
 
     subWorkflowActor ! WorkflowExecutionActor.ExecuteWorkflowCommand
@@ -204,14 +249,13 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
     goto(WaitingForValueStore) using SubWorkflowExecutionActorLiveData(Option(workflowId), None)
   }
 
-  def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) = {
+  def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId) =
     context.actorOf(
       SubWorkflowPreparationActor.props(parentWorkflow, expressionLanguageFunctions, key, subWorkflowId),
       s"$subWorkflowId-SubWorkflowPreparationActor-${key.tag}"
     )
-  }
 
-  def createSubWorkflowActor(subWorkflowEngineDescriptor: EngineWorkflowDescriptor) = {
+  def createSubWorkflowActor(subWorkflowEngineDescriptor: EngineWorkflowDescriptor) =
     context.actorOf(
       WorkflowExecutionActor.props(
         subWorkflowEngineDescriptor,
@@ -234,27 +278,41 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
       ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
     )
-  }
 
-  private def pushWorkflowRunningMetadata(subWorkflowDescriptor: BackendWorkflowDescriptor, workflowInputs: WomEvaluatedCallInputs) = {
+  private def pushWorkflowRunningMetadata(subWorkflowDescriptor: BackendWorkflowDescriptor,
+                                          workflowInputs: WomEvaluatedCallInputs
+  ) = {
     val subWorkflowId = subWorkflowDescriptor.id
-    val parentWorkflowMetadataKey = MetadataKey(parentWorkflow.id, Option(MetadataJobKey(key.node.fullyQualifiedName, key.index, key.attempt)), CallMetadataKeys.SubWorkflowId)
+    val parentWorkflowMetadataKey = MetadataKey(
+      parentWorkflow.id,
+      Option(MetadataJobKey(key.node.fullyQualifiedName, key.index, key.attempt)),
+      CallMetadataKeys.SubWorkflowId
+    )
 
     val events = List(
       MetadataEvent(parentWorkflowMetadataKey, MetadataValue(subWorkflowId)),
       MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Name), MetadataValue(key.node.localName)),
-      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.ParentWorkflowId), MetadataValue(parentWorkflow.id)),
-      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.RootWorkflowId), MetadataValue(parentWorkflow.rootWorkflow.id))
+      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.ParentWorkflowId),
+                    MetadataValue(parentWorkflow.id)
+      ),
+      MetadataEvent(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.RootWorkflowId),
+                    MetadataValue(parentWorkflow.rootWorkflow.id)
+      )
     )
 
     val inputEvents = workflowInputs match {
       case empty if empty.isEmpty =>
-        List(MetadataEvent.empty(MetadataKey(subWorkflowId, None,WorkflowMetadataKeys.Inputs)))
+        List(MetadataEvent.empty(MetadataKey(subWorkflowId, None, WorkflowMetadataKeys.Inputs)))
       case inputs =>
         inputs flatMap { case (inputName, womValue) =>
-          womValueToMetadataEvents(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.Inputs}:${inputName.name}"), womValue)
+          womValueToMetadataEvents(
+            MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.Inputs}:${inputName.name}"),
+            womValue
+          )
         }
     }
+
+    jobLogger.info(s"Running subworkflow: ${subWorkflowDescriptor.id}, root: ${parentWorkflow.rootWorkflow.id}")
 
     val workflowRootEvents = buildWorkflowRootMetadataEvents(subWorkflowDescriptor)
 
@@ -264,14 +322,17 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
   private def buildWorkflowRootMetadataEvents(subWorkflowDescriptor: BackendWorkflowDescriptor) = {
     val subWorkflowId = subWorkflowDescriptor.id
 
-    factories flatMap {
-      case (backendName, factory) =>
-        BackendConfiguration.backendConfigurationDescriptor(backendName).toOption map { config =>
-          backendName -> factory.getWorkflowExecutionRootPath(subWorkflowDescriptor, config.backendConfig, initializationData.get(backendName))
-        }
-    } map {
-      case (backend, wfRoot) =>
-        MetadataEvent(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.WorkflowRoot}[$backend]"), MetadataValue(wfRoot.toAbsolutePath))
+    factories flatMap { case (backendName, factory) =>
+      BackendConfiguration.backendConfigurationDescriptor(backendName).toOption map { config =>
+        backendName -> factory.getWorkflowExecutionRootPath(subWorkflowDescriptor,
+                                                            config.backendConfig,
+                                                            initializationData.get(backendName)
+        )
+      }
+    } map { case (backend, wfRoot) =>
+      MetadataEvent(MetadataKey(subWorkflowId, None, s"${WorkflowMetadataKeys.WorkflowRoot}[$backend]"),
+                    MetadataValue(wfRoot.toAbsolutePath)
+      )
     }
   }
 
@@ -324,8 +385,12 @@ object SubWorkflowExecutionActor {
   sealed trait SubWorkflowExecutionActorData {
     def subWorkflowId: Option[WorkflowId]
   }
-  final case class SubWorkflowExecutionActorLiveData(subWorkflowId: Option[WorkflowId], subWorkflowActor: Option[ActorRef]) extends SubWorkflowExecutionActorData
-  final case class SubWorkflowExecutionActorTerminalData(subWorkflowId: Option[WorkflowId], terminalStateResponse: SubWorkflowTerminalStateResponse) extends SubWorkflowExecutionActorData
+  final case class SubWorkflowExecutionActorLiveData(subWorkflowId: Option[WorkflowId],
+                                                     subWorkflowActor: Option[ActorRef]
+  ) extends SubWorkflowExecutionActorData
+  final case class SubWorkflowExecutionActorTerminalData(subWorkflowId: Option[WorkflowId],
+                                                         terminalStateResponse: SubWorkflowTerminalStateResponse
+  ) extends SubWorkflowExecutionActorData
 
   sealed trait EngineWorkflowExecutionActorCommand
   case object Execute
@@ -349,28 +414,30 @@ object SubWorkflowExecutionActor {
             rootConfig: Config,
             totalJobsByRootWf: AtomicInteger,
             fileHashCacheActor: Option[ActorRef],
-            blacklistCache: Option[BlacklistCache]) = {
-    Props(new SubWorkflowExecutionActor(
-      key,
-      parentWorkflow,
-      expressionLanguageFunctions,
-      factories,
-      ioActor = ioActor,
-      serviceRegistryActor = serviceRegistryActor,
-      jobStoreActor = jobStoreActor,
-      subWorkflowStoreActor = subWorkflowStoreActor,
-      callCacheReadActor = callCacheReadActor,
-      callCacheWriteActor = callCacheWriteActor,
-      workflowDockerLookupActor = workflowDockerLookupActor,
-      jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
-      jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
-      backendSingletonCollection,
-      initializationData,
-      startState,
-      rootConfig,
-      totalJobsByRootWf,
-      fileHashCacheActor = fileHashCacheActor,
-      blacklistCache = blacklistCache)
+            blacklistCache: Option[BlacklistCache]
+  ) =
+    Props(
+      new SubWorkflowExecutionActor(
+        key,
+        parentWorkflow,
+        expressionLanguageFunctions,
+        factories,
+        ioActor = ioActor,
+        serviceRegistryActor = serviceRegistryActor,
+        jobStoreActor = jobStoreActor,
+        subWorkflowStoreActor = subWorkflowStoreActor,
+        callCacheReadActor = callCacheReadActor,
+        callCacheWriteActor = callCacheWriteActor,
+        workflowDockerLookupActor = workflowDockerLookupActor,
+        jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserActor,
+        jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
+        backendSingletonCollection,
+        initializationData,
+        startState,
+        rootConfig,
+        totalJobsByRootWf,
+        fileHashCacheActor = fileHashCacheActor,
+        blacklistCache = blacklistCache
+      )
     ).withDispatcher(EngineDispatcher)
-  }
 }

@@ -1,7 +1,6 @@
 package wdl.transforms.biscayne
 
 import java.util
-
 import common.Checked
 import common.assertion.ErrorOrAssertions._
 import common.transforms.CheckedAtoB
@@ -19,7 +18,7 @@ import wdl.transforms.biscayne.ast2wdlom._
 import wdl.transforms.biscayne.parsing.WdlBiscayneSyntaxErrorFormatter
 import wom.callable.MetaValueElement.MetaValueElementInteger
 import wom.types.WomIntegerType
-import wom.values.WomInteger
+import wom.values.{WomBoolean, WomInteger}
 
 import scala.jdk.CollectionConverters._
 
@@ -27,14 +26,14 @@ object Ast2WdlomSpec {
   val parser = new WdlParser()
 
   def fromString[A](expression: String,
-                    parseFunction: (util.List[WdlParser.Terminal], SyntaxErrorFormatter) => ParseTree)
-                   (implicit converter: CheckedAtoB[GenericAstNode, A]): Checked[A] = {
+                    parseFunction: (util.List[WdlParser.Terminal], SyntaxErrorFormatter) => ParseTree
+  )(implicit converter: CheckedAtoB[GenericAstNode, A]): Checked[A] = {
 
     // Add the "version development" to force the lexer into "main" mode.
     val versionedExpression = "version development-1.1\n" + expression
     // That "version development" means we'll have 2 unwanted tokens at the start of the list, so drop 'em:
     val tokens = parser.lex(versionedExpression, "string").asScala.drop(2).asJava
-    val terminalMap = (tokens.asScala.toVector map {(_, versionedExpression)}).toMap
+    val terminalMap = (tokens.asScala.toVector map { (_, versionedExpression) }).toMap
     val parseTree = parseFunction(tokens, WdlBiscayneSyntaxErrorFormatter(terminalMap))
     (wrapAstNode andThen converter).run(parseTree.toAst)
   }
@@ -42,18 +41,20 @@ object Ast2WdlomSpec {
 
 class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
-
-
   it should "parse a simple expression" in {
     val str = "3 + 3"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeValid Add(PrimitiveLiteralExpressionElement(WomInteger(3)), PrimitiveLiteralExpressionElement(WomInteger(3)))
+    expr shouldBeValid Add(PrimitiveLiteralExpressionElement(WomInteger(3)),
+                           PrimitiveLiteralExpressionElement(WomInteger(3))
+    )
   }
 
   it should "parse a map expression" in {
     val str = "{3: 3}"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeValid MapLiteral(Map(PrimitiveLiteralExpressionElement(WomInteger(3)) -> PrimitiveLiteralExpressionElement(WomInteger(3))))
+    expr shouldBeValid MapLiteral(
+      Map(PrimitiveLiteralExpressionElement(WomInteger(3)) -> PrimitiveLiteralExpressionElement(WomInteger(3)))
+    )
   }
 
   it should "parse a simple meta section" in {
@@ -65,33 +66,73 @@ class Ast2WdlomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   it should "parse a struct element" in {
     val str = "struct Foo { Int five\n Int six }"
     val struct = fromString[StructElement](str, parser.parse_struct)(astNodeToAst andThen astToStructElement)
-    struct shouldBeValid StructElement("Foo", Seq(
-      StructEntryElement("five", PrimitiveTypeElement(WomIntegerType)),
-      StructEntryElement("six", PrimitiveTypeElement(WomIntegerType)))
+    struct shouldBeValid StructElement("Foo",
+                                       Seq(StructEntryElement("five", PrimitiveTypeElement(WomIntegerType)),
+                                           StructEntryElement("six", PrimitiveTypeElement(WomIntegerType))
+                                       )
     )
   }
 
   it should "parse the new as_map function" in {
     val str = "as_map(some_pairs)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeValid(AsMap(IdentifierLookup("some_pairs")))
+    expr shouldBeValid (AsMap(IdentifierLookup("some_pairs")))
   }
 
   it should "parse the new as_pairs function" in {
     val str = "as_pairs(some_map)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeValid(AsPairs(IdentifierLookup("some_map")))
+    expr shouldBeValid (AsPairs(IdentifierLookup("some_map")))
   }
 
   it should "parse the new collect_by_key function" in {
     val str = "collect_by_key(some_map)"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeValid(CollectByKey(IdentifierLookup("some_map")))
+    expr shouldBeValid (CollectByKey(IdentifierLookup("some_map")))
   }
 
   it should "parse the new None keyword" in {
     val str = "None"
     val expr = fromString[ExpressionElement](str, parser.parse_e)
-    expr shouldBeValid(NoneLiteralElement)
+    expr shouldBeValid NoneLiteralElement
+  }
+
+  it should "get the posix version when parsing the sub function" in {
+    val str = """sub("my input", "[A-Za-z]", "repl")"""
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (SubPosix(StringLiteral("my input"), StringLiteral("[A-Za-z]"), StringLiteral("repl")))
+  }
+
+  it should "parse the new suffix function" in {
+    val str = "suffix(some_str, some_arr)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (Suffix(IdentifierLookup("some_str"), IdentifierLookup("some_arr")))
+  }
+
+  it should "parse the new quote function" in {
+    val str = "quote(some_arr)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (Quote(IdentifierLookup("some_arr")))
+  }
+
+  it should "parse the new squote function" in {
+    val str = "squote(some_arr)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (SQuote(IdentifierLookup("some_arr")))
+  }
+
+  it should "parse the new unzip function" in {
+    val str = "unzip(some_array_of_pairs)"
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (Unzip(IdentifierLookup("some_array_of_pairs")))
+  }
+
+  it should "parse a struct literal" in {
+    val str = """Dog{breed: "fluffy", isGood: true}"""
+    val expr = fromString[ExpressionElement](str, parser.parse_e)
+    expr shouldBeValid (StructLiteral(
+      "Dog",
+      Map("breed" -> StringLiteral("fluffy"), "isGood" -> PrimitiveLiteralExpressionElement(WomBoolean(true)))
+    ))
   }
 }

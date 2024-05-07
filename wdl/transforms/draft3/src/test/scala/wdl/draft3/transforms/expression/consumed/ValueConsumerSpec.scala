@@ -10,7 +10,6 @@ import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
 import wdl.model.draft3.graph.UnlinkedIdentifierHook
 import wom.values.WomInteger
 
-
 class ValueConsumerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   "the glob value consumer" should "find consumed lookup 'x'" in {
     val expr: ExpressionElement = Glob(IdentifierLookup("x"))
@@ -18,7 +17,8 @@ class ValueConsumerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
   }
 
   "the read_string value consumer" should "find consumed lookup 'x' in read_string(x[0])" in {
-    val expr: ExpressionElement = ReadString(IndexAccess(IdentifierLookup("x"), PrimitiveLiteralExpressionElement(WomInteger(0))))
+    val expr: ExpressionElement =
+      ReadString(IndexAccess(IdentifierLookup("x"), PrimitiveLiteralExpressionElement(WomInteger(0))))
     expr.expressionConsumedValueHooks shouldBe Set(UnlinkedIdentifierHook("x"))
   }
 }

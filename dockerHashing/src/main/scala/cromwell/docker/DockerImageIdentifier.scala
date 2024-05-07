@@ -16,25 +16,33 @@ sealed trait DockerImageIdentifier {
   lazy val name = repository map { r => s"$r/$image" } getOrElse image
   // The name of the image with a repository prefix if a repository was specified, or with a default repository prefix of
   // "library" if no repository was specified.
-  lazy val nameWithDefaultRepository = {
+  lazy val nameWithDefaultRepository =
     // In ACR, the repository is part of the registry domain instead of the path
     // e.g. `terrabatchdev.azurecr.io`
     if (host.exists(_.contains(AzureContainerRegistry.domain)))
       image
     else
       repository.getOrElse("library") + s"/$image"
-  }
   lazy val hostAsString = host map { h => s"$h/" } getOrElse ""
   // The full name of this image, including a repository prefix only if a repository was explicitly specified.
   lazy val fullName = s"$hostAsString$name:$reference"
 }
 
-case class DockerImageIdentifierWithoutHash(host: Option[String], repository: Option[String], image: String, reference: String) extends DockerImageIdentifier {
+case class DockerImageIdentifierWithoutHash(host: Option[String],
+                                            repository: Option[String],
+                                            image: String,
+                                            reference: String
+) extends DockerImageIdentifier {
   def withHash(hash: DockerHashResult) = DockerImageIdentifierWithHash(host, repository, image, reference, hash)
   override def swapReference(newReference: String) = this.copy(reference = newReference)
 }
 
-case class DockerImageIdentifierWithHash(host: Option[String], repository: Option[String], image: String, reference: String, hash: DockerHashResult) extends DockerImageIdentifier {
+case class DockerImageIdentifierWithHash(host: Option[String],
+                                         repository: Option[String],
+                                         image: String,
+                                         reference: String,
+                                         hash: DockerHashResult
+) extends DockerImageIdentifier {
   override lazy val fullName: String = s"$hostAsString$name@${hash.algorithmAndHash}"
   override def swapReference(newReference: String) = this.copy(reference = newReference)
 }
@@ -48,7 +56,7 @@ object DockerImageIdentifier {
 
        (                                        # Begin capturing group for name
           [a-z0-9]+(?:[._-][a-z0-9]+)*          # API v2 name component regex - see https://docs.docker.com/registry/spec/api/#/overview
-          (?::[0-9]+)?                          # Optional port
+          (?::[0-9]{4,5}|:443)?                 # Optional port (expect 4 or 5 digits OR :443)
           (?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*    # Optional additional name components separated by /
        )                                        # End capturing group for name
 
@@ -68,12 +76,11 @@ object DockerImageIdentifier {
        )?
        """.trim.r
 
-  def fromString(dockerString: String): Try[DockerImageIdentifier] = {
+  def fromString(dockerString: String): Try[DockerImageIdentifier] =
     dockerString.trim match {
       case DockerStringRegex(name, tag, hash) => buildId(name, Option(tag), Option(hash))
       case _ => Failure(new IllegalArgumentException(s"Docker image $dockerString has an invalid syntax."))
     }
-  }
 
   private def isRegistryHostName(str: String) = str.contains('.') || str.startsWith("localhost")
 
@@ -97,10 +104,17 @@ object DockerImageIdentifier {
     }
 
     (tag, hash) match {
-      case (None, None) => Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, DefaultDockerTag))
+      case (None, None) =>
+        Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, DefaultDockerTag))
       case (Some(t), None) => Success(DockerImageIdentifierWithoutHash(dockerHost, dockerRepo, dockerImage, t))
-      case (None, Some(h)) => DockerHashResult.fromString(h) map { hash => DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, h, hash) }
-      case (Some(t), Some(h)) => DockerHashResult.fromString(h) map { hash => DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, s"$t@$h", hash) }
+      case (None, Some(h)) =>
+        DockerHashResult.fromString(h) map { hash =>
+          DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, h, hash)
+        }
+      case (Some(t), Some(h)) =>
+        DockerHashResult.fromString(h) map { hash =>
+          DockerImageIdentifierWithHash(dockerHost, dockerRepo, dockerImage, s"$t@$h", hash)
+        }
     }
   }
 }

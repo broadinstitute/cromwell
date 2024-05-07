@@ -6,7 +6,6 @@ import cromwell.services.metadata.MetadataService.{PutMetadataAction, PutMetadat
 import cromwell.services.metadata.impl.MetadataServiceActor
 import cromwell.services.metadata.impl.pubsub.PubSubMetadataServiceActor
 
-
 /**
   * A metadata service implementation which will function as a standard metadata service but also push all metadata
   * events to google pubsub.
@@ -19,9 +18,13 @@ import cromwell.services.metadata.impl.pubsub.PubSubMetadataServiceActor
   * It is expected that the user will supply any desired config fields for both MetadataServiceActor and
   * PubSubMetadataServiceActor as the serviceConfig block will be passed along to both of them.
   */
-class HybridPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
-  val standardMetadataActor: ActorRef = context.actorOf(MetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor))
-  val pubSubMetadataActor: ActorRef = context.actorOf(PubSubMetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor))
+class HybridPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends Actor
+    with ActorLogging {
+  val standardMetadataActor: ActorRef =
+    context.actorOf(MetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor))
+  val pubSubMetadataActor: ActorRef =
+    context.actorOf(PubSubMetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor))
 
   override def receive = {
     case action: PutMetadataAction =>

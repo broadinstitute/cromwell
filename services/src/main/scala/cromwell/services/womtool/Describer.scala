@@ -2,7 +2,7 @@ package cromwell.services.womtool
 
 import cats.data.Validated.{Invalid, Valid}
 import cromwell.core.WorkflowSourceFilesCollection
-import cromwell.languages.util.ImportResolver.HttpResolver
+import cromwell.languages.util.ImportResolver.{HttpResolver, ImportAuthProvider, ImportResolver}
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeResult, DescribeSuccess}
@@ -13,9 +13,9 @@ import wom.expression.NoIoFunctionSet
 
 object Describer {
 
-  def describeWorkflow(wsfc: WorkflowSourceFilesCollection): DescribeResult = {
+  def describeWorkflow(wsfc: WorkflowSourceFilesCollection, authProviders: List[ImportAuthProvider]): DescribeResult = {
 
-    val initialResolvers = List(HttpResolver(None, Map.empty))
+    val initialResolvers: List[ImportResolver] = List(HttpResolver(None, Map.empty, authProviders))
 
     // The HTTP resolver is used to pull down workflows submitted by URL
     LanguageFactoryUtil.findWorkflowSource(wsfc.workflowSource, wsfc.workflowUrl, initialResolvers) match {
@@ -46,7 +46,8 @@ object Describer {
   private def describeWorkflowInner(factory: LanguageFactory,
                                     workflowSource: WorkflowSource,
                                     importResolvers: List[ImportResolver.ImportResolver],
-                                    workflowSourceFilesCollection: WorkflowSourceFilesCollection): WorkflowDescription = {
+                                    workflowSourceFilesCollection: WorkflowSourceFilesCollection
+  ): WorkflowDescription = {
 
     val submittedDescriptorType = Map(
       "descriptorType" -> factory.languageName,
@@ -56,7 +57,12 @@ object Describer {
     // Mirror of the inputs/no inputs fork in womtool.validate.Validate
     if (workflowSourceFilesCollection.inputsJson.isEmpty) {
       // No inputs: just load up the WomBundle
-      factory.getWomBundle(workflowSource, workflowSourceOrigin = None, workflowOptionsJson = "{}", importResolvers, List(factory)) match {
+      factory.getWomBundle(workflowSource,
+                           workflowSourceOrigin = None,
+                           workflowOptionsJson = "{}",
+                           importResolvers,
+                           List(factory)
+      ) match {
         case Right(bundle: WomBundle) =>
           WorkflowDescription.fromBundle(bundle, submittedDescriptorType, List.empty)
         case Left(workflowErrors) =>
@@ -64,7 +70,12 @@ object Describer {
       }
     } else {
       // Inputs: load up the WomBundle and then try creating an executable with WomBundle + inputs
-      factory.getWomBundle(workflowSource, workflowSourceOrigin = None, workflowOptionsJson = "{}", importResolvers, List(factory)) match {
+      factory.getWomBundle(workflowSource,
+                           workflowSourceOrigin = None,
+                           workflowOptionsJson = "{}",
+                           importResolvers,
+                           List(factory)
+      ) match {
         case Right(bundle) =>
           factory.createExecutable(bundle, workflowSourceFilesCollection.inputsJson, NoIoFunctionSet) match {
             // Throw away the executable, all we care about is whether it created successfully (i.e. the inputs are valid)

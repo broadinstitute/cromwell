@@ -26,7 +26,7 @@ class DockerValidation extends StringRuntimeAttributesValidation(RuntimeAttribut
   override protected def invalidValueMessage(value: WomValue): String = super.missingValueMessage
 
   // NOTE: Docker's current test specs don't like WdlInteger, etc. auto converted to WdlString.
-  override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {
-    case WomString(value) => value.validNel
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = { case WomString(value) =>
+    value.validNel
   }
 }

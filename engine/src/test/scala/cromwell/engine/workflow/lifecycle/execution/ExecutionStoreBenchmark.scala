@@ -34,28 +34,33 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
 
   val inputJson = Option(SampleWdl.PrepareScatterGatherWdl().rawInputs.toJson.compactPrint)
   val namespace = WdlNamespaceWithWorkflow.load(SampleWdl.PrepareScatterGatherWdl().workflowSource(), Seq.empty).get
-  val graph = namespace.toWomExecutable(inputJson, NoIoFunctionSet, strictValidation = true).getOrElse(throw new Exception("Failed to build womExecutable")).graph
+  val graph = namespace
+    .toWomExecutable(inputJson, NoIoFunctionSet, strictValidation = true)
+    .getOrElse(throw new Exception("Failed to build womExecutable"))
+    .graph
   val prepareCall: CommandCallNode = graph.calls.find(_.localName == "do_prepare").get.asInstanceOf[CommandCallNode]
   val scatterCall: CommandCallNode = graph.allNodes.find(_.localName == "do_scatter").get.asInstanceOf[CommandCallNode]
   val scatter: ScatterNode = graph.scatters.head
 
-  private def makeKey(call: CommandCallNode, executionStatus: ExecutionStatus)(index: Int) = {
+  private def makeKey(call: CommandCallNode, executionStatus: ExecutionStatus)(index: Int) =
     BackendJobDescriptorKey(call, Option(index), 1) -> executionStatus
-  }
 
   // Generates executionStores using the given above sizes
   // Each execution store contains X simulated shards of "prepareCall" in status Done and X simulated shards of "scatterCall" in status NotStarted
   // This provides a good starting point to evaluate the speed of "runnableCalls", as it needs to iterate over all "NotStarted" keys, and for each one
   // look for their upstreams keys in status "Done"
-  private def stores(sizes: Gen[Int]): Gen[ActiveExecutionStore] = {
+  private def stores(sizes: Gen[Int]): Gen[ActiveExecutionStore] =
     for {
       size <- sizes
       doneMap = (0 until size map makeKey(prepareCall, ExecutionStatus.Done)).toMap
-      collectorKeys = scatter.outputMapping.map(om => ScatterCollectorKey(om, size, ScatterNode.DefaultScatterCollectionFunction) -> ExecutionStatus.NotStarted).toMap
+      collectorKeys = scatter.outputMapping
+        .map(om =>
+          ScatterCollectorKey(om, size, ScatterNode.DefaultScatterCollectionFunction) -> ExecutionStatus.NotStarted
+        )
+        .toMap
       notStartedMap = (0 until size map makeKey(scatterCall, ExecutionStatus.NotStarted)).toMap ++ collectorKeys
       finalMap = doneMap ++ notStartedMap
     } yield ActiveExecutionStore(finalMap.toMap, needsUpdate = true)
-  }
 
   performance of "ExecutionStore" in {
     // Measures how fast the execution store can find runnable calls with lots of "Done" calls and "NotStarted" calls.

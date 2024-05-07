@@ -30,20 +30,20 @@ object CentaurCromwellClient extends StrictLogging {
   // Do not use scala.concurrent.ExecutionContext.Implicits.global as long as this is using Await.result
   // See https://github.com/akka/akka-http/issues/602
   // And https://github.com/viktorklang/blog/blob/master/Futures-in-Scala-2.12-part-7.md
-  final implicit val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
-    Executors.newFixedThreadPool(100, DaemonizedDefaultThreadFactory))
+  implicit final val blockingEc: ExecutionContextExecutor =
+    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(100, DaemonizedDefaultThreadFactory))
 
   // Akka HTTP needs both the actor system and a materializer
-  final implicit val system: ActorSystem = ActorSystem("centaur-acting-like-a-system")
-  final implicit val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system))
+  implicit final val system: ActorSystem = ActorSystem("centaur-acting-like-a-system")
+  implicit final val materializer: ActorMaterializer = ActorMaterializer(ActorMaterializerSettings(system))
   final val apiVersion = "v1"
   val cromwellClient = new CromwellClient(CentaurConfig.cromwellUrl, apiVersion)
 
   val defaultMetadataArgs: Option[Map[String, List[String]]] =
     config.getAs[Map[String, List[String]]]("centaur.metadata-args")
 
-  def submit(workflow: Workflow): IO[SubmittedWorkflow] = {
-    sendReceiveFutureCompletion(() => {
+  def submit(workflow: Workflow): IO[SubmittedWorkflow] =
+    sendReceiveFutureCompletion { () =>
       val submitted = cromwellClient.submit(workflow.toWorkflowSubmission)
       submitted.biSemiflatMap(
         httpResponse =>
@@ -59,44 +59,40 @@ object CentaurCromwellClient extends StrictLogging {
             _ = workflow.submittedWorkflowTracker.add(submittedWorkflow)
           } yield submittedWorkflow
       )
-    })
-  }
+    }
 
-  def describe(workflow: Workflow): IO[WaasDescription] = {
+  def describe(workflow: Workflow): IO[WaasDescription] =
     sendReceiveFutureCompletion(() => cromwellClient.describe(workflow.toWorkflowDescribeRequest))
-  }
 
-  def status(workflow: SubmittedWorkflow): IO[WorkflowStatus] = {
+  def status(workflow: SubmittedWorkflow): IO[WorkflowStatus] =
     sendReceiveFutureCompletion(() => cromwellClient.status(workflow.id))
-  }
 
-  def abort(workflow: SubmittedWorkflow): IO[WorkflowStatus] = {
+  def abort(workflow: SubmittedWorkflow): IO[WorkflowStatus] =
     sendReceiveFutureCompletion(() => cromwellClient.abort(workflow.id))
-  }
 
-  def outputs(workflow: SubmittedWorkflow): IO[WorkflowOutputs] = {
+  def outputs(workflow: SubmittedWorkflow): IO[WorkflowOutputs] =
     sendReceiveFutureCompletion(() => cromwellClient.outputs(workflow.id))
-  }
 
-  def callCacheDiff(workflowA: SubmittedWorkflow, callA: String, workflowB: SubmittedWorkflow, callB: String): IO[CallCacheDiff] = {
-    sendReceiveFutureCompletion(() => cromwellClient.callCacheDiff(workflowA.id, callA, ShardIndex(None), workflowB.id, callB, ShardIndex(None)))
-  }
+  def callCacheDiff(workflowA: SubmittedWorkflow,
+                    callA: String,
+                    workflowB: SubmittedWorkflow,
+                    callB: String
+  ): IO[CallCacheDiff] =
+    sendReceiveFutureCompletion(() =>
+      cromwellClient.callCacheDiff(workflowA.id, callA, ShardIndex(None), workflowB.id, callB, ShardIndex(None))
+    )
 
-  def logs(workflow: SubmittedWorkflow): IO[WorkflowMetadata] = {
+  def logs(workflow: SubmittedWorkflow): IO[WorkflowMetadata] =
     sendReceiveFutureCompletion(() => cromwellClient.logs(workflow.id))
-  }
 
-  def labels(workflow: SubmittedWorkflow): IO[WorkflowLabels] = {
+  def labels(workflow: SubmittedWorkflow): IO[WorkflowLabels] =
     sendReceiveFutureCompletion(() => cromwellClient.labels(workflow.id))
-  }
 
-  def addLabels(workflow: SubmittedWorkflow, newLabels: List[Label]): IO[WorkflowLabels] = {
+  def addLabels(workflow: SubmittedWorkflow, newLabels: List[Label]): IO[WorkflowLabels] =
     sendReceiveFutureCompletion(() => cromwellClient.addLabels(workflow.id, newLabels))
-  }
 
-  def version: IO[CromwellVersion] = {
+  def version: IO[CromwellVersion] =
     sendReceiveFutureCompletion(() => cromwellClient.version)
-  }
 
   /*
     Sends a quick ping to the Cromwell query endpoint. The query endpoint is the only one which both hits the
@@ -104,7 +100,9 @@ object CentaurCromwellClient extends StrictLogging {
     currently does not support query.
    */
   def isAlive: Boolean = {
-    val response = Http().singleRequest(HttpRequest(uri=s"${CentaurConfig.cromwellUrl}/api/workflows/$apiVersion/query?status=Succeeded"))
+    val response = Http().singleRequest(
+      HttpRequest(uri = s"${CentaurConfig.cromwellUrl}/api/workflows/$apiVersion/query?status=Succeeded")
+    )
     // Silence the following warning by discarding the result of a successful query:
     // Response entity was not subscribed after 1 second. Make sure to read the response entity body or call `discardBytes()` on it.
     val successOrFailure = response map { _.entity.discardBytes() }
@@ -113,18 +111,19 @@ object CentaurCromwellClient extends StrictLogging {
 
   def metadata(workflow: SubmittedWorkflow,
                args: Option[Map[String, List[String]]] = defaultMetadataArgs,
-               expandSubworkflows: Boolean = false): IO[WorkflowMetadata] = {
+               expandSubworkflows: Boolean = false
+  ): IO[WorkflowMetadata] = {
     val mandatoryArgs = Map("expandSubWorkflows" -> List(expandSubworkflows.toString))
     metadataWithId(workflow.id, Option(args.getOrElse(Map.empty) ++ mandatoryArgs))
   }
 
-  def metadataWithId(id: WorkflowId, args: Option[Map[String, List[String]]] = defaultMetadataArgs): IO[WorkflowMetadata] = {
+  def metadataWithId(id: WorkflowId,
+                     args: Option[Map[String, List[String]]] = defaultMetadataArgs
+  ): IO[WorkflowMetadata] =
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id, args))
-  }
 
-  def archiveStatus(id: WorkflowId): IO[String] = {
+  def archiveStatus(id: WorkflowId): IO[String] =
     sendReceiveFutureCompletion(() => cromwellClient.query(id)).map(_.results.head.metadataArchiveStatus)
-  }
 
   implicit private val timer: Timer[IO] = IO.timer(blockingEc)
   implicit private val contextShift: ContextShift[IO] = IO.contextShift(blockingEc)
@@ -137,42 +136,43 @@ object CentaurCromwellClient extends StrictLogging {
 
     val stackTraceString = ExceptionUtils.getStackTrace(new Exception)
 
-    ioDelay.flatMap( _ =>
+    ioDelay.flatMap(_ =>
       // Could probably use IO to do the retrying too. For now use a copyport of Retry from cromwell core. Retry 5 times,
       // wait 5 seconds between retries. Timeout the whole thing using the IO timeout.
       // https://github.com/cb372/cats-retry
       // https://typelevel.org/cats-effect/datatypes/io.html#example-retrying-with-exponential-backoff
-      IO.fromFuture(IO(Retry.withRetry(
-        () => func().asIo.unsafeToFuture(),
-        Option(5),
-        5.seconds,
-        isTransient = isTransient,
-        isFatal = isFatal
-      )).timeoutTo(timeout,
-        {
+      IO.fromFuture(
+        IO(
+          Retry.withRetry(
+            () => func().asIo.unsafeToFuture(),
+            Option(5),
+            5.seconds,
+            isTransient = isTransient,
+            isFatal = isFatal
+          )
+        ).timeoutTo(
+          timeout,
           IO.raiseError(new TimeoutException("Timeout from retryRequest " + timeout.toString + ": " + stackTraceString))
-        }
-    )))
+        )
+      )
+    )
   }
 
-  def sendReceiveFutureCompletion[T](x: () => FailureResponseOrT[T]): IO[T] = {
+  def sendReceiveFutureCompletion[T](x: () => FailureResponseOrT[T]): IO[T] =
     retryRequest(x, CentaurConfig.sendReceiveTimeout)
-  }
 
   private def isFatal(f: Throwable) = f match {
     case _: DeserializationException => true
     case _ => false
   }
 
-  private def isTransient(f: Throwable) = {
+  private def isTransient(f: Throwable) =
     f match {
-      case _: StreamTcpException |
-           _: IOException |
-           _: UnsupportedContentTypeException => true
+      case _: StreamTcpException | _: IOException | _: UnsupportedContentTypeException => true
       case BufferOverflowException(message) => message.contains("Please retry the request later.")
       case unsuccessful: UnsuccessfulRequestException => unsuccessful.httpResponse.status == StatusCodes.NotFound
-      case unexpected: RuntimeException => unexpected.getMessage.contains("The http server closed the connection unexpectedly")
+      case unexpected: RuntimeException =>
+        unexpected.getMessage.contains("The http server closed the connection unexpectedly")
       case _ => false
     }
-  }
 }

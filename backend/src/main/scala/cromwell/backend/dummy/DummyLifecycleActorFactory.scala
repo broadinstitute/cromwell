@@ -3,9 +3,15 @@ package cromwell.backend.dummy
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardInitializationActor, StandardLifecycleActorFactory}
+import cromwell.backend.standard.{
+  StandardAsyncExecutionActor,
+  StandardInitializationActor,
+  StandardLifecycleActorFactory
+}
 
-class DummyLifecycleActorFactory(override val name: String, override val configurationDescriptor: BackendConfigurationDescriptor) extends StandardLifecycleActorFactory {
+class DummyLifecycleActorFactory(override val name: String,
+                                 override val configurationDescriptor: BackendConfigurationDescriptor
+) extends StandardLifecycleActorFactory {
 
   /**
     * @return the key to use for storing and looking up the job id.
@@ -23,8 +29,11 @@ class DummyLifecycleActorFactory(override val name: String, override val configu
   // Don't hash files
   override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = None
 
-  override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(Props(new DummySingletonActor()))
+  override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = Option(
+    Props(new DummySingletonActor())
+  )
 
-  override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] = classOf[DummyInitializationActor]
+  override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] =
+    classOf[DummyInitializationActor]
 
 }

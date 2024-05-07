@@ -14,37 +14,36 @@ import spray.json.{JsArray, JsBoolean, JsNumber, JsObject, JsValue}
 import wom.RuntimeAttributesKeys._
 import wom.values._
 
-class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with CromwellTimeoutSpec with Matchers
-  with MockSugar {
+class StandardValidatedRuntimeAttributesBuilderSpec
+    extends AnyWordSpecLike
+    with CromwellTimeoutSpec
+    with Matchers
+    with MockSugar {
 
   val HelloWorld: String =
     s"""
-      |task hello {
-      |  String addressee = "you"
-      |  command {
-      |    echo "Hello $${addressee}!"
-      |  }
-      |  output {
-      |    String salutation = read_string(stdout())
-      |  }
-      |
-      |  RUNTIME
-      |}
-      |
-      |workflow hello {
-      |  call hello
-      |}
+       |task hello {
+       |  String addressee = "you"
+       |  command {
+       |    echo "Hello $${addressee}!"
+       |  }
+       |  output {
+       |    String salutation = read_string(stdout())
+       |  }
+       |
+       |  RUNTIME
+       |}
+       |
+       |workflow hello {
+       |  call hello
+       |}
     """.stripMargin
 
+  val defaultRuntimeAttributes: Map[String, Any] =
+    Map(DockerKey -> None, FailOnStderrKey -> false, ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(0)))
 
-  val defaultRuntimeAttributes: Map[String, Any] = Map(
-    DockerKey -> None,
-    FailOnStderrKey -> false,
-    ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(0)))
-
-  def workflowOptionsWithDefaultRuntimeAttributes(defaults: Map[String, JsValue]): WorkflowOptions = {
+  def workflowOptionsWithDefaultRuntimeAttributes(defaults: Map[String, JsValue]): WorkflowOptions =
     WorkflowOptions(JsObject(Map("default_runtime_attributes" -> JsObject(defaults))))
-  }
 
   "SharedFileSystemValidatedRuntimeAttributesBuilder" should {
     "validate when there are no runtime attributes defined" in {
@@ -75,8 +74,11 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with
       var warnings = List.empty[Any]
       val mockLogger = mock[Logger]
       mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
-      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        includeDockerSupport = false, logger = mockLogger)
+      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes,
+                                                expectedRuntimeAttributes,
+                                                includeDockerSupport = false,
+                                                logger = mockLogger
+      )
       warnings should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")
     }
 
@@ -97,46 +99,60 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with
       var warnings = List.empty[Any]
       val mockLogger = mock[Logger]
       mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
-      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        includeDockerSupport = false, logger = mockLogger)
+      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes,
+                                                expectedRuntimeAttributes,
+                                                includeDockerSupport = false,
+                                                logger = mockLogger
+      )
       warnings should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")
     }
 
     "fail to validate an invalid failOnStderr entry" in {
       val runtimeAttributes = Map("failOnStderr" -> WomString("yes"))
-      assertRuntimeAttributesFailedCreation(runtimeAttributes,
-        "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
+      assertRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'"
+      )
     }
 
     "use workflow options as default if failOnStdErr key is missing" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes + (FailOnStderrKey -> true)
       val workflowOptions = workflowOptionsWithDefaultRuntimeAttributes(Map(FailOnStderrKey -> JsBoolean(true)))
       val runtimeAttributes = Map.empty[String, WomValue]
-      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        workflowOptions = workflowOptions)
+      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes,
+                                                expectedRuntimeAttributes,
+                                                workflowOptions = workflowOptions
+      )
     }
 
     "validate a valid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("continueOnReturnCode" -> WomInteger(1))
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1)))
+      val expectedRuntimeAttributes =
+        defaultRuntimeAttributes + (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1)))
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("continueOnReturnCode" -> WomString("value"))
-      assertRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
+      assertRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting returnCodes/continueOnReturnCode" +
+          " runtime attribute to be either a String '*', 'true', or 'false', a Boolean, or an Array[Int]."
+      )
     }
 
     "use workflow options as default if continueOnReturnCode key is missing" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes +
         (ContinueOnReturnCodeKey -> ContinueOnReturnCodeSet(Set(1, 2)))
       val workflowOptions = workflowOptionsWithDefaultRuntimeAttributes(
-        Map(ContinueOnReturnCodeKey -> JsArray(Vector(JsNumber(1), JsNumber(2)))))
+        Map(ContinueOnReturnCodeKey -> JsArray(Vector(JsNumber(1), JsNumber(2))))
+      )
       val runtimeAttributes = Map.empty[String, WomValue]
-      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes,
-        workflowOptions = workflowOptions)
+      assertRuntimeAttributesSuccessfulCreation(runtimeAttributes,
+                                                expectedRuntimeAttributes,
+                                                workflowOptions = workflowOptions
+      )
     }
-
   }
 
   val defaultLogger: Logger = LoggerFactory.getLogger(classOf[StandardValidatedRuntimeAttributesBuilderSpec])
@@ -148,44 +164,52 @@ class StandardValidatedRuntimeAttributesBuilderSpec extends AnyWordSpecLike with
                                                         expectedRuntimeAttributes: Map[String, Any],
                                                         includeDockerSupport: Boolean = true,
                                                         workflowOptions: WorkflowOptions = emptyWorkflowOptions,
-                                                        logger: Logger = defaultLogger): Unit = {
+                                                        logger: Logger = defaultLogger
+  ): Unit = {
 
     val builder = if (includeDockerSupport) {
-      StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig).withValidation(DockerValidation.optional)
+      StandardValidatedRuntimeAttributesBuilder
+        .default(mockBackendRuntimeConfig)
+        .withValidation(DockerValidation.optional)
     } else {
       StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
     }
     val runtimeAttributeDefinitions = builder.definitions.toSet
-    val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _
+    val addDefaultsToAttributes =
+      RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _
 
     val validatedRuntimeAttributes = builder.build(addDefaultsToAttributes(runtimeAttributes), logger)
 
-    val docker = RuntimeAttributesValidation.extractOption(
-      DockerValidation.instance, validatedRuntimeAttributes)
-    val failOnStderr = RuntimeAttributesValidation.extract(
-      FailOnStderrValidation.instance, validatedRuntimeAttributes)
-    val continueOnReturnCode = RuntimeAttributesValidation.extract(
-      ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
+    val docker = RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
+    val failOnStderr = RuntimeAttributesValidation.extract(FailOnStderrValidation.instance, validatedRuntimeAttributes)
+    val continueOnReturnCode =
+      RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
 
     docker should be(expectedRuntimeAttributes(DockerKey).asInstanceOf[Option[String]])
     failOnStderr should be(expectedRuntimeAttributes(FailOnStderrKey).asInstanceOf[Boolean])
     continueOnReturnCode should be(
-      expectedRuntimeAttributes(ContinueOnReturnCodeKey).asInstanceOf[ContinueOnReturnCode])
+      expectedRuntimeAttributes(ContinueOnReturnCodeKey)
+    )
     ()
   }
 
-  private def assertRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue], exMsg: String,
+  private def assertRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],
+                                                    exMsg: String,
                                                     supportsDocker: Boolean = true,
                                                     workflowOptions: WorkflowOptions = emptyWorkflowOptions,
-                                                    logger: Logger = defaultLogger): Unit = {
+                                                    logger: Logger = defaultLogger
+  ): Unit = {
     val thrown = the[RuntimeException] thrownBy {
       val builder = if (supportsDocker) {
-        StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig).withValidation(DockerValidation.optional)
+        StandardValidatedRuntimeAttributesBuilder
+          .default(mockBackendRuntimeConfig)
+          .withValidation(DockerValidation.optional)
       } else {
         StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
       }
       val runtimeAttributeDefinitions = builder.definitions.toSet
-      val addDefaultsToAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _
+      val addDefaultsToAttributes =
+        RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributeDefinitions, workflowOptions) _
 
       builder.build(addDefaultsToAttributes(runtimeAttributes), logger)
     }

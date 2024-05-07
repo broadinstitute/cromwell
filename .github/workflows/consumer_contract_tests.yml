@@ -29,17 +29,24 @@ name: Consumer contract tests
 #     Consumer kicks off can-i-deploy on process to determine if changes can be promoted and used for deployment.
 #
 # NOTE: The publish-contracts workflow will use the latest commit of the branch that triggers this workflow to publish the unique consumer contract version to Pact Broker.
-
 on:
   pull_request:
+    branches:
+      - develop
     paths-ignore:
       - 'README.md'
   push:
+    branches:
+      - develop
     paths-ignore:
       - 'README.md'
   merge_group:
     branches:
       - develop
+
+env:
+  PUBLISH_CONTRACTS_RUN_NAME: 'publish-contracts-${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
+  CAN_I_DEPLOY_RUN_NAME: 'can-i-deploy-${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
 
 jobs:
   init-github-context:
@@ -51,6 +58,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
+      # Construct a version string like `87-9c6c439`. Adapted from `chart_update_on_merge.yml`.
+      - name: Find Cromwell short SHA
+        run: |
+          set -e
+          echo "CROMWELL_SHORT_SHA=`git rev-parse --short $GITHUB_SHA`" >> $GITHUB_ENV
+      - name: Find Cromwell release number
+        run: |
+          set -e
+          previous_version=$(curl -X GET https://api.github.com/repos/broadinstitute/cromwell/releases/latest | jq .tag_name | xargs)
+          if ! [[ "${previous_version}" =~ ^[0-9][0-9]+$ ]]; then
+            exit 1
+          fi
+          echo "CROMWELL_NUMBER=$((previous_version + 1))" >> $GITHUB_ENV
+      - name: Save complete image ID
+        run: |
+          echo "CROMWELL_VERSION=`echo "$CROMWELL_NUMBER-$CROMWELL_SHORT_SHA"`" >> $GITHUB_ENV
 
       - name: Extract branch
         id: extract-branch
@@ -70,9 +94,9 @@ jobs:
           fi
           echo "CURRENT_BRANCH=${GITHUB_REF/refs\/heads\//""}" >> $GITHUB_ENV
           echo "CURRENT_SHA=$GITHUB_SHA" >> $GITHUB_ENV
-          
+
           echo "repo-branch=${GITHUB_REF/refs\/heads\//""}" >> $GITHUB_OUTPUT
-          echo "repo-version=${GITHUB_SHA}" >> $GITHUB_OUTPUT
+          echo "repo-version=${CROMWELL_VERSION}" >> $GITHUB_OUTPUT
           echo "fork=${FORK}" >> $GITHUB_OUTPUT
 
       - name: Is PR triggered by forked repo?
@@ -88,11 +112,12 @@ jobs:
           echo "repo-version=${{ steps.extract-branch.outputs.repo-version }}"
           echo "fork=${{ steps.extract-branch.outputs.fork }}"
 
-  cromwell-consumer-contract-tests:
+  cromwell-contract-tests:
     runs-on: ubuntu-latest
     needs: [init-github-context]
     outputs:
-      pact-b64: ${{ steps.encode-pact.outputs.pact-b64 }}
+      pact-b64-drshub: ${{ steps.encode-pact.outputs.pact-b64-drshub }}
+      pact-b64-cbas: ${{ steps.encode-pact.outputs.pact-b64-cbas }}
 
     steps:
       - uses: actions/checkout@v3
@@ -108,25 +133,52 @@ jobs:
       - name: Output consumer contract as non-breaking base64 string
         id: encode-pact
         run: |
+          set -e
           cd pact4s
-          NON_BREAKING_B64=$(cat target/pacts/cromwell-consumer-drshub-provider.json | base64 -w 0)
-          echo "pact-b64=${NON_BREAKING_B64}" >> $GITHUB_OUTPUT
+          NON_BREAKING_B64_DRSHUB=$(cat target/pacts/cromwell-drshub.json | base64 -w 0)
+          NON_BREAKING_B64_CBAS=$(cat target/pacts/cromwell-cbas.json | base64 -w 0)
+          echo "pact-b64-drshub=${NON_BREAKING_B64_DRSHUB}" >> $GITHUB_OUTPUT
+          echo "pact-b64-cbas=${NON_BREAKING_B64_CBAS}" >> $GITHUB_OUTPUT
 
   # Prevent untrusted sources from using PRs to publish contracts
   # since access to secrets is not allowed.
   publish-contracts:
     runs-on: ubuntu-latest
     if: ${{ needs.init-github-context.outputs.fork == 'false' ||  needs.init-github-context.outputs.fork == ''}}
-    needs: [init-github-context, cromwell-consumer-contract-tests]
+    needs: [init-github-context, cromwell-contract-tests]
     steps:
-      - name: Dispatch to terra-github-workflows
-        uses: broadinstitute/workflow-dispatch@v3
+      - name: Dispatch drshub to terra-github-workflows
+        uses: broadinstitute/workflow-dispatch@v4.0.0
         with:
+          run-name: "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}"
           workflow: .github/workflows/publish-contracts.yaml
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
           token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # github token for access to kick off a job in the private repo
-          inputs: '{ "pact-b64": "${{ needs.cromwell-consumer-contract-tests.outputs.pact-b64 }}", "repo-owner": "${{ github.repository_owner }}", "repo-name": "${{ github.event.repository.name }}", "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}" }'
+          inputs: '{
+            "run-name": "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}",
+            "pact-b64": "${{ needs.cromwell-contract-tests.outputs.pact-b64-drshub }}",
+            "repo-owner": "${{ github.repository_owner }}",
+            "repo-name": "${{ github.event.repository.name }}",
+            "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}",
+            "release-tag": "${{ needs.init-github-context.outputs.repo-version }}"
+          }'
+      - name: Dispatch cbas to terra-github-workflows
+        uses: broadinstitute/workflow-dispatch@v4.0.0
+        with:
+          run-name: "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}"
+          workflow: .github/workflows/publish-contracts.yaml
+          repo: broadinstitute/terra-github-workflows
+          ref: refs/heads/main
+          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # github token for access to kick off a job in the private repo
+          inputs: '{
+            "run-name": "${{ env.PUBLISH_CONTRACTS_RUN_NAME }}",
+            "pact-b64": "${{ needs.cromwell-contract-tests.outputs.pact-b64-cbas }}",
+            "repo-owner": "${{ github.repository_owner }}",
+            "repo-name": "${{ github.event.repository.name }}",
+            "repo-branch": "${{ needs.init-github-context.outputs.repo-branch }}",
+            "release-tag": "${{ needs.init-github-context.outputs.repo-version }}"
+          }'
 
   can-i-deploy:
     runs-on: ubuntu-latest
@@ -134,10 +186,15 @@ jobs:
     needs: [ init-github-context, publish-contracts ]
     steps:
       - name: Dispatch to terra-github-workflows
-        uses: broadinstitute/workflow-dispatch@v3
+        uses: broadinstitute/workflow-dispatch@v4.0.0
         with:
+          run-name: "${{ env.CAN_I_DEPLOY_RUN_NAME }}"
           workflow: .github/workflows/can-i-deploy.yaml
           repo: broadinstitute/terra-github-workflows
           ref: refs/heads/main
           token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # github token for access to kick off a job in the private repo
-          inputs: '{ "pacticipant": "cromwell-consumer", "version": "${{ needs.init-github-context.outputs.repo-version }}" }'
+          inputs: '{
+            "run-name": "${{ env.CAN_I_DEPLOY_RUN_NAME }}",
+            "pacticipant": "cromwell",
+            "version": "${{ needs.init-github-context.outputs.repo-version }}"
+          }'

@@ -15,7 +15,6 @@ import org.broadinstitute.dsde.workbench.util.health.Subsystems.{Cromwell, Sam}
 
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
 
-
 object CromIamServer extends HttpApp with CromIamApiService with SwaggerService {
 
   final val rootConfig: Config = ConfigFactory.load()
@@ -35,21 +34,28 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
     If there is a reason then leave a comment why there should be two actor systems.
     https://github.com/broadinstitute/cromwell/issues/3851
      */
-    CromIamServer.startServer(configuration.cromIamConfig.http.interface, configuration.cromIamConfig.http.port, configuration.cromIamConfig.serverSettings)
+    CromIamServer.startServer(configuration.cromIamConfig.http.interface,
+                              configuration.cromIamConfig.http.port,
+                              configuration.cromIamConfig.serverSettings
+    )
   }
 
-  override implicit val system: ActorSystem = ActorSystem()
-  override implicit lazy val executor: ExecutionContextExecutor = system.dispatcher
-  override implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit override val system: ActorSystem = ActorSystem()
+  implicit override lazy val executor: ExecutionContextExecutor = system.dispatcher
+  implicit override val materializer: ActorMaterializer = ActorMaterializer()
 
   override val log = Logging(system, getClass)
 
   override val routes: Route = allRoutes ~ swaggerUiResourceRoute
 
-  override val statusService: StatusService = new StatusService(() => Map(Cromwell -> cromwellClient.subsystemStatus(), Sam -> samClient.subsystemStatus()))
+  override val statusService: StatusService = new StatusService(() =>
+    Map(Cromwell -> cromwellClient.subsystemStatus(), Sam -> samClient.subsystemStatus())
+  )
 
   // Override default shutdownsignal which was just "hit return/enter"
-  override def waitForShutdownSignal(actorSystem: ActorSystem)(implicit executionContext: ExecutionContext): Future[Done] = {
+  override def waitForShutdownSignal(
+    actorSystem: ActorSystem
+  )(implicit executionContext: ExecutionContext): Future[Done] = {
     val promise = Promise[Done]()
     sys.addShutdownHook {
       // we can add anything we want the server to do when someone shutdowns the server (Ctrl-c)

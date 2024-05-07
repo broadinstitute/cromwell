@@ -25,16 +25,20 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
     None,
     None,
     false,
+    None,
     Map.empty
   )
 
   val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = "ubuntu:latest")
 
-  def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) = {
-    WorkflowOptions(JsObject(Map(
-      "default_runtime_attributes" -> JsObject(defaults)
-    )))
-  }
+  def workflowOptionsWithDefaultRA(defaults: Map[String, JsValue]) =
+    WorkflowOptions(
+      JsObject(
+        Map(
+          "default_runtime_attributes" -> JsObject(defaults)
+        )
+      )
+    )
 
   "TesRuntimeAttributes" should {
 
@@ -62,13 +66,30 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
     "fail to validate an invalid failOnStderr entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "failOnStderr" -> WomString("yes"))
-      assertFailure(runtimeAttributes, "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'")
+      assertFailure(
+        runtimeAttributes,
+        "Expecting failOnStderr runtime attribute to be a Boolean or a String with values of 'true' or 'false'"
+      )
     }
 
     "validate a valid preemptible entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomBoolean(true))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(preemptible = true)
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "validate a valid azureSasEnvironmentVariable entry" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"), TesRuntimeAttributes.LocalizedSasKey -> WomString("THIS_IS_VALID"))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(localizedSasEnvVar = Some("THIS_IS_VALID"))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid azureSasEnvironmentVariable entry" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),
+                                  TesRuntimeAttributes.LocalizedSasKey -> WomString("THIS IS INVALID")
+      )
+      assertFailure(runtimeAttributes, "Value must be a string containing only letters, numbers, and underscores.")
     }
 
     "convert a positive integer preemptible entry to true boolean" in {
@@ -91,35 +112,54 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
     "fail to validate an invalid string preemptible entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomString("yes"))
-      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'")
+      assertFailure(
+        runtimeAttributes,
+        "Expecting preemptible runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'"
+      )
     }
 
     "fail to validate an invalid type preemptible entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "preemptible" -> WomFloat(3.14))
-      assertFailure(runtimeAttributes, "Expecting preemptible runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'")
+      assertFailure(
+        runtimeAttributes,
+        "Expecting preemptible runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'"
+      )
     }
 
     "validate a valid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomInteger(1))
-      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
+      val expectedRuntimeAttributes =
+        expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2))))
-      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            "continueOnReturnCode" -> WomArray(WomArrayType(WomIntegerType), List(WomInteger(1), WomInteger(2)))
+        )
+      val expectedRuntimeAttributes =
+        expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "coerce then validate a valid continueOnReturnCode array entry" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2"))))
-      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            "continueOnReturnCode" -> WomArray(WomArrayType(WomStringType), List(WomString("1"), WomString("2")))
+        )
+      val expectedRuntimeAttributes =
+        expectedDefaultsPlusUbuntuDocker.copy(continueOnReturnCode = ContinueOnReturnCodeSet(Set(1, 2)))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid continueOnReturnCode entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "continueOnReturnCode" -> WomString("value"))
-      assertFailure(runtimeAttributes, "Expecting continueOnReturnCode runtime attribute to be either a Boolean, a String 'true' or 'false', or an Array[Int]")
+      assertFailure(
+        runtimeAttributes,
+        "Expecting returnCodes/continueOnReturnCode" +
+          " runtime attribute to be either a String '*', 'true', or 'false', a Boolean, or an Array[Int]."
+      )
     }
 
     "validate a valid cpu entry" in assertSuccess(
@@ -146,7 +186,9 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
     "fail to validate an invalid memory entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "memory" -> WomString("blah"))
-      assertFailure(runtimeAttributes, "Expecting memory runtime attribute to be an Integer or String with format '8 GB'")
+      assertFailure(runtimeAttributes,
+                    "Expecting memory runtime attribute to be an Integer or String with format '8 GB'"
+      )
     }
 
     "validate a valid disk entry" in {
@@ -173,7 +215,8 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
     }
 
     "refuse multiple `local-disk` instances" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 10 SSD, local-disk 20 SSD"))
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("local-disk 10 SSD, local-disk 20 SSD"))
       assertFailure(runtimeAttributes, "Expecting exactly one disk definition on this backend, found multiple")
     }
 
@@ -183,29 +226,41 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
     }
 
     "refuse custom AND multiple mount points" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("/mnt/tmp 10 LOCAL, local-disk 20 HDD"))
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("/mnt/tmp 10 LOCAL, local-disk 20 HDD"))
       assertFailure(runtimeAttributes, "Disks with custom mount points are not supported by this backend")
     }
 
     "not accept a single comma" ignore {
       // Surprisingly, the PAPI code we call under the covers validates `,` and give the user a default disk.
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString(","))
-      assertFailure(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: ','")
+      assertFailure(
+        runtimeAttributes,
+        "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: ','"
+      )
     }
 
     "not accept empty string" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString(""))
-      assertFailure(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: ''")
+      assertFailure(
+        runtimeAttributes,
+        "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: ''"
+      )
     }
 
     "not accept `banana`" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomString("banana"))
-      assertFailure(runtimeAttributes, "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: 'banana'")
+      assertFailure(
+        runtimeAttributes,
+        "Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: 'banana'"
+      )
     }
 
     "not accept a random number (chosen by fair dice roll)" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "disks" -> WomInteger(4))
-      assertFailure(runtimeAttributes, "Expecting disks runtime attribute to be a comma separated String or Array[String]")
+      assertFailure(runtimeAttributes,
+                    "Expecting disks runtime attribute to be a comma separated String or Array[String]"
+      )
     }
 
     "validate a valid dockerWorkingDir entry" in {
@@ -236,11 +291,11 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
     }
 
     "exclude unknown non-string attributes from backend parameters" in {
-      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomInteger(5), "bar" -> WomString("baz"))
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomInteger(5), "bar" -> WomString("baz"))
       val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("bar" -> Option("baz")))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
     }
-
 
     "turn populated optional unknown string attributes into backend parameters" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "foo" -> WomOptionalValue(WomString("bar")))
@@ -255,7 +310,8 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
     }
   }
 
-  private val mockConfigurationDescriptor = BackendConfigurationDescriptor(TesTestConfig.backendConfig, TestConfig.globalConfig)
+  private val mockConfigurationDescriptor =
+    BackendConfigurationDescriptor(TesTestConfig.backendConfig, TestConfig.globalConfig)
   private val mockTesConfiguration = new TesConfiguration(mockConfigurationDescriptor)
   private val mockTesConfigWithBackendParams = new TesConfiguration(
     mockConfigurationDescriptor.copy(backendConfig = TesTestConfig.backendConfigWithBackendParams)
@@ -264,7 +320,8 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
   private def assertSuccess(runtimeAttributes: Map[String, WomValue],
                             expectedRuntimeAttributes: TesRuntimeAttributes,
                             workflowOptions: WorkflowOptions = emptyWorkflowOptions,
-                            tesConfig: TesConfiguration = mockTesConfiguration): Unit = {
+                            tesConfig: TesConfiguration = mockTesConfiguration
+  ): Unit = {
 
     try {
       val actualRuntimeAttributes = toTesRuntimeAttributes(runtimeAttributes, workflowOptions, tesConfig)
@@ -278,7 +335,8 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
   private def assertFailure(runtimeAttributes: Map[String, WomValue],
                             exMsg: String,
                             workflowOptions: WorkflowOptions = emptyWorkflowOptions,
-                            tesConfig: TesConfiguration = mockTesConfiguration): Unit = {
+                            tesConfig: TesConfiguration = mockTesConfiguration
+  ): Unit = {
     try {
       toTesRuntimeAttributes(runtimeAttributes, workflowOptions, tesConfig)
       fail("A RuntimeException was expected.")
@@ -292,13 +350,15 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
   private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =
     TesRuntimeAttributes.runtimeAttributesBuilder(mockTesConfiguration.runtimeConfig).definitions.toSet
 
-
   private def toTesRuntimeAttributes(runtimeAttributes: Map[String, WomValue],
                                      workflowOptions: WorkflowOptions,
-                                     tesConfiguration: TesConfiguration): TesRuntimeAttributes = {
+                                     tesConfiguration: TesConfiguration
+  ): TesRuntimeAttributes = {
     val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder(tesConfiguration.runtimeConfig)
-    val defaultedAttributes = RuntimeAttributeDefinition.addDefaultsToAttributes(
-      staticRuntimeAttributeDefinitions, workflowOptions)(runtimeAttributes)
+    val defaultedAttributes =
+      RuntimeAttributeDefinition.addDefaultsToAttributes(staticRuntimeAttributeDefinitions, workflowOptions)(
+        runtimeAttributes
+      )
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
     TesRuntimeAttributes(validatedRuntimeAttributes, runtimeAttributes, tesConfiguration)
   }

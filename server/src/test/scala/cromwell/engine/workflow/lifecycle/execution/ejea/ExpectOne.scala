@@ -1,8 +1,12 @@
 package cromwell.engine.workflow.lifecycle.execution.ejea
 
-private[ejea] sealed trait ExpectOne[+A] {
-  def checkIt(block: A => Any): Unit = throw new IllegalStateException("This ExpectOne must have exactly one element for checkIt to work")
-  def checkLatest(block: A => Any): Unit = throw new IllegalStateException("This ExpectOne must have at least one element for checkLatest to work")
+sealed private[ejea] trait ExpectOne[+A] {
+  def checkIt(block: A => Any): Unit = throw new IllegalStateException(
+    "This ExpectOne must have exactly one element for checkIt to work"
+  )
+  def checkLatest(block: A => Any): Unit = throw new IllegalStateException(
+    "This ExpectOne must have at least one element for checkLatest to work"
+  )
   def hasAtLeastOne: Boolean
   def hasExactlyOne: Boolean
   def foundOne[B >: A](theFoundOne: B) = this match {
@@ -25,7 +29,7 @@ private[ejea] case class GotOne[+A](theOne: A) extends ExpectOne[A] {
 }
 
 private[ejea] case class GotTooMany[+A](theOnes: List[A]) extends ExpectOne[A] {
-  override def checkLatest(block: A => Any): Unit = { block(theOnes.last); ()  }
+  override def checkLatest(block: A => Any): Unit = { block(theOnes.last); () }
   override def hasAtLeastOne = true
   override def hasExactlyOne = false
 }

@@ -8,7 +8,12 @@ import com.google.api.services.pubsub.model.Topic
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.WorkflowId
 import cromwell.services.ServicesSpec
-import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
+import cromwell.services.metadata.MetadataService.{
+  MetadataWriteFailure,
+  MetadataWriteSuccess,
+  PutMetadataAction,
+  PutMetadataActionAndRespond
+}
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import org.broadinstitute.dsde.workbench.google.GooglePubSubDAO
 import org.broadinstitute.dsde.workbench.google.GooglePubSubDAO.PubSubMessage
@@ -177,29 +182,36 @@ class PubSubMetadataServiceActorSpec extends ServicesSpec {
 }
 
 object PubSubMetadataServiceActorSpec {
+
   /** A variant of PubSubMetadataServiceActor with a GooglePubSubDAO which will always return success */
-  class SuccessfulMockPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-    extends PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
+  class SuccessfulMockPubSubMetadataServiceActor(serviceConfig: Config,
+                                                 globalConfig: Config,
+                                                 serviceRegistryActor: ActorRef
+  ) extends PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
 
     override def createPubSubConnection(): GooglePubSubDAO = new SuccessfulMockGooglePubSubDao
   }
 
   /** A variant of PubSubMetadataServiceActor with a GooglePubSubDAO which will always return failure */
-  class FailingToCreateTopicMockPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-    extends PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
+  class FailingToCreateTopicMockPubSubMetadataServiceActor(serviceConfig: Config,
+                                                           globalConfig: Config,
+                                                           serviceRegistryActor: ActorRef
+  ) extends PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
 
     override def createPubSubConnection(): GooglePubSubDAO = new FailingToCreateTopicMockGooglePubSubDao
   }
 
   /** A variant of PubSubMetadataServiceActor which will fail on message publication */
-  class FailToPublishMockPubSubMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-    extends PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
+  class FailToPublishMockPubSubMetadataServiceActor(serviceConfig: Config,
+                                                    globalConfig: Config,
+                                                    serviceRegistryActor: ActorRef
+  ) extends PubSubMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
 
     override def createPubSubConnection(): GooglePubSubDAO = new FailToPublishMockGooglePubSubDao
   }
 
   trait MockGooglePubSubDao extends GooglePubSubDAO {
-    override implicit val executionContext: ExecutionContext = ExecutionContext.global
+    implicit override val executionContext: ExecutionContext = ExecutionContext.global
 
     override def createTopic(topicName: String): Future[Boolean]
     override def createSubscription(topicName: String, subscriptionName: String): Future[Boolean]
@@ -207,26 +219,36 @@ object PubSubMetadataServiceActorSpec {
 
     // The following aren't used so leaving them empty
     override def deleteTopic(topicName: String): Future[Boolean] = throw new UnsupportedOperationException
-    override def getTopic(topicName: String)(implicit executionContext: ExecutionContext): Future[Option[Topic]] = throw new UnsupportedOperationException
+    override def getTopic(topicName: String)(implicit executionContext: ExecutionContext): Future[Option[Topic]] =
+      throw new UnsupportedOperationException
     override def deleteSubscription(subscriptionName: String): Future[Boolean] = throw new UnsupportedOperationException
-    override def acknowledgeMessages(subscriptionName: String, messages: scala.collection.Seq[PubSubMessage]): Future[Unit] = throw new UnsupportedOperationException
-    override def acknowledgeMessagesById(subscriptionName: String, ackIds: scala.collection.Seq[String]): Future[Unit] = throw new UnsupportedOperationException
-    override def pullMessages(subscriptionName: String, maxMessages: Int): Future[scala.collection.Seq[PubSubMessage]] = throw new UnsupportedOperationException
-    override def setTopicIamPermissions(topicName: String, permissions: Map[WorkbenchEmail, String]): Future[Unit] = throw new UnsupportedOperationException
+    override def acknowledgeMessages(subscriptionName: String,
+                                     messages: scala.collection.Seq[PubSubMessage]
+    ): Future[Unit] = throw new UnsupportedOperationException
+    override def acknowledgeMessagesById(subscriptionName: String, ackIds: scala.collection.Seq[String]): Future[Unit] =
+      throw new UnsupportedOperationException
+    override def pullMessages(subscriptionName: String, maxMessages: Int): Future[scala.collection.Seq[PubSubMessage]] =
+      throw new UnsupportedOperationException
+    override def setTopicIamPermissions(topicName: String, permissions: Map[WorkbenchEmail, String]): Future[Unit] =
+      throw new UnsupportedOperationException
   }
 
   class SuccessfulMockGooglePubSubDao extends MockGooglePubSubDao {
     override def createTopic(topicName: String): Future[Boolean] = Future.successful(true)
-    override def createSubscription(topicName: String, subscriptionName: String): Future[Boolean] = Future.successful(true)
-    override def publishMessages(topicName: String, messages: scala.collection.Seq[String]): Future[Unit] = Future.successful(())
+    override def createSubscription(topicName: String, subscriptionName: String): Future[Boolean] =
+      Future.successful(true)
+    override def publishMessages(topicName: String, messages: scala.collection.Seq[String]): Future[Unit] =
+      Future.successful(())
   }
 
   class FailingToCreateTopicMockGooglePubSubDao extends SuccessfulMockGooglePubSubDao {
-    override def createTopic(topicName: String): Future[Boolean] = Future.failed(new RuntimeException("Unable to create topic"))
+    override def createTopic(topicName: String): Future[Boolean] =
+      Future.failed(new RuntimeException("Unable to create topic"))
   }
 
   class FailToPublishMockGooglePubSubDao extends SuccessfulMockGooglePubSubDao {
-    override def publishMessages(topicName: String, messages: scala.collection.Seq[String]): Future[Unit] = Future.failed(new RuntimeException("sorry charlie"))
+    override def publishMessages(topicName: String, messages: scala.collection.Seq[String]): Future[Unit] =
+      Future.failed(new RuntimeException("sorry charlie"))
   }
 
   // This doesn't include a project so should be a failure

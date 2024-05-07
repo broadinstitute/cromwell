@@ -3,7 +3,6 @@ package wdl.transforms.base.wdlom2wom.expression.renaming
 import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements.ExpressionElement
 
-
 object EngineFunctionEvaluators {
 
   implicit val stdoutRenamer: IdentifierLookupRenamer[StdoutElement.type] = forZeroParamFunction[StdoutElement.type]
@@ -46,51 +45,58 @@ object EngineFunctionEvaluators {
 
   implicit val subRenamer: IdentifierLookupRenamer[Sub] = forThreeParamFunction(Sub)
 
-  private def forZeroParamFunction[A <: ExpressionElement]: IdentifierLookupRenamer[A] = new IdentifierLookupRenamer[A] {
-    override def renameIdentifiers(a: A, renamingMap: Map[String, String])(implicit expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]): A = a
-  }
+  private def forZeroParamFunction[A <: ExpressionElement]: IdentifierLookupRenamer[A] =
+    new IdentifierLookupRenamer[A] {
+      override def renameIdentifiers(a: A, renamingMap: Map[String, String])(implicit
+        expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]
+      ): A = a
+    }
 
-  private def forOneParamFunction[A <: OneParamFunctionCallElement](constructor: ExpressionElement => A): IdentifierLookupRenamer[A] = new IdentifierLookupRenamer[A] {
-    override def renameIdentifiers(a: A,
-                                   renamingMap: Map[String, String])
-                                  (implicit expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]): A = {
+  private def forOneParamFunction[A <: OneParamFunctionCallElement](
+    constructor: ExpressionElement => A
+  ): IdentifierLookupRenamer[A] = new IdentifierLookupRenamer[A] {
+    override def renameIdentifiers(a: A, renamingMap: Map[String, String])(implicit
+      expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]
+    ): A =
       constructor.apply(
         expressionElementRenamer.renameIdentifiers(a.param, renamingMap)(expressionElementRenamer)
       )
-    }
   }
 
-  private def forOneOrTwoParamFunction[A <: OneOrTwoParamFunctionCallElement](constructor: (ExpressionElement, Option[ExpressionElement]) => A): IdentifierLookupRenamer[A] = new IdentifierLookupRenamer[A] {
-    override def renameIdentifiers(a: A,
-                                   renamingMap: Map[String, String])
-                                  (implicit expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]): A = {
+  private def forOneOrTwoParamFunction[A <: OneOrTwoParamFunctionCallElement](
+    constructor: (ExpressionElement, Option[ExpressionElement]) => A
+  ): IdentifierLookupRenamer[A] = new IdentifierLookupRenamer[A] {
+    override def renameIdentifiers(a: A, renamingMap: Map[String, String])(implicit
+      expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]
+    ): A =
       constructor.apply(
         expressionElementRenamer.renameIdentifiers(a.firstParam, renamingMap)(expressionElementRenamer),
         a.secondParam.map(expressionElementRenamer.renameIdentifiers(_, renamingMap)(expressionElementRenamer))
       )
-    }
   }
 
-  private def forTwoParamFunction[A <: TwoParamFunctionCallElement](constructor: (ExpressionElement, ExpressionElement) => A): IdentifierLookupRenamer[A] = new IdentifierLookupRenamer[A] {
-    override def renameIdentifiers(a: A,
-                                   renamingMap: Map[String, String])
-                                  (implicit expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]): A = {
+  private def forTwoParamFunction[A <: TwoParamFunctionCallElement](
+    constructor: (ExpressionElement, ExpressionElement) => A
+  ): IdentifierLookupRenamer[A] = new IdentifierLookupRenamer[A] {
+    override def renameIdentifiers(a: A, renamingMap: Map[String, String])(implicit
+      expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]
+    ): A =
       constructor.apply(
         expressionElementRenamer.renameIdentifiers(a.arg1, renamingMap)(expressionElementRenamer),
         expressionElementRenamer.renameIdentifiers(a.arg2, renamingMap)(expressionElementRenamer)
       )
-    }
   }
 
-  private def forThreeParamFunction[A <: ThreeParamFunctionCallElement](constructor: (ExpressionElement, ExpressionElement, ExpressionElement) => A): IdentifierLookupRenamer[A] = new IdentifierLookupRenamer[A] {
-    override def renameIdentifiers(a: A,
-                                   renamingMap: Map[String, String])
-                                  (implicit expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]): A = {
+  private def forThreeParamFunction[A <: ThreeParamFunctionCallElement](
+    constructor: (ExpressionElement, ExpressionElement, ExpressionElement) => A
+  ): IdentifierLookupRenamer[A] = new IdentifierLookupRenamer[A] {
+    override def renameIdentifiers(a: A, renamingMap: Map[String, String])(implicit
+      expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]
+    ): A =
       constructor.apply(
         expressionElementRenamer.renameIdentifiers(a.arg1, renamingMap)(expressionElementRenamer),
         expressionElementRenamer.renameIdentifiers(a.arg2, renamingMap)(expressionElementRenamer),
         expressionElementRenamer.renameIdentifiers(a.arg3, renamingMap)(expressionElementRenamer)
       )
-    }
   }
 }

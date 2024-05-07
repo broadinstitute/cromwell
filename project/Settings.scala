@@ -77,12 +77,13 @@ object Settings {
     organization := "org.broadinstitute",
     scalaVersion := ScalaVersion,
     resolvers ++= additionalResolvers,
-    // Don't run tasks in parallel, especially helps in low CPU environments like Travis
-    Global / parallelExecution := false,
+    Global / parallelExecution := true,
+    // Seems to cause race conditions in tests, that are not pertinent to what's being tested
+    Test / parallelExecution := false,
     Global / concurrentRestrictions ++= List(
-      // Don't run any other tasks while running tests, especially helps in low CPU environments like Travis
+      // Don't run any other tasks while running tests
       Tags.exclusive(Tags.Test),
-      // Only run tests on one sub-project at a time, especially helps in low CPU environments like Travis
+      // Only run tests on one sub-project at a time
       Tags.limit(Tags.Test, 1)
     ),
     dependencyOverrides ++= cromwellDependencyOverrides,
@@ -100,7 +101,6 @@ object Settings {
 
   val pact4sSettings = sharedSettings ++ List(
     libraryDependencies ++= pact4sDependencies,
-
     /**
       * Invoking pact tests from root project (sbt "project pact" test)
       * will launch tests in a separate JVM context that ensures contracts
@@ -109,9 +109,6 @@ object Settings {
       */
     Test / fork := true
   ) ++ assemblySettings
-
-  lazy val pact4s = project.in(file("pact4s"))
-    .settings(pact4sSettings)
 
   /*
       Docker instructions to install Google Cloud SDK image in docker image. It also installs `crcmod` which

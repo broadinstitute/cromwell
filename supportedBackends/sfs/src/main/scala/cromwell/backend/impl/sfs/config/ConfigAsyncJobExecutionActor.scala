@@ -4,7 +4,6 @@ import java.nio.file.FileAlreadyExistsException
 import java.time.Instant
 
 import common.validation.Validation._
-import cromwell.backend.RuntimeEnvironmentBuilder
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
@@ -57,8 +56,9 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * @param inputs   The customized inputs to this task.
     */
   def writeTaskScript(script: Path, taskName: String, inputs: WorkflowCoercedInputs): Unit = {
-    val task = configInitializationData.wdlNamespace.findTask(taskName).
-      getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
+    val task = configInitializationData.wdlNamespace
+      .findTask(taskName)
+      .getOrElse(throw new RuntimeException(s"Unable to find task $taskName"))
 
     val taskDefinition = task.toWomTaskDefinition.toTry.get
 
@@ -103,10 +103,8 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       if !inputs.contains(optional.localName.value)
     } yield optional -> WomOptionalValue.none(optional.womType.memberType)
 
-
-    val runtimeEnvironment = RuntimeEnvironmentBuilder(jobDescriptor.runtimeAttributes, jobPaths)(standardParams.minimumRuntimeSettings)
     val allInputs = providedWomInputs ++ optionalsForciblyInitializedToNone
-    val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity, runtimeEnvironment)
+    val womInstantiation = taskDefinition.instantiateCommand(allInputs, NoIoFunctionSet, identity)
 
     val command = womInstantiation.toTry.get.commandString
     jobLogger.info(s"executing: $command")
@@ -122,14 +120,15 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * The inputs that are not specified by the config, that will be passed into a command for both submit and
     * submit-docker.
     */
-  private lazy val standardInputs: WorkflowCoercedInputs = {
+  private lazy val standardInputs: WorkflowCoercedInputs =
     Map(
       JobNameInput -> WomString(jobName),
       CwdInput -> WomString(jobPaths.callRoot.pathAsString)
     )
-  }
 
-  private [config] def dockerCidInputValue: WomString = WomString(jobPaths.callExecutionRoot.resolve(jobPaths.dockerCid).pathAsString)
+  private[config] def dockerCidInputValue: WomString = WomString(
+    jobPaths.callExecutionRoot.resolve(jobPaths.dockerCid).pathAsString
+  )
 
   /**
     * The inputs that are not specified by the config, that will be passed into a command for either submit or
@@ -142,7 +141,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
         DockerStdoutInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.output).pathAsString),
         DockerStderrInput -> WomString(jobPathsWithDocker.toDockerPath(standardPaths.error).pathAsString),
         DockerScriptInput -> WomString(jobPathsWithDocker.toDockerPath(jobPaths.script).pathAsString),
-        DockerCidInput -> dockerCidInputValue,
+        DockerCidInput -> dockerCidInputValue
       ),
       Map.empty
     )
@@ -151,7 +150,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
       StdoutInput -> WomString(standardPaths.output.pathAsString),
       StderrInput -> WomString(standardPaths.error.pathAsString),
       ScriptInput -> WomString(jobPaths.script.pathAsString),
-      JobShellInput -> WomString(jobShell),
+      JobShellInput -> WomString(jobShell)
     )).toMap
   }
 
@@ -163,7 +162,8 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     val declarationValidations = configInitializationData.declarationValidations
     val inputOptions = declarationValidations map {
       // Is it always the right thing to pass the Docker hash to a config backend?  What if it can't use hashes?
-      case declarationValidation if declarationValidation.key == DockerValidation.instance.key && jobDescriptor.maybeCallCachingEligible.dockerHash.isDefined =>
+      case declarationValidation
+          if declarationValidation.key == DockerValidation.instance.key && jobDescriptor.maybeCallCachingEligible.dockerHash.isDefined =>
         val dockerHash = jobDescriptor.maybeCallCachingEligible.dockerHash.get
         Option(declarationValidation.key -> WomString(dockerHash))
       case declarationValidation =>
@@ -175,7 +175,8 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   }
 
   // `runtimeAttributeInputs` has already adjusted for the case of a `JobDescriptor` with `DockerWithHash`.
-  override lazy val dockerImageUsed: Option[String] = runtimeAttributeInputs.get(DockerValidation.instance.key).map(_.valueString)
+  override lazy val dockerImageUsed: Option[String] =
+    runtimeAttributeInputs.get(DockerValidation.instance.key).map(_.valueString)
 
   /**
     * Generates a command for a job id, using a config task.
@@ -185,7 +186,11 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     * @param task   The config task that defines the command.
     * @return A runnable command.
     */
-  protected def jobScriptArgs(job: StandardAsyncJob, suffix: String, task: String, extraInputs: Map[String, WomValue] = Map.empty): SharedFileSystemCommand = {
+  protected def jobScriptArgs(job: StandardAsyncJob,
+                              suffix: String,
+                              task: String,
+                              extraInputs: Map[String, WomValue] = Map.empty
+  ): SharedFileSystemCommand = {
     val script = jobPaths.script.plusExt(suffix)
     writeTaskScript(script, task, Map(JobIdInput -> WomString(job.jobId)) ++ extraInputs)
     SharedFileSystemCommand("/bin/bash", script)
@@ -198,12 +203,12 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
   * @param standardParams Params for running a shared file system job.
   */
 class BackgroundConfigAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends ConfigAsyncJobExecutionActor with BackgroundAsyncJobExecutionActor {
+    extends ConfigAsyncJobExecutionActor
+    with BackgroundAsyncJobExecutionActor {
 
-  override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
+  override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand =
     if (isDockerRun) jobScriptArgs(job, "kill", KillDockerTask, Map(DockerCidInput -> dockerCidInputValue))
     else super[BackgroundAsyncJobExecutionActor].killArgs(job)
-  }
 }
 
 /**
@@ -213,7 +218,7 @@ class BackgroundConfigAsyncJobExecutionActor(override val standardParams: Standa
   * @param standardParams Params for running a shared file system job.
   */
 class DispatchedConfigAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
-  extends ConfigAsyncJobExecutionActor {
+    extends ConfigAsyncJobExecutionActor {
 
   lazy val jobIdRegexString = configurationDescriptor.backendConfig.getString(JobIdRegexConfig)
 
@@ -234,9 +239,8 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     * @param job The job to check.
     * @return A command that checks if the job is alive.
     */
-  override def checkAliveArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
+  override def checkAliveArgs(job: StandardAsyncJob): SharedFileSystemCommand =
     jobScriptArgs(job, "check", CheckAliveTask)
-  }
 
   /**
     * Kills the job using the kill command from the config.
@@ -244,19 +248,23 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
     * @param job The job id to kill.
     * @return A command that may be used to kill the job.
     */
-  override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand = {
+  override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand =
     if (isDockerRun) jobScriptArgs(job, "kill", KillDockerTask, Map(DockerCidInput -> dockerCidInputValue))
     else jobScriptArgs(job, "kill", KillTask)
-  }
 
   protected lazy val exitCodeTimeout: Option[Long] = {
     val timeout = configurationDescriptor.backendConfig.as[Option[Long]](ExitCodeTimeoutConfig)
     timeout match {
       case Some(x) =>
-        jobLogger.info("Cromwell will watch for an rc file *and* double-check every {} seconds to make sure this job is still alive", x)
+        jobLogger.info(
+          "Cromwell will watch for an rc file *and* double-check every {} seconds to make sure this job is still alive",
+          x
+        )
         if (x < 0) throw new IllegalArgumentException(s"config value '$ExitCodeTimeoutConfig' must be 0 or higher")
       case None =>
-        jobLogger.info("Cromwell will watch for an rc file but will *not* double-check whether this job is actually alive (unless Cromwell restarts)")
+        jobLogger.info(
+          "Cromwell will watch for an rc file but will *not* double-check whether this job is actually alive (unless Cromwell restarts)"
+        )
     }
     timeout
   }
@@ -286,7 +294,10 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
               // The job has stopped but we don't have an RC yet. We'll wait one more 'timeout' for the RC to arrive:
               SharedFileSystemJobWaitingForReturnCode(nextTimeout)
             case Failure(e) =>
-              log.error(e, s"Failed to check status for ${handle.jobDescriptor.key.tag} using command: ${checkAliveArgs(handle.pendingJob)}")
+              log.error(
+                e,
+                s"Failed to check status for ${handle.jobDescriptor.key.tag} using command: ${checkAliveArgs(handle.pendingJob)}"
+              )
               SharedFileSystemJobRunning(nextTimeout)
           }
         } else {
@@ -300,8 +311,11 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
           // `isAlive` is not called anymore from this point
 
           // If exit-code-timeout is set in the config cromwell will create a fake exitcode file
-          val backupError = "??? (!! Programmer Error: It should be impossible to give up on 'waiting' without having set a maximum wait timeout. Please report this as a bug in the Cromwell Github repository !!)"
-          jobLogger.error(s"Return file not found after ${exitCodeTimeout.getOrElse(backupError)} seconds, assuming external kill")
+          val backupError =
+            "??? (!! Programmer Error: It should be impossible to give up on 'waiting' without having set a maximum wait timeout. Please report this as a bug in the Cromwell Github repository !!)"
+          jobLogger.error(
+            s"Return file not found after ${exitCodeTimeout.getOrElse(backupError)} seconds, assuming external kill"
+          )
 
           val returnCodeTemp = jobPaths.returnCode.plusExt("kill")
 
@@ -323,7 +337,9 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
               // Essentially, this covers the rare race condition whereby the task completes between starting to write the
               // fake RC, and trying to copy it:
 
-              log.error(s"An RC file appeared at ${jobPaths.returnCode} whilst trying to copy a fake exitcode file from ${returnCodeTemp}. Not to worry: the real file should now be picked up on the next poll.")
+              log.error(
+                s"An RC file appeared at ${jobPaths.returnCode} whilst trying to copy a fake exitcode file from ${returnCodeTemp}. Not to worry: the real file should now be picked up on the next poll."
+              )
 
               // Delete the fake file since it's not needed:
               returnCodeTemp.delete(true)
@@ -347,7 +363,6 @@ class DispatchedConfigAsyncJobExecutionActor(override val standardParams: Standa
   override def isTerminal(runStatus: SharedFileSystemRunState): Boolean = runStatus.terminal
 }
 
-
 object DispatchedConfigAsyncJobExecutionActor {
   def getJob(stdoutContent: String, stderr: Path, jobIdRegexString: String): StandardAsyncJob = {
     val jobIdRegex = jobIdRegexString.r
@@ -355,9 +370,10 @@ object DispatchedConfigAsyncJobExecutionActor {
     jobIdRegex findFirstIn output match {
       case Some(jobIdRegex(jobId)) => StandardAsyncJob(jobId)
       case _ =>
-        throw new RuntimeException("Could not find job ID from stdout file." +
-          s"Check the stderr file for possible errors: $stderr")
+        throw new RuntimeException(
+          "Could not find job ID from stdout file." +
+            s"Check the stderr file for possible errors: $stderr"
+        )
     }
   }
 }
-

@@ -28,19 +28,19 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
     )
 
   private val requestFields = List(
-      "bucket",
-      "accessUrl",
-      "googleServiceAccount",
-      "fileName",
-      "hashes",
-      "localizationPath",
-      "bondProvider",
-      "name",
-      "size",
-      "timeCreated",
-      "timeUpdated",
-      "gsUri",
-      "contentType",
+    "bucket",
+    "accessUrl",
+    "googleServiceAccount",
+    "fileName",
+    "hashes",
+    "localizationPath",
+    "bondProvider",
+    "name",
+    "size",
+    "timeCreated",
+    "timeUpdated",
+    "gsUri",
+    "contentType"
   )
 
   val filesize = 123L
@@ -50,7 +50,6 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
   val bondProvider = "anvil"
   val fileHash = "a2317edbd2eb6cf6b0ee49cb81e3a556"
   val accessUrl = f"gs://${bucket}/${filename}"
-
 
   val drsResourceResponsePlaceholder: ResourceMetadata = ResourceMetadata(
     "application/octet-stream",
@@ -70,27 +69,33 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
 
   val resourceMetadataResponseDsl: DslPart = newJsonBody { o =>
     o.stringType("contentType", "application/octet-stream")
-      o.numberType("size", filesize)
-      o.stringType("timeCreated", timeCreated)
-      o.stringType("timeUpdated", timeCreated)
-      o.nullValue("gsUri")
-      o.nullValue("googleServiceAccount")
-      o.nullValue("fileName")
-      o.`object`("accessUrl" , { a =>
-        a.stringType("url", accessUrl)
-          a.`array`("headers", { h =>
-            h.stringType("Header")
-            h.stringType("Example")
-            ()
-          })
-        ()
-      })
-      o.`object`("hashes", { o =>
-        o.stringType("md5", fileHash)
-        ()
-      })
-      o.nullValue("localizationPath")
-      o.stringType("bondProvider", bondProvider)
+    o.numberType("size", filesize)
+    o.stringType("timeCreated", timeCreated)
+    o.stringType("timeUpdated", timeCreated)
+    o.nullValue("gsUri")
+    o.nullValue("googleServiceAccount")
+    o.nullValue("fileName")
+    o.`object`("accessUrl",
+               { a =>
+                 a.stringType("url", accessUrl)
+                 a.`array`("headers",
+                           { h =>
+                             h.stringType("Header")
+                             h.stringType("Example")
+                             ()
+                           }
+                 )
+                 ()
+               }
+    )
+    o.`object`("hashes",
+               { o =>
+                 o.stringType("md5", fileHash)
+                 ()
+               }
+    )
+    o.nullValue("localizationPath")
+    o.stringType("bondProvider", bondProvider)
     ()
   }.build
 
@@ -98,18 +103,20 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
 
   val resourceRequestDsl = newJsonBody { o =>
     o.stringType("url", f"drs://test.theanvil.io/${fileId}")
-    o.array("fields", { a =>
-      requestFields.map(a.stringType)
-      ()
-    })
+    o.array("fields",
+            { a =>
+              requestFields.map(a.stringType)
+              ()
+            }
+    )
     ()
   }.build
 
   val consumerPactBuilder: ConsumerPactBuilder = ConsumerPactBuilder
-    .consumer("cromwell-consumer")
+    .consumer("cromwell")
 
   val pactProvider: PactDslWithProvider = consumerPactBuilder
-    .hasPactWith("drshub-provider")
+    .hasPactWith("drshub")
 
   var pactDslResponse: PactDslResponse = buildInteraction(
     pactProvider,
@@ -127,11 +134,11 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
     uponReceiving = "Request to resolve drs url",
     method = "POST",
     path = "/api/v4/drs/resolve",
-    requestHeaders = Seq("Content-type" -> "application/json"),
+    requestHeaders = Seq("Content-Type" -> "application/json"),
     requestBody = resourceRequestDsl,
     status = 200,
     responseHeaders = Seq(),
-    responsBody = resourceMetadataResponseDsl
+    responseBody = resourceMetadataResponseDsl
   )
 
   pactDslResponse = buildInteraction(
@@ -147,9 +154,8 @@ class DrsHubClientSpec extends AnyFlatSpec with Matchers with RequestResponsePac
 
   override val pact: RequestResponsePact = pactDslResponse.toPact
 
-  val client: Client[IO] = {
+  val client: Client[IO] =
     BlazeClientBuilder[IO](ExecutionContext.global).resource.allocated.unsafeRunSync()._1
-  }
 
   /*
   we should use these tests to ensure that our client class correctly handles responses from the provider - i.e. decoding, error mapping, validation

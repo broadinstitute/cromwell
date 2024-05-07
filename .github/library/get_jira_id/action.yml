@@ -1,9 +1,9 @@
 name: 'Get Jira ID'
+outputs:
+  jira-id: ${{ steps.get-id.outputs.jira-id }}
 
 runs:
   using: "composite" # <-- this allows these steps to be used by other workflows.
-  outputs:
-    jira-id: ${{ steps.get-id.outputs.jira-id }}
   steps:
     - name: "Get ID or fail"
       id: get-id

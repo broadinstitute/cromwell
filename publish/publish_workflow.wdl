@@ -117,7 +117,6 @@ task prepGithub {
     input {
         String githubToken
         String organization
-        Boolean majorRelease
         String publishDocker
     }
 

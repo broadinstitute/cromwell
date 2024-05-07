@@ -65,8 +65,7 @@ trait GcpBatchAttachedDisk {
   def mountPoint: Path
 }
 
-case class BatchApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path)
-    extends GcpBatchAttachedDisk {
+case class BatchApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends GcpBatchAttachedDisk {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
 
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"

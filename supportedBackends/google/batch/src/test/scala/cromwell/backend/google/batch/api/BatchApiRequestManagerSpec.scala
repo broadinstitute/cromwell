@@ -51,6 +51,13 @@ class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with 
       override def contentLength: Long = contentSize
     }
 
+  it should "correctly calculate batch intervals" in {
+    import eu.timepit.refined.auto._
+
+    BatchApiRequestManager.determineBatchInterval(10) should be(11111.milliseconds)
+    BatchApiRequestManager.determineBatchInterval(100000) shouldBe 1.millisecond
+  }
+
   it should "queue up and dispense status poll requests, in order" in {
     val statusPoller = TestProbe(name = "StatusPoller")
     val jaqmActor: TestActorRef[TestBatchApiRequestManager] =

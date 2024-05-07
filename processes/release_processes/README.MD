@@ -7,18 +7,12 @@ See our "updating the process" [process](../README.MD)!
 
 ## Core Process: How to Publish and Release Cromwell
 
-Cromwell versions are updated on a weekly cadence automatically. For more information see [here](https://support.terra.bio/hc/en-us/articles/9512163608731-Faster-Cromwell-updates-in-Terra-)
+This process is unrelated to Terra. Both GCP and Azure Terra update automatically. For more information see [here](https://support.terra.bio/hc/en-us/articles/9512163608731-Faster-Cromwell-updates-in-Terra-).
 
 Manually cutting a numeric release is expected to continue being done on a cadence of every ~6 months. If you're the lucky "Release Rotation Engineer" this time, you should do the following four things:
 
-1. Create a Jira ticket for the release (look at previous release tickets if you're not sure how). In the Suggested
-Release Notes field, add "Terra is now running Cromwell <version>" along with any other release notes relevant to Terra
-users.
-1. Check that all most recent executions of Cromwell's Jenkins tests have succeeded, and that all those executions were
-against the most recent commit in "develop" branch. There are 2 groups of Jenkins tests which have to be checked (you
-will need to be on the Broad internal network or VPN to open the following links):
-    1. Tests for various backends supported by Cromwell. Log into Jenkins [here](https://fc-jenkins.dsp-techops.broadinstitute.org), check the tests [here](https://fc-jenkins.dsp-techops.broadinstitute.org/job/cromwell-cron-parent/).
-    1. Tests for Cromwell in Terra environment. Log into Jenkins [here](https://fc-jenkins.dsp-techops.broadinstitute.org), check the tests [here](https://fc-jenkins.dsp-techops.broadinstitute.org/view/Batch/).
+1. Create a Jira ticket for the release (look at previous release tickets if you're not sure how).
+1. Check that Cromwell's [nightly integration](https://github.com/broadinstitute/cromwell/actions?query=event%3Aschedule) testing is passing.
 1. [Run the publish script to create a new version of Cromwell](#how-to-publish-a-new-cromwell-version)
 1. [Run through the "How to Deploy Cromwell in CaaS prod" process](#how-to-deploy-cromwell-in-caas-staging-and-caas-prod)
 
@@ -47,13 +41,10 @@ Make or copy the following files into a temporary `release/` directory outside t
 
 * A copy of the workflow file to run (https://github.com/broadinstitute/cromwell/blob/develop/publish/publish_workflow.wdl)
 * An inputs json like this one.
-  * `publishHomebrew` is `false` due to Homebrew taking on this part themselves. Homebrew remains an active distribution channel.
 
 ```json
 {
   "publish_workflow.githubToken": "<<GITHUB TOKEN VALUE>>",
-  "publish_workflow.majorRelease": true,
-  "publish_workflow.publishHomebrew": false,
   "publish_workflow.publishDocker": "broadinstitute/cromwell-publish:latest",
   "publish_workflow.organization": "broadinstitute"
 }
@@ -99,7 +90,7 @@ The workflow outputs its status to the console.
 
 ### How to Deploy Cromwell in CaaS staging and CaaS prod
 
-CaaS is "Cromwell as a Service". It is used by a couple of Broad teams (Pipelines and Epigenomics), though the long-term plan is for those teams to migrate to using Terra.
+CaaS is "Cromwell as a Service". It is only used by Epigenomics, and will eventually be retired in favor of Terra.
 
 **Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (e.g., because of a database migration), checking in with the CaaS users
 to let them know that the upgrade is about to happen is a good idea.

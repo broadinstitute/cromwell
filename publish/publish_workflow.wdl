@@ -394,8 +394,8 @@ workflow publish_workflow {
         }
     }
 
-    File cromwellJar = doMajorRelease.cromwellJar
-    File womtoolJar = doMajorRelease.womtoolJar
+    File cromwellJar = select_first([doMajorRelease.cromwellJar])
+    File womtoolJar = select_first([doMajorRelease.womtoolJar])
 
     call publishGithubRelease { input:
         githubTokenFile = githubTokenFile,

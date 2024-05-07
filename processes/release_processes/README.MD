@@ -87,6 +87,7 @@ The workflow outputs its status to the console.
 * Run `sbt -Dproject.isSnapshot=false -Dproject.isRelease=true dockerBuildAndPush` from your local Cromwell directory. 
 * Grab a cup of coffee, and verify that all of the new images were pushed successfully. For example, you should now be able to do `docker pull broadinstitute/cromwell:{new version #}`
   * The list of images is `cromwell`, `cromiam`, `cromwell-drs-localizer`, and `womtool`
+  * Docker Hub links: [Cromwell](https://hub.docker.com/repository/docker/broadinstitute/cromwell/general), [CromIAM](https://hub.docker.com/repository/docker/broadinstitute/cromiam/general), [DRS Localizer](https://hub.docker.com/repository/docker/broadinstitute/cromwell-drs-localizer/general), [Womtool](https://hub.docker.com/repository/docker/broadinstitute/womtool/general)
 
 ### How to Deploy Cromwell in CaaS staging and CaaS prod
 

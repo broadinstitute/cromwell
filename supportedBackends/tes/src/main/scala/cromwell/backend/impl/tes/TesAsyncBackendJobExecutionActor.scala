@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
@@ -15,7 +16,7 @@ import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
 import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{StandardAsyncPendingExecutionHandle, determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble, getMetadataMap}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.logging.JobLogger
@@ -33,7 +34,7 @@ import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 import java.time.Duration
 import java.time.temporal.ChronoUnit
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 case class TesVmCostData(startTime: String, vmCost: String)
@@ -67,6 +68,10 @@ case class Cancelled(override val costData: Option[TesVmCostData] = Option.empty
 
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
+  private type StandardAsyncRunInfo = Any
+
+  private type StandardAsyncRunState = TesRunStatus
+  private type StandardAsyncPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
 
   def generateLocalizedSasScriptPreamble(environmentVariableName: String, getSasWsmEndpoint: String): String =
     // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
@@ -208,6 +213,17 @@ object TesAsyncBackendJobExecutionActor {
       case _ =>
         tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
     }
+
+  def getMetadataMap(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle, getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[TaskLog], getErrorLogsFn: StandardAsyncPendingExecutionHandle => Future[Seq[String]])(implicit ec: ExecutionContext): Future[Map[String, Object]] =
+    for {
+      logs <- getTaskLogsFn(handle)
+      taskEndTime = logs.end_time.get
+      metadata = runStatus match {
+        case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> getErrorLogsFn(handle))
+        case _ =>
+          Map(CallMetadataKeys.TaskEndTime -> taskEndTime)
+      }
+    } yield metadata
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
@@ -393,16 +409,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def requestsAbortAndDiesImmediately: Boolean = false
 
   override def onTaskComplete(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Unit = {
-    val taskMetadataMap = for {
-      logs <- getTaskLogs(handle)
-      taskEndTime = logs.end_time.get
-      metadata = runStatus match {
-        case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> getErrorLogs(handle))
-        case _ =>
-          Map(CallMetadataKeys.TaskEndTime -> taskEndTime)
-      }
-    } yield metadata
-
+    val taskMetadataMap = getMetadataMap(runStatus, handle, getTaskLogs, getErrorLogs)
     taskMetadataMap.onComplete {
       case Success(result) => tellMetadata(result)
       case Failure(e) => log.error(e.getMessage)

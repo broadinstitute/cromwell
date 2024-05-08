@@ -12,13 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Clone Cromwell
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
     - id: get-jira-id
-      uses: ./.github/library/get_jira_id
+      # We're cloning multiple repos, so Cromwell and its actions are at `./cromwell/` instead of `./`
+      uses: ./cromwell/.github/library/get_jira_id
     - uses: olafurpg/setup-scala@v10
       with:
         java-version: adopt@1.11

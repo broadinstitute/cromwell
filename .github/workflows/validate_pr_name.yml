@@ -10,7 +10,12 @@ jobs:
   validate_pr_name:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Clone Cromwell
+        uses: actions/checkout@v2
+        with:
+          repository: broadinstitute/cromwell
+          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
+          path: zardoz
       - id: get-jira-id
-        uses: ./.github/library/get_jira_id
+        uses: ./zardoz/.github/library/get_jira_id
       - run: echo Jira ID is ${{ steps.get-jira-id.outputs.jira-id }}

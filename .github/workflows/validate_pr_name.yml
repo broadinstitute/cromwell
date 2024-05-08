@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Clone Cromwell
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           repository: broadinstitute/cromwell
           token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work

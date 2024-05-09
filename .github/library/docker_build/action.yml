@@ -1,0 +1,61 @@
+name: 'Build Docker'
+
+inputs:
+  build-type:
+    description: "One of Snapshot, Standard, Debug, Release"
+    default: "Snapshot"
+  should-push:
+    description: "Should the images be pushed after building"
+    default: null
+  commit:
+    description: "Commit, branch, or tag to use"
+    default: "???"
+  docker-hub-password:
+    description: "Password for `dsdejenkins` user for pushing"
+    required: true
+  cromwell-repo-token:
+    description: "Token for Github pulling/pushing"
+    required: true
+
+#outputs:
+
+description: 'Build and/or push Docker images in various scenarios'
+runs:
+  using: "composite" # <-- this allows these steps to be used by other workflows.
+  steps:
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: dsdejenkins
+        password: ${{ inputs.docker-hub-password }}
+    - uses: ./.github/set_up_cromwell_action
+      with:
+        cromwell_repo_token: ${{ inputs.cromwell-repo-token }}
+    - name: "SBT command"
+      id: sbt-command
+      uses: actions/github-script@v7
+      with:
+        script: |
+          return core.getInput('should-push') ? 'dockerBuildAndPush' : 'docker';
+    - name: "SBT options"
+      id: sbt-options
+      uses: actions/github-script@v7
+      with:
+        script: |
+          switch (core.getInput('build-type')) {
+            case 'Snapshot':
+              return '';
+            case 'Standard':
+              return '-Dproject.isSnapshot=false';
+            case 'Debug':
+              return '-Dproject.isDebug=true';
+            case 'Release':
+              return '-Dproject.isRelease=true';
+
+    - name: Build images
+      shell: bash
+      # sbt ${{ steps.sbt-options.outputs.result }} ${{ steps.sbt-command.outputs.result }}
+      run: |
+        set -e
+        cd cromwell
+        echo ${{ steps.sbt-options.outputs.result }} ${{ steps.sbt-command.outputs.result }}

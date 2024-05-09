@@ -9,7 +9,13 @@ import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.{MetadataSqlDatabase, SqlDatabase}
-import cromwell.services.metadata.MetadataService.{MetadataWriteAction, MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
+import cromwell.services.metadata.MetadataService.{
+  MetadataWriteAction,
+  MetadataWriteFailure,
+  MetadataWriteSuccess,
+  PutMetadataAction,
+  PutMetadataActionAndRespond
+}
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsDisabled
 import cromwell.services.metadata.impl.WriteMetadataActorSpec.BatchSizeCountingWriteMetadataActor
 import cromwell.services.metadata.{MetadataEvent, MetadataInt, MetadataKey, MetadataValue}

@@ -10,14 +10,7 @@ jobs:
   validate_pr_name:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate PR title
-        id: validate
-        uses: actions/github-script@v3
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const title = context.payload.pull_request.title;
-            const regex = /[A-Z][A-Z]+-\d+/;
-            if (!regex.test(title)) {
-              core.setFailed("PR title must contain a Jira tag");
-            }
+      - uses: actions/checkout@v4
+      - id: get-jira-id
+        uses: ./.github/library/get_jira_id
+      - run: echo Jira ID is ${{ steps.get-jira-id.outputs.jira-id }}

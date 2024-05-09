@@ -11,18 +11,14 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-    - name: Fetch Jira ID from the commit message
-      id: fetch-jira-id
-      run: |
-        JIRA_ID=$(echo '${{ github.event.pull_request.title }}' | grep -Eo '[A-Z][A-Z]+-[0-9]+' | xargs echo -n | tr '[:space:]' ',')
-        [[ -z "$JIRA_ID" ]] && { echo "No Jira ID found in $1" ; exit 1; }
-        echo "JIRA_ID=$JIRA_ID" >> $GITHUB_OUTPUT
     - name: Clone Cromwell
       uses: actions/checkout@v2
       with:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
+    - id: get-jira-id
+      uses: ./.github/library/get_jira_id
     - uses: olafurpg/setup-scala@v10
       with:
         java-version: adopt@1.11
@@ -88,7 +84,7 @@ jobs:
         git diff
         git config --global user.name "broadbot"
         git config --global user.email "broadbot@broadinstitute.org"
-        git commit -am "${{ steps.fetch-jira-id.outputs.JIRA_ID }}: Auto update to Cromwell $CROMWELL_VERSION"
+        git commit -am "${{ steps.get-jira-id.outputs.jira-id }}: Auto update to Cromwell $CROMWELL_VERSION"
         git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main
         cd -
 
@@ -120,7 +116,7 @@ jobs:
         GH_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       run: |
         set -e
-        JIRA_ID=${{ steps.fetch-jira-id.outputs.JIRA_ID }}
+        JIRA_ID=${{ steps.get-jira-id.outputs.jira-id }}
         if [[ $JIRA_ID == "missing" ]]; then
           echo "JIRA_ID missing, PR to terra-helmfile will not be created"
           exit 0;

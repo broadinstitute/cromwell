@@ -1,7 +1,6 @@
 package cromwell.services.metadata.impl
 
 import java.sql.{Connection, Timestamp}
-
 import akka.actor.ActorRef
 import akka.testkit.{TestFSMRef, TestProbe}
 import cats.data.NonEmptyVector
@@ -10,16 +9,10 @@ import cromwell.core.{TestKitSuite, WorkflowId}
 import cromwell.database.sql.joins.MetadataJobQueryValue
 import cromwell.database.sql.tables.{InformationSchemaEntry, MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.database.sql.{MetadataSqlDatabase, SqlDatabase}
-import cromwell.services.metadata.MetadataService.{
-  MetadataWriteAction,
-  MetadataWriteFailure,
-  MetadataWriteSuccess,
-  PutMetadataAction,
-  PutMetadataActionAndRespond
-}
+import cromwell.services.metadata.MetadataService.{MetadataWriteAction, MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsDisabled
 import cromwell.services.metadata.impl.WriteMetadataActorSpec.BatchSizeCountingWriteMetadataActor
-import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
+import cromwell.services.metadata.{MetadataEvent, MetadataInt, MetadataKey, MetadataValue}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -178,7 +171,7 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
 
     sanitizedWriteActions.map { writeAction =>
       writeAction.events.map { event =>
-        if (event.value.getOrElse(fail("Removed value from metadata event")).value.matches("[\\x{10000}-\\x{FFFFF}]")) {
+        if (event.value.getOrElse(fail("Removed value from metadata event")).value.contains("\uD83C\uDF89")) {
           fail("Metadata event contains emoji")
         }
 
@@ -220,12 +213,96 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
 
     sanitizedWriteActions.map { writeAction =>
       writeAction.events.map { event =>
-        if (event.value.getOrElse(fail("Removed value from metadata event")).value.matches("[\\x{10000}-\\x{FFFFF}]")) {
+        if (event.value.getOrElse(fail("Removed value from metadata event")).value.contains("\uD83C\uDF89")) {
           fail("Metadata event contains emoji")
         }
 
         if (event.value.getOrElse(fail("Removed value from metadata event")).value.contains("\uFFFD")) {
           fail("Incorrectly replaced character in metadata event")
+        }
+      }
+    }
+  }
+
+  it should s"test sanitize inputs does not modify metadata values whose keys are not included in the keys to clean" in {
+    val registry = TestProbe().ref
+    val writeActor =
+      TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List("some_key")) {
+        override val metadataDatabaseInterface = mockDatabaseInterface(100)
+      })
+
+    def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(
+      List(
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue(s"🎉_$index"))
+      ),
+      probe
+    )
+
+    val probes = (0 until 43)
+      .map { _ =>
+        val probe = TestProbe()
+        probe
+      }
+      .zipWithIndex
+      .map { case (probe, index) =>
+        probe -> metadataEvent(index, probe.ref)
+      }
+
+    val metadataWriteActions = probes.map(probe => probe._2).toVector
+    val metadataWriteActionNE = NonEmptyVector(metadataWriteActions.head, metadataWriteActions.tail)
+
+    val sanitizedWriteActions = writeActor.underlyingActor.sanitizeInputs(metadataWriteActionNE)
+
+    sanitizedWriteActions.map { writeAction =>
+      writeAction.events.map { event =>
+        if (!event.value.getOrElse(fail("Removed value from metadata event")).value.contains("\uD83C\uDF89")) {
+          fail("Metadata event was incorrectly sanitized")
+        }
+
+        if (event.value.getOrElse(fail("Removed value from metadata event")).value.contains("\uFFFD")) {
+          fail("Incorrectly replaced character in metadata event")
+        }
+      }
+    }
+  }
+
+  it should s"test sanitize inputs does not modify metadata values that are not strings" in {
+    val registry = TestProbe().ref
+    val writeActor =
+      TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List("metadata_key")) {
+        override val metadataDatabaseInterface = mockDatabaseInterface(100)
+      })
+
+    def metadataEvent(index: Int, probe: ActorRef) = PutMetadataActionAndRespond(
+      List(
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue(100))
+      ),
+      probe
+    )
+
+    val probes = (0 until 43)
+      .map { _ =>
+        val probe = TestProbe()
+        probe
+      }
+      .zipWithIndex
+      .map { case (probe, index) =>
+        probe -> metadataEvent(index, probe.ref)
+      }
+
+    val metadataWriteActions = probes.map(probe => probe._2).toVector
+    val metadataWriteActionNE = NonEmptyVector(metadataWriteActions.head, metadataWriteActions.tail)
+
+    val sanitizedWriteActions = writeActor.underlyingActor.sanitizeInputs(metadataWriteActionNE)
+
+    sanitizedWriteActions.map { writeAction =>
+      writeAction.events.map { event =>
+        if (!(event.value.getOrElse(fail("Removed value from metadata event")).valueType == MetadataInt)) {
+          fail("Changed metadata type")
+        }
+
+        if (!event.value.getOrElse(fail("Removed value from metadata event")).value.equals("100")) {
+          fail("Modified metadata value")
         }
       }
     }

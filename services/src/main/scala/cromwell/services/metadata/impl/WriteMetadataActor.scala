@@ -6,7 +6,7 @@ import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
 import cromwell.core.WorkflowId
 import cromwell.core.instrumentation.InstrumentationPrefixes
-import cromwell.services.metadata.{MetadataEvent, MetadataValue}
+import cromwell.services.metadata.{MetadataEvent, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
@@ -65,7 +65,12 @@ class WriteMetadataActor(override val batchSize: Int,
       val metadataEvents =
         metadataWriteAction.events.map { event =>
           event.value match {
-            case Some(eventVal) => event.copy(value = Option(MetadataValue(StringUtil.cleanUtf8mb4(eventVal.value))))
+            case Some(eventVal) =>
+              if (metadataKeysToClean.contains(event.key.key) && eventVal.valueType == MetadataString) {
+                event.copy(value = Option(MetadataValue(StringUtil.cleanUtf8mb4(eventVal.value))))
+              } else {
+                event
+              }
             case None => event
           }
         }

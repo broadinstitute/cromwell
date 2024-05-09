@@ -28,4 +28,5 @@ jobs:
       - name: Run ScalaFmt
         run: |
           sbt scalafmtCheckAll
+          git diff
         working-directory: ${{ github.workspace }}

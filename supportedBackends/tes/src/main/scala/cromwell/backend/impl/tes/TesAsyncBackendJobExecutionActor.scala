@@ -15,10 +15,25 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{StandardAsyncPendingExecutionHandle, determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble, getMetadataMap}
+import cromwell.backend.async.{
+  AbortedExecutionHandle,
+  ExecutionHandle,
+  FailedNonRetryableExecutionHandle,
+  PendingExecutionHandle
+}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{
+  determineWSMSasEndpointFromInputs,
+  generateLocalizedSasScriptPreamble,
+  getMetadataMap,
+  StandardAsyncPendingExecutionHandle
+}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{
+  ScriptPreambleData,
+  StandardAsyncExecutionActor,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob
+}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
@@ -71,7 +86,8 @@ object TesAsyncBackendJobExecutionActor {
   private type StandardAsyncRunInfo = Any
 
   private type StandardAsyncRunState = TesRunStatus
-  private type StandardAsyncPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
+  private type StandardAsyncPendingExecutionHandle =
+    PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
 
   def generateLocalizedSasScriptPreamble(environmentVariableName: String, getSasWsmEndpoint: String): String =
     // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
@@ -214,7 +230,11 @@ object TesAsyncBackendJobExecutionActor {
         tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
     }
 
-  def getMetadataMap(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle, getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[TaskLog], getErrorLogsFn: StandardAsyncPendingExecutionHandle => Future[Seq[String]])(implicit ec: ExecutionContext): Future[Map[String, Object]] =
+  def getMetadataMap(runStatus: TesRunStatus,
+                     handle: StandardAsyncPendingExecutionHandle,
+                     getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[TaskLog],
+                     getErrorLogsFn: StandardAsyncPendingExecutionHandle => Future[Seq[String]]
+  )(implicit ec: ExecutionContext): Future[Map[String, Object]] =
     for {
       logs <- getTaskLogsFn(handle)
       taskEndTime = logs.end_time.get

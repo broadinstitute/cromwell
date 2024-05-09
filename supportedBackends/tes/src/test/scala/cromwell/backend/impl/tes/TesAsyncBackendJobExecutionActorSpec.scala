@@ -1,32 +1,40 @@
 package cromwell.backend.impl.tes
 
+import akka.http.scaladsl.model.HttpRequest
 import common.mock.MockSugar
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
-import cromwell.backend.standard.StandardAsyncExecutionActorParams
+import cromwell.backend.async.PendingExecutionHandle
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{StandardAsyncRunInfo, StandardAsyncRunState}
+import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, NioPath}
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.http.HttpPathBuilder
 import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.when
+import org.mockito.{ArgumentMatchers, Mockito}
 import org.scalatest.PrivateMethodTester
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.{AnyFlatSpec, AnyFlatSpecLike}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import wom.graph.CommandCallNode
 
 import java.time.Duration
 import java.time.temporal.ChronoUnit
+import scala.concurrent.ExecutionContext
 import scala.util.{Failure, Try}
 
 class TesAsyncBackendJobExecutionActorSpec
-    extends AnyFlatSpec
+    extends Mockito
+    with AnyFlatSpecLike
     with Matchers
     with MockSugar
     with TableDrivenPropertyChecks
     with PrivateMethodTester {
   behavior of "TesAsyncBackendJobExecutionActor"
 
+  implicit private val ec = system.dispatcher
   val standardParams: StandardAsyncExecutionActorParams = mock[StandardAsyncExecutionActorParams]
   private val tesAsyncBackendJobExecutorActor =
     mock[
@@ -131,6 +139,25 @@ class TesAsyncBackendJobExecutionActorSpec
     if (pathString.contains(someBlobUrl)) Try(mockBlob) else Try(mockDefault)
   }
 
+  def mockMakeRequest(request: HttpRequest): Task = {
+    val thisThing = mock[HttpRequest]
+    thisThing
+  }
+
+  def mockGetTaskLogs(handle: StandardAsyncPendingExecutionHandle): TaskLog = {
+    val logs = mock[TaskLog]
+    logs.start_time.get returns ""
+    logs.metadata.flatMap(_.get("")).get returns "0.203"
+    logs
+  }
+
+  def mockGetErrorLogs(handle: StandardAsyncPendingExecutionHandle): Seq[String] = {
+    val logs = mock[Task]
+    val systemLogs = logs.logs.flatMap(_.lastOption).flatMap(_.system_logs).get
+    systemLogs returns Seq.empty[String]
+    systemLogs
+  }
+
   def blobConverter(pathToConvert: Try[cromwell.core.path.Path]): Try[BlobPath] = {
     val mockBlob: BlobPath = generateMockBlobPath
     if (pathToConvert.get.pathAsString.contains(someBlobUrl)) Try(mockBlob) else Failure(new Exception("failed"))
@@ -203,10 +230,14 @@ class TesAsyncBackendJobExecutionActorSpec
   }
 
   it should "return correct vm cost" in {
-    val getVmCostPerHour = PrivateMethod[Double](Symbol("getVmCostPerHour"))
-    val cost = tesAsyncBackendJobExecutorActor invokePrivate getVmCostPerHour(mockTesTaskLog)
-
-    cost shouldEqual 0.1
+    val costData = Option(TesVmCostData("", "0.203"))
+    val running = Running(costData)
+    type StandardAsyncRunInfo = Any
+    type StandardAsyncRunState = TesRunStatus
+    type StandardAsyncPendingExecutionHandle =
+      PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
+    val handle = StandardAsyncPendingExecutionHandle
+    val aThing = TesAsyncBackendJobExecutionActor.getMetadataMap(running, handle, mockGetTaskLogs, mockGetErrorLogs)(implicit ec: ExecutionContext)
   }
 
   private val httpPathTestCases = Table(

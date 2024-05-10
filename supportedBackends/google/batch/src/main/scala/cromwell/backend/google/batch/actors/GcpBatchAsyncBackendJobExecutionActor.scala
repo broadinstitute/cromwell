@@ -78,7 +78,6 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
-// TODO: Includes everything from papi-common and papiv2
 object GcpBatchAsyncBackendJobExecutionActor {
   val maxUnexpectedRetries = 2
 

@@ -2,6 +2,7 @@ package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorRef
 import com.typesafe.scalalogging.LazyLogging
+import cromwell.backend.google.batch.actors.BatchApiAbortClient
 import cromwell.backend.google.batch.actors.BatchApiAbortClient.BatchAbortRequestSuccessful
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   BatchAbortRequest,
@@ -31,13 +32,20 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
 
     val _ = resultF
       .map {
-        case Success(BatchApiResponse.DeleteJobRequested(result)) =>
-          logger.info(s"Operation succeeded $result")
-          abortQuery.requester ! BatchAbortRequestSuccessful(abortQuery.jobId.jobId)
+        case Success(BatchApiResponse.DeleteJobRequested(BatchApiAbortClient.BatchAbortRequestSuccessful(jobId))) =>
+          logger.info(s"Abort job requested successfully: $jobId")
+          abortQuery.requester ! BatchAbortRequestSuccessful(jobId)
+          Success(())
+
+        case Success(BatchApiResponse.DeleteJobRequested(BatchApiAbortClient.BatchOperationIsAlreadyTerminal(jobId))) =>
+          logger.info(s"Job was not aborted because it is already in a terminal state: $jobId")
+          abortQuery.requester ! BatchAbortRequestSuccessful(jobId)
           Success(())
 
         case Success(result) =>
-          logger.error(s"Abort operation failed due to no DeleteJobRequested object, got this instead: $result")
+          logger.error(
+            s"Programming error, abort operation failed due to no DeleteJobRequested object, got this instead: $result"
+          )
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
@@ -47,16 +55,15 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
           )
 
         case Failure(ex: BatchApiException) =>
-          // TODO: Do we need to do anything about this error? perhaps we could detect whether the job was already in a final state or already deleted
-          logger.error(s"Abort operation failed (BatchApiException)", ex)
+          logger.error(s"Abort operation failed: ${abortQuery.jobId.jobId}", ex)
           onFailure(ex)
 
         case Failure(ex) =>
-          logger.error(s"Abort operation failed (unknown reason)", ex)
+          logger.error(s"Abort operation failed (unknown reason): ${abortQuery.jobId.jobId}", ex)
           onFailure(new SystemBatchApiException(ex))
       }
       .recover { case NonFatal(ex) =>
-        logger.error(s"Abort operation failed (global)", ex)
+        logger.error(s"Abort operation failed (global handler): ${abortQuery.jobId.jobId}", ex)
         onFailure(new SystemBatchApiException(ex))
       }
 

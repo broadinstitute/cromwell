@@ -12,7 +12,6 @@ import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiRespon
 import cromwell.backend.google.batch.models.RunStatus
 import cromwell.core.ExecutionEvent
 import io.grpc.Status
-import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -28,7 +27,6 @@ object BatchRequestExecutor {
 
   class CloudImpl(batchSettings: BatchServiceSettings) extends BatchRequestExecutor with LazyLogging {
 
-    // TODO: Alex - add retries and the logic from BatchRequest
     def execute(groupedRequests: GcpBatchGroupedRequests)(implicit ec: ExecutionContext): Future[List[Try[Unit]]] = {
       val requests = groupedRequests.entries
       logger.info(s"Execute ${requests.size} requests")
@@ -43,7 +41,6 @@ object BatchRequestExecutor {
       for {
         client <- Future.fromTry(Try(BatchServiceClient.create(batchSettings)))
 
-        // TODO: Check whether sending many requests in parallel could be an issue
         futures = requests.map { case (request, promise) =>
           Future {
             scala.concurrent.blocking {
@@ -65,7 +62,6 @@ object BatchRequestExecutor {
         result <- resultF
       } yield result
 
-    // TODO: Alex - Verify whether BatchServiceClient already handles retries
     private def internalExecute(client: BatchServiceClient, request: BatchApiRequest): Try[BatchApiResponse] =
       try
         request match {
@@ -129,96 +125,20 @@ object BatchRequestExecutor {
         .map(_.asScala.toList)
         .getOrElse(List.empty)
 
-      if (Option(job).isEmpty) {
-        // TODO: This applies to PAPIv2 but its unlikely to apply to batch
-        //
-        // It is possible to receive a null via an HTTP 200 with no response. If that happens, handle it and don't crash.
-        // https://github.com/googleapis/google-http-java-client/blob/v1.28.0/google-http-client/src/main/java/com/google/api/client/http/HttpResponse.java#L456-L458
-        val errorMessage = "Operation returned as empty"
-        RunStatus.UnsuccessfulRunStatus(
-          Status.UNKNOWN,
-          Option(errorMessage),
-          getEventList(events)
-        )
+      if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
+        RunStatus.Success(getEventList(events))
+      } else if (job.getStatus.getState == JobStatus.State.FAILED) {
+        // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
+        RunStatus.Failed(Status.OK, None, List.empty, getEventList(events))
+      } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
+        RunStatus.Running
       } else {
-        try
-          if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
-            // TODO: Remove me
-            debug(job, getEventList(events))
-            RunStatus.Success(getEventList(events))
-          } else if (job.getStatus.getState == JobStatus.State.FAILED) {
-            // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
-            RunStatus.Failed(Status.OK, None, List.empty, getEventList(events))
-          } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
-            RunStatus.Running
-          } else {
-            RunStatus.Initializing
-          }
-        catch {
-          // TODO: Do we care about this?
-          case nullPointerException: NullPointerException =>
-            throw new RuntimeException(
-              s"Caught NPE while interpreting job result ${job.getName}: " +
-                s"${ExceptionUtils.getStackTrace(nullPointerException)}. " +
-                s"JSON was $job",
-              nullPointerException
-            )
-        }
-      }
-    }
-
-    // Temporal method that writes the state changes results to a file
-    private val debugLock = this
-    @scala.annotation.nowarn
-    private def debug(job: Job, events: List[ExecutionEvent]): Unit = {
-      val queuedTime = java.time.Instant
-        .ofEpochSecond(job.getCreateTime.getSeconds, job.getCreateTime.getNanos.toLong)
-        .atOffset(java.time.ZoneOffset.UTC)
-
-      //
-      val scheduledTime = events.find(_.name contains "QUEUED to SCHEDULED").map(_.offsetDateTime).get
-      val runningTime = events.find(_.name contains "SCHEDULED to RUNNING").map(_.offsetDateTime).get
-      val succeededTime = events.find(_.name contains "RUNNING to SUCCEEDED").map(_.offsetDateTime).get
-      val row =
-        (job.getName :: List(queuedTime, scheduledTime, runningTime, succeededTime).map(_.toString)).mkString(",")
-
-      debugLock.synchronized {
-        val out = java.nio.file.Files.writeString(
-          java.nio.file.Paths.get("results.csv").toAbsolutePath,
-          row + System.lineSeparator(),
-          java.nio.file.StandardOpenOption.CREATE,
-          java.nio.file.StandardOpenOption.APPEND
-        )
-        println(s"ZZZ: Result written to $out")
+        RunStatus.Initializing
       }
     }
 
     private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] =
-      /* TODO: This is an example printing the events from GCP, do we need to do anything else in the mapping?
-Event type=STATUS_CHANGED
-time=seconds: 1712173852,nanos: 952604950
-taskState=STATE_UNSPECIFIED,
-description=Job state is set from QUEUED to SCHEDULED for job projects/392615380452/locations/us-south1/jobs/job-ba81bad8-82e9-4d95-8fc0-04dfbbd746da.
-taskExecution.exitCode=0
-
-Event type=STATUS_CHANGED,
-time=seconds: 1712173947, nanos: 568998105
-taskState=STATE_UNSPECIFIED
-description=Job state is set from SCHEDULED to RUNNING for job projects/392615380452/locations/us-south1/jobs/job-ba81bad8-82e9-4d95-8fc0-04dfbbd746da.
-taskExecution.exitCode=0
-
-Event type=STATUS_CHANGED
-time=seconds: 1712173989, nanos: 937816549
-taskState=STATE_UNSPECIFIED
-description=Job state is set from RUNNING to SUCCEEDED for job projects/392615380452/locations/us-south1/jobs/job-ba81bad8-82e9-4d95-8fc0-04dfbbd746da.
-taskExecution.exitCode=0
-       */
       events.map { e =>
-        /* TODO: This is an example output, verify that this is what we need
-ExecutionEvent(Job state is set from QUEUED to SCHEDULED for job projects/392615380452/locations/us-south1/jobs/job-321db1bc-9a68-4171-aa2a-46885d781656.,2024-04-03T20:10:01.704137839Z,None)
-Event - ExecutionEvent(Job state is set from SCHEDULED to RUNNING for job projects/392615380452/locations/us-south1/jobs/job-321db1bc-9a68-4171-aa2a-46885d781656.,2024-04-03T20:11:30.631264449Z,None)
-Event - ExecutionEvent(Job state is set from RUNNING to SUCCEEDED for job projects/392615380452/locations/us-south1/jobs/job-321db1bc-9a68-4171-aa2a-46885d781656.,2024-04-03T20:12:16.898798407Z,None)
-         */
         val time = java.time.Instant
           .ofEpochSecond(e.getEventTime.getSeconds, e.getEventTime.getNanos.toLong)
           .atOffset(java.time.ZoneOffset.UTC)

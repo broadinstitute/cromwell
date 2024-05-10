@@ -38,7 +38,6 @@ import scala.io.Source
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 
-// TODO: I have verified that GcpBatchAsyncBackendJobExecutionActor has everything from this file
 class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExecutionActorParams)
     extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams)
     with PipelinesApiReferenceFilesMappingOperations {

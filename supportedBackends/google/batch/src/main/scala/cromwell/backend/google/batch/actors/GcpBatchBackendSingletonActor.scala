@@ -39,7 +39,7 @@ final class GcpBatchBackendSingletonActor(
 
   private val jesApiQueryManager = context.actorOf(
     BatchApiRequestManager
-      .props(qps, requestWorkers, serviceRegistryActor, batchRequestExecutor)
+      .props(qps = qps, requestWorkers = requestWorkers, serviceRegistryActor, batchRequestExecutor)
       .withMailbox(Mailbox.PriorityMailbox),
     "BatchQueryManager"
   )
@@ -51,9 +51,9 @@ final class GcpBatchBackendSingletonActor(
       // If it ever becomes necessary, we'll need to create link submitted jobs to its workflow id, which require
       // us to be cautious because batch deletes jobs instead of canceling them, hence, we should not delete jobs
       // that are on a final state.
-      log.info(s"Cromwell requested to abort workflow ${abort.workflowId}")
-
-    // TODO: Alex - is this still relevant?
+      log.info(
+        s"Cromwell requested to abort workflow ${abort.workflowId} but BatchAbortRequest should have already been processed, skipping..."
+      )
     // jesApiQueryManager.forward(abort)
 
     case apiQuery: BatchApiRequest =>

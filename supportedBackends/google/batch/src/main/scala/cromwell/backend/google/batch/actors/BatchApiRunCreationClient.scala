@@ -1,11 +1,11 @@
 package cromwell.backend.google.batch.actors
 
 import akka.actor.{Actor, ActorLogging, ActorRef}
-import cromwell.backend.google.batch.api.{BatchApiRequestManager, GcpBatchRequestFactory}
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   BatchApiRunCreationQueryFailed,
   SystemBatchApiException
 }
+import cromwell.backend.google.batch.api.{BatchApiRequestManager, GcpBatchRequestFactory}
 import cromwell.backend.google.batch.models.GcpBatchRequest
 import cromwell.backend.google.batch.monitoring.BatchInstrumentation
 import cromwell.backend.standard.StandardAsyncJob
@@ -23,11 +23,11 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
   // handles messages produced from GcpBatchBackendSingletonActor
   def runCreationClientReceive: Actor.Receive = {
     case job: StandardAsyncJob =>
-      log.info(s"runCreationClientReceive -> StandardAsyncJob: ${job.jobId}")
+      log.info(s"A job was submitted successfully: ${job.jobId}")
       runSuccess()
       completePromise(Success(job))
     case BatchApiRunCreationQueryFailed(_, e) =>
-      log.error(e, s"runCreationClientReceive -> BatchApiRunCreationQueryFailed: ${e.getMessage}")
+      log.error(e, s"Failed to submit job: ${e.getMessage}")
       completePromise(Failure(e))
   }
 

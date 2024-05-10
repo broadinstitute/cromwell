@@ -1,45 +1,41 @@
 package cromwell.backend.impl.tes
 
-import akka.http.scaladsl.model.HttpRequest
 import common.mock.MockSugar
 import cromwell.backend.BackendJobDescriptorKey
-import cromwell.backend.BackendSpec.buildWdlWorkflowDescriptor
+import cromwell.backend.BackendSpec.{buildWdlWorkflowDescriptor, whenReady}
 import cromwell.backend.async.PendingExecutionHandle
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{StandardAsyncRunInfo, StandardAsyncRunState}
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.core.TestKitSuite
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, NioPath}
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.http.HttpPathBuilder
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.when
-import org.mockito.{ArgumentMatchers, Mockito}
-import org.scalatest.PrivateMethodTester
-import org.scalatest.flatspec.{AnyFlatSpec, AnyFlatSpecLike}
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import wom.graph.CommandCallNode
 
 import java.time.Duration
 import java.time.temporal.ChronoUnit
-import scala.concurrent.ExecutionContext
+import scala.collection.immutable.Map
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Try}
 
 class TesAsyncBackendJobExecutionActorSpec
-    extends Mockito
+    extends TestKitSuite
     with AnyFlatSpecLike
     with Matchers
     with MockSugar
-    with TableDrivenPropertyChecks
-    with PrivateMethodTester {
+    with TableDrivenPropertyChecks {
   behavior of "TesAsyncBackendJobExecutionActor"
 
-  implicit private val ec = system.dispatcher
+  type StandardAsyncRunInfo = Any
+  type StandardAsyncRunState = TesRunStatus
+  type StandardAsyncPendingExecutionHandle =
+    PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
+  implicit private val ec: ExecutionContextExecutor = system.dispatcher
   val standardParams: StandardAsyncExecutionActorParams = mock[StandardAsyncExecutionActorParams]
-  private val tesAsyncBackendJobExecutorActor =
-    mock[
-      TesAsyncBackendJobExecutionActor
-    ] // new TesAsyncBackendJobExecutionActor{override val standardParams: StandardAsyncExecutionActorParams}
   val fullyQualifiedName = "this.name.is.more.than.qualified"
   val workflowName = "mockWorkflow"
   val someBlobUrl =
@@ -92,7 +88,7 @@ class TesAsyncBackendJobExecutionActorSpec
     metadata = Option(Map("vm_price_per_hour_usd" -> "0.203")),
     logs = Option(mock[Seq[ExecutorLog]]),
     outputs = Option(mock[Seq[OutputFileLog]]),
-    system_logs = Option(Seq.empty[String])
+    system_logs = Option(Seq("an error!"))
   )
 
   // Mock blob path functionality.
@@ -139,23 +135,15 @@ class TesAsyncBackendJobExecutionActorSpec
     if (pathString.contains(someBlobUrl)) Try(mockBlob) else Try(mockDefault)
   }
 
-  def mockMakeRequest(request: HttpRequest): Task = {
-    val thisThing = mock[HttpRequest]
-    thisThing
+  def mockGetTaskLogs(handle: StandardAsyncPendingExecutionHandle): Future[TaskLog] = {
+    val logs = mockTesTaskLog
+    Future.successful(logs)
   }
 
-  def mockGetTaskLogs(handle: StandardAsyncPendingExecutionHandle): TaskLog = {
-    val logs = mock[TaskLog]
-    logs.start_time.get returns ""
-    logs.metadata.flatMap(_.get("")).get returns "0.203"
-    logs
-  }
-
-  def mockGetErrorLogs(handle: StandardAsyncPendingExecutionHandle): Seq[String] = {
-    val logs = mock[Task]
-    val systemLogs = logs.logs.flatMap(_.lastOption).flatMap(_.system_logs).get
-    systemLogs returns Seq.empty[String]
-    systemLogs
+  def mockGetErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] = {
+    val logs = mockTesTaskLog
+    val systemLogs = logs.system_logs.get
+    Future.successful(systemLogs)
   }
 
   def blobConverter(pathToConvert: Try[cromwell.core.path.Path]): Try[BlobPath] = {
@@ -229,16 +217,25 @@ class TesAsyncBackendJobExecutionActorSpec
     generatedBashScript should include(exportCommandSubstring)
   }
 
-  it should "return correct vm cost" in {
-    val costData = Option(TesVmCostData("", "0.203"))
-    val running = Running(costData)
-    type StandardAsyncRunInfo = Any
-    type StandardAsyncRunState = TesRunStatus
-    type StandardAsyncPendingExecutionHandle =
-      PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
-    val handle = StandardAsyncPendingExecutionHandle
-    val aThing = TesAsyncBackendJobExecutionActor.getMetadataMap(running, handle, mockGetTaskLogs, mockGetErrorLogs)(implicit ec: ExecutionContext)
+  it should "return expected task end time" in {
+    val handle: StandardAsyncPendingExecutionHandle = mock[StandardAsyncPendingExecutionHandle]
+
+    val endTime = TesAsyncBackendJobExecutionActor.getTaskEndTime(handle, mockGetTaskLogs)
+    whenReady(endTime){
+      m =>  m shouldBe "2024-04-04T20:22:32.077818+00:00"
+    }
   }
+
+  it should "return error logs for error state" in {
+    val errorStatus = Error()
+    val handle: StandardAsyncPendingExecutionHandle = mock[StandardAsyncPendingExecutionHandle]
+    val errorLogs = TesAsyncBackendJobExecutionActor.getErrorSeq(errorStatus, handle, mockGetErrorLogs)
+
+    whenReady(errorLogs){
+      m => m shouldBe Seq("an error!")
+    }
+  }
+
 
   private val httpPathTestCases = Table(
     ("test name", "http path", "local path in input dir"),

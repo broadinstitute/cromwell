@@ -1,6 +1,5 @@
 package cromwell.backend.impl.tes
 
-import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
@@ -24,8 +23,8 @@ import cromwell.backend.async.{
 import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{
   determineWSMSasEndpointFromInputs,
   generateLocalizedSasScriptPreamble,
-  getMetadataMap,
-  StandardAsyncPendingExecutionHandle
+  getErrorSeq,
+  getTaskEndTime
 }
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{
@@ -230,20 +229,43 @@ object TesAsyncBackendJobExecutionActor {
         tesJobPaths.callInputsDockerRoot.resolve(path.pathWithoutScheme.stripPrefix("/")).pathAsString
     }
 
-  def getMetadataMap(runStatus: TesRunStatus,
-                     handle: StandardAsyncPendingExecutionHandle,
-                     getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[TaskLog],
-                     getErrorLogsFn: StandardAsyncPendingExecutionHandle => Future[Seq[String]]
-  )(implicit ec: ExecutionContext): Future[Map[String, Object]] =
+  def getTaskEndTime(
+    handle: StandardAsyncPendingExecutionHandle,
+    getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[TaskLog]
+  )(implicit ec: ExecutionContext): Future[String] =
     for {
       logs <- getTaskLogsFn(handle)
       taskEndTime = logs.end_time.get
-      metadata = runStatus match {
-        case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> getErrorLogsFn(handle))
-        case _ =>
-          Map(CallMetadataKeys.TaskEndTime -> taskEndTime)
-      }
-    } yield metadata
+    } yield taskEndTime
+//      logs <- getTaskLogsFn(handle)
+//      taskEndTime = logs.end_time.get
+  // metadataMap = Map(CallMetadataKeys.TaskEndTime -> taskEndTime)
+  // failures <- if (runStatus.isInstanceOf[Error] || runStatus.isInstanceOf[Failed]) getErrorLogsFn(handle) else Future.successful(Seq.empty)
+  // else Future.successful(Seq.empty)
+//      val idk = for {
+//        errors <- getErrorLogsFn(handle)
+//      } yield errors
+//      Map(CallMetadataKeys.Failures -> idk)
+//
+//        runStatus match {
+//          case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> idk)
+//          case _ => Map()
+//        }
+
+  def getErrorSeq(runStatus: TesRunStatus,
+                  handle: StandardAsyncPendingExecutionHandle,
+                  getErrorLogsFn: StandardAsyncPendingExecutionHandle => Future[Seq[String]]
+  )(implicit
+    ec: ExecutionContext
+  ): Future[Seq[String]] =
+    for {
+      errors <- getErrorLogsFn(handle)
+    } yield errors
+  // runStatus match {
+//        case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> failures, CallMetadataKeys.TaskEndTime -> taskEndTime)
+//        case _ => Map(CallMetadataKeys.TaskEndTime -> taskEndTime)
+//      }
+  // } yield metadata
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
@@ -429,9 +451,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def requestsAbortAndDiesImmediately: Boolean = false
 
   override def onTaskComplete(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Unit = {
-    val taskMetadataMap = getMetadataMap(runStatus, handle, getTaskLogs, getErrorLogs)
-    taskMetadataMap.onComplete {
-      case Success(result) => tellMetadata(result)
+    val taskEndTime = getTaskEndTime(handle, getTaskLogs)
+    if (runStatus == Error() | runStatus == Failed()) {
+      val errors = getErrorSeq(runStatus, handle, getErrorLogs)
+      errors.onComplete {
+        case Success(r) => tellMetadata(Map(CallMetadataKeys.Failures -> r))
+        case Failure(e) => log.error(e.getMessage)
+      }
+    }
+
+    taskEndTime.onComplete {
+      case Success(result) => tellMetadata(Map(CallMetadataKeys.TaskEndTime -> result))
       case Failure(e) => log.error(e.getMessage)
     }
   }

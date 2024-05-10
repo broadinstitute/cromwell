@@ -62,6 +62,8 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
   private[api] lazy val nbWorkers = requestWorkers.value
 
+  // TODO: Review this formula, raising the number of workers also raises the delay for a worker to ask for work
+  // for example, when we have 100 workers, the delay is ~18m which seems insane.
   private lazy val workerBatchInterval = determineBatchInterval(qps) * nbWorkers.toLong
 
   // workQueue is protected for the unit tests, not intended to be generally overridden

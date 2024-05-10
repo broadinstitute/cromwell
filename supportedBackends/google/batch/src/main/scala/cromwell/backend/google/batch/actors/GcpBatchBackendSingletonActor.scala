@@ -41,7 +41,7 @@ final class GcpBatchBackendSingletonActor(
     BatchApiRequestManager
       .props(qps = qps, requestWorkers = requestWorkers, serviceRegistryActor, batchRequestExecutor)
       .withMailbox(Mailbox.PriorityMailbox),
-    "BatchQueryManager"
+    "BatchApiRequestManager"
   )
 
   override def receive = {

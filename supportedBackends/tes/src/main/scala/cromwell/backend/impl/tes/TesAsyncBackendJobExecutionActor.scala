@@ -237,20 +237,6 @@ object TesAsyncBackendJobExecutionActor {
       logs <- getTaskLogsFn(handle)
       taskEndTime = logs.end_time.get
     } yield taskEndTime
-//      logs <- getTaskLogsFn(handle)
-//      taskEndTime = logs.end_time.get
-  // metadataMap = Map(CallMetadataKeys.TaskEndTime -> taskEndTime)
-  // failures <- if (runStatus.isInstanceOf[Error] || runStatus.isInstanceOf[Failed]) getErrorLogsFn(handle) else Future.successful(Seq.empty)
-  // else Future.successful(Seq.empty)
-//      val idk = for {
-//        errors <- getErrorLogsFn(handle)
-//      } yield errors
-//      Map(CallMetadataKeys.Failures -> idk)
-//
-//        runStatus match {
-//          case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> idk)
-//          case _ => Map()
-//        }
 
   def getErrorSeq(runStatus: TesRunStatus,
                   handle: StandardAsyncPendingExecutionHandle,
@@ -261,11 +247,6 @@ object TesAsyncBackendJobExecutionActor {
     for {
       errors <- getErrorLogsFn(handle)
     } yield errors
-  // runStatus match {
-//        case Error(_) | Failed(_) => Map(CallMetadataKeys.Failures -> failures, CallMetadataKeys.TaskEndTime -> taskEndTime)
-//        case _ => Map(CallMetadataKeys.TaskEndTime -> taskEndTime)
-//      }
-  // } yield metadata
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)

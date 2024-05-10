@@ -896,6 +896,16 @@ trait StandardAsyncExecutionActor
   /**
     * Returns true if the status represents a completion.
     *
+    * Select meanings by backend:
+    * - TES:
+    *     `cromwell.backend.impl.tes.Complete` derived from "state": "COMPLETE"
+    * - Life Sciences:
+    *     `com.google.api.services.genomics.v2alpha1.model.Operation.getDone` is true
+    *     -- AND --
+    *     `com.google.api.services.genomics.v2alpha1.model.Operation#getError` is empty
+    * - GCP Batch:
+    *     `com.google.cloud.batch.v1.JobStatus.State` is `SUCCEEDED`
+    *
     * @param runStatus The run status.
     * @return True if the job is done.
     */
@@ -1376,65 +1386,27 @@ trait StandardAsyncExecutionActor
     } yield (stderrSize, returnCodeAsString, outOfMemoryDetected)
 
     stderrSizeAndReturnCodeAndMemoryRetry flatMap { case (stderrSize, returnCodeAsString, outOfMemoryDetected) =>
-      val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
+      val maybeReturnCodeAsInt = Try(returnCodeAsString.trim.toInt).toOption
 
-      if (isDone(status)) {
-        tryReturnCodeAsInt match {
-          case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
-            val executionHandle = Future.successful(
-              FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption),
-                                                Option(returnCodeAsInt),
-                                                None
-              )
-            )
-            retryElseFail(executionHandle)
-          case Success(returnCodeAsInt) if continueOnReturnCode.continueFor(returnCodeAsInt) =>
-            handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
-          // It's important that we check retryWithMoreMemory case before isAbort. RC could be 137 in either case;
-          // if it was caused by OOM killer, want to handle as OOM and not job abort.
-          case Success(returnCodeAsInt) if outOfMemoryDetected && memoryRetryRequested =>
-            val executionHandle = Future.successful(
-              FailedNonRetryableExecutionHandle(
-                RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
-                Option(returnCodeAsInt),
-                None
-              )
-            )
-            retryElseFail(executionHandle, outOfMemoryDetected)
-          case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
-            Future.successful(AbortedExecutionHandle)
-          case Success(returnCodeAsInt) =>
-            val executionHandle = Future.successful(
-              FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption),
-                                                Option(returnCodeAsInt),
-                                                None
-              )
-            )
-            retryElseFail(executionHandle)
-          case Failure(_) =>
-            Future.successful(
+      (isDone(status), maybeReturnCodeAsInt) match {
+        case (true, Some(returnCode)) =>
+          // The calls the job a success, and we have a return code.
+          handleResultBackendSuccess(returnCode, status, oldHandle, stderrSize, stderrAsOption, outOfMemoryDetected)
+        case (true, None) =>
+          // The calls the job a success, but we don't have a return code.
+          Future.successful(
               FailedNonRetryableExecutionHandle(
                 ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption),
                 kvPairsToSave = None
               )
             )
-        }
-      } else {
-        tryReturnCodeAsInt match {
-          case Success(returnCodeAsInt)
-              if outOfMemoryDetected && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
-            val executionHandle = Future.successful(
-              FailedNonRetryableExecutionHandle(
-                RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
-                Option(returnCodeAsInt),
-                None
-              )
-            )
-            retryElseFail(executionHandle, outOfMemoryDetected)
-          case _ =>
-            val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
-            retryElseFail(failureStatus)
-        }
+        case (false, Some(returnCode)) =>
+          // The backend calls the job a failure, and we have a return code
+          handleResultBackendFailure(returnCode, status, stderrAsOption, outOfMemoryDetected)
+        case (false, None) =>
+          // The backend calls the job a failure, and we don't have a return code.
+          val failureStatus = handleExecutionFailure(status, None)
+          retryElseFail(failureStatus)
       }
     } recoverWith { case exception =>
       if (isDone(status)) Future.successful(FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None))
@@ -1442,6 +1414,93 @@ trait StandardAsyncExecutionActor
         val failureStatus = handleExecutionFailure(status, None)
         retryElseFail(failureStatus)
       }
+    }
+  }
+
+  private def handleResultBackendSuccess(returnCode: Int,
+                                         status: StandardAsyncRunState,
+                                         oldHandle: StandardAsyncPendingExecutionHandle,
+                                         stderrSize: Long,
+                                         stderrAsOption: Option[Path],
+                                         outOfMemoryDetected: Boolean
+  ): Future[ExecutionHandle] = {
+
+    /**
+      * When using the `failOnStderr` runtime attribute, we only care about nonempty `stderr`.
+      * Overrides return code, so have to check this first.
+      */
+    if (failOnStdErr && stderrSize.intValue > 0) {
+      val executionHandle = Future.successful(
+        FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption),
+          Option(returnCode),
+          None
+        )
+      )
+      retryElseFail(executionHandle)
+
+    /**
+      * Success!
+      */
+    } else if (continueOnReturnCode.continueFor(returnCode)) {
+      handleExecutionSuccess(status, oldHandle, returnCode)
+
+    /**
+      * It's important that we check retryWithMoreMemory case before isAbort. RC could be 137 in either case;
+      * if it was caused by OOM killer, want to handle as OOM and not job abort.
+      *
+      * The backend doesn't consider the task failed because the Cromwell wrapper script swallows the
+      * return code, makes a note of it, then returns `0` itself. (Double-check this!)
+      */
+    } else if (outOfMemoryDetected && memoryRetryRequested) {
+      val executionHandle = Future.successful(
+        FailedNonRetryableExecutionHandle(
+          RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
+          Option(returnCode),
+          None
+        )
+      )
+      retryElseFail(executionHandle, outOfMemoryDetected)
+
+    /**
+      * Looks for evidence of an external kill signal.
+      */
+    } else if (isAbort(returnCode)) {
+      Future.successful(AbortedExecutionHandle)
+
+    /**
+      * Nonspecific return code failure.
+      */
+    } else {
+      val executionHandle = Future.successful(
+        FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCode, stderrAsOption),
+          Option(returnCode),
+          None
+        )
+      )
+      retryElseFail(executionHandle)
+    }
+  }
+
+  private def handleResultBackendFailure(returnCode: Int,
+                                         status: StandardAsyncRunState,
+                                         stderrAsOption: Option[Path],
+                                         outOfMemoryDetected: Boolean): Future[ExecutionHandle] = {
+
+    /**
+      * Also check for out-of-memory when the backend task failed.
+      */
+    if (outOfMemoryDetected && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCode)) {
+      val executionHandle = Future.successful(
+        FailedNonRetryableExecutionHandle(
+          RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
+          Option(returnCode),
+          None
+        )
+      )
+      retryElseFail(executionHandle, outOfMemoryDetected)
+    } else {
+      val failureStatus = handleExecutionFailure(status, Option(returnCode))
+      retryElseFail(failureStatus)
     }
   }
 

@@ -25,7 +25,7 @@ object GcpBatchTestConfig {
       |
       |filesystems.gcs.auth = "application-default"
       |
-      |request-workers = 1
+      |request-workers = 100
       |
       |default-runtime-attributes {
       |    cpu: 1

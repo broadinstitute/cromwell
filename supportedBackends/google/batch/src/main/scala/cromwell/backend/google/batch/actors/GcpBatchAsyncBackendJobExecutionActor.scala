@@ -79,13 +79,13 @@ import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
 object GcpBatchAsyncBackendJobExecutionActor {
-  val maxUnexpectedRetries = 2
+  private val maxUnexpectedRetries = 2
 
-  val JesFailedToDelocalize = 5
-  val JesUnexpectedTermination = 13
+  private val BatchFailedToDelocalize = 5
+  private val BatchUnexpectedTermination = 13
 
-  val BatchFailedPreConditionErrorCode = 9
-  val BatchMysteriouslyCrashedErrorCode = 10
+  private val BatchFailedPreConditionErrorCode = 9
+  private val BatchMysteriouslyCrashedErrorCode = 10
 
   def StandardException(errorCode: GrpcStatus,
                         message: String,
@@ -1020,9 +1020,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       .recover { case BatchApiRunCreationClient.JobAbortedException => AbortedExecutionHandle }
   }
 
-  override def isFatal(throwable: Throwable): Boolean = super.isFatal(throwable) || isFatalJesException(throwable)
+  override def isFatal(throwable: Throwable): Boolean = super.isFatal(throwable) || isFatalBatchException(throwable)
 
-  override def isTransient(throwable: Throwable): Boolean = isTransientJesException(throwable)
+  override def isTransient(throwable: Throwable): Boolean = isTransientBatchException(throwable)
 
   val futureKvJobKey: KvJobKey =
     KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
@@ -1092,11 +1092,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // TODO: How do we test this?
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: GcpBatchPendingExecutionHandle @unchecked, JobAbortedException) =>
-      jobLogger.error(s"JES Job ID ${oldHandle.runInfo.get.job} has not been found, failing call")
+      jobLogger.error(s"Batch job id ${oldHandle.runInfo.get.job.jobId} has not been found, failing call")
       FailedNonRetryableExecutionHandle(JobAbortedException, kvPairsToSave = None)
     case (oldHandle: GcpBatchPendingExecutionHandle @unchecked, e: ApiException)
         if e.getStatusCode.getCode.getHttpStatusCode == 404 =>
-      jobLogger.error(s"JES Job ID ${oldHandle.runInfo.get.job} has not been found, failing call")
+      jobLogger.error(s"Batch job id ${oldHandle.runInfo.get.job.jobId} has not been found, failing call")
       FailedNonRetryableExecutionHandle(JobAbortedException, kvPairsToSave = None)
   }
 
@@ -1160,12 +1160,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       def isDockerPullFailure: Boolean = prettyError.contains("not found: does not exist or no pull access")
 
       (runStatus.errorCode, runStatus.jesCode) match {
-        case (GrpcStatus.NOT_FOUND, Some(JesFailedToDelocalize)) =>
+        case (GrpcStatus.NOT_FOUND, Some(BatchFailedToDelocalize)) =>
           FailedNonRetryableExecutionHandle(
             FailedToDelocalizeFailure(prettyError, jobTag, Option(standardPaths.error)),
             kvPairsToSave = None
           )
-        case (GrpcStatus.ABORTED, Some(JesUnexpectedTermination)) =>
+        case (GrpcStatus.ABORTED, Some(BatchUnexpectedTermination)) =>
           handleUnexpectedTermination(runStatus.errorCode, prettyError, returnCode)
         case _ if isDockerPullFailure =>
           val unable = s"Unable to pull Docker image '$jobDockerImage' "
@@ -1363,8 +1363,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         case batchOutput if batchOutput.name == makeSafeReferenceName(path) =>
           val pathAsString = batchOutput.cloudPath.pathAsString
 
-          // TODO: batchOutput.cloudPath.exists invokes GCP, which causes a test ported from papi-common to fai
-          // because GCP is not configured in tests, shall we do anything?
+          // TODO: batchOutput.cloudPath.exists invokes GCP, which causes a test ported from papi-common to fail
           if (batchOutput.isFileParameter && !batchOutput.cloudPath.exists) {
             // This is not an error if the path represents a `File?` optional output (the Batch delocalization script
             // should have failed if this file output was not optional but missing). Throw to produce the correct "empty

@@ -42,7 +42,7 @@ trait BatchApiAbortClient { this: Actor with ActorLogging with JobLogging with B
     case BatchOperationIsAlreadyTerminal(jobId) =>
       jobLogger.info(s"Job $jobId has already finished")
 
-    case BatchApiAbortQueryFailed(jobId, e) =>
-      jobLogger.error(s"Could not request cancellation of job $jobId", e)
+    case BatchApiAbortQueryFailed(query, e) =>
+      jobLogger.error(s"Could not request cancellation of job ${query.jobId}", e)
   }
 }

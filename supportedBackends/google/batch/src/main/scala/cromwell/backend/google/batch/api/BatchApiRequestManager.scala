@@ -392,11 +392,11 @@ object BatchApiRequestManager {
     val cause: BatchApiException
   }
 
-  final case class BatchApiStatusQueryFailed(query: BatchApiRequest, cause: BatchApiException)
+  final case class BatchApiStatusQueryFailed(query: BatchStatusPollRequest, cause: BatchApiException)
       extends BatchApiRequestFailed
-  final case class BatchApiRunCreationQueryFailed(query: BatchApiRequest, cause: BatchApiException)
+  final case class BatchApiRunCreationQueryFailed(query: BatchRunCreationRequest, cause: BatchApiException)
       extends BatchApiRequestFailed
-  final case class BatchApiAbortQueryFailed(query: BatchApiRequest, cause: BatchApiException)
+  final case class BatchApiAbortQueryFailed(query: BatchAbortRequest, cause: BatchApiException)
       extends BatchApiRequestFailed
 
   final private[api] case class BatchApiWorkBatch(workBatch: NonEmptyList[BatchApiRequest])

@@ -21,11 +21,11 @@ trait BatchApiStatusRequestClient { this: Actor with ActorLogging with BatchInst
 
   def pollingActorClientReceive: Actor.Receive = {
     case status: RunStatus =>
-      log.debug(s"Polled status received: ${status}")
+      log.debug(s"Polled status received: $status")
       pollSuccess()
       completePromise(Success(status))
-    case BatchApiStatusQueryFailed(_, e) =>
-      log.debug("JES poll failed!")
+    case BatchApiStatusQueryFailed(query, e) =>
+      log.error(e, s"Poll status failed for job ${query.jobId}: ${e.getMessage}")
       completePromise(Failure(e))
   }
 

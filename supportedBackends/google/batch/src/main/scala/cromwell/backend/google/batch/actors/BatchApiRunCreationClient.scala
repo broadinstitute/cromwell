@@ -26,8 +26,8 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
       log.info(s"A job was submitted successfully: ${job.jobId}")
       runSuccess()
       completePromise(Success(job))
-    case BatchApiRunCreationQueryFailed(_, e) =>
-      log.error(e, s"Failed to submit job: ${e.getMessage}")
+    case BatchApiRunCreationQueryFailed(query, e) =>
+      log.error(e, s"Failed to submit job ${query.httpRequest.getJobId}: ${e.getMessage}")
       completePromise(Failure(e))
   }
 

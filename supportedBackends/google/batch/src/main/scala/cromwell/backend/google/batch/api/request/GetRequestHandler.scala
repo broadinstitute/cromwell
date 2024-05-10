@@ -29,12 +29,14 @@ trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
     val _ = resultF
       .map {
         case Success(BatchApiResponse.StatusQueried(status)) =>
-          logger.info(s"Get operation succeeded for ${pollRequest.jobId}: $status")
+          logger.info(s"Get operation succeeded for ${pollRequest.jobId.jobId}: $status")
           pollRequest.requester ! status
           Success(())
 
         case Success(result) =>
-          logger.error(s"Get operation failed due to no status object, got this insteaed: $result")
+          logger.error(
+            s"Programming error, get operation failed due to no status object on job ${pollRequest.jobId.jobId}, got this instead: $result"
+          )
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
@@ -44,15 +46,15 @@ trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
           )
 
         case Failure(ex: BatchApiException) =>
-          logger.error(s"Get operation failed (BatchApiException)", ex)
+          logger.error(s"Get operation failed for job ${pollRequest.jobId.jobId}", ex)
           onFailure(ex)
 
         case Failure(ex) =>
-          logger.error(s"GetRequestHandler: operation failed (unknown)", ex)
+          logger.error(s"Get operation failed for job ${pollRequest.jobId.jobId} with an unknown reason", ex)
           onFailure(new SystemBatchApiException(ex))
       }
       .recover { case NonFatal(ex) =>
-        logger.error(s"Get operation failed (global)", ex)
+        logger.error(s"Get operation failed (global) for job ${pollRequest.jobId.jobId}", ex)
         onFailure(new SystemBatchApiException(ex))
       }
 

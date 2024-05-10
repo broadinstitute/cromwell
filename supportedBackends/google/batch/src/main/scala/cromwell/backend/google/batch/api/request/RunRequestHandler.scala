@@ -30,7 +30,9 @@ trait RunRequestHandler extends LazyLogging { this: RequestHandler =>
           Success(())
 
         case Success(result) =>
-          logger.error(s"Run operation failed due to no job object. got this instead: ${result}")
+          logger.error(
+            s"Programming error, run operation failed for job ${runCreationQuery.httpRequest.getJobId} due to no job object. got this instead: ${result}"
+          )
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
@@ -40,15 +42,17 @@ trait RunRequestHandler extends LazyLogging { this: RequestHandler =>
           )
 
         case Failure(ex: BatchApiException) =>
-          logger.error(s"Run operation failed (BatchApiException)", ex)
+          logger.error(s"Run operation failed for job ${runCreationQuery.httpRequest.getJobId}", ex)
           onFailure(ex)
 
         case Failure(ex) =>
-          logger.error(s"Run operation failed (unknown)", ex)
+          logger.error(s"Run operation failed for job ${runCreationQuery.httpRequest.getJobId} with an unknown reason",
+                       ex
+          )
           onFailure(new SystemBatchApiException(ex))
       }
       .recover { case NonFatal(ex) =>
-        logger.error(s"Run operation failed (global)", ex)
+        logger.error(s"Run operation failed (global) for job ${runCreationQuery.httpRequest.getJobId}", ex)
         onFailure(new SystemBatchApiException(ex))
       }
 

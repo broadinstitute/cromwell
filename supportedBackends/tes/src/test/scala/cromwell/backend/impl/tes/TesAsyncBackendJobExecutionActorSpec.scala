@@ -221,8 +221,8 @@ class TesAsyncBackendJobExecutionActorSpec
     val handle: StandardAsyncPendingExecutionHandle = mock[StandardAsyncPendingExecutionHandle]
 
     val endTime = TesAsyncBackendJobExecutionActor.getTaskEndTime(handle, mockGetTaskLogs)
-    whenReady(endTime){
-      m =>  m shouldBe "2024-04-04T20:22:32.077818+00:00"
+    whenReady(endTime) { m =>
+      m shouldBe "2024-04-04T20:22:32.077818+00:00"
     }
   }
 
@@ -231,11 +231,10 @@ class TesAsyncBackendJobExecutionActorSpec
     val handle: StandardAsyncPendingExecutionHandle = mock[StandardAsyncPendingExecutionHandle]
     val errorLogs = TesAsyncBackendJobExecutionActor.getErrorSeq(errorStatus, handle, mockGetErrorLogs)
 
-    whenReady(errorLogs){
-      m => m shouldBe Seq("an error!")
+    whenReady(errorLogs) { m =>
+      m shouldBe Seq("an error!")
     }
   }
-
 
   private val httpPathTestCases = Table(
     ("test name", "http path", "local path in input dir"),

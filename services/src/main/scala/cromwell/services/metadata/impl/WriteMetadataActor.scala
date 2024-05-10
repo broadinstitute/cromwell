@@ -6,10 +6,11 @@ import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
 import cromwell.core.WorkflowId
 import cromwell.core.instrumentation.InstrumentationPrefixes
-import cromwell.services.metadata.MetadataEvent
+import cromwell.services.metadata.{MetadataEvent, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
+import wdl.util.StringUtil
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
@@ -18,7 +19,8 @@ class WriteMetadataActor(override val batchSize: Int,
                          override val flushRate: FiniteDuration,
                          override val serviceRegistryActor: ActorRef,
                          override val threshold: Int,
-                         metadataStatisticsRecorderSettings: MetadataStatisticsRecorderSettings
+                         metadataStatisticsRecorderSettings: MetadataStatisticsRecorderSettings,
+                         metadataKeysToClean: List[String]
 ) extends EnhancedBatchActor[MetadataWriteAction](flushRate, batchSize)
     with ActorLogging
     with MetadataDatabaseAccess
@@ -27,9 +29,10 @@ class WriteMetadataActor(override val batchSize: Int,
   private val statsRecorder = MetadataStatisticsRecorder(metadataStatisticsRecorderSettings)
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
+    val cleanedMetadataWriteActions = if (metadataKeysToClean.isEmpty) e else sanitizeInputs(e)
     val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
 
-    val (putWithoutResponse, putWithResponse) = e.foldLeft(empty) {
+    val (putWithoutResponse, putWithResponse) = cleanedMetadataWriteActions.foldLeft(empty) {
       case ((putEvents, putAndRespondEvents), action: PutMetadataAction) =>
         (putEvents ++ action.events, putAndRespondEvents)
       case ((putEvents, putAndRespondEvents), action: PutMetadataActionAndRespond) =>
@@ -46,7 +49,7 @@ class WriteMetadataActor(override val batchSize: Int,
       case Success(_) =>
         putWithResponse foreach { case (ev, replyTo) => replyTo ! MetadataWriteSuccess(ev) }
       case Failure(cause) =>
-        val (outOfTries, stillGood) = e.toVector.partition(_.maxAttempts <= 1)
+        val (outOfTries, stillGood) = cleanedMetadataWriteActions.toVector.partition(_.maxAttempts <= 1)
 
         handleOutOfTries(outOfTries, cause)
         handleEventsToReconsider(stillGood)
@@ -54,6 +57,28 @@ class WriteMetadataActor(override val batchSize: Int,
 
     dbAction.map(_ => allPutEvents.size)
   }
+
+  def sanitizeInputs(
+    metadataWriteActions: NonEmptyVector[MetadataWriteAction]
+  ): NonEmptyVector[MetadataWriteAction] =
+    metadataWriteActions.map { metadataWriteAction =>
+      val metadataEvents =
+        metadataWriteAction.events.map { event =>
+          event.value match {
+            case Some(eventVal) =>
+              if (eventVal.valueType == MetadataString && metadataKeysToClean.contains(event.key.key)) {
+                event.copy(value = Option(MetadataValue(StringUtil.cleanUtf8mb4(eventVal.value))))
+              } else {
+                event
+              }
+            case None => event
+          }
+        }
+      metadataWriteAction match {
+        case action: PutMetadataAction => action.copy(events = metadataEvents)
+        case actionAndResp: PutMetadataActionAndRespond => actionAndResp.copy(events = metadataEvents)
+      }
+    }
 
   private def countActionsByWorkflow(writeActions: Vector[MetadataWriteAction]): Map[WorkflowId, Int] =
     writeActions.flatMap(_.events).groupBy(_.key.workflowId).map { case (k, v) => k -> v.size }
@@ -106,9 +131,18 @@ object WriteMetadataActor {
             flushRate: FiniteDuration,
             serviceRegistryActor: ActorRef,
             threshold: Int,
-            statisticsRecorderSettings: MetadataStatisticsRecorderSettings
+            statisticsRecorderSettings: MetadataStatisticsRecorderSettings,
+            metadataKeysToClean: List[String]
   ): Props =
-    Props(new WriteMetadataActor(dbBatchSize, flushRate, serviceRegistryActor, threshold, statisticsRecorderSettings))
+    Props(
+      new WriteMetadataActor(dbBatchSize,
+                             flushRate,
+                             serviceRegistryActor,
+                             threshold,
+                             statisticsRecorderSettings,
+                             metadataKeysToClean
+      )
+    )
       .withDispatcher(ServiceDispatcher)
       .withMailbox(PriorityMailbox)
 }

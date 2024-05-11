@@ -121,6 +121,7 @@ object PipelinesApiConfigurationAttributes
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
     "reference-disk-localization-manifests",
+    "reference-disk-localization.validation.auth",
     "docker-image-cache-manifest-file",
     checkpointingIntervalKey
   )
@@ -185,7 +186,7 @@ object PipelinesApiConfigurationAttributes
     def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger): Unit = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
       deprecatedKeys foreach { key =>
-        logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}")
+        logger.warn(s"Found deprecated configuration key $key in $context, replaced with ${deprecated.get(key)}")
       }
     }
 
@@ -272,6 +273,10 @@ object PipelinesApiConfigurationAttributes
     val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ManifestFile]]] =
       validateReferenceDiskManifestConfigs(backendConfig, backendName)
 
+    val referenceDiskValidationAuthNameOption: ErrorOr[Option[String]] = validate {
+      backendConfig.getAs[String]("reference-disk-localization.validation.auth")
+    }
+
     val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(
       backendConfig
     )
@@ -294,11 +299,17 @@ object PipelinesApiConfigurationAttributes
       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
+      referenceDiskValidationAuthNameOption: Option[String],
       dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]
-    ): ErrorOr[PipelinesApiConfigurationAttributes] =
-      (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN { (genomicsAuth, gcsAuth) =>
+    ): ErrorOr[PipelinesApiConfigurationAttributes] = {
+      val referenceDiskValidationAuthName = referenceDiskValidationAuthNameOption.getOrElse(genomicsName)
+      (
+        googleConfig.auth(genomicsName),
+        googleConfig.auth(gcsName),
+        googleConfig.auth(referenceDiskValidationAuthName)
+      ) mapN { (genomicsAuth, gcsAuth, referenceDiskValidationAuth) =>
         val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
-          generateReferenceFilesMapping(genomicsAuth, _)
+          generateReferenceFilesMapping(referenceDiskValidationAuth, _)
         }
         val dockerImageToCacheDiskImageMappingOpt = dockerImageCacheManifestFileOpt map {
           generateDockerImageToDiskImageMapping(genomicsAuth, _)
@@ -326,6 +337,7 @@ object PipelinesApiConfigurationAttributes
           checkpointingInterval = checkpointingInterval
         )
       }
+    }
 
     (project,
      executionBucket,
@@ -342,6 +354,7 @@ object PipelinesApiConfigurationAttributes
      virtualPrivateCloudConfiguration,
      batchRequestTimeoutConfigurationValidation,
      referenceDiskLocalizationManifestFiles,
+     referenceDiskValidationAuthNameOption,
      dockerImageCacheManifestFile
     ) flatMapN authGoogleConfigForPapiConfigurationAttributes match {
       case Valid(r) => r

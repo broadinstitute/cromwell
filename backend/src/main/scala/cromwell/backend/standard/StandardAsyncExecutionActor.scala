@@ -896,6 +896,16 @@ trait StandardAsyncExecutionActor
   /**
     * Returns true if the status represents a completion.
     *
+    * Select meanings by backend:
+    * - TES:
+    *     `cromwell.backend.impl.tes.Complete` derived from "state": "COMPLETE"
+    * - Life Sciences:
+    *     `com.google.api.services.genomics.v2alpha1.model.Operation.getDone` is true
+    *     -- AND --
+    *     `com.google.api.services.genomics.v2alpha1.model.Operation#getError` is empty
+    * - GCP Batch:
+    *     `com.google.cloud.batch.v1.JobStatus.State` is `SUCCEEDED`
+    *
     * @param runStatus The run status.
     * @return True if the job is done.
     */

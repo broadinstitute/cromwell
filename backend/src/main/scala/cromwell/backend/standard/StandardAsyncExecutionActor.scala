@@ -1076,34 +1076,45 @@ trait StandardAsyncExecutionActor
           case None => Map.empty[String, KvPair]
         }
 
-        val maxRetriesNotReachedYet = previousFailedRetries < maxRetries
         failedRetryableOrNonRetryable match {
-          case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
-            (memoryRetry.oomDetected, memoryRetry.factor, memoryRetry.previousMultiplier) match {
-              case (true, Some(retryFactor), Some(previousMultiplier)) =>
-                val nextMemoryMultiplier = previousMultiplier * retryFactor.value
-                saveAttrsAndRetry(failed,
-                                  kvsFromPreviousAttempt,
-                                  kvsForNextAttempt,
-                                  incFailedCount = true,
-                                  Option(nextMemoryMultiplier)
-                )
-              case (true, Some(retryFactor), None) =>
-                saveAttrsAndRetry(failed,
-                                  kvsFromPreviousAttempt,
-                                  kvsForNextAttempt,
-                                  incFailedCount = true,
-                                  Option(retryFactor.value)
-                )
-              case (_, _, _) =>
-                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
-            }
-          case failedNonRetryable: FailedNonRetryableExecutionHandle => Future.successful(failedNonRetryable)
+          case failedNonRetryable: FailedNonRetryableExecutionHandle if previousFailedRetries < maxRetries =>
+            // The user asked us to retry finitely for them, possibly with a memory modification
+            evaluateFailureRetry(failedNonRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, memoryRetry)
+          case failedNonRetryable: FailedNonRetryableExecutionHandle =>
+            // No reason to retry
+            Future.successful(failedNonRetryable)
           case failedRetryable: FailedRetryableExecutionHandle =>
+            // Retry infinitely and unconditionally (!)
             saveAttrsAndRetry(failedRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = false)
         }
       case _ => backendExecutionStatus
     }
+
+  private def evaluateFailureRetry(handle: FailedNonRetryableExecutionHandle,
+                                   kvsFromPreviousAttempt: Map[String, KvPair],
+                                   kvsForNextAttempt: Map[String, KvPair],
+                                   memoryRetry: MemoryRetryConfig
+  ): Future[FailedRetryableExecutionHandle] = {
+    (memoryRetry.oomDetected, memoryRetry.factor, memoryRetry.previousMultiplier) match {
+      case (true, Some(retryFactor), Some(previousMultiplier)) =>
+        val nextMemoryMultiplier = previousMultiplier * retryFactor.value
+        saveAttrsAndRetry(handle,
+          kvsFromPreviousAttempt,
+          kvsForNextAttempt,
+          incFailedCount = true,
+          Option(nextMemoryMultiplier)
+        )
+      case (true, Some(retryFactor), None) =>
+        saveAttrsAndRetry(handle,
+          kvsFromPreviousAttempt,
+          kvsForNextAttempt,
+          incFailedCount = true,
+          Option(retryFactor.value)
+        )
+      case (_, _, _) =>
+        saveAttrsAndRetry(handle, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
+    }
+  }
 
   private def saveAttrsAndRetry(failedExecHandle: FailedExecutionHandle,
                                 kvPrev: Map[String, KvPair],

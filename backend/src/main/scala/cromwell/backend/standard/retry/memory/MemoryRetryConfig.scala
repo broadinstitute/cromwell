@@ -12,7 +12,8 @@ import common.validation.Validation.MemoryRetryMultiplierRefined
   */
 case class MemoryRetryConfig(oomDetected: Boolean,
                              factor: Option[MemoryRetryMultiplierRefined],
-                             previousMultiplier: Option[Double])
+                             previousMultiplier: Option[Double]
+)
 
 case object MemoryRetryConfig {
   def none: MemoryRetryConfig = MemoryRetryConfig(false, None, None)

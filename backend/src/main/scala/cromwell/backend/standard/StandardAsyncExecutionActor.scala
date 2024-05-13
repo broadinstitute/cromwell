@@ -11,7 +11,11 @@ import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked._
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
+import cromwell.backend.BackendJobExecutionActor.{
+  BackendJobExecutionResponse,
+  JobAbortedResponse,
+  JobReconnectionNotSupportedException
+}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._
@@ -1094,27 +1098,26 @@ trait StandardAsyncExecutionActor
                                    kvsFromPreviousAttempt: Map[String, KvPair],
                                    kvsForNextAttempt: Map[String, KvPair],
                                    memoryRetry: MemoryRetryConfig
-  ): Future[FailedRetryableExecutionHandle] = {
+  ): Future[FailedRetryableExecutionHandle] =
     (memoryRetry.oomDetected, memoryRetry.factor, memoryRetry.previousMultiplier) match {
       case (true, Some(retryFactor), Some(previousMultiplier)) =>
         val nextMemoryMultiplier = previousMultiplier * retryFactor.value
         saveAttrsAndRetry(handle,
-          kvsFromPreviousAttempt,
-          kvsForNextAttempt,
-          incFailedCount = true,
-          Option(nextMemoryMultiplier)
+                          kvsFromPreviousAttempt,
+                          kvsForNextAttempt,
+                          incFailedCount = true,
+                          Option(nextMemoryMultiplier)
         )
       case (true, Some(retryFactor), None) =>
         saveAttrsAndRetry(handle,
-          kvsFromPreviousAttempt,
-          kvsForNextAttempt,
-          incFailedCount = true,
-          Option(retryFactor.value)
+                          kvsFromPreviousAttempt,
+                          kvsForNextAttempt,
+                          incFailedCount = true,
+                          Option(retryFactor.value)
         )
       case (_, _, _) =>
         saveAttrsAndRetry(handle, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
     }
-  }
 
   private def saveAttrsAndRetry(failedExecHandle: FailedExecutionHandle,
                                 kvPrev: Map[String, KvPair],
@@ -1418,7 +1421,9 @@ trait StandardAsyncExecutionActor
                 None
               )
             )
-            retryElseFail(executionHandle, MemoryRetryConfig(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier))
+            retryElseFail(executionHandle,
+                          MemoryRetryConfig(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+            )
           case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
             Future.successful(AbortedExecutionHandle)
           case Success(returnCodeAsInt) =>
@@ -1448,7 +1453,9 @@ trait StandardAsyncExecutionActor
                 None
               )
             )
-            retryElseFail(executionHandle, MemoryRetryConfig(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier))
+            retryElseFail(executionHandle,
+                          MemoryRetryConfig(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+            )
           case _ =>
             val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
             retryElseFail(failureStatus)

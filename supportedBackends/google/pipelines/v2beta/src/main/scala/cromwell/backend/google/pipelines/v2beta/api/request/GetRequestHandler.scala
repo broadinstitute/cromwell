@@ -10,7 +10,13 @@ import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus
-import cromwell.backend.google.pipelines.common.api.RunStatus.{AwaitingCloudQuota, Initializing, Running, Success, UnsuccessfulRunStatus}
+import cromwell.backend.google.pipelines.common.api.RunStatus.{
+  AwaitingCloudQuota,
+  Initializing,
+  Running,
+  Success,
+  UnsuccessfulRunStatus
+}
 import cromwell.backend.google.pipelines.common.errors.isQuotaMessage
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
@@ -23,7 +29,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Try, Success => TrySuccess}
+import scala.util.{Failure, Success => TrySuccess, Try}
 
 trait GetRequestHandler { this: RequestHandler =>
   // the Genomics batch endpoint doesn't seem to be able to handle get requests on V2 operations at the moment

@@ -66,12 +66,12 @@ case class Complete(override val costData: Option[TesVmCostData] = Option.empty)
   def isTerminal = true
 }
 
-case class Error(override val sysLogs: Seq[String] = Seq.empty[String]) extends TesRunStatus {
+case class Error(override val sysLogs: Seq[String] = Seq.empty[String], override val costData: Option[TesVmCostData] = Option.empty) extends TesRunStatus {
   def isTerminal = true
   override def toString = "SYSTEM_ERROR"
 }
 
-case class Failed(override val sysLogs: Seq[String] = Seq.empty[String]) extends TesRunStatus {
+case class Failed(override val sysLogs: Seq[String] = Seq.empty[String], override val costData: Option[TesVmCostData] = Option.empty) extends TesRunStatus {
   def isTerminal = true
   override def toString = "EXECUTOR_ERROR"
 }
@@ -232,11 +232,11 @@ object TesAsyncBackendJobExecutionActor {
   def getTaskEndTime(
     handle: StandardAsyncPendingExecutionHandle,
     getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[TaskLog]
-  )(implicit ec: ExecutionContext): Future[String] =
+  )(implicit ec: ExecutionContext): Future[Option[String]] =
     for {
-      logs <- getTaskLogsFn(handle)
-      taskEndTime = logs.end_time.get
-    } yield taskEndTime
+      tesLogs <- getTaskLogsFn(handle)
+      endTime = tesLogs.end_time
+    } yield endTime
 
   def getErrorSeq(runStatus: TesRunStatus,
                   handle: StandardAsyncPendingExecutionHandle,
@@ -467,12 +467,12 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     for {
       status <- queryStatusAndCostData(handle, fetchCostData) // Default, minimum data
       errorLog <- status match {
-        case Error(_) | Failed(_) => getErrorLogs(handle)
+        case Error(_, _) | Failed(_, _) => getErrorLogs(handle)
         case _ => Future.successful(Seq.empty[String])
       }
       statusWithLog = status match {
-        case Error(_) => Error(errorLog)
-        case Failed(_) => Failed(errorLog)
+        case Error(_, _) => Error(errorLog)
+        case Failed(_, _) => Failed(errorLog)
         case _ => status
       }
     } yield statusWithLog
@@ -570,7 +570,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def handleExecutionFailure(status: StandardAsyncRunState, returnCode: Option[Int]) =
     status match {
       case Cancelled(_) => Future.successful(AbortedExecutionHandle)
-      case Error(_) | Failed(_) => handleExecutionError(status, returnCode)
+      case Error(_, _) | Failed(_, _) => handleExecutionError(status, returnCode)
       case _ => super.handleExecutionFailure(status, returnCode)
     }
 

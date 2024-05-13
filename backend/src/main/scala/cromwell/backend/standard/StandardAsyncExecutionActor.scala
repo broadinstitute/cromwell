@@ -24,7 +24,7 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
-import cromwell.backend.standard.retry.memory.MemoryRetryConfig
+import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.validation._
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
@@ -1065,7 +1065,7 @@ trait StandardAsyncExecutionActor
     * @return The execution handle.
     */
   def retryElseFail(backendExecutionStatus: Future[ExecutionHandle],
-                    memoryRetry: MemoryRetryConfig = MemoryRetryConfig.none
+                    memoryRetry: MemoryRetryResult = MemoryRetryResult.none
   ): Future[ExecutionHandle] =
     backendExecutionStatus flatMap {
       case failedRetryableOrNonRetryable: FailedExecutionHandle =>
@@ -1097,7 +1097,7 @@ trait StandardAsyncExecutionActor
   private def evaluateFailureRetry(handle: FailedNonRetryableExecutionHandle,
                                    kvsFromPreviousAttempt: Map[String, KvPair],
                                    kvsForNextAttempt: Map[String, KvPair],
-                                   memoryRetry: MemoryRetryConfig
+                                   memoryRetry: MemoryRetryResult
   ): Future[FailedRetryableExecutionHandle] =
     (memoryRetry.oomDetected, memoryRetry.factor, memoryRetry.previousMultiplier) match {
       case (true, Some(retryFactor), Some(previousMultiplier)) =>
@@ -1425,7 +1425,7 @@ trait StandardAsyncExecutionActor
               )
             )
             retryElseFail(executionHandle,
-                          MemoryRetryConfig(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
             )
           case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
             Future.successful(AbortedExecutionHandle)
@@ -1457,7 +1457,7 @@ trait StandardAsyncExecutionActor
               )
             )
             retryElseFail(executionHandle,
-                          MemoryRetryConfig(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
             )
           case _ =>
             val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)

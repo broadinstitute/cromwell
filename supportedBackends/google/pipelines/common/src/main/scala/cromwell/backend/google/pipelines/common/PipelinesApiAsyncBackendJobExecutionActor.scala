@@ -13,36 +13,20 @@ import common.util.StringUtil._
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend._
-import cromwell.backend.async.{
-  AbortedExecutionHandle,
-  ExecutionHandle,
-  FailedNonRetryableExecutionHandle,
-  FailedRetryableExecutionHandle,
-  PendingExecutionHandle
-}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsTransferLibraryName
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
 import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
 import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
-import cromwell.backend.google.pipelines.common.api.clients.{
-  PipelinesApiAbortClient,
-  PipelinesApiRunCreationClient,
-  PipelinesApiStatusRequestClient
-}
+import cromwell.backend.google.pipelines.common.api.clients.{PipelinesApiAbortClient, PipelinesApiRunCreationClient, PipelinesApiStatusRequestClient}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
-import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
+import cromwell.backend.google.pipelines.common.errors.{FailedToDelocalizeFailure, isQuotaMessage}
 import cromwell.backend.google.pipelines.common.io._
 import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.io.DirectoryFunctions
-import cromwell.backend.standard.{
-  ScriptPreambleData,
-  StandardAdHocValue,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob
-}
+import cromwell.backend.standard.{ScriptPreambleData, StandardAdHocValue, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -873,6 +857,14 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           val message = unable + details + prettyError
           FailedNonRetryableExecutionHandle(
             StandardException(runStatus.errorCode, message, jobTag, returnCode, standardPaths.error),
+            returnCode,
+            None
+          )
+        case (Status.FAILED_PRECONDITION, _) if isQuotaMessage(prettyError) =>
+          val enhancedMessage = prettyError + runStatus.machineType.map(mt => s" [Machine type: $mt]").getOrElse("")
+          jobLogger.info(s"Detected no available zones quota error, issuing retry. Message: ${enhancedMessage}")
+          FailedRetryableExecutionHandle(
+            StandardException(runStatus.errorCode, enhancedMessage, jobTag, returnCode, standardPaths.error),
             returnCode,
             None
           )

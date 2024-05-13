@@ -433,12 +433,16 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def onTaskComplete(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Unit = {
     val taskEndTime = getTaskEndTime(handle, getTaskLogs)
-    if (runStatus == Error() | runStatus == Failed()) {
-      val errors = getErrorSeq(runStatus, handle, getErrorLogs)
-      errors.onComplete {
-        case Success(r) => tellMetadata(Map(CallMetadataKeys.Failures -> r))
-        case Failure(e) => log.error(e.getMessage)
-      }
+    val errors = for {
+      errors <- runStatus match {
+      case Error (_, _) | Failed (_, _) => getErrorSeq(runStatus, handle, getErrorLogs)
+      case _ => Future.successful(Seq.empty[String])
+    }
+    } yield errors
+
+    errors.onComplete {
+      case Success(r) => tellMetadata(Map(CallMetadataKeys.Failures -> r))
+      case Failure(e) => log.error(e.getMessage)
     }
 
     taskEndTime.onComplete {

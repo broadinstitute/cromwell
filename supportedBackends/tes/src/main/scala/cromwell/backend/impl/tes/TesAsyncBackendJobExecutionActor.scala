@@ -451,6 +451,12 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
+  /*
+  * We are polling for the status of a task to dynamically add its cost information to the metadata. pollStatusAsync
+  * looks for a previous state on the handle; if it doesn't find anything (task just started), we poll for the status
+  * and also fetch the cost data. If there is a previous status, we look and see if the cost data has been fetched.
+  * If not, we poll for the status AND cost information in TES.
+  * */
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     handle.previousState match {
       case None => pollStatus(handle, fetchCostData = true)

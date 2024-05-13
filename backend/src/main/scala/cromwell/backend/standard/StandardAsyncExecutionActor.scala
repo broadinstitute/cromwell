@@ -1101,6 +1101,7 @@ trait StandardAsyncExecutionActor
   ): Future[FailedRetryableExecutionHandle] =
     (memoryRetry.oomDetected, memoryRetry.factor, memoryRetry.previousMultiplier) match {
       case (true, Some(retryFactor), Some(previousMultiplier)) =>
+        // Subsequent memory retry attempt
         val nextMemoryMultiplier = previousMultiplier * retryFactor.value
         saveAttrsAndRetry(handle,
                           kvsFromPreviousAttempt,
@@ -1109,6 +1110,7 @@ trait StandardAsyncExecutionActor
                           Option(nextMemoryMultiplier)
         )
       case (true, Some(retryFactor), None) =>
+        // First memory retry attempt
         saveAttrsAndRetry(handle,
                           kvsFromPreviousAttempt,
                           kvsForNextAttempt,
@@ -1116,6 +1118,7 @@ trait StandardAsyncExecutionActor
                           Option(retryFactor.value)
         )
       case (_, _, _) =>
+        // Not an OOM
         saveAttrsAndRetry(handle, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
     }
 

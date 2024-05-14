@@ -6,6 +6,7 @@ object Dependencies {
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
+  private val apacheHttpClient5V = "5.3.1"
   private val awsSdkV = "2.17.265"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
@@ -21,6 +22,7 @@ object Dependencies {
   private val azureAppInsightsLogbackV = "2.6.4"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.4.10"
+  private val bardClientV = "1.0.4"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
@@ -529,7 +531,7 @@ object Dependencies {
     "jakarta.activation" % "jakarta.activation-api" % jakartaActivationV,
   )
 
-  val draft2LanguageFactoryDependencies = List(
+  val mockServerDependencies = List(
     "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
   )
 
@@ -593,7 +595,10 @@ object Dependencies {
   val servicesDependencies: List[ModuleID] = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
-  ) ++ testDatabaseDependencies ++ akkaHttpDependencies
+    "bio.terra" % "bard-client-resttemplate-javax" % bardClientV,
+    "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V // Needed for rest-template connection pooling
+
+  ) ++ testDatabaseDependencies ++ akkaHttpDependencies ++ mockServerDependencies
 
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 
@@ -664,7 +669,7 @@ object Dependencies {
       cromwellApiClientDependencies ++
       databaseMigrationDependencies ++
       databaseSqlDependencies ++
-      draft2LanguageFactoryDependencies ++
+      mockServerDependencies ++
       drsLocalizerDependencies ++
       engineDependencies ++
       gcsFileSystemDependencies ++

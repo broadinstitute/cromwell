@@ -1281,6 +1281,7 @@ trait StandardAsyncExecutionActor
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
         tellMetadata(metadata)
+        tellBard(metadata)
         handleExecutionResult(state, oldHandle)
       case s =>
         Future.successful(

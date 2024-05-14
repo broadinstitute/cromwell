@@ -8,6 +8,6 @@ object BardEventing {
     override def serviceName: String = "BardEventing"
   }
 
-  case class BardEventRequest(bearerToken: String, event: BardEvent) extends BardEventingMessage
+  case class BardEventRequest(event: BardEvent) extends BardEventingMessage
 
 }

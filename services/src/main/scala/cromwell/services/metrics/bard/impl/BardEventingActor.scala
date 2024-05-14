@@ -22,8 +22,8 @@ class BardEventingActor(serviceConfig: Config, globalConfig: Config, serviceRegi
   lazy val bardService: BardService = new BardService(bardConfig.baseUrl, bardConfig.connectionPoolSize)
 
   override def receive: Receive = {
-    case BardEventRequest(bearerToken, event) if bardConfig.enabled =>
-      bardService.sendEvent(bearerToken, event)
+    case BardEventRequest(event) if bardConfig.enabled =>
+      bardService.sendEvent(event)
     // This service currently doesn't do any work on shutdown but the service registry pattern requires it
     // (see https://github.com/broadinstitute/cromwell/issues/2575)
     case ShutdownCommand => context stop self

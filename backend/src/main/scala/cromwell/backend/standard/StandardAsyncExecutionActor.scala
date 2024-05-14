@@ -31,6 +31,8 @@ import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
+import cromwell.services.metrics.bard.BardEventing.BardEventRequest
+import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
@@ -45,6 +47,7 @@ import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
 import scala.concurrent._
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 trait StandardAsyncExecutionActorParams extends StandardJobExecutionActorParams {
@@ -1281,6 +1284,7 @@ trait StandardAsyncExecutionActor
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
         tellMetadata(metadata)
+        tellBard(metadata)
         handleExecutionResult(state, oldHandle)
       case s =>
         Future.successful(
@@ -1469,6 +1473,14 @@ trait StandardAsyncExecutionActor
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
+
+  def tellBard(metadataKeyValues: Map[String, Any]): Unit =
+    serviceRegistryActor ! BardEventRequest(
+      TaskSummaryEvent(workflowDescriptor.id,
+                       Option(jobDescriptor.key.propertiesToMap).getOrElse(Map()).asJava,
+                       metadataKeyValues.asJava
+      )
+    )
 
   implicit override protected lazy val ec: ExecutionContextExecutor = context.dispatcher
 }

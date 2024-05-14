@@ -15,8 +15,8 @@ class BardService(bardUrl: String, connectionPoolSize: Int) extends LazyLogging 
   private val restTemplate = makeRestTemplateWithPooling
   private val appId = "cromwell"
 
-  def sendEvent(bearerToken: String, event: BardEvent): Unit = {
-    val api = getEventApi(bearerToken)
+  def sendEvent(event: BardEvent): Unit = {
+    val api = getEventApi
     val eventLogRequest = new EventsEventLogRequest().properties(event.getProperties)
     try
       api.eventsEventLog(event.eventName, appId, eventLogRequest)
@@ -28,10 +28,9 @@ class BardService(bardUrl: String, connectionPoolSize: Int) extends LazyLogging 
     ()
   }
 
-  private def getEventApi(bearerToken: String): DefaultApi = {
+  private def getEventApi: DefaultApi = {
     val bardClient = new ApiClient(restTemplate)
     bardClient.setBasePath(bardUrl)
-    bardClient.setBearerToken(bearerToken)
     new DefaultApi(bardClient)
   }
 

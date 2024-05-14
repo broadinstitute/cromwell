@@ -29,7 +29,7 @@ class WriteMetadataActor(override val batchSize: Int,
   private val statsRecorder = MetadataStatisticsRecorder(metadataStatisticsRecorderSettings)
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
-    System.out.println("Metadata keys to clean: " + metadataKeysToClean)
+    log.debug("Metadata keys to clean: " + metadataKeysToClean)
     val cleanedMetadataWriteActions = if (metadataKeysToClean.isEmpty) e else sanitizeInputs(e)
     val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
 

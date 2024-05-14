@@ -519,7 +519,7 @@ config section:
              md5.
     * `md5`. The well-known md5sum algorithm
 * Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file 
-caching strategy and can therefore never work with containers.
+caching strategy and can therefore do not work with containers by default.
     * `path` creates a md5 hash of the path.
     * `path+modtime` creates a md5 hash of the path and its modification time.
 * Fingerprinting. This strategy works with containers.

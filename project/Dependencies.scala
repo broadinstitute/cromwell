@@ -595,7 +595,9 @@ object Dependencies {
   val servicesDependencies: List[ModuleID] = List(
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
-    "bio.terra" % "bard-client-resttemplate-javax" % bardClientV,
+    "bio.terra" % "bard-client-resttemplate-javax" % bardClientV
+      exclude("org.springframework", "spring-aop")
+      exclude("org.springframework", "spring-jcl"),
     "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V // Needed for rest-template connection pooling
 
   ) ++ testDatabaseDependencies ++ akkaHttpDependencies ++ mockServerDependencies

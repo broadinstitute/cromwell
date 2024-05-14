@@ -10,6 +10,6 @@ metadata {
   status: Succeeded
   "outputs.metadata_type_validation.validate_string.string_output": "hello world"
   "outputs.metadata_type_validation.validate_int.int_output": 5
-  "outputs.metadata_type_validation.validate_boolean.boolean_output": true
+  "outputs.metadata_type_validation.validate_boolean.boolean_output": "true"
   "outputs.metadata_type_validation.validate_float.float_output": 5.5
 }

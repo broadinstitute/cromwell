@@ -7,6 +7,9 @@ import org.apache.commons.text.StringEscapeUtils
 
 object RunnableUtils {
 
+  /** Image to use for ssh access. */
+  val sshImage = "gcr.io/cloud-genomics-pipelines/tools"
+
   /** Entry point on the ssh image. */
   val sshEntryPoint = "ssh-server"
 

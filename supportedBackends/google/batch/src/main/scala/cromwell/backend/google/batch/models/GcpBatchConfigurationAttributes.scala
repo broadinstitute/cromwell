@@ -98,15 +98,15 @@ object GcpBatchConfigurationAttributes
     "project",
     "root",
     "maximum-polling-interval",
-    "batch-api",
-    "batch-api.location",
-    "batch-api.compute-service-account",
-    "batch-api.auth",
-    "batch-api.restrict-metadata-access",
-    "batch-api.enable-fuse",
-    "batch-api-api-queries-per-100-seconds",
-    "batch-api.localization-attempts",
-    "batch-api.parallel-composite-upload-threshold",
+    "batch",
+    "batch.location",
+    "batch.compute-service-account",
+    "batch.auth",
+    "batch.restrict-metadata-access",
+    "batch.enable-fuse",
+    "batch-queries-per-100-seconds",
+    "batch.localization-attempts",
+    "batch.parallel-composite-upload-threshold",
     "filesystems",
     "filesystems.drs.auth",
     "filesystems.gcs.auth",
@@ -133,7 +133,7 @@ object GcpBatchConfigurationAttributes
   )
 
   private val deprecatedJesKeys: Map[String, String] = Map(
-    "batch-api.default-zones" -> "default-runtime-attributes.zones"
+    "batch.default-zones" -> "default-runtime-attributes.zones"
   )
 
   def apply(googleConfig: GoogleConfiguration,
@@ -205,19 +205,19 @@ object GcpBatchConfigurationAttributes
       backendConfig.as[String]("root")
     }
     val location: ErrorOr[String] = validate {
-      backendConfig.as[String]("batch-api.location")
+      backendConfig.as[String]("batch.location")
     }
     val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     val computeServiceAccount: String =
-      backendConfig.as[Option[String]]("batch-api.compute-service-account").getOrElse("default")
+      backendConfig.as[Option[String]]("batch.compute-service-account").getOrElse("default")
     val batchAuthName: ErrorOr[String] = validate {
-      backendConfig.as[String]("batch-api.auth")
+      backendConfig.as[String]("batch.auth")
     }
     val batchRestrictMetadataAccess: ErrorOr[Boolean] = validate {
-      backendConfig.as[Option[Boolean]]("batch-api.restrict-metadata-access").getOrElse(false)
+      backendConfig.as[Option[Boolean]]("batch.restrict-metadata-access").getOrElse(false)
     }
     val batchEnableFuse: ErrorOr[Boolean] = validate {
-      backendConfig.as[Option[Boolean]]("batch-api.enable-fuse").getOrElse(false)
+      backendConfig.as[Option[Boolean]]("batch.enable-fuse").getOrElse(false)
     }
 
     val dockerhubToken: ErrorOr[String] = validate {
@@ -252,11 +252,11 @@ object GcpBatchConfigurationAttributes
     }
 
     val parallelCompositeUploadThreshold =
-      validateGsutilMemorySpecification(backendConfig, "batch-api.parallel-composite-upload-threshold")
+      validateGsutilMemorySpecification(backendConfig, "batch.parallel-composite-upload-threshold")
 
     val localizationAttempts: ErrorOr[Int Refined Positive] = backendConfig
-      .as[Option[Int]]("batch-api.localization-attempts")
-      .map(attempts => validatePositiveInt(attempts, "batch-api.localization-attempts"))
+      .as[Option[Int]]("batch.localization-attempts")
+      .map(attempts => validatePositiveInt(attempts, "batch.localization-attempts"))
       .getOrElse(DefaultGcsTransferAttempts.validNel)
 
     val gcsTransferConfiguration: ErrorOr[GcsTransferConfiguration] =
@@ -429,7 +429,7 @@ object GcpBatchConfigurationAttributes
   def validateQps(config: Config): ErrorOr[Int Refined Positive] = {
     import eu.timepit.refined._
 
-    val qp100s = config.as[Option[Int]]("batch-api-api-queries-per-100-seconds").getOrElse(BatchApiDefaultQps)
+    val qp100s = config.as[Option[Int]]("batch-queries-per-100-seconds").getOrElse(BatchApiDefaultQps)
     val qpsCandidate = qp100s / 100
 
     refineV[Positive](qpsCandidate) match {

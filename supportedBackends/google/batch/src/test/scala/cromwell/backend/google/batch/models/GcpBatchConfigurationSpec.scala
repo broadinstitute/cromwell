@@ -60,7 +60,7 @@ class GcpBatchConfigurationSpec
       |  // This is the maximum polling interval (in seconds):
       |  maximum-polling-interval = 600
       |
-      |  batch-api {
+      |  batch {
       |  // A reference to an auth defined in the `google` stanza at the top.
       |  // This auth is used to create jobs and manipulate auth JSONs.
       |     auth = "application-default"
@@ -101,8 +101,8 @@ class GcpBatchConfigurationSpec
       (backendConfig, globalConfig.withoutPath("google")),
       (backendConfig.withoutPath("project"), globalConfig),
       (backendConfig.withoutPath("root"), globalConfig),
-      (backendConfig.withoutPath("batch-api"), globalConfig),
-      (backendConfig.withoutPath("batch-api.location"), globalConfig),
+      (backendConfig.withoutPath("batch"), globalConfig),
+      (backendConfig.withoutPath("batch.location"), globalConfig),
       (backendConfig.withoutPath("filesystems"), globalConfig),
       (backendConfig.withoutPath("filesystems.gcs"), globalConfig),
       (backendConfig.withoutPath("filesystems.gcs.auth"), globalConfig)

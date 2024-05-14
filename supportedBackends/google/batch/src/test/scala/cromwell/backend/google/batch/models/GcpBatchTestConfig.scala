@@ -18,7 +18,7 @@ object GcpBatchTestConfig {
       |project = "my-cromwell-workflows"
       |root = "gs://my-cromwell-workflows-bucket"
       |
-      |batch-api {
+      |batch {
       |  auth = "application-default"
       |  location = "us-central1"
       |}
@@ -47,7 +47,7 @@ object GcpBatchTestConfig {
       |project = "my-cromwell-workflows"
       |root = "gs://my-cromwell-workflows-bucket"
       |
-      |batch-api {
+      |batch {
       |  auth = "application-default"
       |}
       |

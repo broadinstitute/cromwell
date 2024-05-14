@@ -66,12 +66,16 @@ case class Complete(override val costData: Option[TesVmCostData] = Option.empty)
   def isTerminal = true
 }
 
-case class Error(override val sysLogs: Seq[String] = Seq.empty[String], override val costData: Option[TesVmCostData] = Option.empty) extends TesRunStatus {
+case class Error(override val sysLogs: Seq[String] = Seq.empty[String],
+                 override val costData: Option[TesVmCostData] = Option.empty
+) extends TesRunStatus {
   def isTerminal = true
   override def toString = "SYSTEM_ERROR"
 }
 
-case class Failed(override val sysLogs: Seq[String] = Seq.empty[String], override val costData: Option[TesVmCostData] = Option.empty) extends TesRunStatus {
+case class Failed(override val sysLogs: Seq[String] = Seq.empty[String],
+                  override val costData: Option[TesVmCostData] = Option.empty
+) extends TesRunStatus {
   def isTerminal = true
   override def toString = "EXECUTOR_ERROR"
 }
@@ -231,21 +235,17 @@ object TesAsyncBackendJobExecutionActor {
 
   def getTaskEndTime(
     handle: StandardAsyncPendingExecutionHandle,
-    getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[TaskLog]
+    taskLogs: Future[TaskLog]
   )(implicit ec: ExecutionContext): Future[Option[String]] =
     for {
-      tesLogs <- getTaskLogsFn(handle)
+      tesLogs <- taskLogs
       endTime = tesLogs.end_time
     } yield endTime
 
-  def getErrorSeq(runStatus: TesRunStatus,
-                  handle: StandardAsyncPendingExecutionHandle,
-                  getErrorLogsFn: StandardAsyncPendingExecutionHandle => Future[Seq[String]]
-  )(implicit
-    ec: ExecutionContext
-  ): Future[Seq[String]] =
+  def getErrorSeq(taskLogs: Future[TaskLog])(implicit ec: ExecutionContext): Future[Option[Seq[String]]] =
     for {
-      errors <- getErrorLogsFn(handle)
+      tesLogs <- taskLogs
+      errors = tesLogs.system_logs
     } yield errors
 }
 
@@ -432,12 +432,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def requestsAbortAndDiesImmediately: Boolean = false
 
   override def onTaskComplete(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Unit = {
-    val taskEndTime = getTaskEndTime(handle, getTaskLogs)
+    val logs = getTaskLogs(handle)
+    val taskEndTime = getTaskEndTime(handle, logs)
     val errors = for {
       errors <- runStatus match {
-      case Error (_, _) | Failed (_, _) => getErrorSeq(runStatus, handle, getErrorLogs)
-      case _ => Future.successful(Seq.empty[String])
-    }
+        case Error(_, _) | Failed(_, _) => getErrorSeq(logs)
+        case _ => Future.successful(Seq.empty[String])
+      }
     } yield errors
 
     errors.onComplete {
@@ -452,11 +453,11 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   /*
-  * We are polling for the status of a task to dynamically add its cost information to the metadata. pollStatusAsync
-  * looks for a previous state on the handle; if it doesn't find anything (task just started), we poll for the status
-  * and also fetch the cost data. If there is a previous status, we look and see if the cost data has been fetched.
-  * If not, we poll for the status AND cost information in TES.
-  * */
+   * We are polling for the status of a task to dynamically add its cost information to the metadata. pollStatusAsync
+   * looks for a previous state on the handle; if it doesn't find anything (task just started), we poll for the status
+   * and also fetch the cost data. If there is a previous status, we look and see if the cost data has been fetched.
+   * If not, we poll for the status AND cost information in TES.
+   * */
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     handle.previousState match {
       case None => pollStatus(handle, fetchCostData = true)

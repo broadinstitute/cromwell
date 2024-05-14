@@ -216,7 +216,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
 
   // TODO: PAPI has this set to false, but, if we set it, we get a failure in centaur tests
-  override def requestsAbortAndDiesImmediately: Boolean = false
+  override def requestsAbortAndDiesImmediately: Boolean = true
 
   val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption
     .getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))

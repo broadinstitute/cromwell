@@ -1,5 +1,12 @@
 # Cromwell Change Log
 
+## 88 Release Notes
+
+### Optional docker soft links
+
+Cromwell now allows opting into configured soft links on shared file systems such as HPC environments. More details can
+be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional-docker-soft-links).
+
 ## 87 Release Notes
 
 ### `upgrade` command removed from Womtool

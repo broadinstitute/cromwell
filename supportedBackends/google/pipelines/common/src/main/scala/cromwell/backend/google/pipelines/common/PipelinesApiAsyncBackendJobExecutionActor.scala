@@ -966,7 +966,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val thisQuotaFailure = q + 1
         val nextKvPairs = nextAttemptRetryKvPairs(p, ur, thisQuotaFailure)
 
-        if (thisQuotaFailure < pipelinesConfiguration.papiAttributes.quotaRetries) {
+        if (thisQuotaFailure < pipelinesConfiguration.papiAttributes.quotaAttempts) {
           val retryFlavor = s"$baseMsg Cromwell will automatically retry the task. Backend info: ${runStatus.prettyPrintedError}"
           val exception = StandardException(runStatus.errorCode, retryFlavor, jobTag, None, standardPaths.error)
           jobLogger.info(exception.getMessage)

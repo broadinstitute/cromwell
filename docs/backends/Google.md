@@ -249,7 +249,8 @@ and raising quota is still recommended.
 
 ```hocon
 backend.providers.PAPIv2.config {
-  quota-retry-attempts: 20
+  # Counts attempts (total jobs) not just retries after to the first
+  quota-attempts: 20
 }
 ```
 

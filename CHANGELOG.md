@@ -58,7 +58,7 @@ In a future release, **delocalization** will also migrate to `gcloud storage`. A
 
 
 ### Other Improvements
- * In certain cases DRS downloads have been found to hang forever Cromwell will now time these out ([#7416](https://github.com/broadinstitute/cromwell/pull/7416))
+ * In certain cases DRS downloads have been found to hang forever. Cromwell will now time these out. ([#7416](https://github.com/broadinstitute/cromwell/pull/7416))
  * Increased default Akka `client.parsing.max-response-reason-length` to 1024 ([#7406](https://github.com/broadinstitute/cromwell/pull/7406))
  * Workflow Completion Callback bodies now include fully-qualified output names ([#7234](https://github.com/broadinstitute/cromwell/pull/7234))
  * Improved workflow abort error handling ([#7245](https://github.com/broadinstitute/cromwell/pull/7245))

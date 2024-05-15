@@ -6,6 +6,7 @@ import java.util
 
 case class TaskSummaryEvent(workflowId: WorkflowId,
                             jobDescriptorKey: util.Map[String, Any],
+                            terminalState: String,
                             cloud: String,
                             dockerImage: String,
                             cpuCount: Int,

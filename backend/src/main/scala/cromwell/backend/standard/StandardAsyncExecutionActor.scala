@@ -1286,7 +1286,7 @@ trait StandardAsyncExecutionActor
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
         tellMetadata(metadata)
-        tellBard(metadata)
+        tellBard(state)
         handleExecutionResult(state, oldHandle)
       case s =>
         Future.successful(
@@ -1476,7 +1476,7 @@ trait StandardAsyncExecutionActor
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
-  def tellBard(metadataKeyValues: Map[String, Any]): Unit = {
+  def tellBard(state: StandardAsyncRunState): Unit = {
     val dockerImage = RuntimeAttributesValidation.extract(DockerValidation.instance, validatedRuntimeAttributes)
     val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
     val memory = RuntimeAttributesValidation
@@ -1487,6 +1487,7 @@ trait StandardAsyncExecutionActor
       TaskSummaryEvent(
         workflowDescriptor.id,
         Option(jobDescriptor.key.propertiesToMap).getOrElse(Map()).asJava,
+        state.getClass.getSimpleName,
         "myCoolCloud",
         dockerImage,
         cpus,

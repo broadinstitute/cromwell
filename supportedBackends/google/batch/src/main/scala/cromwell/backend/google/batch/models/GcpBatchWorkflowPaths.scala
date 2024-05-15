@@ -1,24 +1,19 @@
 package cromwell.backend.google.batch.models
 
-import com.google.api.gax.retrying.RetrySettings
 import com.google.auth.Credentials
 import com.typesafe.config.Config
 import cromwell.backend.google.batch.models.GcpBatchWorkflowPaths.callCachePathPrefixFromExecutionRoot
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
-import cromwell.filesystems.gcs.GcsPathBuilder
 
 import scala.concurrent.ExecutionContext
-import scala.language.postfixOps
 
 object GcpBatchWorkflowPaths {
   val GcsRootOptionKey = "gcp_batch_gcs_root"
-  private val AuthFilePathOptionKey = "auth_bucket"
   private val GcsPrefix = "gs://"
 
   private[models] def callCachePathPrefixFromExecutionRoot(executionRoot: String): String =
@@ -45,35 +40,6 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
   )
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
-
-  // TODO: Do we actually need this? it seems to be used only by tests
-  val gcsAuthFilePath: Path = {
-    // The default auth file bucket is always at the root of the root workflow
-    val defaultBucket = executionRoot
-      .resolve(workflowDescriptor.rootWorkflow.name)
-      .resolve(workflowDescriptor.rootWorkflowId.toString)
-    val bucket = workflowDescriptor.workflowOptions
-      .get(GcpBatchWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.pathAsString
-
-    /*
-     * This is an "exception". The filesystem used here is built from genomicsAuth
-     * unlike everywhere else where the filesystem used is built from gcsFileSystemAuth
-     */
-    val pathBuilderWithGenomicsAuth = GcsPathBuilder.fromCredentials(
-      genomicsCredentials,
-      gcpBatchConfiguration.googleConfig.applicationName,
-      RetrySettings.newBuilder().build(),
-      GcsStorage.DefaultCloudStorageConfiguration,
-      workflowOptions,
-      Option(gcpBatchConfiguration.batchAttributes.project)
-    )
-
-    val authBucket = pathBuilderWithGenomicsAuth.build(bucket) recover { case ex =>
-      throw new Exception(s"Invalid gcs auth_bucket path $bucket", ex)
-    } get
-
-    authBucket.resolve(s"${workflowDescriptor.rootWorkflowId}_auth.json")
-  }
 
   val monitoringScriptPath: Option[Path] = workflowOptions.get(WorkflowOptionKeys.MonitoringScript).toOption map {
     path =>

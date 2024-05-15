@@ -39,8 +39,6 @@ class GcpBatchWorkflowPathsSpec extends TestKitSuite with AnyFlatSpecLike with M
     workflowPaths.executionRoot.pathAsString should be("gs://my-cromwell-workflows-bucket/")
     workflowPaths.workflowRoot.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/")
-    workflowPaths.gcsAuthFilePath.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/${workflowDescriptor.id}_auth.json")
   }
 
   it should "calculate the call cache path prefix from the workflow execution root correctly" in {

@@ -493,7 +493,6 @@ class BatchBackendCacheHitCopyingActorSpec
     }
 
     workflowPaths.getPath(anyString).answers(identityPathMocker)
-    workflowPaths.gcsAuthFilePath returns mock[Path]
 
     val runtimeAttributesBuilder = mock[StandardValidatedRuntimeAttributesBuilder]
     runtimeAttributesBuilder

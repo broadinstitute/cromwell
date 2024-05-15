@@ -39,12 +39,14 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
+import wdl4s.parser.MemoryUnit
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
+import java.time.Instant
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
@@ -1474,13 +1476,26 @@ trait StandardAsyncExecutionActor
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
-  def tellBard(metadataKeyValues: Map[String, Any]): Unit =
+  def tellBard(metadataKeyValues: Map[String, Any]): Unit = {
+    val dockerImage = RuntimeAttributesValidation.extract(DockerValidation.instance, validatedRuntimeAttributes)
+    val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
+    val memory = RuntimeAttributesValidation
+      .extract(MemoryValidation.instance(), validatedRuntimeAttributes)
+      .to(MemoryUnit.Bytes)
+      .amount
     serviceRegistryActor ! BardEventRequest(
-      TaskSummaryEvent(workflowDescriptor.id,
-                       Option(jobDescriptor.key.propertiesToMap).getOrElse(Map()).asJava,
-                       metadataKeyValues.asJava
+      TaskSummaryEvent(
+        workflowDescriptor.id,
+        Option(jobDescriptor.key.propertiesToMap).getOrElse(Map()).asJava,
+        "myCoolCloud",
+        dockerImage,
+        cpus,
+        memory,
+        Instant.now(),
+        Instant.now()
       )
     )
+  }
 
   implicit override protected lazy val ec: ExecutionContextExecutor = context.dispatcher
 }

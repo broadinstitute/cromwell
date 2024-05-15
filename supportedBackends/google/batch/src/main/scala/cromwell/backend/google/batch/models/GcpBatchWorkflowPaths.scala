@@ -22,7 +22,7 @@ object GcpBatchWorkflowPaths {
 }
 case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                                  gcsCredentials: Credentials,
-                                 genomicsCredentials: Credentials,
+                                 batchCredentials: Credentials,
                                  gcpBatchConfiguration: GcpBatchConfiguration,
                                  override val pathBuilders: PathBuilders,
                                  // This allows for the adjustment of the standard stream file names in PAPI v1 to match the

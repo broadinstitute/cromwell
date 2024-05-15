@@ -12,7 +12,6 @@ cromwell::build::setup_centaur_environment
 cromwell::build::assemble_jars
 
 cromwell::build::run_centaur \
-    -p 8 \
     -i metadata_type_validation \
-    
+
 cromwell::build::generate_code_coverage

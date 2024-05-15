@@ -1,5 +1,6 @@
 package wdl.transforms.base.linking.expression.values
 
+import cats.implicits.catsSyntaxParallelTraverse1
 import cats.syntax.traverse._
 import cats.syntax.validated._
 import cats.instances.list._
@@ -675,7 +676,7 @@ object EngineFunctionEvaluators {
         case WomOptionalValue(f, Some(o)) if isOptionalOfFileType(f) => optionalSafeFileSize(o)
         case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0L.validNel
         case WomArray(WomArrayType(womType), values) if isOptionalOfFileType(womType) =>
-          values.toList.traverse(optionalSafeFileSize).map(_.sum)
+          values.toList.parTraverse(optionalSafeFileSize).map(_.sum)
         case _ =>
           s"The 'size' method expects a 'File', 'File?', 'Array[File]' or Array[File?] argument but instead got ${value.womType.stableName}.".invalidNel
       }

@@ -106,6 +106,17 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
         |""".stripMargin,
      Failed(Status.UNAVAILABLE, None, Nil, Nil, None, None, None)
     ),
+    ("parse & classify quota fails",
+      """|{
+         |  "done": true,
+         |  "error": {
+         |    "code": 9,
+         |    "message": "Execution failed: allocating: selecting resources: selecting region and zone: no available zones: northamerica-northeast1: 12 CPUS (9/9 available) quota too low"
+         |  },
+         |  "name": "projects/1005074806481/locations/us-central1/operations/16958337426039071297"
+         |}""".stripMargin,
+    QuotaFailed(Status.FAILED_PRECONDITION, None, Nil, Nil, None, None, None)
+    ),
     ("check that we classify error code 10 as a preemption on a preemptible VM",
      """{
        |  "done": true,

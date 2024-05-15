@@ -29,7 +29,7 @@ class WriteMetadataActor(override val batchSize: Int,
   private val statsRecorder = MetadataStatisticsRecorder(metadataStatisticsRecorderSettings)
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
-    log.debug("Metadata keys to clean: " + metadataKeysToClean)
+    log.info("Metadata keys to clean: " + metadataKeysToClean)
     val (cleanedMetadataWriteActions, allPutEvents, putWithResponse) = prepareMetadata(e)
     val dbAction = addMetadataEvents(allPutEvents)
 

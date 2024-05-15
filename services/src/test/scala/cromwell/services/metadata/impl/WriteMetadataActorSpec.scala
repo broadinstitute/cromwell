@@ -333,11 +333,11 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
     val processedMetadataTuple = writeActor.underlyingActor.prepareMetadata(NonEmptyVector(metadataEvents, Vector()))
     val allPutEvents = processedMetadataTuple._2
 
-    allPutEvents.zipWithIndex.map(eventWithIndex => {
+    allPutEvents.zipWithIndex.map { eventWithIndex =>
       val expectedEvent = metadataEvents.events.toList(eventWithIndex._2)
       val actualEvent = eventWithIndex._1
       actualEvent shouldBe expectedEvent
-    })
+    }
   }
 
   // Mock database interface.

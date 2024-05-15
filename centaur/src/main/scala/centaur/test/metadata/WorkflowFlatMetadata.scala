@@ -33,7 +33,8 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       diffValues(k, value(k), actual.value(k), workflowID, workflowRoot, cacheHitUUID)
     }
 
-    mismatchErrors ++ missingErrors + s"All expected values: ${value.values.toList.toString()}"
+    mismatchErrors ++ missingErrors + s"All expected values: ${value.values.toList}"
+    // Everything in values has already been converted to a string by this point
   }
 
   private def diffValues(key: String,

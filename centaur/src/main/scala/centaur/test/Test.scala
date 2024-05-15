@@ -728,7 +728,10 @@ object Operations extends StrictLogging {
           actualMetadata <- fetchOnce()
           _ <- validateUnwantedMetadata(actualMetadata)
           _ <- validateAllowOtherOutputs(actualMetadata)
-          diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
+          diffs = expectedMetadata.diff(actualMetadata.asFlat,
+                                        workflow.id.id,
+                                        cacheHitUUID
+          ) ++ List(s"Expected values before diff function is called: ${expectedMetadata.value.values.toList}")
           _ <- checkDiff(diffs, actualMetadata)
         } yield actualMetadata
       }

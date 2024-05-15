@@ -31,8 +31,6 @@ case class BackendJobDescriptorKey(call: CommandCallNode, index: Option[Int], at
   private val indexString = index map { _.toString } getOrElse "NA"
   lazy val tag = s"${call.fullyQualifiedName}:$indexString:$attempt"
   def mkTag(workflowId: WorkflowId) = s"$workflowId:$this"
-
-  def propertiesToMap: Map[String, Any] = productElementNames.zip(this.productIterator).toMap
 }
 
 /**

@@ -49,7 +49,6 @@ import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 import java.time.Instant
 import scala.concurrent._
 import scala.concurrent.duration._
-import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 trait StandardAsyncExecutionActorParams extends StandardJobExecutionActorParams {
@@ -1486,7 +1485,7 @@ trait StandardAsyncExecutionActor
     serviceRegistryActor ! BardEventRequest(
       TaskSummaryEvent(
         workflowDescriptor.id,
-        Option(jobDescriptor.key.propertiesToMap).getOrElse(Map()).asJava,
+        jobIdKey,
         state.getClass.getSimpleName,
         "myCoolCloud",
         dockerImage,

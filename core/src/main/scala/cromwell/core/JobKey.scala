@@ -2,7 +2,7 @@ package cromwell.core
 
 import wom.graph.GraphNode
 
-trait JobKey extends Product {
+trait JobKey {
   def node: GraphNode
   def index: Option[Int]
   def totalIndices: Int = 1

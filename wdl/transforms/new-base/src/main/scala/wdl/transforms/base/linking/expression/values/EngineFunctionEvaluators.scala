@@ -1,5 +1,6 @@
 package wdl.transforms.base.linking.expression.values
 
+import cats.Parallel
 import cats.implicits.catsSyntaxParallelTraverse1
 import cats.syntax.traverse._
 import cats.syntax.validated._
@@ -17,19 +18,7 @@ import wdl4s.parser.MemoryUnit
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
-import wom.values.{
-  WomArray,
-  WomBoolean,
-  WomFloat,
-  WomInteger,
-  WomMap,
-  WomObject,
-  WomOptionalValue,
-  WomPair,
-  WomSingleFile,
-  WomString,
-  WomValue
-}
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObject, WomOptionalValue, WomPair, WomSingleFile, WomString, WomValue}
 import wom.types.coercion.ops._
 import wom.types.coercion.defaults._
 import wom.types.coercion.WomTypeCoercer
@@ -676,6 +665,7 @@ object EngineFunctionEvaluators {
         case WomOptionalValue(f, Some(o)) if isOptionalOfFileType(f) => optionalSafeFileSize(o)
         case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0L.validNel
         case WomArray(WomArrayType(womType), values) if isOptionalOfFileType(womType) =>
+          implicit def parTraverse: Parallel[ErrorOr] = ???
           values.toList.parTraverse(optionalSafeFileSize).map(_.sum)
         case _ =>
           s"The 'size' method expects a 'File', 'File?', 'Array[File]' or Array[File?] argument but instead got ${value.womType.stableName}.".invalidNel

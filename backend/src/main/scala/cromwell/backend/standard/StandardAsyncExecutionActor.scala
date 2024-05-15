@@ -24,6 +24,7 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
+import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.validation._
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
@@ -896,6 +897,16 @@ trait StandardAsyncExecutionActor
   /**
     * Returns true if the status represents a completion.
     *
+    * Select meanings by backend:
+    * - TES:
+    *     `cromwell.backend.impl.tes.Complete` derived from "state": "COMPLETE"
+    * - Life Sciences:
+    *     `com.google.api.services.genomics.v2alpha1.model.Operation.getDone` is true
+    *     -- AND --
+    *     `com.google.api.services.genomics.v2alpha1.model.Operation#getError` is empty
+    * - GCP Batch:
+    *     `com.google.cloud.batch.v1.JobStatus.State` is `SUCCEEDED`
+    *
     * @param runStatus The run status.
     * @return True if the job is done.
     */
@@ -1054,7 +1065,7 @@ trait StandardAsyncExecutionActor
     * @return The execution handle.
     */
   def retryElseFail(backendExecutionStatus: Future[ExecutionHandle],
-                    retryWithMoreMemory: Boolean = false
+                    memoryRetry: MemoryRetryResult = MemoryRetryResult.none
   ): Future[ExecutionHandle] =
     backendExecutionStatus flatMap {
       case failedRetryableOrNonRetryable: FailedExecutionHandle =>
@@ -1069,33 +1080,46 @@ trait StandardAsyncExecutionActor
           case None => Map.empty[String, KvPair]
         }
 
-        val maxRetriesNotReachedYet = previousFailedRetries < maxRetries
         failedRetryableOrNonRetryable match {
-          case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
-            (retryWithMoreMemory, memoryRetryFactor, previousMemoryMultiplier) match {
-              case (true, Some(retryFactor), Some(previousMultiplier)) =>
-                val nextMemoryMultiplier = previousMultiplier * retryFactor.value
-                saveAttrsAndRetry(failed,
-                                  kvsFromPreviousAttempt,
-                                  kvsForNextAttempt,
-                                  incFailedCount = true,
-                                  Option(nextMemoryMultiplier)
-                )
-              case (true, Some(retryFactor), None) =>
-                saveAttrsAndRetry(failed,
-                                  kvsFromPreviousAttempt,
-                                  kvsForNextAttempt,
-                                  incFailedCount = true,
-                                  Option(retryFactor.value)
-                )
-              case (_, _, _) =>
-                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
-            }
-          case failedNonRetryable: FailedNonRetryableExecutionHandle => Future.successful(failedNonRetryable)
+          case failedNonRetryable: FailedNonRetryableExecutionHandle if previousFailedRetries < maxRetries =>
+            // The user asked us to retry finitely for them, possibly with a memory modification
+            evaluateFailureRetry(failedNonRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, memoryRetry)
+          case failedNonRetryable: FailedNonRetryableExecutionHandle =>
+            // No reason to retry
+            Future.successful(failedNonRetryable)
           case failedRetryable: FailedRetryableExecutionHandle =>
+            // Retry infinitely and unconditionally (!)
             saveAttrsAndRetry(failedRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = false)
         }
       case _ => backendExecutionStatus
+    }
+
+  private def evaluateFailureRetry(handle: FailedNonRetryableExecutionHandle,
+                                   kvsFromPreviousAttempt: Map[String, KvPair],
+                                   kvsForNextAttempt: Map[String, KvPair],
+                                   memoryRetry: MemoryRetryResult
+  ): Future[FailedRetryableExecutionHandle] =
+    (memoryRetry.oomDetected, memoryRetry.factor, memoryRetry.previousMultiplier) match {
+      case (true, Some(retryFactor), Some(previousMultiplier)) =>
+        // Subsequent memory retry attempt
+        val nextMemoryMultiplier = previousMultiplier * retryFactor.value
+        saveAttrsAndRetry(handle,
+                          kvsFromPreviousAttempt,
+                          kvsForNextAttempt,
+                          incFailedCount = true,
+                          Option(nextMemoryMultiplier)
+        )
+      case (true, Some(retryFactor), None) =>
+        // First memory retry attempt
+        saveAttrsAndRetry(handle,
+                          kvsFromPreviousAttempt,
+                          kvsForNextAttempt,
+                          incFailedCount = true,
+                          Option(retryFactor.value)
+        )
+      case (_, _, _) =>
+        // Not an OOM
+        saveAttrsAndRetry(handle, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
     }
 
   private def saveAttrsAndRetry(failedExecHandle: FailedExecutionHandle,
@@ -1400,7 +1424,9 @@ trait StandardAsyncExecutionActor
                 None
               )
             )
-            retryElseFail(executionHandle, outOfMemoryDetected)
+            retryElseFail(executionHandle,
+                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+            )
           case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
             Future.successful(AbortedExecutionHandle)
           case Success(returnCodeAsInt) =>
@@ -1430,7 +1456,9 @@ trait StandardAsyncExecutionActor
                 None
               )
             )
-            retryElseFail(executionHandle, outOfMemoryDetected)
+            retryElseFail(executionHandle,
+                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+            )
           case _ =>
             val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
             retryElseFail(failureStatus)

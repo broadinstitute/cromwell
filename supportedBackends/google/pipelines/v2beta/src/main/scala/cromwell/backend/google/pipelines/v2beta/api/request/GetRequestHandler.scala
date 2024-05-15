@@ -17,6 +17,7 @@ import cromwell.backend.google.pipelines.common.api.RunStatus.{
   Success,
   UnsuccessfulRunStatus
 }
+import cromwell.backend.google.pipelines.common.errors.isQuotaMessage
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import cromwell.backend.google.pipelines.v2beta.api.request.ErrorReporter._
@@ -197,16 +198,9 @@ trait GetRequestHandler { this: RequestHandler =>
   private def isQuotaDelayed(events: List[Event]): Boolean =
     events.sortBy(_.getTimestamp).reverse.headOption match {
       case Some(event) =>
-        quotaMessages.exists(event.getDescription.contains)
+        isQuotaMessage(event.getDescription)
       case None =>
         // If the events list is empty, we're not waiting for quota yet
         false
     }
-
-  private val quotaMessages = List(
-    "A resource limit has delayed the operation",
-    "usage too high",
-    "no available zones",
-    "resource_exhausted"
-  )
 }

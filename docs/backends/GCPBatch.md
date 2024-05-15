@@ -150,7 +150,7 @@ The output of this script will be written to a `monitoring.log` file that will b
 **Google Cloud Storage Filesystem**
 
 On the Google Batch backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
-On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [Workflow Option](../wf_options/Google) will take
+On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `gcp_batch_gcs_root` [Workflow Option](../wf_options/Google) will take
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 

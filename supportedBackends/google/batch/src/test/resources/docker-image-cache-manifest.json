@@ -1,0 +1,13 @@
+{
+  "manifestFormatVersion": 2,
+  "dockerImageCacheMap": {
+    "project1/dockerImage1": {
+      "dockerImageDigest": "sha256:c73e11b1a7854f31ff12c607738bef7b0560a880dc9d0445dde084acc0e9da09",
+      "diskImageName": "projects/some-google-project/global/images/dockerCacheDiskForDockerImage1"
+    },
+    "project2/dockerImage2": {
+      "dockerImageDigest": "sha256:7eb386481d87e41ebddceb948f25379bb339784df5247a3dfbdea2ac101b10c0",
+      "diskImageName": "projects/another-google-project/global/images/dockerCacheDiskForDockerImage2"
+    }
+  }
+}

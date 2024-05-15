@@ -73,8 +73,8 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
   private lazy val gcsCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.gcs
     .retryCredentials(workflowOptions, List(StorageScopes.DEVSTORAGE_FULL_CONTROL))
 
-  // Credentials object for the Genomics API
-  private lazy val genomicsCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.genomics
+  // Credentials object for the Batch API
+  private lazy val batchCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.batch
     .retryCredentials(workflowOptions,
                       List(
                         CloudLifeSciencesScopes.CLOUD_PLATFORM,
@@ -231,11 +231,11 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
 
   override lazy val workflowPaths: Future[GcpBatchWorkflowPaths] = for {
     gcsCred <- gcsCredentials
-    genomicsCred <- genomicsCredentials
+    batchCred <- batchCredentials
     validatedPathBuilders <- pathBuilders
   } yield new GcpBatchWorkflowPaths(workflowDescriptor,
                                     gcsCred,
-                                    genomicsCred,
+                                    batchCred,
                                     gcpBatchConfiguration,
                                     validatedPathBuilders,
                                     standardStreamNameToFileNameMetadataMapper

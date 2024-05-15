@@ -7,6 +7,10 @@
 Cromwell now allows opting into configured soft links on shared file systems such as HPC environments. More details can
 be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional-docker-soft-links).
 
+### GCP Batch
+
+The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+
 ## 87 Release Notes
 
 ### GCP Batch

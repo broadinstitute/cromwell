@@ -1484,15 +1484,15 @@ trait StandardAsyncExecutionActor
       .amount
     serviceRegistryActor ! BardEventRequest(
       TaskSummaryEvent(
-        workflowDescriptor.id,
+        workflowDescriptor.id.id,
         jobIdKey,
         state.getClass.getSimpleName,
         "myCoolCloud",
         dockerImage,
         cpus,
         memory,
-        Instant.now(),
-        Instant.now()
+        Instant.now().toString,
+        Instant.now().toString
       )
     )
   }

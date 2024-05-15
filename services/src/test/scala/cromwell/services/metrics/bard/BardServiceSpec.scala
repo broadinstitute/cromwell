@@ -1,6 +1,5 @@
 package cromwell.services.metrics.bard
 
-import cromwell.core.WorkflowId
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import org.mockserver.integration.ClientAndServer
 import org.mockserver.model.{HttpRequest, HttpResponse, JsonBody, MediaType}
@@ -28,36 +27,36 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with TableDrivenProperty
         .respond(HttpResponse.response.withStatusCode(200).withContentType(MediaType.APPLICATION_JSON))
 
       val bardService = new BardService(bardUrl, 10)
-      val workflowId = WorkflowId(UUID.randomUUID())
+      val workflowId = UUID.randomUUID()
       val jobIdKey = "jobId"
       val taskState = "Complete"
+      val start = Instant.now().minus(1000, ChronoUnit.SECONDS).toString
+      val end = Instant.now().minus(100, ChronoUnit.SECONDS).toString
 
       bardService.sendEvent(
-        TaskSummaryEvent(workflowId,
-                         jobIdKey,
-                         taskState,
-                         "gcp",
-                         "ubuntu",
-                         2,
-                         1024d,
-                         Instant.now().minus(1000, ChronoUnit.SECONDS),
-                         Instant.now().minus(100, ChronoUnit.SECONDS)
-        )
+        TaskSummaryEvent(workflowId, jobIdKey, taskState, "gcp", "ubuntu", 2, 1024d, start, end)
       )
 
       mockServer.verify(
         HttpRequest
           .request(bardApiPath)
           .withMethod("POST")
-          .withBody(new JsonBody("""{
-                                   |   "properties": {
-                                   |     "terminationStatus": "done",
-                                   |     "returnCode": 0,
-                                   |     "event": "task:summary",
-                                   |     "pushToMixpanel": false
-                                   |   }
-                                   | }
-                                   |""".stripMargin)),
+          .withBody(new JsonBody(s"""{
+                                    |   "properties": {
+                                    |     "workflowId": "${workflowId.toString}",
+                                    |     "jobIdKey": "$jobIdKey",
+                                    |     "terminalState": "$taskState",
+                                    |     "cloud": "gcp",
+                                    |     "dockerImage": "ubuntu",
+                                    |     "cpuCount": 2,
+                                    |     "memoryBytes": 1024.0,
+                                    |     "startTime": "$start",
+                                    |     "endTime": "$end",
+                                    |     "pushToMixpanel": false,
+                                    |     "event": "task:summary"
+                                    |   }
+                                    | }
+                                    |""".stripMargin)),
         VerificationTimes.exactly(1)
       )
     } finally if (mockServer != null) mockServer.close()
@@ -74,20 +73,21 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with TableDrivenProperty
         .respond(HttpResponse.response.withStatusCode(500).withContentType(MediaType.APPLICATION_JSON))
 
       val bardService = new BardService(bardUrl, 10)
-      val workflowId = WorkflowId(UUID.randomUUID())
+      val workflowId = UUID.randomUUID()
       val jobIdKey = "jobId"
       val taskState = "Complete"
 
       bardService.sendEvent(
-        TaskSummaryEvent(workflowId,
-                         jobIdKey,
-                         taskState,
-                         "gcp",
-                         "ubuntu",
-                         2,
-                         1024d,
-                         Instant.now().minus(1000, ChronoUnit.SECONDS),
-                         Instant.now().minus(100, ChronoUnit.SECONDS)
+        TaskSummaryEvent(
+          workflowId,
+          jobIdKey,
+          taskState,
+          "gcp",
+          "ubuntu",
+          2,
+          1024d,
+          Instant.now().minus(1000, ChronoUnit.SECONDS).toString,
+          Instant.now().minus(100, ChronoUnit.SECONDS).toString
         )
       )
     } finally if (mockServer != null) mockServer.close()

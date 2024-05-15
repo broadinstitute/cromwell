@@ -11,6 +11,12 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
 
+### Improved handling of Life Sciences API quota errors
+
+Users reported cases where Life Sciences jobs failed due to insufficient quota, instead of queueing them and waiting until
+quota freed up (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
+such as "PAPI error code 9", "no available zones", and/or "quota too low".
+
 ## 87 Release Notes
 
 ### `upgrade` command removed from Womtool

@@ -68,6 +68,7 @@ import wom.values._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 object PipelinesApiAsyncBackendJobExecutionActor {
@@ -102,7 +103,7 @@ object PipelinesApiAsyncBackendJobExecutionActor {
       case None => "The job was stopped before the command finished."
     }
 
-    new Exception(s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message")
+    new Exception(s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message") with NoStackTrace
   }
 }
 
@@ -165,7 +166,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   override lazy val preemptible: Boolean = previousRetryReasons match {
-    case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
+    case Valid(PreviousRetryReasons(p, _, _)) => p < maxPreemption
     case _ => false
   }
 
@@ -891,6 +892,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         runStatus match {
           case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
           case _: RunStatus.Cancelled => AbortedExecutionHandle
+          case quotaFailedStatus: RunStatus.QuotaFailed => handleQuotaFailedStatus(quotaFailedStatus)
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
           case unknown =>
             throw new RuntimeException(
@@ -901,13 +903,23 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  private def nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p: Int, ur: Int): Seq[KvPair] =
+  /**
+    *
+    * @param p  Preemption count
+    * @param ur Unexpected Retry count
+    * @param q  Quota count
+    * @return   KV sequence ready to be saved for the next attempt
+    */
+  private def nextAttemptRetryKvPairs(p: Int, ur: Int, q: Int): Seq[KvPair] =
     Seq(
       KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey),
              ur.toString
       ),
       KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.preemptionCountKey),
              p.toString
+      ),
+      KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.quotaRetryCountKey),
+             q.toString
       )
     )
 
@@ -917,11 +929,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   ): ExecutionHandle = {
     val msg = s"Retrying. $errorMessage"
     previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur)) =>
+      case Valid(PreviousRetryReasons(p, ur, q)) =>
         val thisUnexpectedRetry = ur + 1
         if (thisUnexpectedRetry <= maxUnexpectedRetries) {
           val preemptionAndUnexpectedRetryCountsKvPairs =
-            nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p, thisUnexpectedRetry)
+            nextAttemptRetryKvPairs(p, thisUnexpectedRetry, q)
           // Increment unexpected retry count and preemption count stays the same
           FailedRetryableExecutionHandle(
             StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
@@ -944,19 +956,60 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
+  private def handleQuotaFailedStatus(runStatus: RunStatus.QuotaFailed): ExecutionHandle = {
+
+    val machineType = runStatus.machineType.map(mt => s"$mt ").getOrElse("")
+    val baseMsg = s"Could not start instance ${machineType}due to insufficient quota."
+
+    previousRetryReasons match {
+      case Valid(PreviousRetryReasons(p, ur, q)) =>
+        val thisQuotaFailure = q + 1
+        val nextKvPairs = nextAttemptRetryKvPairs(p, ur, thisQuotaFailure)
+
+        if (thisQuotaFailure < pipelinesConfiguration.papiAttributes.quotaRetries) {
+          val retryFlavor = s"$baseMsg Cromwell will automatically retry the task. Backend info: ${runStatus.prettyPrintedError}"
+          val exception = StandardException(runStatus.errorCode, retryFlavor, jobTag, None, standardPaths.error)
+          jobLogger.info(exception.getMessage)
+          FailedRetryableExecutionHandle(
+            exception,
+            None,
+            Option(nextKvPairs)
+          )
+        } else {
+          val nopeFlavor = s"$baseMsg Cromwell retries exhausted, task failed. Backend info: ${runStatus.prettyPrintedError}"
+          val exception = StandardException(runStatus.errorCode, nopeFlavor, jobTag, None, standardPaths.error)
+          jobLogger.info(exception.getMessage)
+          FailedNonRetryableExecutionHandle(
+            StandardException(runStatus.errorCode, nopeFlavor, jobTag, None, standardPaths.error),
+            None,
+            None
+          )
+        }
+      case Invalid(_) =>
+        val otherMsg = s"$baseMsg Backend info: ${runStatus.prettyPrintedError}"
+        val exception = StandardException(runStatus.errorCode, otherMsg, jobTag, None, standardPaths.error)
+        jobLogger.info(exception.getMessage)
+        FailedNonRetryableExecutionHandle(
+          exception,
+          None,
+          None
+        )
+    }
+  }
+
   private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): ExecutionHandle = {
     import common.numeric.IntegerUtil._
 
     val errorCode: Status = runStatus.errorCode
     val prettyPrintedError: String = runStatus.prettyPrintedError
     previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur)) =>
+      case Valid(PreviousRetryReasons(p, ur, q)) =>
         val thisPreemption = p + 1
         val taskName = s"${workflowDescriptor.id}:${call.localName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
         val preemptionAndUnexpectedRetryCountsKvPairs =
-          nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(thisPreemption, ur)
+          nextAttemptRetryKvPairs(thisPreemption, ur, q)
         if (thisPreemption < maxPreemption) {
           // Increment preemption count and unexpectedRetryCount stays the same
           val msg =

@@ -238,6 +238,21 @@ backend.providers.PAPIv2.config {
 }
 ```
 
+#### Quota retry
+
+Typically, Life Sciences API is designed to accept all jobs sent to it and respond to quota exhaustion
+by queueing jobs internally. However, there are cases when jobs fail instead of queueing, with messages such
+as "PAPI error code 9", "no available zones", and/or "quota too low".
+
+The following configuration permits Cromwell to detect and retry these failures. Proactively monitoring
+and raising quota is still recommended.
+
+```hocon
+backend.providers.PAPIv2.config {
+  quota-retry-attempts: 20
+}
+```
+
 **Enabling FUSE capabilities**
 
 *This is a community contribution and not officially supported by the Cromwell team.*

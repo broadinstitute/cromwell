@@ -32,7 +32,7 @@ abstract class PipelinesApiBackendLifecycleActorFactory(
   protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
   protected val jesConfiguration: PipelinesApiConfiguration
 
-  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
+  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey, quotaRetryCountKey)
 
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
 
@@ -123,8 +123,9 @@ abstract class PipelinesApiBackendLifecycleActorFactory(
 }
 
 object PipelinesApiBackendLifecycleActorFactory extends StrictLogging {
-  val preemptionCountKey = "PreemptionCount"
+  val preemptionCountKey      = "PreemptionCount"
   val unexpectedRetryCountKey = "UnexpectedRetryCount"
+  val quotaRetryCountKey      = "QuotaRetryCount"
 
   private[common] def robustBuildAttributes(buildAttributes: () => PipelinesApiConfigurationAttributes,
                                             maxAttempts: Int = 3,

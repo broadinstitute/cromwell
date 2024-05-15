@@ -114,4 +114,19 @@ object RunStatus {
   ) extends UnsuccessfulRunStatus {
     override def toString = "Preempted"
   }
+
+  /**
+    * This should NOT happen, but occasionally we see Life Sciences fail jobs with
+    * as FAILED_PRECONDITION and a message that contains "no available zones" or similar. (WX-1625)
+    */
+  final case class QuotaFailed(errorCode: Status,
+                               jesCode: Option[Int],
+                               errorMessages: List[String],
+                               eventList: Seq[ExecutionEvent],
+                               machineType: Option[String],
+                               zone: Option[String],
+                               instanceName: Option[String]
+  ) extends UnsuccessfulRunStatus {
+    override def toString = "QuotaFailed"
+  }
 }

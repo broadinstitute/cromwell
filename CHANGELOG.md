@@ -63,7 +63,7 @@ In a future release, **delocalization** will also migrate to `gcloud storage`. A
  * Workflow Completion Callback bodies now include fully-qualified output names ([#7234](https://github.com/broadinstitute/cromwell/pull/7234))
  * Improved workflow abort error handling ([#7245](https://github.com/broadinstitute/cromwell/pull/7245))
  * Improved logging for troubleshooting ([#7246](https://github.com/broadinstitute/cromwell/pull/7246)) ([#7253](https://github.com/broadinstitute/cromwell/pull/7253)) ([#7388](https://github.com/broadinstitute/cromwell/pull/7388))
- * Support for Intel Ice Lake chips in PAPI backend ([#7252](https://github.com/broadinstitute/cromwell/pull/7252))
+ * Support for Intel Ice Lake chips in Life Sciences backend ([#7252](https://github.com/broadinstitute/cromwell/pull/7252))
  * Fix workflows getting stuck in Aborting when WDL has a type error ([#7385](https://github.com/broadinstitute/cromwell/pull/7385))
  * Updates to dependencies to fix security vulnerabilities.
 

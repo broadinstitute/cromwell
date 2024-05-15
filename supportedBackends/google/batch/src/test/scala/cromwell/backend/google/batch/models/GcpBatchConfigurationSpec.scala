@@ -111,7 +111,7 @@ class GcpBatchConfigurationSpec
     forAll(configs) { (backend, global) =>
       an[Exception] shouldBe thrownBy {
         val failingGoogleConf = GoogleConfiguration(global)
-        val failingAttributes = GcpBatchConfigurationAttributes(failingGoogleConf, backend, "papi")
+        val failingAttributes = GcpBatchConfigurationAttributes(failingGoogleConf, backend, "batch")
         new GcpBatchConfiguration(BackendConfigurationDescriptor(backend, global), failingGoogleConf, failingAttributes)
       }
     }

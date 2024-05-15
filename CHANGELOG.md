@@ -15,7 +15,7 @@ The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](htt
 
 ### GCP Batch
 
- * Added NVidia driver install ([#7235](https://github.com/broadinstitute/cromwell/pull/7235}))
+ * Added Nvidia driver install (default 418) ([#7235](https://github.com/broadinstitute/cromwell/pull/7235}))
  * Fixed Docker mounting volumes with extra colon ([#7240](https://github.com/broadinstitute/cromwell/pull/7240))
  * Fixed issue with multiple zones defined in config ([#7240](https://github.com/broadinstitute/cromwell/pull/7240))
  * Fixed Batch label regex ([#7355](https://github.com/broadinstitute/cromwell/pull/7355))

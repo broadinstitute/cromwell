@@ -460,18 +460,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
    * */
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     handle.previousState match {
-      case None => pollStatus(handle, fetchCostData = true)
-      case Some(v) =>
-        val validatedCostData = for {
-          costData <- v.costData
-          startTime = costData.startTime
-          vmCost = costData.vmCost
-        } yield (startTime, vmCost)
-
-        validatedCostData match {
-          case Some(_) => pollStatus(handle, fetchCostData = false)
-          case None => pollStatus(handle, fetchCostData = true)
-        }
+      case Some(TesRunStatus(_, _, Some(costData))) => pollStatus(handle, fetchCostData = false)
+      case _ => pollStatus(handle, fetchCostData = true)
     }
 
   private def pollStatus(handle: StandardAsyncPendingExecutionHandle, fetchCostData: Boolean) =

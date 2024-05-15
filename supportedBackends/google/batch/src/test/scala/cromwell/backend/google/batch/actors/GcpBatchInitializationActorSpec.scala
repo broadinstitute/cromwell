@@ -139,12 +139,10 @@ object GcpBatchInitializationActorSpec {
       |  // This is the maximum polling interval (in seconds):
       |  maximum-polling-interval = 600
       |
-      |  genomics {
-      |  // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
-      |  // Pipelines and manipulate auth JSONs.
+      |  batch {
+      |  // A reference to an auth defined in the `google` stanza at the top.
+      |  // This auth is used to create jobs and manipulate auth JSONs.
       |     auth = "application-default"
-      |     // Endpoint for APIs, no reason to change this unless directed by Google.
-      |     endpoint-url = "https://genomics.googleapis.com/"
       |  }
       |
       |  default-runtime-attributes {

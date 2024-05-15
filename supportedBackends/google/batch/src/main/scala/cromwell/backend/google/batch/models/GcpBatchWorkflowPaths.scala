@@ -27,7 +27,7 @@ object GcpBatchWorkflowPaths {
 }
 case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                                  gcsCredentials: Credentials,
-                                 genomicsCredentials: Credentials,
+                                 batchCredentials: Credentials,
                                  gcpBatchConfiguration: GcpBatchConfiguration,
                                  override val pathBuilders: PathBuilders,
                                  // This allows for the adjustment of the standard stream file names in PAPI v1 to match the
@@ -55,11 +55,11 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
       .get(GcpBatchWorkflowPaths.AuthFilePathOptionKey) getOrElse defaultBucket.pathAsString
 
     /*
-     * This is an "exception". The filesystem used here is built from genomicsAuth
+     * This is an "exception". The filesystem used here is built from batchAuth
      * unlike everywhere else where the filesystem used is built from gcsFileSystemAuth
      */
-    val pathBuilderWithGenomicsAuth = GcsPathBuilder.fromCredentials(
-      genomicsCredentials,
+    val pathBuilderWithBatchAuth = GcsPathBuilder.fromCredentials(
+      batchCredentials,
       gcpBatchConfiguration.googleConfig.applicationName,
       RetrySettings.newBuilder().build(),
       GcsStorage.DefaultCloudStorageConfiguration,
@@ -67,7 +67,7 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
       Option(gcpBatchConfiguration.batchAttributes.project)
     )
 
-    val authBucket = pathBuilderWithGenomicsAuth.build(bucket) recover { case ex =>
+    val authBucket = pathBuilderWithBatchAuth.build(bucket) recover { case ex =>
       throw new Exception(s"Invalid gcs auth_bucket path $bucket", ex)
     } get
 

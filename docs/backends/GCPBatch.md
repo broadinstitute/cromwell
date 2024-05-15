@@ -1,4 +1,4 @@
-**Google Cloud Backend**
+**Google Cloud Batch Backend (alpha)**
 
 [//]:
 Google Cloud Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
@@ -8,6 +8,8 @@ authentication modes. Before reading further in this section please see the
 [Getting started on Google Cloud Batch](../tutorials/Batch101) for instructions common to all authentication modes
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
+
+*NOTE*: Google Cloud Batch is still in alpha version, this means that there could be breaking changes, be sure to review the [GCP Batch CHANGELOG](https://github.com/broadinstitute/cromwell/blob/develop/CHANGELOG.md#gcp-batch) carefully before upgrading.
 
 **Configuring Authentication**
 
@@ -84,7 +86,7 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
 Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
 `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
-While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `GCPBATCH.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Batch API and not GCS, it's important that this service account, and the service account specified in `GCPBATCH.config.genomics.auth` can both read/write the location specified by `GCPBATCH.config.root`
+While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `GCPBATCH.config.batch.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Batch API and not GCS, it's important that this service account, and the service account specified in `GCPBATCH.config.batch.auth` can both read/write the location specified by `GCPBATCH.config.root`
 
 **User Service Account**
 
@@ -280,7 +282,7 @@ google {
 
 Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature
 is turned off by default but can be enabled backend-wide by specifying a `gsutil`-compatible memory specification for the key
-`genomics.parallel-composite-upload-threshold` in backend configuration. This memory value represents the minimum size an output file
+`batch.parallel-composite-upload-threshold` in backend configuration. This memory value represents the minimum size an output file
 must have to be a candidate for `gsutil` parallel composite uploading:
 
 ```
@@ -292,7 +294,7 @@ backend {
       actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
       config {
         ...
-        genomics {
+        batch {
           ...
           parallel-composite-upload-threshold = 150M
           ...

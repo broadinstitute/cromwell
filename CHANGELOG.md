@@ -13,7 +13,7 @@ The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](htt
 
 ### Improved handling of Life Sciences API quota errors
 
-Users reported cases where Life Sciences jobs failed due to insufficient quota, instead of queueing them and waiting until
+Users reported cases where Life Sciences jobs failed due to insufficient quota, instead of queueing and waiting until
 quota freed up (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
 such as "PAPI error code 9", "no available zones", and/or "quota too low".
 

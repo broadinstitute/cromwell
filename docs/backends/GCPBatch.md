@@ -92,7 +92,7 @@ While technically not part of Service Account authentication mode, one can also 
 
 A [JSON key file for the service account](../wf_options/Google.md) must be passed in via the `user_service_account_json` field in the [Workflow Options](../wf_options/Google.md) when submitting the job. Omitting this field will cause the workflow to fail. The JSON should be passed as a string and will need to have no newlines and all instances of `"` and `\n` escaped. 
 
-In the likely event that this service account does not have access to Cromwell's default google project the `google_project` workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the `jes_gcs_root` workflow option should be set appropriately.
+In the likely event that this service account does not have access to Cromwell's default google project the `google_project` workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the `gcp_batch_gcs_root` workflow option should be set appropriately.
 
 For information on the interaction of `user_service_account_json` with private Docker images please see the `Docker` section below.  
 
@@ -152,7 +152,7 @@ The output of this script will be written to a `monitoring.log` file that will b
 **Google Cloud Storage Filesystem**
 
 On the Google Batch backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
-On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [Workflow Option](../wf_options/Google) will take
+On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `gcp_batch_gcs_root` [Workflow Option](../wf_options/Google) will take
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 

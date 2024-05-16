@@ -60,7 +60,12 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with BardTestUtils {
       //  Mock the server response
       mockServer
         .when(HttpRequest.request(bardApiPath).withMethod("POST"))
-        .respond(HttpResponse.response.withStatusCode(500).withContentType(MediaType.APPLICATION_JSON))
+        .respond(
+          HttpResponse.response
+            .withStatusCode(500)
+            .withContentType(MediaType.APPLICATION_JSON)
+            .withBody("""{ "error": "Expected Test Error" }""")
+        )
 
       val bardService = new BardService(bardUrl, 10)
 

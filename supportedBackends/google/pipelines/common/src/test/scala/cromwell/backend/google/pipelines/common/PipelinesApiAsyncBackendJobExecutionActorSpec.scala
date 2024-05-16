@@ -261,8 +261,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
           ),
           PipelinesApiBackendLifecycleActorFactory.quotaRetryCountKey -> KvPair(
             ScopedKey(workflowDescriptor.id,
-              KvJobKey(key),
-              PipelinesApiBackendLifecycleActorFactory.quotaRetryCountKey
+                      KvJobKey(key),
+                      PipelinesApiBackendLifecycleActorFactory.quotaRetryCountKey
             ),
             0.toString // We're testing this in other ways, fake it here.
           )

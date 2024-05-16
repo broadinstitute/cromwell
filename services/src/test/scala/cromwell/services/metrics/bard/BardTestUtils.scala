@@ -2,7 +2,7 @@ package cromwell.services.metrics.bard
 
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
 
-import java.time.Instant
+import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
@@ -19,8 +19,8 @@ trait BardTestUtils {
   val dockerImage = "ubuntu"
   val cpu = 2
   val memory = 1024d
-  val start = Instant.now().minus(1000, ChronoUnit.SECONDS).toString
-  val end = Instant.now().minus(100, ChronoUnit.SECONDS).toString
+  val start = OffsetDateTime.now().minus(1000, ChronoUnit.SECONDS).toString
+  val end = OffsetDateTime.now().minus(100, ChronoUnit.SECONDS).toString
   val taskSummaryEvent = TaskSummaryEvent(workflowId,
                                           Some(parentWorkflowId),
                                           rootWorkflowId,

@@ -46,7 +46,7 @@ import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
-import java.time.Instant
+import java.time.OffsetDateTime
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -897,6 +897,12 @@ trait StandardAsyncExecutionActor
     */
   def getTerminalEvents(runStatus: StandardAsyncRunState): Seq[ExecutionEvent] = Seq.empty
 
+  def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[(OffsetDateTime, OffsetDateTime)] =
+    getTerminalEvents(runStatus) match {
+      case Nil => None
+      case events => Some(events.map(_.offsetDateTime).min -> events.map(_.offsetDateTime).max)
+    }
+
   /**
     * Returns true if the status represents a completion.
     *
@@ -1475,33 +1481,36 @@ trait StandardAsyncExecutionActor
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
-  def tellBard(state: StandardAsyncRunState): Unit = {
-    val dockerImage =
-      RuntimeAttributesValidation.extract(DockerValidation.instance.optional, validatedRuntimeAttributes)
-    val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
-    val memory = RuntimeAttributesValidation
-      .extract(MemoryValidation.instance(), validatedRuntimeAttributes)
-      .to(MemoryUnit.Bytes)
-      .amount
-    serviceRegistryActor ! BardEventRequest(
-      TaskSummaryEvent(
-        workflowDescriptor.id.id,
-        workflowDescriptor.possibleParentWorkflowId.map(_.id),
-        workflowDescriptor.rootWorkflowId.id,
-        jobDescriptor.key.tag,
-        jobDescriptor.key.call.fullyQualifiedName,
-        jobDescriptor.key.index,
-        jobDescriptor.key.attempt,
-        state.getClass.getSimpleName,
-        "myCoolCloud",
-        dockerImage,
-        cpus,
-        memory,
-        Instant.now().toString,
-        Instant.now().toString
-      )
-    )
-  }
+  def tellBard(state: StandardAsyncRunState): Unit =
+    getStartAndEndTimes(state) match {
+      case Some((start, end)) =>
+        val dockerImage =
+          RuntimeAttributesValidation.extract(DockerValidation.instance.optional, validatedRuntimeAttributes)
+        val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
+        val memory = RuntimeAttributesValidation
+          .extract(MemoryValidation.instance(), validatedRuntimeAttributes)
+          .to(MemoryUnit.Bytes)
+          .amount
+        serviceRegistryActor ! BardEventRequest(
+          TaskSummaryEvent(
+            workflowDescriptor.id.id,
+            workflowDescriptor.possibleParentWorkflowId.map(_.id),
+            workflowDescriptor.rootWorkflowId.id,
+            jobDescriptor.key.tag,
+            jobDescriptor.key.call.fullyQualifiedName,
+            jobDescriptor.key.index,
+            jobDescriptor.key.attempt,
+            state.getClass.getSimpleName,
+            "myCoolCloud",
+            dockerImage,
+            cpus,
+            memory,
+            start.toString,
+            end.toString
+          )
+        )
+      case _ => ()
+    }
 
   implicit override protected lazy val ec: ExecutionContextExecutor = context.dispatcher
 }

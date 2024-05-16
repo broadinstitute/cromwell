@@ -1485,7 +1485,12 @@ trait StandardAsyncExecutionActor
     serviceRegistryActor ! BardEventRequest(
       TaskSummaryEvent(
         workflowDescriptor.id.id,
-        jobIdKey,
+        workflowDescriptor.possibleParentWorkflowId.map(_.id),
+        workflowDescriptor.rootWorkflowId.id,
+        jobDescriptor.key.tag,
+        jobDescriptor.key.call.fullyQualifiedName,
+        jobDescriptor.key.index,
+        jobDescriptor.key.attempt,
         state.getClass.getSimpleName,
         "myCoolCloud",
         dockerImage,

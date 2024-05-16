@@ -1,45 +1,37 @@
 package cromwell.services.metrics.bard.model
 
+import cromwell.services.metrics.bard.BardTestUtils
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.prop.TableDrivenPropertyChecks
 
-import java.time.Instant
-import java.time.temporal.ChronoUnit
-import java.util.UUID
-
-class BardEventSpec extends AnyFlatSpec with Matchers with TableDrivenPropertyChecks {
-
+class BardEventSpec extends AnyFlatSpec with Matchers with BardTestUtils {
   behavior of "BardEvent"
 
   it should "return a map of properties" in {
-    val workflowId = UUID.randomUUID()
-    val jobIdKey = "jobId"
-    val taskState = "Complete"
-    val bardEvent = TaskSummaryEvent(
-      workflowId,
-      jobIdKey,
-      taskState,
-      "gcp",
-      "ubuntu",
-      2,
-      1024d,
-      Instant.now().minus(1000, ChronoUnit.SECONDS).toString,
-      Instant.now().minus(100, ChronoUnit.SECONDS).toString
-    )
+    val properties = taskSummaryEvent.getProperties
+    properties.get("workflowId") should be(workflowId)
+    properties.get("parentWorkflowId") should be(parentWorkflowId)
+    properties.get("rootWorkflowId") should be(rootWorkflowId)
+    properties.get("jobTag") should be(jobTag)
+    properties.get("jobFullyQualifiedName") should be(jobFqn)
+    properties.get("jobIndex") should be(jobIndex)
+    properties.get("jobAttempt") should be(jobAttempt)
+    properties.get("terminalState") should be(terminalState)
+    properties.get("cloud") should be(cloud)
+    properties.get("dockerImage") should be(dockerImage)
+    properties.get("cpuCount") should be(cpu)
+    properties.get("memoryBytes") should be(memory)
+    properties.get("startTime") should be(start)
+    properties.get("endTime") should be(end)
+  }
 
-    val properties = bardEvent.getProperties
-    properties.get("workflowId") shouldBe workflowId
-    properties.get("jobIdKey") shouldBe jobIdKey
-    properties.get("terminalState") shouldBe taskState
-    properties.get("cloud") shouldBe "gcp"
-    properties.get("dockerImage") shouldBe "ubuntu"
-    properties.get("cpuCount") shouldBe 2
-    properties.get("memoryBytes") shouldBe 1024d
-    properties.get("startTime") shouldBe bardEvent.startTime
-    properties.get("endTime") shouldBe bardEvent.endTime
-    properties.get("pushToMixpanel") shouldBe false
-    properties.get("event") shouldBe "task:summary"
+  it should "return a map of properties with None properties set to null" in {
+    val properties = taskSummaryEvent.copy(parentWorkflowId = None, jobIndex = None).getProperties
+    properties.get("workflowId") should be(workflowId)
+    Option(properties.get("parentWorkflowId")) should be(None)
+    Option(properties.get("jobIndex")) should be(None)
 
+    properties.containsKey("parentWorkflowId") should be(true)
+    properties.containsKey("jobIndex") should be(true)
   }
 }

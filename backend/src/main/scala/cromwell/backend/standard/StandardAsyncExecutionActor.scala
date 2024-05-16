@@ -345,7 +345,7 @@ trait StandardAsyncExecutionActor
         |$globLinkCommand
         |
         |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
-        |ls -1 $globDirectory| grep -v $controlFileName > $globList
+        |ls -1 $globDirectory | grep -v $controlFileName > $globList
         |""".stripMargin
   }
 
@@ -353,7 +353,6 @@ trait StandardAsyncExecutionActor
   def scriptPreamble: ErrorOr[ScriptPreambleData] = ScriptPreambleData("").valid
 
   def cwd: Path = commandDirectory
-
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
 
   // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
@@ -512,13 +511,13 @@ trait StandardAsyncExecutionActor
   }
 
   /**
-    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
-    *
-    * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
-    * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
-    * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
-    * etc
-    */
+  * Turns WomFiles into relative paths.  These paths are relative to the working disk.
+  *
+  * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
+  * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+  * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+  * etc
+  */
   protected def relativeLocalizationPath(file: WomFile): WomFile =
     file.mapFile(value =>
       getPath(value) match {
@@ -769,8 +768,8 @@ trait StandardAsyncExecutionActor
     }
 
   /**
-    * Returns the memory multiplier for previous attempt if available
-    */
+  * Returns the memory multiplier for previous attempt if available
+  */
   lazy val previousMemoryMultiplier: Option[Double] =
     jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) match {
       case Some(KvPair(_, v)) =>
@@ -1049,7 +1048,6 @@ trait StandardAsyncExecutionActor
       case InvalidJobOutputs(errors) =>
         val exception = new MessageAggregation {
           override def exceptionContext: String = "Failed to evaluate job outputs"
-
           override def errorMessages: Iterable[String] = errors.toList
         }
         FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None)
@@ -1125,11 +1123,11 @@ trait StandardAsyncExecutionActor
     }
 
   /**
-    * Merge key-value pairs from previous job execution attempt with incoming pairs from current attempt, which has just
-    * failed, and store them in the database. In case when there are key-value pairs with the same key name among those
-    * from previous attempt and coming from backend, backend values have higher precedence.
-    *
-    */
+  * Merge key-value pairs from previous job execution attempt with incoming pairs from current attempt, which has just
+  * failed, and store them in the database. In case when there are key-value pairs with the same key name among those
+  * from previous attempt and coming from backend, backend values have higher precedence.
+  *
+  */
   private def saveKvPairsForNextAttempt(kvsFromPreviousAttempt: Map[String, KvPair],
                                         kvsForNextAttempt: Map[String, KvPair],
                                         incrementFailedRetryCount: Boolean,
@@ -1184,7 +1182,6 @@ trait StandardAsyncExecutionActor
 
   // See executeOrRecoverSuccess
   private var missedAbort = false
-
   private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
   context.become(kvClientReceive orElse standardReceiveBehavior(None) orElse slowJobWarningReceive orElse receive)
@@ -1274,7 +1271,7 @@ trait StandardAsyncExecutionActor
     * Process a poll success.
     *
     * @param oldHandle The previous execution handle.
-    * @param state     The updated run state.
+    * @param state The updated run state.
     * @return The updated execution handle.
     */
   def handlePollSuccess(oldHandle: StandardAsyncPendingExecutionHandle,
@@ -1336,7 +1333,7 @@ trait StandardAsyncExecutionActor
   /**
     * Process an execution result.
     *
-    * @param status    The execution status.
+    * @param status The execution status.
     * @param oldHandle The previous execution handle.
     * @return The updated execution handle.
     */

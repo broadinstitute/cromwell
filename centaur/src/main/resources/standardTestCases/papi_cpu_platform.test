@@ -1,6 +1,6 @@
 name: papi_cpu_platform
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [GCPBatch, Papiv2]
 
 files {
   workflow: papi_cpu_platform/papi_cpu_platform.wdl

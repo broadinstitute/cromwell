@@ -482,32 +482,47 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
                                      fetchCostData: Boolean
   ): Future[TesRunStatus] =
     if (fetchCostData) {
-      makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
-        val fetchedCostData = for {
-          responseLogs <- response.logs
-          startTime <- responseLogs.head.start_time
-          vmCost <- responseLogs.head.metadata.flatMap(_.get("vm_price_per_hour_usd"))
-        } yield (startTime, vmCost)
+      val task = fetchFullTaskView(handle)
 
-        fetchedCostData match {
-          case Some(data) =>
-            val costData = TesVmCostData(Option(data._1), Option(data._2))
-            val state = response.state
-            val metadata = Map(
-              CallMetadataKeys.TaskStartTime -> data._1,
-              CallMetadataKeys.VmCostUsd -> data._2
-            )
-            tellMetadata(metadata)
-            getTesStatus(state, Option(costData), handle.pendingJob.jobId)
-          case None => getTesStatus(response.state, Option.empty, handle.pendingJob.jobId)
+      task map {
+        t => {
+          val fetchedCostData = for {
+            responseLogs <- t.logs
+            startTime <- responseLogs.head.start_time
+            vmCost <- responseLogs.head.metadata.flatMap(_.get("vm_price_per_hour_usd"))
+          } yield (startTime, vmCost)
+
+          fetchedCostData match {
+            case Some(data) =>
+              val costData = TesVmCostData(Option(data._1), Option(data._2))
+              val state = t.state
+              val metadata = Map(
+                CallMetadataKeys.TaskStartTime -> data._1,
+                CallMetadataKeys.VmCostUsd -> data._2
+              )
+              tellMetadata(metadata)
+              getTesStatus(state, Option(costData), handle.pendingJob.jobId)
+            case None => getTesStatus(t.state, Option.empty, handle.pendingJob.jobId)
+          }
         }
       }
+//
+//      makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
+//
+//      }
     } else {
-      makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
-        response =>
-          val state = response.state
+      val minimalTaskView = fetchMinimalTesTask(handle)
+      minimalTaskView map {
+        t => {
+          val state = t.state
           getTesStatus(Option(state), Option.empty, handle.pendingJob.jobId)
+        }
       }
+//      makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
+//        response =>
+//          val state = response.state
+//          getTesStatus(Option(state), Option.empty, handle.pendingJob.jobId)
+//      }
     }
 
   private def getTesStatus(state: Option[String], withCostData: Option[TesVmCostData], jobId: String): TesRunStatus = {
@@ -540,19 +555,42 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  private def getErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] =
-    makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
-      response.logs.flatMap(_.lastOption).flatMap(_.system_logs).getOrElse(Seq.empty[String])
+  private def getErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] = {
+    val task = fetchFullTaskView(handle)
+    task.map(t => t.logs.flatMap(_.lastOption).flatMap(_.system_logs).getOrElse(Seq.empty[String]))
+//    makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
+//      response.logs.flatMap(_.lastOption).flatMap(_.system_logs).getOrElse(Seq.empty[String])
+//    }
+  }
+
+  private def getTaskLogs(handle: StandardAsyncPendingExecutionHandle): Future[TaskLog] = {
+    val task = fetchFullTaskView(handle)
+    val errorStates = List("EXECUTOR_ERROR", "SYSTEM_ERROR")
+
+    val stateAndLogs = for {
+      task <- task
+      state = task.state
+      taskLog = task.logs
+    } yield (state, taskLog)
+
+    stateAndLogs map {
+      case (state, taskLog) => {
+        if (errorStates.contains(state)) {
+          Future.failed(new RuntimeException(s"Failed TES request: $state"))
+        }
+        taskLog.flatMap(_.headOption).head
+      }
+    }
+  }
+
+  private def fetchMinimalTesTask(handle: StandardAsyncPendingExecutionHandle): Future[MinimalTaskView] =
+    makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL")) map {
+      response => response
     }
 
-  private def getTaskLogs(handle: StandardAsyncPendingExecutionHandle): Future[TaskLog] =
-    makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map { response =>
-      val errorStates = List("EXECUTOR_ERROR", "SYSTEM_ERROR")
-      val state = response.state.map(s => s)
-      if (errorStates.contains(state)) {
-        Future.failed(new RuntimeException(s"Failed TES request: $state"))
-      }
-      response.logs.flatMap(_.headOption).head
+  private def fetchFullTaskView(handle: StandardAsyncPendingExecutionHandle): Future[Task] =
+    makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL")) map {
+      response => response
     }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {

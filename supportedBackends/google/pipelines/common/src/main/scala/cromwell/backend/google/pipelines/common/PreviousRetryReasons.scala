@@ -5,8 +5,8 @@ import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{
   preemptionCountKey,
-  unexpectedRetryCountKey,
-  quotaRetryCountKey
+  quotaRetryCountKey,
+  unexpectedRetryCountKey
 }
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
@@ -25,7 +25,11 @@ object PreviousRetryReasons {
     (validatedPreemptionCount, validatedUnexpectedRetryCount, validatedQuotaRetryCount) mapN PreviousRetryReasons.apply
   }
 
-  def apply(knownPreemptedCount: Int, knownUnexpectedRetryCount: Int, quotaCount: Int, attempt: Int): PreviousRetryReasons = {
+  def apply(knownPreemptedCount: Int,
+            knownUnexpectedRetryCount: Int,
+            quotaCount: Int,
+            attempt: Int
+  ): PreviousRetryReasons = {
     // If we have anything unaccounted for, we can top up the unexpected retry count.
     // NB: 'attempt' is 1-indexed, so, magic number:
     // NB2: for sanity's sake, I won't let this unaccounted for drop below 0, just in case...

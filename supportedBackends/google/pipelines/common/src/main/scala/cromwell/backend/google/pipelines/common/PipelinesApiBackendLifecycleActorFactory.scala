@@ -4,9 +4,17 @@ import akka.actor.{ActorRef, Props}
 import com.google.api.client.util.ExponentialBackOff
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
-import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{preemptionCountKey, quotaRetryCountKey, robustBuildAttributes, unexpectedRetryCountKey}
+import cromwell.backend.google.pipelines.common.PipelinesApiBackendLifecycleActorFactory.{
+  preemptionCountKey,
+  quotaRetryCountKey,
+  robustBuildAttributes,
+  unexpectedRetryCountKey
+}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
-import cromwell.backend.google.pipelines.common.callcaching.{PipelinesApiBackendCacheHitCopyingActor, PipelinesApiBackendFileHashingActor}
+import cromwell.backend.google.pipelines.common.callcaching.{
+  PipelinesApiBackendCacheHitCopyingActor,
+  PipelinesApiBackendFileHashingActor
+}
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -25,7 +33,8 @@ abstract class PipelinesApiBackendLifecycleActorFactory(
   protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
   protected val jesConfiguration: PipelinesApiConfiguration
 
-  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey, quotaRetryCountKey)
+  override val requestedKeyValueStoreKeys: Seq[String] =
+    Seq(preemptionCountKey, unexpectedRetryCountKey, quotaRetryCountKey)
 
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
 
@@ -116,9 +125,9 @@ abstract class PipelinesApiBackendLifecycleActorFactory(
 }
 
 object PipelinesApiBackendLifecycleActorFactory extends StrictLogging {
-  val preemptionCountKey      = "PreemptionCount"
+  val preemptionCountKey = "PreemptionCount"
   val unexpectedRetryCountKey = "UnexpectedRetryCount"
-  val quotaRetryCountKey      = "QuotaRetryCount"
+  val quotaRetryCountKey = "QuotaRetryCount"
 
   private[common] def robustBuildAttributes(buildAttributes: () => PipelinesApiConfigurationAttributes,
                                             maxAttempts: Int = 3,

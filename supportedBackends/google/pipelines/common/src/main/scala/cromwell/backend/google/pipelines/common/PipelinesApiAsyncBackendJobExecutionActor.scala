@@ -103,7 +103,8 @@ object PipelinesApiAsyncBackendJobExecutionActor {
       case None => "The job was stopped before the command finished."
     }
 
-    new Exception(s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message") with NoStackTrace
+    new Exception(s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message")
+      with NoStackTrace
   }
 }
 
@@ -967,7 +968,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         val nextKvPairs = nextAttemptRetryKvPairs(p, ur, thisQuotaFailure)
 
         if (thisQuotaFailure < pipelinesConfiguration.papiAttributes.quotaAttempts) {
-          val retryFlavor = s"$baseMsg Cromwell will automatically retry the task. Backend info: ${runStatus.prettyPrintedError}"
+          val retryFlavor =
+            s"$baseMsg Cromwell will automatically retry the task. Backend info: ${runStatus.prettyPrintedError}"
           val exception = StandardException(runStatus.errorCode, retryFlavor, jobTag, None, standardPaths.error)
           jobLogger.info(exception.getMessage)
           FailedRetryableExecutionHandle(
@@ -976,7 +978,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
             Option(nextKvPairs)
           )
         } else {
-          val nopeFlavor = s"$baseMsg Cromwell retries exhausted, task failed. Backend info: ${runStatus.prettyPrintedError}"
+          val nopeFlavor =
+            s"$baseMsg Cromwell retries exhausted, task failed. Backend info: ${runStatus.prettyPrintedError}"
           val exception = StandardException(runStatus.errorCode, nopeFlavor, jobTag, None, standardPaths.error)
           jobLogger.info(exception.getMessage)
           FailedNonRetryableExecutionHandle(

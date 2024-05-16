@@ -537,11 +537,11 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     state match {
       case s if s.contains("COMPLETE") =>
         jobLogger.info(s"Job ${jobId} is complete")
-        Complete(withCostData)
+        Complete()
 
       case s if s.contains("CANCELED") =>
         jobLogger.info(s"Job ${jobId} was canceled")
-        Cancelled(withCostData)
+        Cancelled()
 
       case s if s.contains("EXECUTOR_ERROR") =>
         jobLogger.info(s"TES reported a failure for Job ${jobId}: '$s'")
@@ -551,7 +551,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         jobLogger.info(s"TES reported an error for Job ${jobId}: '$s'")
         Error()
 
-      case _ => Running(withCostData)
+      case _ => Running()
     }
   }
 

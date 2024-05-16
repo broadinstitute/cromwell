@@ -22,13 +22,11 @@ task sleep {
     volatile: true
   }
 
-  # `northamerica-northeast1` is Montreal, which is is geographically close (low latency),
-  # uses 100% carbon-free energy, and best of all... we don't use for anything else,
-  # so I can drop its quota to something ridiculousy low in `broad-dsde-cromwell-dev`
+  # I set `broad-dsde-cromwell-dev` to have super low CPU quota in `us-west3` (Salt Lake City) for this test
   runtime {
     cpu: 12
     docker: "ubuntu:latest"
-    zones: "northamerica-northeast1-a northamerica-northeast1-b northamerica-northeast1-c"
+    zones: "us-west3-a us-west3-b us-west3-c"
   }
 
   command <<<

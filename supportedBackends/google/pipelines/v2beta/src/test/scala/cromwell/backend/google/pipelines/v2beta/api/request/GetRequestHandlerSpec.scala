@@ -111,7 +111,7 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
         |  "done": true,
         |  "error": {
         |    "code": 9,
-        |    "message": "Execution failed: allocating: selecting resources: selecting region and zone: no available zones: northamerica-northeast1: 12 CPUS (9/9 available) quota too low"
+        |    "message": "Execution failed: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 12 CPUS (10/10 available) quota too low"
         |  },
         |  "name": "projects/1005074806481/locations/us-central1/operations/16958337426039071297"
         |}""".stripMargin,
@@ -313,7 +313,7 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
        None
      )
     ),
-    // As of 2022-01 the zone `us-west3` in `broad-dsde-cromwell-dev` has its CPU quota purposely de-rated to 1 for testing
+    // As of 2022-01 the zone `us-west3` in `broad-dsde-cromwell-dev` has its CPU quota purposely de-rated to 10 for testing
     ("check that a job is AwaitingCloudQuota if its most recent event is quota exhaustion",
      """{
        |  "metadata": {

@@ -19,13 +19,33 @@ such as "PAPI error code 9", "no available zones", and/or "quota too low".
 
 ## 87 Release Notes
 
+### GCP Batch
+
+ * Added Nvidia driver install (default 418) ([#7235](https://github.com/broadinstitute/cromwell/pull/7235}))
+ * Fixed Docker mounting volumes with extra colon ([#7240](https://github.com/broadinstitute/cromwell/pull/7240))
+ * Fixed issue with multiple zones defined in config ([#7240](https://github.com/broadinstitute/cromwell/pull/7240))
+ * Fixed Batch label regex ([#7355](https://github.com/broadinstitute/cromwell/pull/7355))
+
+### Progress toward WDL 1.1 Support
+
+WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using
+WDL version `development-1.1`. As of Cromwell 87, `development-1.1` includes:
+ * Engine functions:
+   * Added `suffix` ([#7363](https://github.com/broadinstitute/cromwell/pull/7363))
+   * Added `unzip` ([#7363](https://github.com/broadinstitute/cromwell/pull/7368))
+   * Added `quote` and `squote` ([#7375](https://github.com/broadinstitute/cromwell/pull/7375))
+   * Updated `sub` to expect POSIX-flavor regex ([#7374](https://github.com/broadinstitute/cromwell/pull/7374))
+ * Struct literals can be included in WDLs ([#7391](https://github.com/broadinstitute/cromwell/pull/7391)) ([#7402](https://github.com/broadinstitute/cromwell/pull/7402))
+ * Added `returnCodes` runtime attribute ([#7389](https://github.com/broadinstitute/cromwell/pull/7389))
+
 ### `upgrade` command removed from Womtool
 
-Womtool previously supported a `womtool upgrade` command for upgrading draft-2 WDLs to 1.0. With WDL 1.1 soon to become the latest supported version, this functionality is retiring.
+Womtool previously supported a `womtool upgrade` command for upgrading draft-2 WDLs to 1.0. With WDL 1.1 soon to 
+become the latest supported version, this functionality is retiring. ([#7382](https://github.com/broadinstitute/cromwell/pull/7382))
 
 ### Replacement of `gsutil` with `gcloud storage`
 
-In this release, all **localization** functionality on the GCP backend migrates to use the more modern and performant `gcloud storage`. With sufficiently powerful worker VMs, Cromwell can now localize at up to 1200 MB/s [0][1][2].
+In this release ([#7359](https://github.com/broadinstitute/cromwell/pull/7359)), all **localization** functionality on the GCP backend migrates to use the more modern and performant `gcloud storage`. With sufficiently powerful worker VMs, Cromwell can now localize at up to 1200 MB/s [0][1][2].
 
 In a future release, **delocalization** will also migrate to `gcloud storage`. As part of that upcoming change, we are considering turning on [parallel composite uploads](https://cromwell.readthedocs.io/en/stable/backends/Google/#parallel-composite-uploads) by default to maximize performance. Delocalized composite objects will no longer have an md5 checksum in their metadata; refer to the matrix below [3]. If you have compatibility concerns for your workflow, please [submit an issue](https://github.com/broadinstitute/cromwell/issues).
 
@@ -41,6 +61,17 @@ In a future release, **delocalization** will also migrate to `gcloud storage`. A
 [2] [Throughput scales with disk size and type](https://cloud.google.com/compute/docs/disks/performance#throughput_limits_for_zonal) with at a plateau at 2.5 TB SSD. Worked example: 1200 MB/s ÷ 0.48 MB/s per GB = 2500 GB.
 
 [3] Cromwell itself uses crc32c hashes for call caching and is not affected
+
+
+### Other Improvements
+ * In certain cases DRS downloads have been found to hang forever. Cromwell will now time these out. ([#7416](https://github.com/broadinstitute/cromwell/pull/7416))
+ * Increased default Akka `client.parsing.max-response-reason-length` to 1024 ([#7406](https://github.com/broadinstitute/cromwell/pull/7406))
+ * Workflow Completion Callback bodies now include fully-qualified output names ([#7234](https://github.com/broadinstitute/cromwell/pull/7234))
+ * Improved workflow abort error handling ([#7245](https://github.com/broadinstitute/cromwell/pull/7245))
+ * Improved logging for troubleshooting ([#7246](https://github.com/broadinstitute/cromwell/pull/7246)) ([#7253](https://github.com/broadinstitute/cromwell/pull/7253)) ([#7388](https://github.com/broadinstitute/cromwell/pull/7388))
+ * Support for Intel Ice Lake chips in Life Sciences backend ([#7252](https://github.com/broadinstitute/cromwell/pull/7252))
+ * Fix workflows getting stuck in Aborting when WDL has a type error ([#7385](https://github.com/broadinstitute/cromwell/pull/7385))
+ * Updates to dependencies to fix security vulnerabilities.
 
 ## 86 Release Notes
 

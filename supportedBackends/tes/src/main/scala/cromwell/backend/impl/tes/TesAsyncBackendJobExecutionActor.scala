@@ -51,7 +51,7 @@ import java.time.temporal.ChronoUnit
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-case class TesVmCostData(startTime: String, vmCost: String)
+case class TesVmCostData(startTime: Option[String], vmCost: Option[String])
 sealed trait TesRunStatus {
   def isTerminal: Boolean
   def sysLogs: Seq[String] = Seq.empty[String]
@@ -459,8 +459,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
    * If not, we poll for the status AND cost information in TES.
    * */
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
-    handle.previousState match {
-      case Some(TesRunStatus(_, _, Some(costData))) => pollStatus(handle, fetchCostData = false)
+    handle.previousState.flatMap(_.costData) match {
+      case Some(TesVmCostData(startTime, vmCost)) => pollStatus(handle, fetchCostData = false)
       case _ => pollStatus(handle, fetchCostData = true)
     }
 
@@ -491,14 +491,14 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
         fetchedCostData match {
           case Some(data) =>
-            val costData = Option(TesVmCostData(data._1, data._2))
+            val costData = TesVmCostData(Option(data._1), Option(data._2))
             val state = response.state
             val metadata = Map(
               CallMetadataKeys.TaskStartTime -> data._1,
               CallMetadataKeys.VmCostUsd -> data._2
             )
             tellMetadata(metadata)
-            getTesStatus(state, costData, handle.pendingJob.jobId)
+            getTesStatus(state, Option(costData), handle.pendingJob.jobId)
           case None => getTesStatus(response.state, Option.empty, handle.pendingJob.jobId)
         }
       }

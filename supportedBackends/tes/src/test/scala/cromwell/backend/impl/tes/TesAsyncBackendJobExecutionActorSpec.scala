@@ -135,14 +135,14 @@ class TesAsyncBackendJobExecutionActorSpec
     if (pathString.contains(someBlobUrl)) Try(mockBlob) else Try(mockDefault)
   }
 
-  def mockGetTaskLogs(handle: StandardAsyncPendingExecutionHandle): Future[TaskLog] = {
+  def mockGetTaskLogs(): Future[TaskLog] = {
     val logs = mockTesTaskLog
     Future.successful(logs)
   }
 
-  def mockGetErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] = {
+  def mockGetErrorLogs(): Future[Option[Seq[String]]] = {
     val logs = mockTesTaskLog
-    val systemLogs = logs.system_logs.get
+    val systemLogs = logs.system_logs
     Future.successful(systemLogs)
   }
 
@@ -218,21 +218,17 @@ class TesAsyncBackendJobExecutionActorSpec
   }
 
   it should "return expected task end time" in {
-    val handle: StandardAsyncPendingExecutionHandle = mock[StandardAsyncPendingExecutionHandle]
-
-    val endTime = TesAsyncBackendJobExecutionActor.getTaskEndTime(handle, mockGetTaskLogs)
+    val endTime = TesAsyncBackendJobExecutionActor.getTaskEndTime(mockGetTaskLogs())
     whenReady(endTime) { m =>
-      m shouldBe "2024-04-04T20:22:32.077818+00:00"
+      m.get shouldBe "2024-04-04T20:22:32.077818+00:00"
     }
   }
 
   it should "return error logs for error state" in {
-    val errorStatus = Error()
-    val handle: StandardAsyncPendingExecutionHandle = mock[StandardAsyncPendingExecutionHandle]
-    val errorLogs = TesAsyncBackendJobExecutionActor.getErrorSeq(errorStatus, handle, mockGetErrorLogs)
+    val errorLogs = TesAsyncBackendJobExecutionActor.getErrorSeq(mockGetTaskLogs())
 
     whenReady(errorLogs) { m =>
-      m shouldBe Seq("an error!")
+      m.get shouldBe Seq("an error!")
     }
   }
 

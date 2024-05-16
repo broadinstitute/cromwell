@@ -86,11 +86,6 @@ case class Cancelled(override val costData: Option[TesVmCostData] = Option.empty
 
 object TesAsyncBackendJobExecutionActor {
   val JobIdKey = "tes_job_id"
-  private type StandardAsyncRunInfo = Any
-
-  private type StandardAsyncRunState = TesRunStatus
-  private type StandardAsyncPendingExecutionHandle =
-    PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
 
   def generateLocalizedSasScriptPreamble(environmentVariableName: String, getSasWsmEndpoint: String): String =
     // BEARER_TOKEN: https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http
@@ -234,7 +229,6 @@ object TesAsyncBackendJobExecutionActor {
     }
 
   def getTaskEndTime(
-    handle: StandardAsyncPendingExecutionHandle,
     taskLogs: Future[TaskLog]
   )(implicit ec: ExecutionContext): Future[Option[String]] =
     for {
@@ -433,7 +427,11 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def onTaskComplete(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Unit = {
     val logs = getTaskLogs(handle)
-    val taskEndTime = getTaskEndTime(handle, logs)
+    val taskEndTime = for {
+      optionEndTime <- getTaskEndTime(logs)
+      endTime = optionEndTime
+    } yield endTime
+
     val errors = for {
       errors <- runStatus match {
         case Error(_, _) | Failed(_, _) => getErrorSeq(logs)
@@ -447,7 +445,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
 
     taskEndTime.onComplete {
-      case Success(result) => tellMetadata(Map(CallMetadataKeys.TaskEndTime -> result))
+      case Success(result) => result.map(r => tellMetadata(Map(CallMetadataKeys.TaskEndTime -> r)))
       case Failure(e) => log.error(e.getMessage)
     }
   }
@@ -460,7 +458,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
    * */
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     handle.previousState.flatMap(_.costData) match {
-      case Some(TesVmCostData(startTime, vmCost)) => pollStatus(handle, fetchCostData = false)
+      case Some(TesVmCostData(_, _)) => pollStatus(handle, fetchCostData = false)
       case _ => pollStatus(handle, fetchCostData = true)
     }
 

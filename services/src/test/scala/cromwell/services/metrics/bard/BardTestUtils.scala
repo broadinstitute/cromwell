@@ -30,7 +30,7 @@ trait BardTestUtils {
                                           jobAttempt,
                                           terminalState,
                                           cloud,
-                                          dockerImage,
+                                          Some(dockerImage),
                                           cpu,
                                           memory,
                                           start,

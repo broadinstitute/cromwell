@@ -1476,7 +1476,8 @@ trait StandardAsyncExecutionActor
   }
 
   def tellBard(state: StandardAsyncRunState): Unit = {
-    val dockerImage = RuntimeAttributesValidation.extract(DockerValidation.instance, validatedRuntimeAttributes)
+    val dockerImage =
+      RuntimeAttributesValidation.extract(DockerValidation.instance.optional, validatedRuntimeAttributes)
     val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
     val memory = RuntimeAttributesValidation
       .extract(MemoryValidation.instance(), validatedRuntimeAttributes)

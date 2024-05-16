@@ -486,22 +486,22 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
       task map {
         t => {
-          val fetchedCostData = for {
+          val tesVmCostData = for {
             responseLogs <- t.logs
-            startTime <- responseLogs.head.start_time
-            vmCost <- responseLogs.head.metadata.flatMap(_.get("vm_price_per_hour_usd"))
-          } yield (startTime, vmCost)
+            startTime <- responseLogs.headOption.map(_.start_time)
+            vmCost <- responseLogs.headOption.map(_.metadata.flatMap(_.get("vm_price_per_hour_usd")))
+            tesVmCostData = TesVmCostData(startTime, vmCost)
+          } yield tesVmCostData
 
-          fetchedCostData match {
+          tesVmCostData match {
             case Some(data) =>
-              val costData = TesVmCostData(Option(data._1), Option(data._2))
               val state = t.state
               val metadata = Map(
-                CallMetadataKeys.TaskStartTime -> data._1,
-                CallMetadataKeys.VmCostUsd -> data._2
+                CallMetadataKeys.TaskStartTime -> tesVmCostData.flatMap(_.startTime),
+                CallMetadataKeys.VmCostUsd -> tesVmCostData.flatMap(_.vmCost)
               )
               tellMetadata(metadata)
-              getTesStatus(state, Option(costData), handle.pendingJob.jobId)
+              getTesStatus(state, tesVmCostData, handle.pendingJob.jobId)
             case None => getTesStatus(t.state, Option.empty, handle.pendingJob.jobId)
           }
         }

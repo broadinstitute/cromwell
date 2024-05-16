@@ -494,7 +494,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           } yield tesVmCostData
 
           tesVmCostData match {
-            case Some(data) =>
+            case Some(_) =>
               val state = t.state
               val metadata = Map(
                 CallMetadataKeys.TaskStartTime -> tesVmCostData.flatMap(_.startTime),
@@ -502,7 +502,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
               )
               tellMetadata(metadata)
               getTesStatus(state, tesVmCostData, handle.pendingJob.jobId)
-            case None => getTesStatus(t.state, Option.empty, handle.pendingJob.jobId)
+            case None => getTesStatus(t.state, tesVmCostData, handle.pendingJob.jobId)
           }
         }
       }
@@ -526,22 +526,22 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
 
   private def getTesStatus(state: Option[String], withCostData: Option[TesVmCostData], jobId: String): TesRunStatus = {
-    var data: Option[TesVmCostData] = Option.empty
-    if (withCostData.isDefined) {
-      data = withCostData
-      for {
-        costData <- withCostData
-        vmCost = costData.vmCost
-      } yield vmCost
-    }
+    //var data: Option[TesVmCostData] = Option.empty
+//    if (withCostData.isDefined) {
+//      // data = withCostData
+//      for {
+//        costData <- withCostData
+//        vmCost = costData.vmCost
+//      } yield vmCost
+//    }
     state match {
       case s if s.contains("COMPLETE") =>
         jobLogger.info(s"Job ${jobId} is complete")
-        Complete(data)
+        Complete(withCostData)
 
       case s if s.contains("CANCELED") =>
         jobLogger.info(s"Job ${jobId} was canceled")
-        Cancelled(data)
+        Cancelled(withCostData)
 
       case s if s.contains("EXECUTOR_ERROR") =>
         jobLogger.info(s"TES reported a failure for Job ${jobId}: '$s'")
@@ -551,7 +551,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         jobLogger.info(s"TES reported an error for Job ${jobId}: '$s'")
         Error()
 
-      case _ => Running(data)
+      case _ => Running(withCostData)
     }
   }
 

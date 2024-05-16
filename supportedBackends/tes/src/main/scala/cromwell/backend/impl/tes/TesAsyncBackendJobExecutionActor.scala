@@ -466,7 +466,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   private def pollStatus(handle: StandardAsyncPendingExecutionHandle, fetchCostData: Boolean) =
     for {
-      status <- queryStatusAndCostData(handle, fetchCostData) // Default, minimum data
+      status <- queryStatusAndMaybeCostData(handle, fetchCostData) // Default, minimum data
       errorLog <- status match {
         case Error(_, _) | Failed(_, _) => getErrorLogs(handle)
         case _ => Future.successful(Seq.empty[String])
@@ -478,7 +478,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       }
     } yield statusWithLog
 
-  private def queryStatusAndCostData(handle: StandardAsyncPendingExecutionHandle,
+  private def queryStatusAndMaybeCostData(handle: StandardAsyncPendingExecutionHandle,
                                      fetchCostData: Boolean
   ): Future[TesRunStatus] =
     if (fetchCostData) {

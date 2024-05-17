@@ -11,6 +11,6 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
-cromwell::build::run_centaur \
+cromwell::build::run_centaur
 
 cromwell::build::generate_code_coverage

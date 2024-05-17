@@ -95,7 +95,6 @@ object WorkflowFlatMetadata {
       val key: String = value.getKey.stripPrefix("\"").stripSuffix("\"")
       v.valueType() match {
         case ConfigValueType.BOOLEAN =>
-
           values(key) = JsBoolean.apply(v.unwrapped().asInstanceOf[Boolean])
         case ConfigValueType.NUMBER =>
           val num = v.unwrapped().asInstanceOf[Number]

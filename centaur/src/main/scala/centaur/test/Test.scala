@@ -673,14 +673,13 @@ object Operations extends StrictLogging {
 
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata
-      ): IO[WorkflowMetadata] = {
+      ): IO[WorkflowMetadata] =
         validateMetadata(workflow, expectedMetadata).handleErrorWith { _ =>
           for {
             _ <- IO.sleep(2.seconds)
             recurse <- eventuallyMetadata(workflow, expectedMetadata)
           } yield recurse
         }
-      }
 
       def validateMetadata(workflow: SubmittedWorkflow,
                            expectedMetadata: WorkflowFlatMetadata

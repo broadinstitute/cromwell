@@ -1,15 +1,11 @@
 package centaur.test.metadata
 
 import java.util.UUID
-
 import cats.data.Validated._
 import centaur.test.metadata.JsValueEnhancer._
-import com.typesafe.config.Config
-import common.collections.EnhancedCollections._
+import com.typesafe.config.{Config, ConfigValue, ConfigValueType}
 import common.validation.ErrorOr._
 import common.validation.Validation._
-import configs.Result
-import configs.syntax._
 import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata, WorkflowOutputs}
 import mouse.all._
 import spray.json._
@@ -33,8 +29,7 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       diffValues(k, value(k), actual.value(k), workflowID, workflowRoot, cacheHitUUID)
     }
 
-    mismatchErrors ++ missingErrors + s"All expected values: ${value.values.toList}"
-    // Everything in values has already been converted to a string by this point
+    mismatchErrors ++ missingErrors
   }
 
   private def diffValues(key: String,
@@ -69,12 +64,13 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       case o: JsString => (cacheSubstitutions != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
       case o: JsNumber =>
         expected match {
-          case JsNumber(value) => (value == o.value).option(s"expected: $cacheSubstitutions but got: $actual")
+          case JsNumber(value) =>
+            (value.compare(o.value) != 0).option(s"expected: $cacheSubstitutions but got: $actual")
           case _ => Option(s"metadata $actual is a number, but expected to be the same type as $expected")
         }
       case o: JsBoolean =>
         expected match {
-          case JsBoolean(value) => (value == o.value).option(s"expected: $cacheSubstitutions but got: $actual")
+          case JsBoolean(value) => (value != o.value).option(s"expected: $cacheSubstitutions but got: $actual")
           case _ => Option(s"metadata $actual is a boolean, but expected to be the same type as $expected")
         }
       case o: JsArray if stripQuotes(cacheSubstitutions).startsWith("~>") =>
@@ -92,11 +88,46 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
 
 object WorkflowFlatMetadata {
 
-  def fromConfig(config: Config): ErrorOr[WorkflowFlatMetadata] =
-    config.extract[Map[String, Option[String]]] match {
-      case Result.Success(m) => Valid(WorkflowFlatMetadata(m safeMapValues { _.map(JsString.apply).getOrElse(JsNull) }))
-      case Result.Failure(_) => invalidNel(s"Metadata block can not be converted to a Map: $config")
+  def fromConfig(config: Config): ErrorOr[WorkflowFlatMetadata] = {
+    val values: scala.collection.mutable.Map[String, JsValue] = scala.collection.mutable.Map[String, JsValue]()
+    config.entrySet().stream().forEach { value =>
+      val v: ConfigValue = value.getValue
+      val key: String = value.getKey.stripPrefix("\"").stripSuffix("\"")
+      v.valueType() match {
+        case ConfigValueType.BOOLEAN =>
+
+          values(key) = JsBoolean.apply(v.unwrapped().asInstanceOf[Boolean])
+        case ConfigValueType.NUMBER =>
+          val num = v.unwrapped().asInstanceOf[Number]
+          if (num.intValue() == num.doubleValue()) {
+            values(key) = JsNumber.apply(num.intValue())
+          } else {
+            values(key) = JsNumber.apply(num.doubleValue())
+          }
+        case ConfigValueType.NULL => values(key) = JsNull
+        case _ =>
+          /*
+            FIXME/TODO:
+
+            As part of WX-1629
+            https://broadworkbench.atlassian.net/jira/software/c/projects/WX/boards/174?selectedIssue=WX-1629, this
+            was changed to allow Centaur tests to perform comparisons that take data type into account instead of
+            casting all values to strings before comparing. However, it seems that expected values from *.test files
+            are read in as either Strings or Numbers -- as such, in order to compare booleans, a cast is required.
+            This isn't ideal because it makes it impossible to use the Strings "true" or "false" -- they will always
+            be cast to booleans. The changes necessary to fix this are more wide reaching than the scope of WX-1629,
+            so this must be fixed in the future.
+           */
+          if (v.unwrapped().asInstanceOf[String] == "true" || v.unwrapped().asInstanceOf[String] == "false") {
+            values(key) = JsBoolean.apply(v.unwrapped().asInstanceOf[String].toBoolean)
+          } else {
+            values(key) = JsString.apply(v.unwrapped().asInstanceOf[String])
+          }
+      }
     }
+
+    Valid(WorkflowFlatMetadata(values.map(kv => (kv._1, kv._2)).toMap))
+  }
 
   def fromWorkflowMetadata(workflowMetadata: WorkflowMetadata): ErrorOr[WorkflowFlatMetadata] = {
     val jsValue: ErrorOr[JsValue] = Try(workflowMetadata.value.parseJson) match {

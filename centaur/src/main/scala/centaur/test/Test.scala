@@ -581,8 +581,7 @@ object Operations extends StrictLogging {
 
       for {
         outputs <- CentaurCromwellClient.outputs(submittedWorkflow)
-        outputsMap = outputs.asFlat.stringifyValues
-        _ <- checkOutputs(expectedOutputs)(outputsMap)
+        _ <- checkOutputs(expectedOutputs)(outputs.asFlat.value)
       } yield outputs.outputs.asJsObject
 
     }
@@ -675,9 +674,6 @@ object Operations extends StrictLogging {
       def eventuallyMetadata(workflow: SubmittedWorkflow,
                              expectedMetadata: WorkflowFlatMetadata
       ): IO[WorkflowMetadata] = {
-        logger.error(
-          s"Expected metadata in fetchAndValidateNonSubworkflowMetadata#eventuallyMetadata: ${expectedMetadata.value.values.toList}"
-        )
         validateMetadata(workflow, expectedMetadata).handleErrorWith { _ =>
           for {
             _ <- IO.sleep(2.seconds)
@@ -732,18 +728,13 @@ object Operations extends StrictLogging {
           actualMetadata <- fetchOnce()
           _ <- validateUnwantedMetadata(actualMetadata)
           _ <- validateAllowOtherOutputs(actualMetadata)
-          diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID) ++ List(
-            s"Expected values before diff function is called: ${expectedMetadata.value.values.toList}"
-          )
+          diffs = expectedMetadata.diff(actualMetadata.asFlat, workflow.id.id, cacheHitUUID)
           _ <- checkDiff(diffs, actualMetadata)
         } yield actualMetadata
       }
 
       override def run: IO[WorkflowMetadata] = workflowSpec.metadata match {
         case Some(expectedMetadata) =>
-          logger.error(
-            s"Expected metadata in fetchAndValidateNonSubworkflowMetadata#run: ${expectedMetadata.value.values.toList}"
-          )
           eventuallyMetadata(submittedWorkflow, expectedMetadata)
             .timeoutTo(CentaurConfig.metadataConsistencyTimeout, validateMetadata(submittedWorkflow, expectedMetadata))
         // Nothing to wait for, so just return the first metadata we get back:

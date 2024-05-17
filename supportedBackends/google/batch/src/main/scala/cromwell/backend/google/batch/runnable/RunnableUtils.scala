@@ -7,15 +7,6 @@ import org.apache.commons.text.StringEscapeUtils
 
 object RunnableUtils {
 
-  /** Image to use for ssh access. */
-  val sshImage = "gcr.io/cloud-genomics-pipelines/tools"
-
-  /** Entry point on the ssh image. */
-  val sshEntryPoint = "ssh-server"
-
-  /** Port mappings for the ssh container. */
-  val sshPortMappings = Map("22" -> Int.box(22))
-
   private val config = ConfigFactory.load().getConfig("google")
 
   /**

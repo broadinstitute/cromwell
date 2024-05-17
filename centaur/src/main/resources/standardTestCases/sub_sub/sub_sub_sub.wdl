@@ -2,6 +2,7 @@
 task foo {
   command {
     echo "foo"
+    exit 1
   }
   runtime {
     docker: "ubuntu:latest"

@@ -33,7 +33,6 @@ package cromwell.backend.impl.aws
 
 import java.net.SocketTimeoutException
 import java.io.FileNotFoundException
-
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import akka.util.Timeout
@@ -64,6 +63,7 @@ import wom.expression.NoIoFunctionSet
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
+import java.time.OffsetDateTime
 import scala.concurrent.{Future, Promise}
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -572,6 +572,16 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case successStatus: RunStatus.Succeeded => successStatus.eventList
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
+    }
+
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[(OffsetDateTime, OffsetDateTime)] =
+    runStatus match {
+      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.nonEmpty =>
+        val offsetDateTimes = terminalRunStatus.eventList.map(_.offsetDateTime)
+        Some((offsetDateTimes.min, offsetDateTimes.max))
+      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.isEmpty => None
+      case unknown =>
+        throw new RuntimeException(s"handleExecutionSuccess not called with TerminalRunStatus. Instead got $unknown")
     }
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =

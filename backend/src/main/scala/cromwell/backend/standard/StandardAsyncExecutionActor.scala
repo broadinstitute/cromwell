@@ -897,11 +897,7 @@ trait StandardAsyncExecutionActor
     */
   def getTerminalEvents(runStatus: StandardAsyncRunState): Seq[ExecutionEvent] = Seq.empty
 
-  def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[(OffsetDateTime, OffsetDateTime)] =
-    getTerminalEvents(runStatus) match {
-      case Nil => None
-      case events => Some(events.map(_.offsetDateTime).min -> events.map(_.offsetDateTime).max)
-    }
+  def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[(OffsetDateTime, OffsetDateTime)] = None
 
   /**
     * Returns true if the status represents a completion.

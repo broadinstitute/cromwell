@@ -65,6 +65,7 @@ import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
+import java.time.OffsetDateTime
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -820,6 +821,16 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       case successStatus: RunStatus.Success => successStatus.eventList
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
+    }
+
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[(OffsetDateTime, OffsetDateTime)] =
+    runStatus match {
+      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.nonEmpty =>
+        val offsetDateTimes = terminalRunStatus.eventList.map(_.offsetDateTime)
+        Some((offsetDateTimes.min, offsetDateTimes.max))
+      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.isEmpty => None
+      case unknown =>
+        throw new RuntimeException(s"handleExecutionSuccess not called with TerminalRunStatus. Instead got $unknown")
     }
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =

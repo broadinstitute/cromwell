@@ -276,22 +276,22 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   }
 
   /**
-  * This script preamble is bash code that is executed at the start of a task inside the user's container.
-  * It is executed directly before the user's instantiated command is, which gives cromwell a chance to adjust the
-  * container environment before the actual task runs. See commandScriptContents in StandardAsyncExecutionActor for more context.
-  *
-  * For TES tasks, we sometimes want to acquire and save an azure sas token to an environment variable.
-  * If the user provides a value for runtimeAttributes.localizedSasEnvVar, we will add the relevant bash code to the preamble
-  * that acquires/exports the sas token to an environment variable. Once there, it will be visible to the user's task code.
-  *
-  * If runtimeAttributes.localizedSasEnvVar is provided in the WDL (and determineWSMSasEndpointFromInputs is successful),
-  * we will export the sas token to an environment variable named to be the value of runtimeAttributes.localizedSasEnvVar.
-  * Otherwise, we won't alter the preamble.
-  *
-  * See determineWSMSasEndpointFromInputs to see how we use taskInputs to infer *which* container to get a sas token for.
-  *
-  * @return Bash code to run at the start of a task.
-  */
+   * This script preamble is bash code that is executed at the start of a task inside the user's container.
+   * It is executed directly before the user's instantiated command is, which gives cromwell a chance to adjust the
+   * container environment before the actual task runs. See commandScriptContents in StandardAsyncExecutionActor for more context.
+   *
+   * For TES tasks, we sometimes want to acquire and save an azure sas token to an environment variable.
+   * If the user provides a value for runtimeAttributes.localizedSasEnvVar, we will add the relevant bash code to the preamble
+   * that acquires/exports the sas token to an environment variable. Once there, it will be visible to the user's task code.
+   *
+   * If runtimeAttributes.localizedSasEnvVar is provided in the WDL (and determineWSMSasEndpointFromInputs is successful),
+   * we will export the sas token to an environment variable named to be the value of runtimeAttributes.localizedSasEnvVar.
+   * Otherwise, we won't alter the preamble.
+   *
+   * See determineWSMSasEndpointFromInputs to see how we use taskInputs to infer *which* container to get a sas token for.
+   *
+   * @return Bash code to run at the start of a task.
+   */
   override def scriptPreamble: ErrorOr[ScriptPreambleData] =
     runtimeAttributes.localizedSasEnvVar match {
       case Some(environmentVariableName) =>

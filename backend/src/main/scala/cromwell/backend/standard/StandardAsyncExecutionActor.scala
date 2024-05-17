@@ -511,13 +511,13 @@ trait StandardAsyncExecutionActor
   }
 
   /**
-  * Turns WomFiles into relative paths.  These paths are relative to the working disk.
-  *
-  * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
-  * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
-  * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
-  * etc
-  */
+   * Turns WomFiles into relative paths.  These paths are relative to the working disk.
+   *
+   * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
+   * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+   * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+   * etc
+   */
   protected def relativeLocalizationPath(file: WomFile): WomFile =
     file.mapFile(value =>
       getPath(value) match {
@@ -768,8 +768,8 @@ trait StandardAsyncExecutionActor
     }
 
   /**
-  * Returns the memory multiplier for previous attempt if available
-  */
+   * Returns the memory multiplier for previous attempt if available
+   */
   lazy val previousMemoryMultiplier: Option[Double] =
     jobDescriptor.prefetchedKvStoreEntries.get(BackendLifecycleActorFactory.MemoryMultiplierKey) match {
       case Some(KvPair(_, v)) =>
@@ -1123,11 +1123,11 @@ trait StandardAsyncExecutionActor
     }
 
   /**
-  * Merge key-value pairs from previous job execution attempt with incoming pairs from current attempt, which has just
-  * failed, and store them in the database. In case when there are key-value pairs with the same key name among those
-  * from previous attempt and coming from backend, backend values have higher precedence.
-  *
-  */
+   * Merge key-value pairs from previous job execution attempt with incoming pairs from current attempt, which has just
+   * failed, and store them in the database. In case when there are key-value pairs with the same key name among those
+   * from previous attempt and coming from backend, backend values have higher precedence.
+   *
+   */
   private def saveKvPairsForNextAttempt(kvsFromPreviousAttempt: Map[String, KvPair],
                                         kvsForNextAttempt: Map[String, KvPair],
                                         incrementFailedRetryCount: Boolean,

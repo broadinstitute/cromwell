@@ -6,7 +6,14 @@ import com.google.api.services.lifesciences.v2beta.model._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
-import cromwell.backend.google.pipelines.common.api.RunStatus.{Cancelled, Failed, Preempted, UnsuccessfulRunStatus}
+import cromwell.backend.google.pipelines.common.api.RunStatus.{
+  Cancelled,
+  Failed,
+  Preempted,
+  QuotaFailed,
+  UnsuccessfulRunStatus
+}
+import cromwell.backend.google.pipelines.common.errors.isQuotaMessage
 import cromwell.backend.google.pipelines.v2beta.api.request.RequestHandler.logger
 import cromwell.core.{ExecutionEvent, WorkflowId}
 import io.grpc.{Status => GStatus}
@@ -69,6 +76,8 @@ class ErrorReporter(machineType: Option[String],
             _.contains(PipelinesApiAsyncBackendJobExecutionActor.FailedV2Style)
           ) =>
         Preempted.apply _
+      case GStatus.FAILED_PRECONDITION if isQuotaMessage(error.getMessage) =>
+        QuotaFailed.apply _
       case GStatus.CANCELLED => Cancelled.apply _
       case _ => Failed.apply _
     }

@@ -429,6 +429,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec
       cacheHitDuplicationStrategy = CopyCachedOutputs,
       requestWorkers = refineMV[Positive](1),
       pipelineTimeout = null,
+      quotaAttempts = 3,
       logFlushPeriod = None,
       gcsTransferConfiguration = null,
       virtualPrivateCloudConfiguration = VirtualPrivateCloudConfiguration(None, None),

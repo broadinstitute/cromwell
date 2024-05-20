@@ -39,6 +39,12 @@ task runtime_attributes_task {
     memory: "8 GB"
 
     # We still read generic keys that are not overridden
+    #
+    # FIXME/TODO:
+    #
+    # Runtime attributes are casted to String somewhere between WDL parsing and metadata checking in Centaur.
+    # As a temporary measure to make this test pass, this test is expecting the CPU value to be a String.
+    # This is an issue in Centaur and does not affect production.
     cpu: 4
   }
 

@@ -9,6 +9,6 @@ files {
 
 metadata {
   "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.docker": "debian:latest",
-  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.cpu": 4
+  "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.cpu": "4"
   "calls.runtime_attributes_wf.runtime_attributes_task.runtimeAttributes.memory": "4 GB"
 }

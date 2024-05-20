@@ -58,6 +58,8 @@ import wom.types.{WomArrayType, WomMapType, WomSingleFileType, WomStringType}
 import wom.values._
 
 import java.nio.file.Paths
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -1463,6 +1465,46 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       )
     )
 
+  }
+
+  private def setupBackend: TestableGcpBatchJobExecutionActor = {
+    val womFile = WomSingleFile("gs://blah/b/c.txt")
+    val workflowInputs = Map("file_passing.f" -> womFile)
+    val callInputs = Map(
+      "in" -> womFile, // how does one programmatically map the wf inputs to the call inputs?
+      "out_name" -> WomString("out") // is it expected that this isn't using the default?
+    )
+    makeJesActorRef(SampleWdl.FilePassingWorkflow, workflowInputs, "a", callInputs).underlyingActor
+  }
+
+  it should "extract start and end times from terminal run statuses" in {
+    val jesBackend = setupBackend
+
+    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val middle = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(30, ChronoUnit.MINUTES), None)
+    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
+    val successStatus = RunStatus.Succeeded(Seq(middle, end, start))
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe Option((start.offsetDateTime, end.offsetDateTime))
+  }
+
+  it should "return None trying to get start and end times from a status containing no events" in {
+    val jesBackend = setupBackend
+
+    val successStatus = RunStatus.Succeeded(Seq())
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
+  }
+
+  it should "throw when getting start and end times from non-terminal statuses" in {
+    val jesBackend = setupBackend
+
+    val runningStatus = RunStatus.Running
+
+    val ex = intercept[RuntimeException] {
+      jesBackend.getStartAndEndTimes(runningStatus)
+    }
+    ex.getMessage shouldBe s"getStartAndEndTimes not called with TerminalRunStatus. Instead got ${runningStatus}"
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

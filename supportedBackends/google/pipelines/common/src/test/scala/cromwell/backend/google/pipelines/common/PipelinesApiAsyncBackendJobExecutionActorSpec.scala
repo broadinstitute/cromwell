@@ -2,7 +2,6 @@ package cromwell.backend.google.pipelines.common
 
 import java.nio.file.Paths
 import java.util.UUID
-
 import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
@@ -25,7 +24,7 @@ import cromwell.backend.async.{
   FailedRetryableExecutionHandle
 }
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor.JesPendingExecutionHandle
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
+import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, RunStatus}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
@@ -64,6 +63,8 @@ import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types._
 import wom.values._
 
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
@@ -1736,6 +1737,51 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       )
     )
 
+  }
+
+  private def setupBackend: TestablePipelinesApiJobExecutionActor = {
+    val inputs = Map(
+      "strs" -> WomArray(WomArrayType(WomStringType), Seq("A", "B", "C").map(WomString))
+    )
+
+    class TestPipelinesApiExpressionFunctions
+        extends PipelinesApiExpressionFunctions(TestableStandardExpressionFunctionsParams) {
+      override def writeFile(path: String, content: String): Future[WomSingleFile] =
+        Future.fromTry(Success(WomSingleFile(s"gs://some/path/file.txt")))
+    }
+
+    val functions = new TestPipelinesApiExpressionFunctions
+    makeJesActorRef(SampleWdl.ArrayIO, Map.empty, "serialize", inputs, functions).underlyingActor
+  }
+
+  it should "extract start and end times from terminal run statuses" in {
+    val jesBackend = setupBackend
+
+    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val middle = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(30, ChronoUnit.MINUTES), None)
+    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
+    val successStatus = RunStatus.Success(Seq(middle, end, start), None, None, None)
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe Option((start.offsetDateTime, end.offsetDateTime))
+  }
+
+  it should "return None trying to get start and end times from a status containing no events" in {
+    val jesBackend = setupBackend
+
+    val successStatus = RunStatus.Success(Seq(), None, None, None)
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
+  }
+
+  it should "throw when getting start and end times from non-terminal statuses" in {
+    val jesBackend = setupBackend
+
+    val runningStatus = RunStatus.Running
+
+    val ex = intercept[RuntimeException] {
+      jesBackend.getStartAndEndTimes(runningStatus)
+    }
+    ex.getMessage shouldBe s"getStartAndEndTimes not called with TerminalRunStatus. Instead got ${runningStatus}"
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

@@ -32,7 +32,6 @@
 package cromwell.backend.impl.aws
 
 import java.util.UUID
-
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration}
 import common.collections.EnhancedCollections._
@@ -81,6 +80,8 @@ import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types._
 import wom.values._
 
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
@@ -1109,6 +1110,36 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
       pendingExecutionResponse.previousState should be(None)
       pendingExecutionResponse.runInfo should be(Option(backend.batchJob))
     }
+  }
+
+  it should "extract start and end times from terminal run statuses" in {
+    val awsBackend = makeAwsBatchActorRef(SampleWdl.EmptyString, "hello", Map()).underlyingActor
+
+    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val middle = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(30, ChronoUnit.MINUTES), None)
+    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
+    val successStatus = RunStatus.Succeeded(Seq(middle, end, start))
+
+    awsBackend.getStartAndEndTimes(successStatus) shouldBe Option((start.offsetDateTime, end.offsetDateTime))
+  }
+
+  it should "return None trying to get start and end times from a status containing no events" in {
+    val awsBackend = makeAwsBatchActorRef(SampleWdl.EmptyString, "hello", Map()).underlyingActor
+
+    val successStatus = RunStatus.Succeeded(Seq())
+
+    awsBackend.getStartAndEndTimes(successStatus) shouldBe None
+  }
+
+  it should "throw when getting start and end times from non-terminal statuses" in {
+    val awsBackend = makeAwsBatchActorRef(SampleWdl.EmptyString, "hello", Map()).underlyingActor
+
+    val runningStatus = RunStatus.Running
+
+    val ex = intercept[RuntimeException] {
+      awsBackend.getStartAndEndTimes(runningStatus)
+    }
+    ex.getMessage shouldBe s"getStartAndEndTimes not called with TerminalRunStatus. Instead got ${runningStatus}"
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

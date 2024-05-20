@@ -830,7 +830,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         Some((offsetDateTimes.min, offsetDateTimes.max))
       case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.isEmpty => None
       case unknown =>
-        throw new RuntimeException(s"handleExecutionSuccess not called with TerminalRunStatus. Instead got $unknown")
+        throw new RuntimeException(s"getStartAndEndTimes not called with TerminalRunStatus. Instead got $unknown")
     }
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =

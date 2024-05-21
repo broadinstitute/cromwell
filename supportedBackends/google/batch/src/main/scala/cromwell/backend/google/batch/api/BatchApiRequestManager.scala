@@ -108,13 +108,21 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
   private val requestManagerReceive: Receive = {
     case ResetAllRequestWorkers => resetAllWorkers()
-    case BackendSingletonActorAbortWorkflow(id) => abort(id)
+    case BackendSingletonActorAbortWorkflow(id) =>
+      val _ = abort(id)
+
     case status: BatchStatusPollRequest => workQueue :+= status
     case create: BatchRunCreationRequest =>
       if (create.contentLength > maxBatchRequestSize) {
         create.requester ! BatchApiRunCreationQueryFailed(create, requestTooLargeException)
       } else workQueue :+= create
-    case abort: BatchAbortRequest => workQueue :+= abort
+    case request: BatchAbortRequest =>
+      val aborted = abort(request.workflowId)
+      if (!aborted) {
+        // the creation request was already submitted, we need another request to abort the job
+        workQueue :+= abort
+      }
+
     case BatchWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender(), maxBatchSize)
     case failure: BatchApiRequestFailed =>
       handleQueryFailure(failure)
@@ -128,9 +136,13 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
 
   override def receive = instrumentationReceive(monitorQueueSize _).orElse(requestManagerReceive)
 
-  private def abort(workflowId: WorkflowId): Unit = {
+  // returns true if any creation request was canceled
+  private def abort(workflowId: WorkflowId): Boolean = {
+    def queueSize = workQueue.size + queriesWaitingForRetry.size
     def aborted(query: BatchRunCreationRequest) =
       query.requester ! BatchApiRunCreationQueryFailed(query, JobAbortedException)
+
+    val initialSize = queueSize
 
     workQueue = workQueue.filterNot {
       case query: BatchRunCreationRequest if query.workflowId == workflowId =>
@@ -142,11 +154,12 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
     queriesWaitingForRetry = queriesWaitingForRetry.filterNot {
       case query: BatchRunCreationRequest if query.workflowId == workflowId =>
         timers.cancel(query)
-        queriesWaitingForRetry = queriesWaitingForRetry - query
         aborted(query)
         true
       case _ => false
     }
+
+    queueSize < initialSize
   }
 
   private def handleQueryFailure(failure: BatchApiRequestFailed): Unit = {

@@ -110,6 +110,10 @@ object BatchRequestExecutor {
     private def internalGetHandler(client: BatchServiceClient, request: GetJobRequest): BatchApiResponse.StatusQueried =
       try {
         val job = client.getJob(request)
+
+        // TODO: Remove debug log
+        logger.info(s"Batch Job Status ${job.getName}: ${job.getStatus}")
+
         val result = interpretOperationStatus(job)
         BatchApiResponse.StatusQueried(result)
       } catch {
@@ -123,19 +127,30 @@ object BatchRequestExecutor {
       }
 
     private[request] def interpretOperationStatus(job: Job): RunStatus = {
-      lazy val events = Option(job)
-        .flatMap(e => Option(e.getStatus))
-        .flatMap(e => Option(e.getStatusEventsList))
-        .map(_.asScala.toList)
-        .getOrElse(List.empty)
+      lazy val events = getEventList(
+        Option(job)
+          .flatMap(e => Option(e.getStatus))
+          .flatMap(e => Option(e.getStatusEventsList))
+          .map(_.asScala.toList)
+          .getOrElse(List.empty)
+      )
+      lazy val preemtionError = events.exists { e =>
+        val description = e.name.toLowerCase
+        // Matches:
+        // Job state is set from RUNNING to FAILED for job projects/A_JOB_ID. Job failed due to task failures.
+        // For example, task with index 0 failed, failed task event description is Task state is updated from RUNNING to FAILED on zones/A_INSTANCE_ID due to Spot VM
+        // preemption with exit code 50001
+        description.contains("from RUNNING to FAILED") && description.contains("Spot VM".toLowerCase)
+      }
 
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
-        RunStatus.Success(getEventList(events))
+        RunStatus.Success(events)
+      } else if (job.getStatus.getState == JobStatus.State.RUNNING || preemtionError) {
+        // GCP automatically restarts jobs that fail with preemption errors
+        RunStatus.Running
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
         // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
-        RunStatus.Failed(Status.OK, None, List.empty, getEventList(events))
-      } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
-        RunStatus.Running
+        RunStatus.Failed(Status.OK, None, List.empty, events)
       } else {
         RunStatus.Initializing
       }

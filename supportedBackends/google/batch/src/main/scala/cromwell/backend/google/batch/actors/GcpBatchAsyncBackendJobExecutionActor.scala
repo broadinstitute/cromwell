@@ -1088,17 +1088,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     } yield status
   }
 
-  // TODO: How do we test this?
-  override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
-    case (oldHandle: GcpBatchPendingExecutionHandle @unchecked, JobAbortedException) =>
-      jobLogger.error(s"Batch job id ${oldHandle.runInfo.get.job.jobId} has not been found, failing call")
-      FailedNonRetryableExecutionHandle(JobAbortedException, kvPairsToSave = None)
-    case (oldHandle: GcpBatchPendingExecutionHandle @unchecked, e: ApiException)
-        if e.getStatusCode.getCode.getHttpStatusCode == 404 =>
-      jobLogger.error(s"Batch job id ${oldHandle.runInfo.get.job.jobId} has not been found, failing call")
-      FailedNonRetryableExecutionHandle(JobAbortedException, kvPairsToSave = None)
-  }
-
   override def isTerminal(runStatus: RunStatus): Boolean =
     runStatus match {
       case _: RunStatus.TerminalRunStatus => true

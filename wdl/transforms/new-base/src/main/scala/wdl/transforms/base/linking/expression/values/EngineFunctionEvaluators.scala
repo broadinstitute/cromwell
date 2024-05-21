@@ -16,19 +16,7 @@ import wdl4s.parser.MemoryUnit
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
-import wom.values.{
-  WomArray,
-  WomBoolean,
-  WomFloat,
-  WomInteger,
-  WomMap,
-  WomObject,
-  WomOptionalValue,
-  WomPair,
-  WomSingleFile,
-  WomString,
-  WomValue
-}
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObject, WomOptionalValue, WomPair, WomSingleFile, WomString, WomValue}
 import wom.types.coercion.ops._
 import wom.types.coercion.defaults._
 import wom.types.coercion.WomTypeCoercer
@@ -670,12 +658,22 @@ object EngineFunctionEvaluators {
       def optionalSafeFileSize(value: WomValue): ErrorOr[Long] = value match {
         case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) =>
           f.coerceToType[WomSingleFile] flatMap { file =>
-            Try(Await.result(ioFunctionSet.size(file.valueString), Duration.Inf)).toErrorOr
+            Try(Await.result(ioFunctionSet.size(file.valueString), ReadWaitTimeout)).toErrorOr
           }
         case WomOptionalValue(f, Some(o)) if isOptionalOfFileType(f) => optionalSafeFileSize(o)
         case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0L.validNel
-        case WomArray(WomArrayType(womType), values) if isOptionalOfFileType(womType) =>
-          values.toList.traverse(optionalSafeFileSize).map(_.sum)
+        case WomArray(WomArrayType(womType), values) if WomSingleFileType.isCoerceableFrom(womType) =>
+          // `Array[File]` optimization: parallelize the size calculation
+          Try(Await.result(
+            ioFunctionSet.parallelSize(values.map(_.valueString)),
+            10 * ReadWaitTimeout
+          )).toErrorOr
+        case WomArray(WomArrayType(womType), values) if WomOptionalType(WomSingleFileType).isCoerceableFrom(womType) =>
+          // `Array[File?]` optimization: parallelize the size calculation for defined files
+          Try(Await.result(
+            ioFunctionSet.parallelSize(values.flatMap(_.asInstanceOf[WomOptionalValue].value).map(_.valueString)),
+            10 * ReadWaitTimeout
+          )).toErrorOr
         case _ =>
           s"The 'size' method expects a 'File', 'File?', 'Array[File]' or Array[File?] argument but instead got ${value.womType.stableName}.".invalidNel
       }

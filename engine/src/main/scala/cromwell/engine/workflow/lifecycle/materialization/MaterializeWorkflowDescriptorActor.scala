@@ -54,6 +54,7 @@ import wom.values.{WomString, WomValue}
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 object MaterializeWorkflowDescriptorActor {
@@ -287,7 +288,7 @@ class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: Acto
   }
 
   private def workflowInitializationFailed(errors: NonEmptyList[String], replyTo: ActorRef) =
-    sender() ! MaterializeWorkflowDescriptorFailureResponse(new IllegalArgumentException with MessageAggregation {
+    sender() ! MaterializeWorkflowDescriptorFailureResponse(new IllegalArgumentException with MessageAggregation with NoStackTrace {
       val exceptionContext = "Workflow input processing failed"
       val errorMessages = errors.toList
     })

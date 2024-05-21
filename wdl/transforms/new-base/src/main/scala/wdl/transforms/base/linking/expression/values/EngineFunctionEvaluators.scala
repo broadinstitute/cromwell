@@ -666,6 +666,15 @@ object EngineFunctionEvaluators {
         case _ => false
       }
 
+      def parallelSize(paths: Seq[String]) = {
+        Try(
+          Await.result(
+            ioFunctionSet.parallelSize(paths),
+            10 * ReadWaitTimeout
+          )
+        ).toErrorOr
+      }
+
       // Inner function: Get the file size, allowing for unpacking of optionals and arrays
       def optionalSafeFileSize(value: WomValue): ErrorOr[Long] = value match {
         case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) =>
@@ -676,20 +685,10 @@ object EngineFunctionEvaluators {
         case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0L.validNel
         case WomArray(WomArrayType(womType), values) if WomSingleFileType.isCoerceableFrom(womType) =>
           // `Array[File]` optimization: parallelize the size calculation
-          Try(
-            Await.result(
-              ioFunctionSet.parallelSize(values.map(_.valueString)),
-              10 * ReadWaitTimeout
-            )
-          ).toErrorOr
+          parallelSize(values.map(_.valueString))
         case WomArray(WomArrayType(womType), values) if WomOptionalType(WomSingleFileType).isCoerceableFrom(womType) =>
           // `Array[File?]` optimization: parallelize the size calculation for defined files
-          Try(
-            Await.result(
-              ioFunctionSet.parallelSize(values.flatMap(_.asInstanceOf[WomOptionalValue].value).map(_.valueString)),
-              10 * ReadWaitTimeout
-            )
-          ).toErrorOr
+          parallelSize(values.flatMap(_.asInstanceOf[WomOptionalValue].value).map(_.valueString))
         case _ =>
           s"The 'size' method expects a 'File', 'File?', 'Array[File]' or Array[File?] argument but instead got ${value.womType.stableName}.".invalidNel
       }

@@ -1,12 +1,10 @@
-package cromwell.backend.google.pipelines.common.callcaching
+package cromwell.backend.google.batch.callcaching
 
 import akka.event.NoLogging
 import akka.testkit.{ImplicitSender, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedResponse, CopyOutputsCommand}
 import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes._
-import cromwell.backend.google.pipelines.common._
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.standard.callcaching.CopyingActorBlacklistCacheSupport.HasFormatting
@@ -30,6 +28,14 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.slf4j.Logger
 import common.mock.MockSugar
+import cromwell.backend.google.batch.models.{
+  GcpBackendInitializationData,
+  GcpBatchConfiguration,
+  GcpBatchConfigurationAttributes,
+  GcpBatchJobPaths,
+  GcpBatchWorkflowPaths
+}
+import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
 import wom.callable.CommandTaskDefinition
 import wom.graph.{CommandCallNode, FullyQualifiedName, LocalName, WomIdentifier}
 import wom.values.WomValue
@@ -38,7 +44,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Success, Try}
 
-class PipelinesApiBackendCacheHitCopyingActorSpec
+class BatchBackendCacheHitCopyingActorSpec
     extends TestKitSuite
     with AnyFlatSpecLike
     with Matchers
@@ -46,7 +52,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec
     with MockSugar
     with Eventually {
 
-  behavior of "PipelinesApiBackendCacheHitCopyingActor"
+  behavior of "BatchBackendCacheHitCopyingActor"
 
   private val LockedDownBucket = "locked-down-bucket"
   private val WideOpenBucket = "wide-open-bucket"
@@ -379,10 +385,10 @@ class PipelinesApiBackendCacheHitCopyingActorSpec
     instrumentationCounts
   }
 
-  type TestFSMRefPipelinesApiBackendCacheHitCopyingActor = TestFSMRef[
+  type TestFSMRefBatchBackendCacheHitCopyingActor = TestFSMRef[
     StandardCacheHitCopyingActorState,
     Option[StandardCacheHitCopyingActorData],
-    PipelinesApiBackendCacheHitCopyingActor
+    BatchBackendCacheHitCopyingActor
   ]
 
   private def buildWorkflow(grouping: Option[String]): HasWorkflowIdAndSources = {
@@ -409,27 +415,26 @@ class PipelinesApiBackendCacheHitCopyingActorSpec
                              fakeServiceRegistryActor: TestProbe,
                              supervisor: TestProbe,
                              grouping: Option[String]
-  ): TestFSMRefPipelinesApiBackendCacheHitCopyingActor = {
+  ): TestFSMRefBatchBackendCacheHitCopyingActor = {
     // Couldn't mock this, possibly due to the use of `Refined` in two parameters:
     //
     // Underlying exception : java.lang.IllegalArgumentException: Cannot cast to primitive type: int
     // org.mockito.exceptions.base.MockitoException:
-    // Mockito cannot mock this class: class cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.
-    val papiConfigurationAttributes = PipelinesApiConfigurationAttributes(
+    // Mockito cannot mock this class: class cromwell.backend.google.batch.actors.GcpBatchConfigurationAttributes.
+    val batchConfigurationAttributes = GcpBatchConfigurationAttributes(
       project = null,
       computeServiceAccount = null,
       auths = null,
       restrictMetadataAccess = false,
+      dockerhubToken = null,
       enableFuse = false,
       executionBucket = null,
-      endpointUrl = null,
       location = null,
       maxPollingInterval = 0,
       qps = refineMV[Positive](10),
       cacheHitDuplicationStrategy = CopyCachedOutputs,
       requestWorkers = refineMV[Positive](1),
-      pipelineTimeout = null,
-      quotaAttempts = 3,
+      batchTimeout = null,
       logFlushPeriod = None,
       gcsTransferConfiguration = null,
       virtualPrivateCloudConfiguration = VirtualPrivateCloudConfiguration(None, None),
@@ -439,8 +444,8 @@ class PipelinesApiBackendCacheHitCopyingActorSpec
       checkpointingInterval = 10.minutes
     )
 
-    val papiConfiguration = mockWithDefaults[PipelinesApiConfiguration]
-    papiConfiguration.papiAttributes returns papiConfigurationAttributes
+    val batchConfiguration = mockWithDefaults[GcpBatchConfiguration]
+    batchConfiguration.batchAttributes returns batchConfigurationAttributes
 
     val commandTaskDefinition = mock[CommandTaskDefinition]
     commandTaskDefinition.outputs returns List.empty
@@ -461,25 +466,25 @@ class PipelinesApiBackendCacheHitCopyingActorSpec
     )
 
     // noinspection ScalaUnusedSymbol
-    def mapper(jobPaths: PipelinesApiJobPaths, originalPath: String): String = originalPath
+    def mapper(jobPaths: GcpBatchJobPaths, originalPath: String): String = originalPath
 
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     workflowDescriptor.id returns workflow.id
     workflowDescriptor.workflowOptions returns WorkflowOptions.fromMap(Map("jes_gcs_root" -> "foo")).get
 
-    val workflowPaths = mock[PipelinesApiWorkflowPaths]
+    val workflowPaths = mock[GcpBatchWorkflowPaths]
     workflowPaths.standardStreamNameToFileNameMetadataMapper returns mapper
     workflowPaths.workflowRoot returns mock[Path]
-    val pipelinesApiJobPaths = mock[PipelinesApiJobPaths]
-    pipelinesApiJobPaths.workflowPaths returns workflowPaths
+    val batchJobPaths = mock[GcpBatchJobPaths]
+    batchJobPaths.workflowPaths returns workflowPaths
 
-    val copyDestinationPaths = mock[PipelinesApiJobPaths]
+    val copyDestinationPaths = mock[GcpBatchJobPaths]
     val copyDestinationRcPath = mock[Path]
     copyDestinationPaths.detritusPaths returns Map(JobPaths.ReturnCodePathKey -> copyDestinationRcPath)
 
-    pipelinesApiJobPaths.forCallCacheCopyAttempts returns copyDestinationPaths
-    pipelinesApiJobPaths.metadataPaths returns Map.empty
-    workflowPaths.toJobPaths(any[BackendJobDescriptor]).returns(pipelinesApiJobPaths)
+    batchJobPaths.forCallCacheCopyAttempts returns copyDestinationPaths
+    batchJobPaths.metadataPaths returns Map.empty
+    workflowPaths.toJobPaths(any[BackendJobDescriptor]).returns(batchJobPaths)
 
     def identityPathMocker(str: Any): Try[Path] = {
       val path = mock[Path]
@@ -488,15 +493,14 @@ class PipelinesApiBackendCacheHitCopyingActorSpec
     }
 
     workflowPaths.getPath(anyString).answers(identityPathMocker)
-    workflowPaths.gcsAuthFilePath returns mock[Path]
 
     val runtimeAttributesBuilder = mock[StandardValidatedRuntimeAttributesBuilder]
     runtimeAttributesBuilder
       .build(any[Map[String, WomValue]], any[Logger])
       .returns(ValidatedRuntimeAttributes(Map.empty))
 
-    val backendInitializationData = mock[PipelinesApiBackendInitializationData]
-    backendInitializationData.papiConfiguration returns papiConfiguration
+    val backendInitializationData = mock[GcpBackendInitializationData]
+    backendInitializationData.gcpBatchConfiguration returns batchConfiguration
     backendInitializationData.workflowPaths returns workflowPaths
     backendInitializationData.runtimeAttributesBuilder returns runtimeAttributesBuilder
 
@@ -520,7 +524,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec
       blacklistCache = Option(blacklistCache)
     )
 
-    val actorUnderTest = TestFSMRef(new PipelinesApiBackendCacheHitCopyingActor(params), supervisor = supervisor.ref)
+    val actorUnderTest = TestFSMRef(new BatchBackendCacheHitCopyingActor(params), supervisor = supervisor.ref)
 
     eventually {
       actorUnderTest.underlyingActor.stateName shouldBe Idle

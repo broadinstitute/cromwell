@@ -988,7 +988,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     Future.successful(handle)
   }
 
-  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(5.second, 5.minutes, 1.1)
+  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
+    initialInterval = 5.second,
+    maxInterval = batchAttributes.maxPollingInterval.seconds,
+    multiplier = 1.1
+  )
 
   override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff =
     SimpleExponentialBackoff(initialInterval = 5.seconds, maxInterval = 20.seconds, multiplier = 1.1)

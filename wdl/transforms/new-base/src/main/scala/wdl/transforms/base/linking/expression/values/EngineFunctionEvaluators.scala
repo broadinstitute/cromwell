@@ -16,19 +16,7 @@ import wdl4s.parser.MemoryUnit
 import wom.expression.IoFunctionSet
 import wom.types._
 import wom.values.WomArray.WomArrayLike
-import wom.values.{
-  WomArray,
-  WomBoolean,
-  WomFloat,
-  WomInteger,
-  WomMap,
-  WomObject,
-  WomOptionalValue,
-  WomPair,
-  WomSingleFile,
-  WomString,
-  WomValue
-}
+import wom.values.{WomArray, WomBoolean, WomFloat, WomInteger, WomMap, WomObject, WomOptionalValue, WomPair, WomSingleFile, WomString, WomValue}
 import wom.types.coercion.ops._
 import wom.types.coercion.defaults._
 import wom.types.coercion.WomTypeCoercer
@@ -40,6 +28,7 @@ import wom.CommandSetupSideEffectFile
 
 import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.language.postfixOps
 import scala.util.Try
 
 object EngineFunctionEvaluators {
@@ -670,7 +659,7 @@ object EngineFunctionEvaluators {
         Try(
           Await.result(
             ioFunctionSet.parallelSize(paths),
-            10 * ReadWaitTimeout
+            60 minutes
           )
         ).toErrorOr
 

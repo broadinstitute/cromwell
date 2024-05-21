@@ -9,6 +9,7 @@ import cromwell.docker._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract._
 import io.circe.Decoder
 import io.circe.generic.auto._
+import org.apache.commons.codec.digest.DigestUtils
 import org.http4s.Uri.{Authority, Scheme}
 import org.http4s._
 import org.http4s.circe._
@@ -316,7 +317,8 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     }
 
   private def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
-    case Status.Successful(r) => extractDigestFromHeaders(r.headers)
+    case Status.Successful(r) =>
+      extractDigestFromHeaders(r.headers).handleErrorWith(_ => calculateDigestFromBody(r.bodyText))
     case Status.Unauthorized(r) =>
       r.as[String].flatMap(body => IO.raiseError(new Unauthorized(r.status.toString + " " + body)))
     case Status.NotFound(r) => r.as[String].flatMap(body => IO.raiseError(new NotFound(r.status.toString + " " + body)))
@@ -329,4 +331,10 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
       case Some(digest) => IO.fromEither(DockerHashResult.fromString(digest.value).toEither)
       case None => IO.raiseError(new Exception(s"Manifest response did not have a digest header"))
     }
+
+  private def calculateDigestFromBody(body: fs2.Stream[IO, String]): IO[DockerHashResult] =
+    body.compile.string
+      .map(s => "sha256:" + DigestUtils.sha256Hex(s))
+      .map(DockerHashResult.fromString)
+      .flatMap(IO.fromTry)
 }

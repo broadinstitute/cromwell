@@ -666,14 +666,13 @@ object EngineFunctionEvaluators {
         case _ => false
       }
 
-      def parallelSize(paths: Seq[String]) = {
+      def parallelSize(paths: Seq[String]) =
         Try(
           Await.result(
             ioFunctionSet.parallelSize(paths),
             10 * ReadWaitTimeout
           )
         ).toErrorOr
-      }
 
       // Inner function: Get the file size, allowing for unpacking of optionals and arrays
       def optionalSafeFileSize(value: WomValue): ErrorOr[Long] = value match {

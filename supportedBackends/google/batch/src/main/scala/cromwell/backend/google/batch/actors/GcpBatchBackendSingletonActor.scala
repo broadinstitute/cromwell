@@ -45,16 +45,16 @@ final class GcpBatchBackendSingletonActor(
   )
 
   override def receive = {
-    // Cromwell sends this message
-    case abort: BackendSingletonActorAbortWorkflow =>
-      // It seems that BatchAbortRequest is processed before this message, hence, we don't need to do anything else.
-      // If it ever becomes necessary, we'll need to create link submitted jobs to its workflow id, which require
+    case _: BackendSingletonActorAbortWorkflow =>
+      // Cromwell sends this message to abort a job, but "GcpBatchAsyncBackendJobExecutionActor" implements
+      // the "tryAbort" method which makes this message irrelevant.
+      //
+      // If it ever becomes necessary, we'll need to link submitted jobs to its workflow id, which require
       // us to be cautious because batch deletes jobs instead of canceling them, hence, we should not delete jobs
       // that are on a final state.
-      log.info(
-        s"Cromwell requested to abort workflow ${abort.workflowId} but BatchAbortRequest should have already been processed, skipping..."
-      )
-    // jesApiQueryManager.forward(abort)
+      //
+      // jesApiQueryManager.forward(abort)
+      ()
 
     case apiQuery: BatchApiRequest =>
       log.debug("Forwarding API query to Batch request manager actor")

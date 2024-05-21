@@ -39,14 +39,10 @@ object RunStatus {
               errorMessage: Option[String],
               eventList: Seq[ExecutionEvent]
     ): UnsuccessfulRunStatus = {
-      val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
-
-      val unsuccessfulStatusBuilder = errorCode match {
-        case Status.CANCELLED => Cancelled.apply _
-        case _ => Failed.apply _
+      val jesCode: Option[Int] = errorMessage.flatMap { em =>
+        Try(em.substring(0, em.indexOf(':')).toInt).toOption
       }
-
-      unsuccessfulStatusBuilder.apply(errorCode, jesCode, errorMessage.toList, eventList)
+      Failed(errorCode, jesCode, errorMessage.toList, eventList)
     }
   }
 
@@ -59,16 +55,13 @@ object RunStatus {
     override def toString = "Failed"
   }
 
-  /**
-   * What Cromwell calls Aborted, Batch calls Cancelled. This means the job was "cancelled" by the user
-   */
-  final case class Cancelled(
-    errorCode: Status,
-    jesCode: Option[Int],
-    errorMessages: List[String],
-    eventList: Seq[ExecutionEvent]
-  ) extends UnsuccessfulRunStatus {
-    override def toString = "Cancelled"
+  final case class Aborted(errorCode: Status) extends UnsuccessfulRunStatus {
+    override def toString = "Aborted"
+
+    // In Batch, a workflow can't be aborted but its deleted instead, due to this, we don't have any info about the job
+    override val errorMessages: List[String] = List.empty
+    override val jesCode: Option[Int] = None
+    override def eventList: Seq[ExecutionEvent] = List.empty
   }
 
   final case class Preempted(

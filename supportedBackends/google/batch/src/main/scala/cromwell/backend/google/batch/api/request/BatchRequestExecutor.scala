@@ -113,6 +113,10 @@ object BatchRequestExecutor {
         val result = interpretOperationStatus(job)
         BatchApiResponse.StatusQueried(result)
       } catch {
+        // A job can't be cancelled but deleted, which is why we consider 404 status as the job being cancelled successfully
+        case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.NOT_FOUND =>
+          BatchApiResponse.StatusQueried(RunStatus.Aborted(io.grpc.Status.NOT_FOUND))
+
         // We don't need to detect preemptible VMs because that's handled automatically by GCP
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
           BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota)

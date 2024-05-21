@@ -215,8 +215,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
              requestFactory = initializationData.requestFactory
     )
 
-  // TODO: PAPI has this set to false, but, if we set it, we get a failure in centaur tests
-  override def requestsAbortAndDiesImmediately: Boolean = true
+  override def requestsAbortAndDiesImmediately: Boolean = false
 
   val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption
     .getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
@@ -1102,12 +1101,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def isTerminal(runStatus: RunStatus): Boolean =
     runStatus match {
-      case _: RunStatus.TerminalRunStatus =>
-        log.info(s"isTerminal match terminal run status with $runStatus")
-        true
-      case other =>
-        log.info(f"isTerminal match _ running with status $other")
-        false
+      case _: RunStatus.TerminalRunStatus => true
+      case _ => false
     }
 
   override def isDone(runStatus: RunStatus): Boolean =
@@ -1195,7 +1190,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       Try {
         runStatus match {
           case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
-          case _: RunStatus.Cancelled => AbortedExecutionHandle
+          case _: RunStatus.Aborted => AbortedExecutionHandle
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
           case unknown =>
             throw new RuntimeException(

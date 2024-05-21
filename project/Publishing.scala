@@ -76,7 +76,7 @@ object Publishing {
 
         // Extra tools in debug mode only
         if (Version.buildType == Debug) {
-          addInstruction(installDebugFacilities)
+          addInstruction(installDebugFacilities(version.value))
         }
 
         /*
@@ -137,31 +137,30 @@ object Publishing {
     *
     * @return Instruction to run in the build
     */
-  def installDebugFacilities: Instruction = {
+  def installDebugFacilities(displayVersion: String): Instruction = {
     import sbtdocker.Instructions
+    import java.time.{ZoneId, ZonedDateTime}
+    import java.time.format.DateTimeFormatter
+
+    val buildTime = ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
 
     // It is optimal to use a single `Run` instruction to minimize the number of layers in the image.
-    // Do not be tempted to install the default JDK in the repositories, it's from Oracle.
     //
     // Documentation:
     // - https://www.yourkit.com/docs/java-profiler/2024.3/help/docker_broker.jsp#setup
-    // - https://adoptium.net/installation/linux/#_deb_installation_on_debian_or_ubuntu
     Instructions.Run(
-      """apt-get update -qq && \
-        |apt-get install -qq --no-install-recommends file gpg htop jq less nload unzip vim && \
-        |wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public | gpg --dearmor | \
-        |  tee /etc/apt/trusted.gpg.d/adoptium.gpg > /dev/null && \
-        |echo "deb https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | \
-        |  tee /etc/apt/sources.list.d/adoptium.list && \
-        |apt-get update -qq && \
-        |apt-get install -qq temurin-11-jdk && \
-        |rm -rf /var/lib/apt/lists/* && \
-        |wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2024.3-docker.zip -P /tmp/docker-build-cache/ && \
-        |unzip /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3-docker.zip -d /tmp/docker-build-cache && \
-        |mkdir -p /usr/local/YourKit-JavaProfiler-2024.3/bin/ && \
-        |cp -R /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ /usr/local/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ && \
-        |rm -rf /tmp/docker-build-cache
-        |""".stripMargin
+      s"""apt-get update -qq && \\
+         |apt-get install -qq --no-install-recommends file gpg htop jq less nload unzip vim && \\
+         |rm -rf /var/lib/apt/lists/* && \\
+         |mkdir /tmp/docker-build-cache && \\
+         |wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2024.3-docker.zip -P /tmp/docker-build-cache/ && \\
+         |unzip /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3-docker.zip -d /tmp/docker-build-cache && \\
+         |mkdir -p /usr/local/YourKit-JavaProfiler-2024.3/bin/ && \\
+         |cp -R /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ /usr/local/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ && \\
+         |rm -rf /tmp/docker-build-cache && \\
+         |echo "Version $displayVersion built at $buildTime" > /etc/motd && \\
+         |echo "[ ! -z "\\$$TERM" -a -r /etc/motd ] && cat /etc/motd" > /etc/bash.bashrc
+         |""".stripMargin
     )
   }
 

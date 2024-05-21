@@ -17,6 +17,11 @@ Users reported cases where Life Sciences jobs failed due to insufficient quota, 
 quota is available (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
 such as "PAPI error code 9", "no available zones", and/or "quota too low".
 
+### Improved `size()` function performance on arrays
+
+Resolved a hotspot in Cromwell that could cause the WDL `size()` engine function to perform very slowly on arrays of files. Common examples of file arrays could include globs or scatter-gather results. This enhancement applies only to WDL 1.0 and later, because that's when `size()` added support for arrays [0].
+
+
 ## 87 Release Notes
 
 ### GCP Batch

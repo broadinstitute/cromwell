@@ -15,26 +15,27 @@ trait BardTestUtils {
   val jobAttempt = 1
   val jobTag = s"$jobFqn:$jobIndex:$jobAttempt"
   val terminalState = "Complete"
-  val cloud = "gcp"
+  val cloudPlatform = "gcp"
   val dockerImage = "ubuntu"
   val cpu = 2
   val memory = 1024d
   val start = OffsetDateTime.now().minus(1000, ChronoUnit.SECONDS).toString
   val end = OffsetDateTime.now().minus(100, ChronoUnit.SECONDS).toString
-  val taskSummaryEvent = TaskSummaryEvent(workflowId,
-                                          Some(parentWorkflowId),
-                                          rootWorkflowId,
-                                          jobTag,
-                                          jobFqn,
-                                          Some(jobIndex),
-                                          jobAttempt,
-                                          terminalState,
-                                          cloud,
-                                          Some(dockerImage),
-                                          cpu,
-                                          memory,
-                                          start,
-                                          end
+  val taskSummaryEvent = TaskSummaryEvent(
+    workflowId,
+    Some(parentWorkflowId),
+    rootWorkflowId,
+    jobTag,
+    jobFqn,
+    Some(jobIndex),
+    jobAttempt,
+    terminalState,
+    Some(cloudPlatform),
+    Some(dockerImage),
+    cpu,
+    memory,
+    start,
+    end
   )
 
 }

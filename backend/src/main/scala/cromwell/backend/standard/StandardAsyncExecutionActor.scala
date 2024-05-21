@@ -897,7 +897,19 @@ trait StandardAsyncExecutionActor
     */
   def getTerminalEvents(runStatus: StandardAsyncRunState): Seq[ExecutionEvent] = Seq.empty
 
+  /**
+    * Get the min and max event times from a terminal run status
+    *
+    * @param runStatus The terminal run status, as defined by isTerminal.
+    * @return The min and max event times, if events exist.
+    */
   def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[(OffsetDateTime, OffsetDateTime)] = None
+
+  /**
+    * The cloud platform of the job, if its running on a cloud provider.
+    *
+    */
+  def cloudPlatform: Option[Platform] = None
 
   /**
     * Returns true if the status represents a completion.
@@ -1497,7 +1509,7 @@ trait StandardAsyncExecutionActor
             jobDescriptor.key.index,
             jobDescriptor.key.attempt,
             state.getClass.getSimpleName,
-            "myCoolCloud",
+            cloudPlatform.map(_.runtimeKey),
             dockerImage,
             cpus,
             memory,

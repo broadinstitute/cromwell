@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.common
 
+import cromwell.backend.{Gcp, Platform}
 import cromwell.backend.google.pipelines.common.io.{PipelinesApiAttachedDisk, PipelinesApiWorkingDisk}
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.core.labels.Labels
@@ -83,4 +84,6 @@ trait PipelinesApiJobCachingActorHelper extends StandardCachingActorHelper {
       "preemptible" -> preemptible
     ) ++ originalLabelEvents
   }
+
+  override def cloudPlatform: Option[Platform] = Option(Gcp)
 }

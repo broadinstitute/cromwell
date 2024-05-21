@@ -584,6 +584,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         throw new RuntimeException(s"getStartAndEndTimes not called with TerminalRunStatus. Instead got $unknown")
     }
 
+  override def cloudPlatform: Option[Platform] = Option(Aws)
+
   override def retryEvaluateOutputs(exception: Exception): Boolean =
     exception match {
       case aggregated: CromwellAggregatedException =>

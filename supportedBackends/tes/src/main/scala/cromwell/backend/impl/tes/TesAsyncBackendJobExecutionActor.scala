@@ -13,7 +13,7 @@ import common.collections.EnhancedCollections._
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-import cromwell.backend.BackendJobLifecycleActor
+import cromwell.backend.{BackendJobLifecycleActor, Platform}
 import cromwell.backend.async.{
   AbortedExecutionHandle,
   ExecutionHandle,
@@ -509,4 +509,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           Unmarshal(response.entity).to[A]
         }
     } yield data
+
+  override def cloudPlatform: Option[Platform] = tesConfiguration.platform
 }

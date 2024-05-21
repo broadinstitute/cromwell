@@ -38,7 +38,7 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with BardTestUtils {
                                     |     "jobIndex": $jobIndex,
                                     |     "jobAttempt": $jobAttempt,
                                     |     "terminalState": "$terminalState",
-                                    |     "cloud": "$cloud",
+                                    |     "cloudPlatform": "$cloudPlatform",
                                     |     "dockerImage": "$dockerImage",
                                     |     "cpuCount": $cpu,
                                     |     "memoryBytes": $memory,

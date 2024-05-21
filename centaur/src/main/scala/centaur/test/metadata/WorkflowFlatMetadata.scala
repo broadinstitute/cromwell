@@ -10,6 +10,8 @@ import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata, Workflo
 import mouse.all._
 import spray.json._
 
+import java.util
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -77,7 +79,12 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
         val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~>")
         val replaced = stripped.replaceAll("\\\\\"", "\"")
         (replaced != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
-      case o: JsArray => (expected != JsString(o.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsArray =>
+        expected match {
+          case JsArray(elements) =>
+            (elements != o.elements).option(s"expected: $cacheSubstitutions but got: $actual")
+          case _ => Option(s"metadata $actual is an array, but expected to be the same type as $expected")
+        }
       case JsNull => (expected != JsNull).option(s"expected: $cacheSubstitutions but got: $actual")
       case _ => Option(s"expected: $cacheSubstitutions but got: $actual")
     }
@@ -103,6 +110,13 @@ object WorkflowFlatMetadata {
           } else {
             values(key) = JsNumber.apply(num.doubleValue())
           }
+        case ConfigValueType.LIST =>
+          values(key) = parseArray(
+            v.unwrapped()
+              .asInstanceOf[util.List[Object]]
+              .asScala
+              .toVector
+          )
         case ConfigValueType.NULL => values(key) = JsNull
         case _ =>
           /*
@@ -112,10 +126,10 @@ object WorkflowFlatMetadata {
             https://broadworkbench.atlassian.net/jira/software/c/projects/WX/boards/174?selectedIssue=WX-1629, this
             was changed to allow Centaur tests to perform comparisons that take data type into account instead of
             casting all values to strings before comparing. However, it seems that expected values from *.test files
-            are read in as either Strings or Numbers -- as such, in order to compare booleans, a cast is required.
-            This isn't ideal because it makes it impossible to use the Strings "true" or "false" -- they will always
-            be cast to booleans. The changes necessary to fix this are more wide reaching than the scope of WX-1629,
-            so this must be fixed in the future.
+            are read in as either Strings, Numbers, or Lists -- as such, in order to compare booleans, a cast is
+            required. This isn't ideal because it makes it impossible to use the Strings "true" or "false" -- they will
+            always be cast to booleans. The changes necessary to fix this are more wide reaching than the scope of
+            WX-1629, so this must be fixed in the future.
            */
           if (v.unwrapped().asInstanceOf[String] == "true" || v.unwrapped().asInstanceOf[String] == "false") {
             values(key) = JsBoolean.apply(v.unwrapped().asInstanceOf[String].toBoolean)
@@ -127,6 +141,28 @@ object WorkflowFlatMetadata {
 
     Valid(WorkflowFlatMetadata(values.map(kv => (kv._1, kv._2)).toMap))
   }
+
+  private def parseArray(element: Any): JsValue =
+    element match {
+      case array: Vector[Any] =>
+        JsArray(
+          array.map(value =>
+            if (value.getClass.getName.equals("java.util.ArrayList")) {
+              parseArray(value.asInstanceOf[util.List[Any]].asScala.toVector)
+            } else {
+              parseArray(value)
+            }
+          )
+        )
+      case _ =>
+        element.getClass.getName match {
+          case "java.lang.Boolean" => JsBoolean.apply(element.asInstanceOf[Boolean])
+          case "java.lang.Integer" => JsNumber.apply(element.asInstanceOf[Int])
+          case "java.lang.Float" => JsNumber.apply(element.asInstanceOf[Float])
+          case "java.lang.Double" => JsNumber.apply(element.asInstanceOf[Double])
+          case _ => JsString.apply(element.asInstanceOf[String])
+        }
+    }
 
   def fromWorkflowMetadata(workflowMetadata: WorkflowMetadata): ErrorOr[WorkflowFlatMetadata] = {
     val jsValue: ErrorOr[JsValue] = Try(workflowMetadata.value.parseJson) match {

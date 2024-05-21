@@ -7,7 +7,6 @@ import akka.pattern.AskSupport
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
-import com.google.api.gax.rpc.ApiException
 import com.google.cloud.batch.v1.JobName
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
@@ -21,7 +20,6 @@ import cromwell.backend.async.{
   PendingExecutionHandle
 }
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
-import cromwell.backend.google.batch.actors.BatchApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
 import cromwell.backend.google.batch.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.batch.io._

@@ -120,7 +120,7 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
       val aborted = abort(request.workflowId)
       if (!aborted) {
         // the creation request was already submitted, we need another request to abort the job
-        workQueue :+= abort
+        workQueue :+= request
       }
 
     case BatchWorkerRequestWork(maxBatchSize) => handleWorkerAskingForWork(sender(), maxBatchSize)

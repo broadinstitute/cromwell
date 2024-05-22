@@ -17,8 +17,8 @@ metadata {
 
 fileSystemCheck: "gcs"
 outputExpectations: {
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/missing_delete/<<UUID>>/call-generate/stdout": 1
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/missing_delete/<<UUID>>/call-generate/stderr": 1
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/missing_delete/<<UUID>>/call-generate/rc": 1
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/missing_delete/<<UUID>>/call-generate/delete.txt": 0
+  "gs://centaur-ci-ttl/cromwell_execution/ci/missing_delete/<<UUID>>/call-generate/stdout": 1
+  "gs://centaur-ci-ttl/cromwell_execution/ci/missing_delete/<<UUID>>/call-generate/stderr": 1
+  "gs://centaur-ci-ttl/cromwell_execution/ci/missing_delete/<<UUID>>/call-generate/rc": 1
+  "gs://centaur-ci-ttl/cromwell_execution/ci/missing_delete/<<UUID>>/call-generate/delete.txt": 0
 }

@@ -17,9 +17,9 @@ metadata {
 
 fileSystemCheck: "gcs"
 outputExpectations: {
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/stdout": 0
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/stderr": 1
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/rc": 1
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/delete.txt": 0
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/keep.txt": 1
+  "gs://centaur-ci-ttl/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/stdout": 0
+  "gs://centaur-ci-ttl/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/stderr": 1
+  "gs://centaur-ci-ttl/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/rc": 1
+  "gs://centaur-ci-ttl/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/delete.txt": 0
+  "gs://centaur-ci-ttl/cromwell_execution/ci/stdout_delete/<<UUID>>/call-do_stdout/keep.txt": 1
 }

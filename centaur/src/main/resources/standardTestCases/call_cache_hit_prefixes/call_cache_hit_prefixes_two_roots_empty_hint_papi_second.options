@@ -1,4 +1,4 @@
 {
-   "jes_gcs_root" : "gs://cloud-cromwell-dev-self-cleaning-another",
+   "jes_gcs_root" : "gs://centaur-ci-ttl-alt",
    "call_cache_hit_path_prefixes": []
 }

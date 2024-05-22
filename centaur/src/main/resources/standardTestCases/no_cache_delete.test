@@ -17,7 +17,7 @@ metadata {
 
 fileSystemCheck: "gcs"
 outputExpectations: {
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_cache_delete/<<UUID>>/call-no_cache/stdout": 1
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_cache_delete/<<UUID>>/call-no_cache/stderr": 1
-  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/no_cache_delete/<<UUID>>/call-no_cache/rc": 1
+  "gs://centaur-ci-ttl/cromwell_execution/ci/no_cache_delete/<<UUID>>/call-no_cache/stdout": 1
+  "gs://centaur-ci-ttl/cromwell_execution/ci/no_cache_delete/<<UUID>>/call-no_cache/stderr": 1
+  "gs://centaur-ci-ttl/cromwell_execution/ci/no_cache_delete/<<UUID>>/call-no_cache/rc": 1
 }

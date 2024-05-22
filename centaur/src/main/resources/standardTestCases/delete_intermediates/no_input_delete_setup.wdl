@@ -9,7 +9,7 @@ workflow no_input_delete_setup {
     # is complete before the subworkflow runs.
     call subworkflow.no_input_delete as no_input_delete { input:
         file_created = makeFileAndIndex.result,
-        f = "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/no_input_delete.txt"
+        f = "gs://centaur-ci-ttl/cromwell_execution/no_input_delete/test_execution/no_input_delete.txt"
     }
 
     output {
@@ -27,8 +27,8 @@ task makeFileAndIndex {
     command {
         set -euo pipefail # Makes sure we fail quickly if the gsutil cp fails
 
-        gsutil cp 'gs://cloud-cromwell-dev/cromwell_execution/no_input_delete/source_files/*.*' gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/
-        echo $(gsutil stat gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/no_input_delete.txt) > ~{outputFile}
+        gsutil cp 'gs://cloud-cromwell-dev/cromwell_execution/no_input_delete/source_files/*.*' gs://centaur-ci-ttl/cromwell_execution/no_input_delete/test_execution/
+        echo $(gsutil stat gs://centaur-ci-ttl/cromwell_execution/no_input_delete/test_execution/no_input_delete.txt) > ~{outputFile}
     }
     runtime {
       docker: "gcr.io/google.com/cloudsdktool/cloud-sdk"

@@ -23,7 +23,7 @@ cromwell:
       -Xms20g
       -Dbackend.defaultBackend=JES
       -Dbackend.jes.project=broad-dsde-cromwell-dev
-      -Dbackend.jes.baseExecutionBucket=gs://cloud-cromwell-dev-self-cleaning/centaur-executions
+      -Dbackend.jes.baseExecutionBucket=gs://centaur-ci-ttl/centaur-executions
       -Dbackend.jes.endpointUrl=https://genomics.googleapis.com/
       -Ddatabase.config=main.default
       -Ddatabase.main.default.db.url=jdbc:mysql://mysql:3306/cromwell

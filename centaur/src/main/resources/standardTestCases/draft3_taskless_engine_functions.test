@@ -19,8 +19,8 @@ metadata {
   "outputs.taskless_engine_functions.int_cross_string.3.left": 2
   "outputs.taskless_engine_functions.int_cross_string.3.right": "b"
 
-  "outputs.taskless_engine_functions.transposed_matrix.0": "[1,1]"
-  "outputs.taskless_engine_functions.transposed_matrix.1": "[0,0]"
+  "outputs.taskless_engine_functions.transposed_matrix.0": [1,1]
+  "outputs.taskless_engine_functions.transposed_matrix.1": [0,0]
 
   "outputs.taskless_engine_functions.flattened_matrix.0": 1
   "outputs.taskless_engine_functions.flattened_matrix.1": 0

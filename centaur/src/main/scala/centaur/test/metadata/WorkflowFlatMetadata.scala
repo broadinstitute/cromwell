@@ -63,7 +63,8 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       case o: JsString if stripQuotes(cacheSubstitutions).startsWith("~~") =>
         val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~~")
         (!stripQuotes(o.toString).contains(stripped)).option(s"Actual value ${o.toString()} does not contain $stripped")
-      case o: JsString => (cacheSubstitutions != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsString =>
+        (cacheSubstitutions != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
       case o: JsNumber =>
         expected match {
           case JsNumber(value) =>
@@ -78,7 +79,12 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       case o: JsArray if stripQuotes(cacheSubstitutions).startsWith("~>") =>
         val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~>")
         val replaced = stripped.replaceAll("\\\\\"", "\"")
-        (replaced != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
+        val expectedArray = stringToArray(replaced)
+        expectedArray match {
+          case Success(array) =>
+            (array.elements != o.elements).option(s"expected: $array but got: $actual")
+          case Failure(_) => Option(s"metadata $actual is an array, but expected to be the same type as $replaced")
+        }
       case o: JsArray =>
         expected match {
           case JsArray(elements) =>
@@ -90,6 +96,25 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
     }
 
     matchError.map(s"Metadata mismatch for $key - " + _)
+  }
+
+  private def stringToArray(string: String): Try[JsArray] =
+    if (!string.startsWith("[") || !string.endsWith("]")) {
+      Failure(new IllegalArgumentException(s"Metadata $string is not a valid array"))
+    } else {
+      Success(stringToArrayHelper(string))
+    }
+
+  private def stringToArrayHelper(string: String): JsArray = {
+    val brokenUpString = string.substring(1, string.length - 1).split(",")
+    JsArray(brokenUpString.toVector.map { s =>
+      // If this is a multi-dimensional array...
+      if (s.startsWith("[") && s.endsWith("]")) {
+        stringToArrayHelper(s)
+      } else {
+        JsString.apply(s.stripPrefix("\"").stripSuffix("\""))
+      }
+    })
   }
 }
 

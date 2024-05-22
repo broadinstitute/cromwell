@@ -560,17 +560,38 @@ object Operations extends StrictLogging {
       lazy val inExpectedButNotInActual = expected.diff(actual)
 
       if (!workflow.allowOtherOutputs && inActualButNotInExpected.nonEmpty) {
-        val message =
-          s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
-        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        if (!checkIfActuallySame(inActualButNotInExpected, inExpectedButNotInActual)) {
+          val message =
+            s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        } else {
+          IO.unit
+        }
       } else if (inExpectedButNotInActual.nonEmpty) {
-        val message =
-          s"In actual outputs but not in expected: ${inExpectedButNotInActual.mkString(", ")}" + System.lineSeparator +
-            s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
-        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        if (!checkIfActuallySame(inExpectedButNotInActual, inActualButNotInExpected)) {
+          val message =
+            s"In actual outputs but not in expected: ${inExpectedButNotInActual.mkString(", ")}" + System.lineSeparator +
+              s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        } else {
+          IO.unit
+        }
       } else {
         IO.unit
       }
+    }
+
+    private def checkIfActuallySame(firstSet: Set[(String, JsValue)], secondSet: Set[(String, JsValue)]): Boolean = {
+      firstSet.foreach { value =>
+        secondSet.find(keyValue => keyValue._1 == value._1) match {
+          case Some(element) =>
+            if (element._2.toString().replaceAll("\"", "") != value._2.toString().replaceAll("\"", "")) {
+              false
+            }
+          case _ => false
+        }
+      }
+      true
     }
 
     override def run: IO[JsObject] = {

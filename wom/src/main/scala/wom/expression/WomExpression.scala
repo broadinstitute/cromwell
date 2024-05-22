@@ -2,6 +2,7 @@ package wom.expression
 
 import cats.data.Validated._
 import cats.effect.IO
+import cats.implicits.toTraverseOps
 import common.validation.ErrorOr.ErrorOr
 import wom.expression.IoFunctionSet.IoElement
 import wom.types._
@@ -194,6 +195,16 @@ trait IoFunctionSet {
     * Return the size of the file located at "path"
     */
   def size(path: String): Future[Long]
+
+  /**
+    * There was a hot spot around sequentially evaluating the size of a long list of files.
+    * The engine function evaluators that call into this trait are not async & don't have
+    * an execution context, so this trick keeps the implementation details hidden. (WX-1633)
+    *
+    * @param paths a list of paths
+    * @return the sum of the sizes of all the files located at the paths
+    */
+  def parallelSize(paths: Seq[String]): Future[Long] = paths.map(size).sequence.map(_.sum)
 
   /**
     * To map/flatMap over IO results

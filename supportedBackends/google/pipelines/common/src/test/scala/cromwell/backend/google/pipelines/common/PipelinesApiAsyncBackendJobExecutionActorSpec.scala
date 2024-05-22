@@ -258,6 +258,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
                       PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey
             ),
             previousUnexpectedRetries.toString
+          ),
+          PipelinesApiBackendLifecycleActorFactory.quotaRetryCountKey -> KvPair(
+            ScopedKey(workflowDescriptor.id,
+                      KvJobKey(key),
+                      PipelinesApiBackendLifecycleActorFactory.quotaRetryCountKey
+            ),
+            0.toString // We're testing this in other ways, fake it here.
           )
         )
         val prefetchedKvEntriesUpd = if (failedRetriesCountOpt.isEmpty) {

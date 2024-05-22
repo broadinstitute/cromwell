@@ -1,0 +1,21 @@
+name: quota_fail_retry
+testFormat: workflowfailure
+backends: [Papiv2]
+
+files {
+  workflow: quota_fail_retry/quota_fail_retry.wdl
+}
+
+# Adapted from `preemptible_and_memory_retry.test`.
+# I set `broad-dsde-cromwell-dev` to have super low CPU quota in `us-west3` (Salt Lake City) for this test
+# This functionality is pretty married to PAPI, it doesn't run on `GCPBatch` backend.
+
+metadata {
+  workflowName: sleepy_sleep
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": "Task sleepy_sleep.sleep:NA:3 failed. The job was stopped before the command finished. PAPI error code 9. Could not start instance custom-12-11264 due to insufficient quota. Cromwell retries exhausted, task failed. Backend info: Execution failed: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 12 CPUS (10/10 available) quota too low"
+  "sleepy_sleep.sleep.-1.1.executionStatus": "RetryableFailure"
+  "sleepy_sleep.sleep.-1.2.executionStatus": "RetryableFailure"
+  "sleepy_sleep.sleep.-1.3.executionStatus": "Failed"
+}

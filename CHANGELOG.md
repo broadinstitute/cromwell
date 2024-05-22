@@ -11,6 +11,17 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
 
+### Improved handling of Life Sciences API quota errors
+
+Users reported cases where Life Sciences jobs failed due to insufficient quota, instead of queueing and waiting until
+quota is available (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
+such as "PAPI error code 9", "no available zones", and/or "quota too low".
+
+### Improved `size()` function performance on arrays
+
+Resolved a hotspot in Cromwell to make the `size()` engine function perform much faster on file arrays. Common examples of file arrays could include globs or scatter-gather results. This enhancement applies only to WDL 1.0 and later, because that's when `size()` added [support for arrays](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#acceptable-compound-input-types).
+
+
 ## 87 Release Notes
 
 ### GCP Batch

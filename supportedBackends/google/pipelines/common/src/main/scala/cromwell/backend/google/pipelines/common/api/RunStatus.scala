@@ -40,6 +40,16 @@ object RunStatus {
   }
 
   object UnsuccessfulRunStatus {
+
+    // TODO: Dead code alert. Functional code only ever calls this with status `UNKNOWN`.
+    //
+    // Seems to have been replaced with:
+    //   - cromwell.backend.google.pipelines.v2beta.api.request.ErrorReporter#toUnsuccessfulRunStatus
+    //   - cromwell.backend.google.batch.models.RunStatus#fromJobStatus
+    // There are useful tests in `PipelinesApiAsyncBackendJobExecutionActorSpec`
+    // that test other things and happen to rely on this method, so eventually
+    // delete it with the rest of Life Sciences. GCP Batch does not use the
+    // `PipelinesApiAsyncBackendJobExecutionActor` at all.
     def apply(errorCode: Status,
               errorMessage: Option[String],
               eventList: Seq[ExecutionEvent],
@@ -113,5 +123,20 @@ object RunStatus {
                              instanceName: Option[String]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Preempted"
+  }
+
+  /**
+    * This should NOT happen, but occasionally we see Life Sciences fail jobs with
+    * as FAILED_PRECONDITION and a message that contains "no available zones" or similar. (WX-1625)
+    */
+  final case class QuotaFailed(errorCode: Status,
+                               jesCode: Option[Int],
+                               errorMessages: List[String],
+                               eventList: Seq[ExecutionEvent],
+                               machineType: Option[String],
+                               zone: Option[String],
+                               instanceName: Option[String]
+  ) extends UnsuccessfulRunStatus {
+    override def toString = "QuotaFailed"
   }
 }

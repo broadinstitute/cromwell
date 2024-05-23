@@ -41,14 +41,6 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
                          workflowRoot: String,
                          cacheHitUUID: Option[UUID]
   ): Option[String] = {
-    /*
-      FIXME/TODO:
-
-      At the moment all expected values are coerced into JsString (as it is hard to discern intended type from
-      HOCON). However values coming from the metadata endpoint are JsValue. At the moment we're only using
-      JsString, JsNumber and JsBoolean for comparison so this is a hacky way of handling that situation. It's
-      entirely likely that it won't survive long term.
-     */
     import WorkflowFlatMetadata._
 
     lazy val substitutedValue = expected.toString.replaceExpectationVariables(WorkflowId(workflowID), workflowRoot)
@@ -79,11 +71,10 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       case o: JsArray if stripQuotes(cacheSubstitutions).startsWith("~>") =>
         val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~>")
         val replaced = stripped.replaceAll("\\\\\"", "\"")
-        val expectedArray = stringToArray(replaced)
-        expectedArray match {
-          case Success(array) =>
-            (array.elements != o.elements).option(s"expected: $array but got: $actual")
-          case Failure(_) => Option(s"metadata $actual is an array, but expected to be the same type as $replaced")
+        replaced.parseJson match {
+          case JsArray(elements) =>
+            (elements != o.elements).option(s"expected: $replaced.parseJson but got: $actual")
+          case _ => Option(s"metadata $actual is an array, but expected to be the same type as ${replaced.parseJson}")
         }
       case o: JsArray =>
         expected match {
@@ -97,52 +88,32 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
 
     matchError.map(s"Metadata mismatch for $key - " + _)
   }
-
-  private def stringToArray(string: String): Try[JsArray] =
-    if (!string.startsWith("[") || !string.endsWith("]")) {
-      Failure(new IllegalArgumentException(s"Metadata $string is not a valid array"))
-    } else {
-      Success(stringToArrayHelper(string))
-    }
-
-  private def stringToArrayHelper(string: String): JsArray = {
-    val brokenUpString = string.substring(1, string.length - 1).split(",")
-    JsArray(brokenUpString.toVector.map { s =>
-      // If this is a multi-dimensional array...
-      if (s.startsWith("[") && s.endsWith("]")) {
-        stringToArrayHelper(s)
-      } else {
-        JsString.apply(s.stripPrefix("\"").stripSuffix("\""))
-      }
-    })
-  }
 }
 
 object WorkflowFlatMetadata {
 
   def fromConfig(config: Config): ErrorOr[WorkflowFlatMetadata] = {
-    val values: scala.collection.mutable.Map[String, JsValue] = scala.collection.mutable.Map[String, JsValue]()
-    config.entrySet().stream().forEach { value =>
+    val metadataValues = config.entrySet().toArray(Array[util.Map.Entry[String, ConfigValue]]()).map { value =>
       val v: ConfigValue = value.getValue
       val key: String = value.getKey.stripPrefix("\"").stripSuffix("\"")
       v.valueType() match {
-        case ConfigValueType.BOOLEAN =>
-          values(key) = JsBoolean.apply(v.unwrapped().asInstanceOf[Boolean])
+        case ConfigValueType.BOOLEAN => key -> JsBoolean.apply(v.unwrapped().asInstanceOf[Boolean])
         case ConfigValueType.NUMBER =>
           val num = v.unwrapped().asInstanceOf[Number]
           if (num.intValue() == num.doubleValue()) {
-            values(key) = JsNumber.apply(num.intValue())
+            key -> JsNumber.apply(num.intValue())
           } else {
-            values(key) = JsNumber.apply(num.doubleValue())
+            key -> JsNumber.apply(num.doubleValue())
           }
         case ConfigValueType.LIST =>
-          values(key) = parseArray(
-            v.unwrapped()
-              .asInstanceOf[util.List[Object]]
-              .asScala
-              .toVector
-          )
-        case ConfigValueType.NULL => values(key) = JsNull
+          key ->
+            parseArray(
+              v.unwrapped()
+                .asInstanceOf[util.List[Object]]
+                .asScala
+                .toVector
+            )
+        case ConfigValueType.NULL => key -> JsNull
         case _ =>
           /*
             FIXME/TODO:
@@ -157,14 +128,14 @@ object WorkflowFlatMetadata {
             WX-1629, so this must be fixed in the future.
            */
           if (v.unwrapped().asInstanceOf[String] == "true" || v.unwrapped().asInstanceOf[String] == "false") {
-            values(key) = JsBoolean.apply(v.unwrapped().asInstanceOf[String].toBoolean)
+            key -> JsBoolean.apply(v.unwrapped().asInstanceOf[String].toBoolean)
           } else {
-            values(key) = JsString.apply(v.unwrapped().asInstanceOf[String])
+            key -> JsString.apply(v.unwrapped().asInstanceOf[String])
           }
       }
     }
 
-    Valid(WorkflowFlatMetadata(values.map(kv => (kv._1, kv._2)).toMap))
+    Valid(WorkflowFlatMetadata(metadataValues.toMap))
   }
 
   private def parseArray(element: Any): JsValue =

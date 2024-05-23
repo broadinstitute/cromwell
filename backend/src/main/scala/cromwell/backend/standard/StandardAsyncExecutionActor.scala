@@ -916,7 +916,9 @@ trait StandardAsyncExecutionActor
     * @param handle The handle of the running job.
     * @return A set of actions when the job is complete
     */
-  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit = {}
+  def onTaskComplete(runStatus: StandardAsyncRunState,
+                     handle: StandardAsyncPendingExecutionHandle
+  ): Map[String, Any] = Map()
 
   /**
     * Attempts to abort a job when an abort signal is retrieved.
@@ -925,7 +927,7 @@ trait StandardAsyncExecutionActor
     *
     * @param jobId The job to abort.
     */
-  def tryAbort(jobId: StandardAsyncJob): Unit = {}
+  def tryAbort(jobId: StandardAsyncJob, httpHandler: HttpHandler = ): Unit = {}
 
   /**
     * Returns true if when an abort signal is retrieved, the actor makes an attempt to abort and then immediately stops

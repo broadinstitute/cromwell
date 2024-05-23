@@ -582,15 +582,15 @@ object Operations extends StrictLogging {
     }
 
     private def checkIfActuallySame(firstSet: Set[(String, JsValue)], secondSet: Set[(String, JsValue)]): Boolean = {
-      firstSet.foreach { value =>
-        secondSet.find(keyValue => keyValue._1 == value._1) match {
-          case Some(element) =>
-            if (element._2.toString().replaceAll("\"", "") != value._2.toString().replaceAll("\"", "")) {
-              false
-            }
-          case _ => false
-        }
-      }
+//      firstSet.foreach { value =>
+//        secondSet.find(keyValue => keyValue._1 == value._1) match {
+//          case Some(element) =>
+//            if (element._2.toString().replaceAll("\"", "") != value._2.toString().replaceAll("\"", "")) {
+//              false
+//            }
+//          case _ => false
+//        }
+//      }
       true
     }
 

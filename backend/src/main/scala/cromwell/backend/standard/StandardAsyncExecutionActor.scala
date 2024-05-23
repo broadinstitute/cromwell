@@ -1521,7 +1521,7 @@ trait StandardAsyncExecutionActor
     getStartAndEndTimes(state) match {
       case Some((start, end)) =>
         val dockerImage =
-          RuntimeAttributesValidation.extract(DockerValidation.optional, validatedRuntimeAttributes)
+          RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
         val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
         val memory = RuntimeAttributesValidation
           .extract(MemoryValidation.instance(), validatedRuntimeAttributes)

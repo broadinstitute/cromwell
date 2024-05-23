@@ -1,6 +1,7 @@
 package cromwell.backend.impl.tes
 
 import com.typesafe.config.ConfigFactory
+import cromwell.backend.BackendConfigurationDescriptor
 
 object TesTestConfig {
 
@@ -24,6 +25,27 @@ object TesTestConfig {
       |""".stripMargin
 
   val backendConfig = ConfigFactory.parseString(backendConfigString)
+
+  private val backendConfigTestString =
+    """
+      |root = "local-cromwell-executions"
+      |dockerRoot = "/cromwell-executions"
+      |endpoint = "http://127.0.0.1:9000/tes/v1/tasks"
+      |
+      |default-runtime-attributes {
+      |  cpu: 1
+      |  failOnStderr: false
+      |  continueOnReturnCode: 0
+      |  memory: "2 GB"
+      |  disk: "2 GB"
+      |  preemptible: false
+      |  # The keys below have been commented out as they are optional runtime attributes.
+      |  # dockerWorkingDir
+      |  # docker
+      |}
+      |""".stripMargin
+
+  val backendConfigTest = ConfigFactory.parseString(backendConfigTestString)
 
   private val backendConfigStringWithBackendParams =
     """
@@ -111,4 +133,34 @@ object TesTestConfig {
       |""".stripMargin
 
   val backendConfigWithInvalidBackoffs = ConfigFactory.parseString(backendConfigStringWithInvalidBackoffs)
+
+  private val TesGlobalConfigString =
+    s"""
+       |tes {
+       |  application-name = "cromwell"
+       |  auths = [
+       |    {
+       |      name = "default"
+       |      scheme = "default"
+       |    }
+       |  ]
+       |}
+       |
+       |backend {
+       |  default = "TES"
+       |  providers {
+       |    TES {
+       |      actor-factory = "cromwell.backend.impl.aws.TesBackendLifecycleFactory"
+       |      config {
+       |      $backendConfigTestString
+       |      }
+       |    }
+       |  }
+       |}
+       |
+       |""".stripMargin
+
+  val TesGlobalConfig = ConfigFactory.parseString(TesGlobalConfigString)
+  val TesBackendConfigurationDescriptor =
+    BackendConfigurationDescriptor(backendConfigTest, TesGlobalConfig)
 }

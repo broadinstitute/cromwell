@@ -1476,7 +1476,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     makeJesActorRef(SampleWdl.FilePassingWorkflow, workflowInputs, "a", callInputs).underlyingActor
   }
 
-  it should "extract start and end times from terminal run statuses" in {
+  it should "not try to extract start, cpu start, and end times from terminal run statuses" in {
     val jesBackend = setupBackend
 
     val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
@@ -1484,7 +1484,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
     val successStatus = RunStatus.Succeeded(Seq(middle, end, start))
 
-    jesBackend.getStartAndEndTimes(successStatus) shouldBe Option((start.offsetDateTime, end.offsetDateTime))
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
   }
 
   it should "return None trying to get start and end times from a status containing no events" in {
@@ -1493,17 +1493,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val successStatus = RunStatus.Succeeded(Seq())
 
     jesBackend.getStartAndEndTimes(successStatus) shouldBe None
-  }
-
-  it should "throw when getting start and end times from non-terminal statuses" in {
-    val jesBackend = setupBackend
-
-    val runningStatus = RunStatus.Running
-
-    val ex = intercept[RuntimeException] {
-      jesBackend.getStartAndEndTimes(runningStatus)
-    }
-    ex.getMessage shouldBe s"getStartAndEndTimes not called with TerminalRunStatus. Instead got ${runningStatus}"
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

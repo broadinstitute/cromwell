@@ -33,7 +33,8 @@ import cromwell.backend.standard.{
   DefaultStandardAsyncExecutionActorParams,
   StandardAsyncExecutionActorParams,
   StandardAsyncJob,
-  StandardExpressionFunctionsParams
+  StandardExpressionFunctionsParams,
+  StartAndEndTimes
 }
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
@@ -1769,7 +1770,26 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
     val successStatus = RunStatus.Success(Seq(middle, end, start), None, None, None)
 
-    jesBackend.getStartAndEndTimes(successStatus) shouldBe Option((start.offsetDateTime, end.offsetDateTime))
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe Some(
+      StartAndEndTimes(start.offsetDateTime, None, end.offsetDateTime)
+    )
+  }
+
+  it should "extract start, end, and cpu start times from terminal run statuses" in {
+    val jesBackend = setupBackend
+
+    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val middle = ExecutionEvent(
+      "Worker \\\"google-pipelines-worker-46b7b7d92d92f888d4a9596dad3c2007\\\" assigned in \\\"us-central1-c\\\" on a \\\"custom-2-8192\\\" machine",
+      OffsetDateTime.now().minus(30, ChronoUnit.MINUTES),
+      None
+    )
+    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
+    val successStatus = RunStatus.Success(Seq(middle, end, start), None, None, None)
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe Some(
+      StartAndEndTimes(start.offsetDateTime, Some(middle.offsetDateTime), end.offsetDateTime)
+    )
   }
 
   it should "return None trying to get start and end times from a status containing no events" in {
@@ -1780,15 +1800,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     jesBackend.getStartAndEndTimes(successStatus) shouldBe None
   }
 
-  it should "throw when getting start and end times from non-terminal statuses" in {
+  it should "return None when getting start and end times from non-terminal statuses" in {
     val jesBackend = setupBackend
 
     val runningStatus = RunStatus.Running
 
-    val ex = intercept[RuntimeException] {
-      jesBackend.getStartAndEndTimes(runningStatus)
-    }
-    ex.getMessage shouldBe s"getStartAndEndTimes not called with TerminalRunStatus. Instead got ${runningStatus}"
+    jesBackend.getStartAndEndTimes(runningStatus) shouldBe None
+
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

@@ -1067,17 +1067,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
 
-  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
-    runStatus match {
-      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.nonEmpty =>
-        val offsetDateTimes = terminalRunStatus.eventList.map(_.offsetDateTime)
-        val cpuStart = terminalRunStatus.eventList.find(event =>
-          event.name.matches("""^Worker \\"google-pipelines-worker-[A-Za-z0-9]+\\" assigned in .*""")
-        )
-        Some(StartAndEndTimes(offsetDateTimes.min, cpuStart.map(_.offsetDateTime), offsetDateTimes.max))
-      case _ => None
-    }
-
   override lazy val startMetadataKeyValues: Map[String, Any] =
     super[GcpBatchJobCachingActorHelper].startMetadataKeyValues
 

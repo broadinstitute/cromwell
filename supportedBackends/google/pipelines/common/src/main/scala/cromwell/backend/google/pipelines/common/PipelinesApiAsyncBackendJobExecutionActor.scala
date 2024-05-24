@@ -832,9 +832,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           event.name.matches("""^Worker \\"google-pipelines-worker-[A-Za-z0-9]+\\" assigned in .*""")
         )
         Some(StartAndEndTimes(offsetDateTimes.min, cpuStart.map(_.offsetDateTime), offsetDateTimes.max))
-      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.isEmpty => None
-      case unknown =>
-        throw new RuntimeException(s"getStartAndEndTimes not called with TerminalRunStatus. Instead got $unknown")
+      case _ => None
     }
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =

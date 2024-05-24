@@ -13,13 +13,13 @@ import org.springframework.web.client.RestTemplate
 class BardService(bardUrl: String, connectionPoolSize: Int) extends LazyLogging {
 
   private val restTemplate = makeRestTemplateWithPooling
+  private val client = getEventApi(restTemplate)
   private val appId = "cromwell"
 
   def sendEvent(event: BardEvent): Unit = {
-    val api = getEventApi
     val eventLogRequest = new EventsEventLogRequest().properties(event.getProperties)
     try
-      api.eventsEventLog(event.eventName, appId, eventLogRequest)
+      client.eventsEventLog(event.eventName, appId, eventLogRequest)
     catch {
       // Sending events to Bard is a best-effort affair. If it fails, log the error and move on.
       case e: Exception =>
@@ -28,7 +28,7 @@ class BardService(bardUrl: String, connectionPoolSize: Int) extends LazyLogging 
     ()
   }
 
-  private def getEventApi: DefaultApi = {
+  private def getEventApi(restTemplate: RestTemplate): DefaultApi = {
     val bardClient = new ApiClient(restTemplate)
     bardClient.setBasePath(bardUrl)
     new DefaultApi(bardClient)

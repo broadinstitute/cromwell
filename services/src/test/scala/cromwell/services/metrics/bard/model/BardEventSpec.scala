@@ -22,7 +22,10 @@ class BardEventSpec extends AnyFlatSpec with Matchers with BardTestUtils {
     properties.get("cpuCount") should be(cpu)
     properties.get("memoryBytes") should be(memory)
     properties.get("startTime") should be(start)
+    properties.get("cpuStartTime") should be(cpuStart)
     properties.get("endTime") should be(end)
+    properties.get("jobSeconds") should be(jobSeconds)
+    properties.get("cpuSeconds") should be(cpuSeconds)
   }
 
   it should "return a map of properties with None properties set to null" in {

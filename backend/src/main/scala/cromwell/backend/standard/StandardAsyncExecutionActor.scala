@@ -48,6 +48,7 @@ import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
 import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -904,7 +905,9 @@ trait StandardAsyncExecutionActor
     * @param runStatus The terminal run status, as defined by isTerminal.
     * @return The min and max event times, if events exist.
     */
-  def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[(OffsetDateTime, OffsetDateTime)] = None
+  def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = None
+
+  case class StartAndEndTimes(jobStart: OffsetDateTime, cpuStart: Option[OffsetDateTime], jobEnd: OffsetDateTime)
 
   /**
     * The cloud platform of the job, if its running on a cloud provider.
@@ -1519,7 +1522,7 @@ trait StandardAsyncExecutionActor
 
   def tellBard(state: StandardAsyncRunState): Unit =
     getStartAndEndTimes(state) match {
-      case Some((start, end)) =>
+      case Some(startAndEndTimes: StartAndEndTimes) =>
         val dockerImage =
           RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
         val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
@@ -1541,8 +1544,11 @@ trait StandardAsyncExecutionActor
             dockerImage,
             cpus,
             memory,
-            start.toString,
-            end.toString
+            startAndEndTimes.jobStart.toString,
+            startAndEndTimes.cpuStart.map(_.toString),
+            startAndEndTimes.jobEnd.toString,
+            startAndEndTimes.jobStart.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS),
+            startAndEndTimes.cpuStart.map(_.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS))
           )
         )
       case _ => ()

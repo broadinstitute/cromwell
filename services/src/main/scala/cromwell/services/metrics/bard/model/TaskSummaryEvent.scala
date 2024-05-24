@@ -16,7 +16,10 @@ case class TaskSummaryEvent(workflowId: UUID,
                             cpuCount: Int,
                             memoryBytes: Double,
                             startTime: String,
-                            endTime: String
+                            cpuStartTime: Option[String],
+                            endTime: String,
+                            jobSeconds: Long,
+                            cpuSeconds: Option[Long]
 ) extends BardEvent {
   override def eventName: String = "task:summary"
 

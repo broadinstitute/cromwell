@@ -43,7 +43,10 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with BardTestUtils {
                                     |     "cpuCount": $cpu,
                                     |     "memoryBytes": $memory,
                                     |     "startTime": "$start",
+                                    |     "cpuStartTime": "$cpuStart",
                                     |     "endTime": "$end",
+                                    |     "jobSeconds": $jobSeconds,
+                                    |     "cpuSeconds": $cpuSeconds
                                     |   }
                                     | }
                                     |""".stripMargin)),

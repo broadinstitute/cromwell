@@ -57,7 +57,6 @@ import wom.values._
 
 import java.io.OutputStreamWriter
 import java.nio.charset.Charset
-import java.time.OffsetDateTime
 import java.util.Base64
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -1068,11 +1067,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
 
-  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[(OffsetDateTime, OffsetDateTime)] =
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
     runStatus match {
       case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.nonEmpty =>
         val offsetDateTimes = terminalRunStatus.eventList.map(_.offsetDateTime)
-        Some((offsetDateTimes.min, offsetDateTimes.max))
+        val cpuStart = terminalRunStatus.eventList.find(event =>
+          event.name.matches("""^Worker \\"google-pipelines-worker-[A-Za-z0-9]+\\" assigned in .*""")
+        )
+        Some(StartAndEndTimes(offsetDateTimes.min, cpuStart.map(_.offsetDateTime), offsetDateTimes.max))
       case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.isEmpty => None
       case unknown =>
         throw new RuntimeException(s"getStartAndEndTimes not called with TerminalRunStatus. Instead got $unknown")
@@ -1115,6 +1117,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       getPath(value) match {
         case Success(drsPath: DrsPath) => DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync().getOrElse(value)
         case Success(path) => path.pathAsString
+
         case _ => value
       }
     }

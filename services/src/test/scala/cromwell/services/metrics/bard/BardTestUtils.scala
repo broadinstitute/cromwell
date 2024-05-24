@@ -20,7 +20,10 @@ trait BardTestUtils {
   val cpu = 2
   val memory = 1024d
   val start = OffsetDateTime.now().minus(1000, ChronoUnit.SECONDS).toString
+  val cpuStart = OffsetDateTime.now().minus(800, ChronoUnit.SECONDS).toString
   val end = OffsetDateTime.now().minus(100, ChronoUnit.SECONDS).toString
+  val jobSeconds = 900L
+  val cpuSeconds = 700L
   val taskSummaryEvent = TaskSummaryEvent(
     workflowId,
     Some(parentWorkflowId),
@@ -35,7 +38,10 @@ trait BardTestUtils {
     cpu,
     memory,
     start,
-    end
+    Some(cpuStart),
+    end,
+    jobSeconds,
+    Some(cpuSeconds)
   )
 
 }

@@ -37,7 +37,7 @@ final class GcpBatchBackendSingletonActor(
     extends Actor
     with ActorLogging {
 
-  private val jesApiQueryManager = context.actorOf(
+  private val batchApiRequestManager = context.actorOf(
     BatchApiRequestManager
       .props(qps = qps, requestWorkers = requestWorkers, serviceRegistryActor, batchRequestExecutor)
       .withMailbox(Mailbox.PriorityMailbox),
@@ -53,12 +53,12 @@ final class GcpBatchBackendSingletonActor(
       // us to be cautious because batch deletes jobs instead of canceling them, hence, we should not delete jobs
       // that are on a final state.
       //
-      // jesApiQueryManager.forward(abort)
+      // batchApiRequestManager.forward(abort)
       ()
 
     case apiQuery: BatchApiRequest =>
       log.debug("Forwarding API query to Batch request manager actor")
-      jesApiQueryManager.forward(apiQuery)
+      batchApiRequestManager.forward(apiQuery)
 
     case other =>
       log.error(s"Unexpected message from {} to ${this.getClass.getSimpleName}: {}", sender().path.name, other)

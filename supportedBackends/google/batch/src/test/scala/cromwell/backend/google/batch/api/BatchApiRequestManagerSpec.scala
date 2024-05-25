@@ -154,12 +154,12 @@ class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with 
 
   AkkaTestUtil.actorDeathMethods(system) foreach { case (name, stopMethod) =>
     /*
-      This test creates two statusPoller ActorRefs which are handed to the TestJesApiQueryManager. Work is added to that query
+      This test creates two statusPoller ActorRefs which are handed to the TestBatchApiRequestManager. Work is added to that query
       manager and then the first statusPoller requests work and is subsequently killed. The expectation is that:
 
       - The work will return to the workQueue of the query manager
       - The query manager will have registered a new statusPoller
-      - That statusPoller is the second ActorRef (and artifact of TestJesApiQueryManager)
+      - That statusPoller is the second ActorRef (and artifact of TestBatchApiRequestManager)
      */
     it should s"catch polling actors if they $name, recreate them and add work back to the queue" in {
 
@@ -181,7 +181,7 @@ class BatchApiRequestManagerSpec extends TestKitSuite with AnyFlatSpecLike with 
       val jaqmActor: TestActorRef[TestBatchApiRequestManager] =
         TestActorRef(
           props = TestBatchApiRequestManager.props(registryProbe, statusPoller1, statusPoller2, statusPoller3),
-          name = s"TestJesApiQueryManage-$name"
+          name = s"TestBatchApiRequestManager-$name"
         )
 
       val emptyActor = system.actorOf(Props.empty, s"emptyActor-$name")
@@ -299,7 +299,7 @@ class TestBatchRequestExecutor extends BatchRequestExecutor {
 }
 
 /**
- * This test class allows us to hook into the JesApiQueryManager's makeStatusPoller and provide our own TestProbes instead
+ * This test class allows us to hook into the BatchApiRequestManager's makeStatusPoller and provide our own TestProbes instead
  */
 class TestBatchApiRequestManager(qps: Int Refined Positive,
                                  requestWorkers: Int Refined Positive,

@@ -6,7 +6,6 @@ import cromwell.core.path.Path
 
 object GcpBatchJobPaths {
 
-  val BatchLogPathKey = "jesLog"
   val BatchMonitoringKey = "monitoring"
   val BatchMonitoringImageKey = "monitoringImage"
   val BatchExecParamName = "exec"

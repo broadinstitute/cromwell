@@ -21,7 +21,6 @@ import cromwell.backend.async.{
 }
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
-import cromwell.backend.google.batch.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.batch.io._
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.GcpBatchJobPaths.GcsTransferLibraryName
@@ -77,13 +76,6 @@ import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
 object GcpBatchAsyncBackendJobExecutionActor {
-  private val maxUnexpectedRetries = 2
-
-  private val BatchFailedToDelocalize = 5
-  private val BatchUnexpectedTermination = 13
-
-  private val BatchFailedPreConditionErrorCode = 9
-  private val BatchMysteriouslyCrashedErrorCode = 10
 
   def StandardException(errorCode: GrpcStatus,
                         message: String,
@@ -767,6 +759,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
 
   // noinspection ActorMutableStateInspection
+  @scala.annotation.unused
   private var hasDockerCredentials: Boolean = false
 
   override def scriptPreamble: ErrorOr[ScriptPreambleData] =
@@ -1119,64 +1112,27 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private lazy val standardPaths = jobPaths.standardPaths
 
   override def handleExecutionFailure(runStatus: RunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
-
-    def generateBetterErrorMsg(runStatus: RunStatus.UnsuccessfulRunStatus, errorMsg: String): String =
-      if (
-        runStatus.errorCode.getCode.value() == BatchFailedPreConditionErrorCode
-        && errorMsg.contains("Execution failed")
-        && (errorMsg.contains("Localization") || errorMsg.contains("Delocalization"))
-      ) {
-        s"Please check the log file for more details: $gcpBatchLogPath."
-      }
-      // If error code 10, add some extra messaging to the server logging
-      else if (runStatus.errorCode.getCode.value() == BatchMysteriouslyCrashedErrorCode) {
-        jobLogger.info(s"Job Failed with Error Code 10 for a machine where Preemptible is set to $preemptible")
-        errorMsg
-      } else errorMsg
+    val prettyPrintedError = "Job failed with an unknown reason"
 
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
-    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus, returnCode: Option[Int]): ExecutionHandle = {
-
-      lazy val prettyError = runStatus.prettyPrintedError
-
-      def isDockerPullFailure: Boolean = prettyError.contains("not found: does not exist or no pull access")
-
-      (runStatus.errorCode, runStatus.jesCode) match {
-        case (GrpcStatus.NOT_FOUND, Some(BatchFailedToDelocalize)) =>
-          FailedNonRetryableExecutionHandle(
-            FailedToDelocalizeFailure(prettyError, jobTag, Option(standardPaths.error)),
-            kvPairsToSave = None
-          )
-        case (GrpcStatus.ABORTED, Some(BatchUnexpectedTermination)) =>
-          handleUnexpectedTermination(runStatus.errorCode, prettyError, returnCode)
-        case _ if isDockerPullFailure =>
-          val unable = s"Unable to pull Docker image '$jobDockerImage' "
-          val details =
-            if (hasDockerCredentials)
-              "but Docker credentials are present; is this Docker account authorized to pull the image? "
-            else
-              "and there are effectively no Docker credentials present (one or more of token, authorization, or Google KMS key may be missing). " +
-                "Please check your private Docker configuration and/or the pull access for this image. "
-          val message = unable + details + prettyError
-          FailedNonRetryableExecutionHandle(
-            StandardException(runStatus.errorCode, message, jobTag, returnCode, standardPaths.error),
-            returnCode,
-            None
-          )
-        case _ =>
-          val finalPrettyPrintedError = generateBetterErrorMsg(runStatus, prettyError)
-          FailedNonRetryableExecutionHandle(
-            StandardException(runStatus.errorCode, finalPrettyPrintedError, jobTag, returnCode, standardPaths.error),
-            returnCode,
-            None
-          )
-      }
-    }
+    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus, returnCode: Option[Int]): ExecutionHandle =
+      FailedNonRetryableExecutionHandle(
+        StandardException(
+          runStatus.errorCode,
+          prettyPrintedError,
+          jobTag,
+          returnCode,
+          standardPaths.error
+        ),
+        returnCode,
+        None
+      )
 
     Future.fromTry {
       Try {
         runStatus match {
-          case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
+          case preemptedStatus: RunStatus.Preempted if preemptible =>
+            handlePreemption(preemptedStatus, returnCode, prettyPrintedError)
           case _: RunStatus.Aborted => AbortedExecutionHandle
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
           case unknown =>
@@ -1196,44 +1152,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey), p.toString)
     )
 
-  private def handleUnexpectedTermination(errorCode: GrpcStatus,
-                                          errorMessage: String,
-                                          jobReturnCode: Option[Int]
+  private def handlePreemption(
+    runStatus: RunStatus.Preempted,
+    jobReturnCode: Option[Int],
+    prettyPrintedError: String
   ): ExecutionHandle = {
-    val msg = s"Retrying. $errorMessage"
-    previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur)) =>
-        val thisUnexpectedRetry = ur + 1
-        if (thisUnexpectedRetry <= maxUnexpectedRetries) {
-          val preemptionAndUnexpectedRetryCountsKvPairs =
-            nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p, thisUnexpectedRetry)
-          // Increment unexpected retry count and preemption count stays the same
-          FailedRetryableExecutionHandle(
-            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
-            jobReturnCode,
-            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
-          )
-        } else {
-          FailedNonRetryableExecutionHandle(
-            StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
-            jobReturnCode,
-            None
-          )
-        }
-      case Invalid(_) =>
-        FailedNonRetryableExecutionHandle(
-          StandardException(errorCode, errorMessage, jobTag, jobReturnCode, standardPaths.error),
-          jobReturnCode,
-          None
-        )
-    }
-  }
-
-  private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): ExecutionHandle = {
     import common.numeric.IntegerUtil._
 
     val errorCode: GrpcStatus = runStatus.errorCode
-    val prettyPrintedError: String = runStatus.prettyPrintedError
     previousRetryReasons match {
       case Valid(PreviousRetryReasons(p, ur)) =>
         val thisPreemption = p + 1

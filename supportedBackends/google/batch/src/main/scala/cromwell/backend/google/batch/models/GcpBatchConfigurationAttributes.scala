@@ -135,7 +135,7 @@ object GcpBatchConfigurationAttributes
     checkpointingIntervalKey
   )
 
-  private val deprecatedJesKeys: Map[String, String] = Map(
+  private val deprecatedBatchKeys: Map[String, String] = Map(
     "batch.default-zones" -> "default-runtime-attributes.zones"
   )
 
@@ -199,7 +199,7 @@ object GcpBatchConfigurationAttributes
       }
     }
 
-    warnDeprecated(configKeys, deprecatedJesKeys, Logger)
+    warnDeprecated(configKeys, deprecatedBatchKeys, Logger)
 
     val project: ErrorOr[String] = validate {
       backendConfig.as[String]("project")

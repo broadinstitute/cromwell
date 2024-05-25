@@ -82,6 +82,9 @@ object BatchRequestExecutor {
               case _ =>
                 // After playing with the sdk, it seems that operation.getResultCase is always RESULT_NOT_SET
                 // When there is an error, an exception is thrown right away.
+                //
+                // TODO: There is a chance we can monitor this operation with
+                // client.getHttpJsonOperationsClient.getOperation(operation.getName)
                 @unused
                 val operation = client.deleteJobCallable().call(r.httpRequest)
                 BatchAbortRequestSuccessful(r.jobId.jobId)
@@ -111,8 +114,7 @@ object BatchRequestExecutor {
       try {
         val job = client.getJob(request)
 
-        // TODO: Remove debug log
-        logger.info(s"Batch Job Status ${job.getName}: ${job.getStatus}")
+        logger.debug(s"Batch Job Status ${job.getName}: ${job.getStatus}")
 
         val result = interpretOperationStatus(job)
         BatchApiResponse.StatusQueried(result)
@@ -141,7 +143,7 @@ object BatchRequestExecutor {
         RunStatus.Running
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
         // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
-        RunStatus.Failed(Status.OK, None, List.empty, events)
+        RunStatus.Failed(Status.OK, events)
       } else {
         RunStatus.Initializing
       }

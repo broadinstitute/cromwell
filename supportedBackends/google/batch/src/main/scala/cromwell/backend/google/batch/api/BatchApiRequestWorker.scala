@@ -11,7 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
- * Sends batched requests to JES as a worker to the JesApiQueryManager
+ * Sends batched requests to Batch as a worker to the BatchApiRequestManager
  */
 class BatchApiRequestWorker(val pollingManager: ActorRef,
                             val batchInterval: FiniteDuration,

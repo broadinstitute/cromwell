@@ -60,12 +60,12 @@ class GcpBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
   }
 
   private def getBatchBackend(workflowDescriptor: BackendWorkflowDescriptor,
-                            calls: Set[CommandCallNode],
-                            conf: BackendConfigurationDescriptor
+                              calls: Set[CommandCallNode],
+                              conf: BackendConfigurationDescriptor
   ) = {
     val props = getBatchBackendProps(workflowDescriptor,
-                                   calls,
-                                   new GcpBatchConfiguration(conf, googleConfiguration, batchAttributes)
+                                     calls,
+                                     new GcpBatchConfiguration(conf, googleConfiguration, batchAttributes)
     )
     system.actorOf(props, "TestableBatchInitializationActor-" + UUID.randomUUID)
   }

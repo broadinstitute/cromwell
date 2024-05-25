@@ -1091,7 +1091,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case _: RunStatus.UnsuccessfulRunStatus => false
       case _ =>
         throw new RuntimeException(
-          s"Cromwell programmer blunder: isSuccess was called on an incomplete RunStatus ($runStatus)."
+          s"Cromwell programmer blunder: isDone was called on an incomplete RunStatus ($runStatus)."
         )
     }
 

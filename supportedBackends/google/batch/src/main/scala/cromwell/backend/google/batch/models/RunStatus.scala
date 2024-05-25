@@ -38,6 +38,7 @@ object RunStatus {
     override def eventList: Seq[ExecutionEvent] = List.empty
   }
 
+  // TODO: Use this when detecting a preemption or remove it
   final case class Preempted(
     errorCode: Status,
     eventList: Seq[ExecutionEvent]

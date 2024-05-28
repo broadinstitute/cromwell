@@ -215,7 +215,7 @@ class TesAsyncBackendJobExecutionActorSpec
   )
 
   val mockTaskLog = Task(
-    Option(""), Option("SYSTEM_ERROR"), Option("name"), Option("description"), Option(Seq.empty), Option(Seq.empty), null, null, null, null, Option(Seq(mockTesTaskLog))
+    Option(""), Option("Running"), Option("name"), Option("description"), Option(Seq.empty), Option(Seq.empty), null, null, null, null, Option(Seq(mockTesTaskLog))
   )
 
   val mockMinimalView = MinimalTaskView("foo id", "Running")
@@ -440,7 +440,6 @@ class TesAsyncBackendJobExecutionActorSpec
     whenReady(tesStatusNoData) { s =>
       s shouldEqual(Running(None))
     }
-
   }
 
   private val httpPathTestCases = Table(

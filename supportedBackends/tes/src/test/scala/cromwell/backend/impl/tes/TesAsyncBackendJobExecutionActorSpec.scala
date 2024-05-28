@@ -1,46 +1,47 @@
 package cromwell.backend.impl.tes
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.ActorRef
 import akka.http.scaladsl.client.RequestBuilding.Get
-import akka.testkit.{ImplicitSender, TestActorRef}
+import akka.http.scaladsl.model.{ContentTypes, HttpEntity, HttpProtocols, HttpResponse, StatusCodes}
+import akka.testkit.ImplicitSender
 import com.typesafe.config.Config
 import common.mock.MockSugar
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
-import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendSpec, BackendWorkflowDescriptor, MinimumRuntimeSettings, RuntimeAttributeDefinition}
+import cromwell.backend.{
+  BackendJobDescriptor,
+  BackendJobDescriptorKey,
+  BackendSpec,
+  MinimumRuntimeSettings,
+}
 import cromwell.backend.async.PendingExecutionHandle
-import cromwell.backend.impl.tes.TesTestConfig.TesBackendConfigurationDescriptor
 import cromwell.backend.io.JobPathsSpecHelper.DummyStandardPaths
-import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctions, StandardExpressionFunctionsParams}
-import cromwell.core.callcaching.NoDocker
-import cromwell.core.labels.Labels
-import cromwell.core.{CallContext, HogGroup, TestKitSuite, WorkflowId, WorkflowOptions}
+import cromwell.backend.standard.{
+  DefaultStandardAsyncExecutionActorParams,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob,
+  StandardExpressionFunctions,
+  StandardExpressionFunctionsParams
+}
+import cromwell.core.{CallContext, TestKitSuite}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, NioPath, PathBuilder}
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.http.HttpPathBuilder
-import cromwell.services.keyvalue.KeyValueServiceActor.KvResponse
-import cromwell.util.JsonFormatting.WomValueJsonFormatter.WomValueJsonFormat
 import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.when
 import org.scalatest.{BeforeAndAfter, PrivateMethodTester}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.slf4j.Logger
-import spray.json.{DefaultJsonProtocol, JsObject, JsValue, enrichAny}
-import wdl.draft2.model.{Draft2ImportResolver, FullyQualifiedName, WdlNamespaceWithWorkflow}
-import wom.expression.NoIoFunctionSet
+import spray.json.DefaultJsonProtocol
 import wom.graph.CommandCallNode
-import wom.values.{WomString, WomValue}
-import wdl.transforms.draft2.wdlom2wom.WdlDraft2WomExecutableMakers._
-import wdl.transforms.draft2.wdlom2wom._
-import wom.transforms.WomExecutableMaker.ops._
-import wom.transforms.WomWorkflowDefinitionMaker.ops._
 
+import java.net.URI
 import java.time.Duration
 import java.time.temporal.ChronoUnit
-// import scala.concurrent.duration._
+import java.util.UUID
 import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
-// import scala.language.postfixOps
 import scala.util.{Failure, Try}
 
 class TesAsyncBackendJobExecutionActorSpec
@@ -76,10 +77,6 @@ class TesAsyncBackendJobExecutionActorSpec
        |}
     """.stripMargin
 
-  private val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
-
-  private val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
-
   lazy val mockPathBuilderLocal: PathBuilder = DefaultPathBuilder
 
   private lazy val TestableCallContext =
@@ -113,7 +110,8 @@ class TesAsyncBackendJobExecutionActorSpec
 
     type StandardAsyncRunInfo
     type StandardAsyncRunState
-    type TesPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
+    type TesPendingExecutionHandle =
+      PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState]
 
     def this(jobDescriptor: BackendJobDescriptor,
              promise: Promise[BackendJobExecutionResponse],
@@ -150,70 +148,6 @@ class TesAsyncBackendJobExecutionActorSpec
     }
 
     override lazy val backendEngineFunctions: StandardExpressionFunctions = functions
-  }
-
-  private val configuration = new TesConfiguration(TesBackendConfigurationDescriptor)
-  private val config = mock[Config]
-  private val runtimeAttributesBuilder = TesRuntimeAttributes.runtimeAttributesBuilder(Option(config))
-
-
-  private def buildJobDescriptor(): BackendJobDescriptor = {
-    val attempt = 1
-    val wdlNamespace = WdlNamespaceWithWorkflow.load(YoSup, Seq.empty[Draft2ImportResolver]).get
-    val womDefinition = wdlNamespace.workflow.toWomWorkflowDefinition(isASubworkflow = false)
-      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
-
-    wdlNamespace.toWomExecutable(Option(Inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
-      case Right(womExecutable) =>
-        val inputs = for {
-          combined <- womExecutable.resolvedExecutableInputs
-          (port, resolvedInput) = combined
-          value <- resolvedInput.select[WomValue]
-        } yield port -> value
-
-        val workflowDescriptor = BackendWorkflowDescriptor(
-          WorkflowId.randomId(),
-          womDefinition,
-          inputs,
-          NoOptions,
-          Labels.empty,
-          HogGroup("foo"),
-          List.empty,
-          None
-        )
-
-        val job = workflowDescriptor.callable.taskCallNodes.head
-        val key = BackendJobDescriptorKey(job, None, attempt)
-        val runtimeAttributes = makeRuntimeAttributes(job)
-        val prefetchedKvEntries = Map[String, KvResponse]()
-        BackendJobDescriptor(workflowDescriptor,
-          key,
-          runtimeAttributes,
-          fqnWdlMapToDeclarationMap(Inputs),
-          NoDocker,
-          None,
-          prefetchedKvEntries
-        )
-      case Left(badtimes) => fail(badtimes.toList.mkString(", "))
-    }
-  }
-
-  def buildTestActorRef(functions: StandardExpressionFunctions): TestActorRef[TestableTesAsyncBackendJobExecutionActor] = {
-    // For this test we say that all previous attempts were preempted:
-    val jobDescriptor = buildJobDescriptor()
-    val mockConfig = mock[Config]
-    val props = Props(
-      new TestableTesAsyncBackendJobExecutionActor(
-        jobDescriptor,
-        Promise(),
-        configuration,
-        mockConfig,
-        functions,
-        emptyActor,
-        mockIoActor
-      )
-    )
-    TestActorRef(props, s"TestableTesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
   }
 
   behavior of "TesAsyncBackendJobExecutionActor"
@@ -281,18 +215,10 @@ class TesAsyncBackendJobExecutionActorSpec
   )
 
   val mockTaskLog = Task(
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
+    Option(""), Option("SYSTEM_ERROR"), Option("name"), Option("description"), Option(Seq.empty), Option(Seq.empty), null, null, null, null, Option(Seq(mockTesTaskLog))
   )
+
+  val mockMinimalView = MinimalTaskView("foo id", "Running")
 
   // Mock blob path functionality.
   val testWsmEndpoint = "https://wsm.mock.com/endpoint"
@@ -338,32 +264,53 @@ class TesAsyncBackendJobExecutionActorSpec
     if (pathString.contains(someBlobUrl)) Try(mockBlob) else Try(mockDefault)
   }
 
-  def mockGetTaskLogs(): Future[TaskLog] = {
+  def mockGetTaskLogs(): Future[TaskLog] =
     Future.successful(mockTesTaskLog)
-  }
 
-  def mockGetErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] = {
+  def mockGetErrorLogs(handle: StandardAsyncPendingExecutionHandle, handler: HttpHandler): Future[Seq[String]] = {
     val logs = mockTesTaskLog
     val systemLogs = logs.system_logs.get
     Future.successful(systemLogs)
   }
 
-  def mockQueryAndCostData(handle: StandardAsyncPendingExecutionHandle, data: Boolean): Future[TesRunStatus] = {
+  def mockQueryAndCostData(handle: StandardAsyncPendingExecutionHandle,
+                           data: Boolean,
+                           handler: HttpHandler
+  ): Future[TesRunStatus] = {
     val fetchedCostData = Option(TesVmCostData(Option(""), Option("0,203")))
-    if (data) {
-      handle.previousState match {
-        case Running(Some(_), Some(_)) => Future.successful(Running(fetchedCostData))
-        case Running(None) => Future.successful(Running(fetchedCostData))
-        case None => Future.successful(Running(fetchedCostData))
-      }
-    } else {
-      handle.previousState match {
-        case Running(Some(_), Some(_)) => Future.successful(Running(fetchedCostData))
-        case Running(None, Some(_)) | Running(Some(_), None) =>
-        case Running(None) => Future.successful(Running(None))
-        case None => Future.successful(Running(None))
-      }
+    Future.successful(Running(fetchedCostData))
+  }
+
+  def mockFetchFullTaskView(handle: StandardAsyncPendingExecutionHandle, handler: HttpHandler): Future[Task] =
+    Future.successful(mockTaskLog)
+
+  def mockFetchMinimalTaskView(handle: StandardAsyncPendingExecutionHandle,
+                               handler: HttpHandler
+  ): Future[MinimalTaskView] =
+    Future.successful(mockMinimalView)
+
+  def mockGetTesStatus(state: Option[String], withCostData: Option[TesVmCostData], jobId: String): TesRunStatus = {
+    state match {
+      case s if s.contains("COMPLETE") =>
+        Complete(withCostData)
+
+      case s if s.contains("CANCELED") =>
+        Cancelled()
+
+      case s if s.contains("EXECUTOR_ERROR") =>
+        Failed()
+
+      case s if s.contains("SYSTEM_ERROR") =>
+        System.out.print("TES STATUS" + s)
+        Error()
+
+      case _ => Running(withCostData)
     }
+  }
+
+  def mockTellMetadata(metadataMap: Map[String, Any]): Unit = {
+    Future.successful(metadataMap)
+    ()
   }
 
   def blobConverter(pathToConvert: Try[cromwell.core.path.Path]): Try[BlobPath] = {
@@ -452,67 +399,50 @@ class TesAsyncBackendJobExecutionActorSpec
     }
   }
 
-  it should "return and change my name" in {
+  it should "return expected status determined by cost data" in {
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new StandardAsyncPendingExecutionHandle(null, runId, None, None)
     val mockHttpClient = mock[HttpHandler]
-    val expectedGet = Get()
-    val hihi = mockHttpClient.singleRequest(expectedGet, )
+    val mockUri = new URI("http://example.com")
+    val expectedGet = Get(mockUri.toString)
+    val mockTesResponse = new HttpResponse(
+      StatusCodes.OK,
+      null,
+      HttpEntity(ContentTypes.`application/json`, tesResponse),
+      HttpProtocols.`HTTP/1.1`
+    )
+    val httpSuccess = Future.successful(mockTesResponse)
+
+    val hihi = mockHttpClient.singleRequest(expectedGet, null)
+    when(hihi).thenReturn(httpSuccess)
+
+    val tesStatusWithData = TesAsyncBackendJobExecutionActor.queryStatusAndMaybeCostData(handle,
+      true,
+                                                                                 mockHttpClient,
+                                                                                 mockFetchFullTaskView,
+                                                                                 mockFetchMinimalTaskView,
+                                                                                 mockGetTesStatus,
+                                                                                 mockTellMetadata
+    )
+
+    whenReady(tesStatusWithData) { s =>
+      s shouldEqual(Running(Option(TesVmCostData(Option("2024-04-04T20:20:32.240066+00:00"), Option("0.203")))))
+    }
+
+    val tesStatusNoData = TesAsyncBackendJobExecutionActor.queryStatusAndMaybeCostData(handle,
+      false,
+      mockHttpClient,
+      mockFetchFullTaskView,
+      mockFetchMinimalTaskView,
+      mockGetTesStatus,
+      mockTellMetadata
+    )
+
+    whenReady(tesStatusNoData) { s =>
+      s shouldEqual(Running(None))
+    }
+
   }
-
-//  it should "do something" in {
-//    val actorRef = buildTestActorRef(TestableTesExpressionFunctions)
-//    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-//    val handle = new TesPendingExecutionHandle(null, runId, None, None)// mock[StandardAsyncPendingExecutionHandle]
-//    val mockTesVmCostData = TesVmCostData(Option("time"), Option("0.203"))
-//    val status = Running(Option(mockTesVmCostData))
-////    val expectedRequest = Get(mockUri.toString)
-////    val mockHttpClient = mock[HttpClientBuilder]
-//
-////    when(mockHttpClient.build().execute(expectedRequest)).thenReturn(mockTesTaskLog)
-//    val actor = actorRef.underlyingActor
-//    // val yay = actorRef ! System.out.print("hello")
-//     val result = actor.onTaskComplete(status, handle)
-//    //functionshere.pollStatus(handle)
-//    // when(functionshere.pollStatus(handle)).thenReturn(status)
-//
-//    // val result = Await.result(functionshere.pollStatusAsync(handle), timeout)
-//    System.out.print(result)
-//    //System.out.print(actorRef.underlyingActor)
-//
-//  }
-
-//  it should "do something else" in {
-//    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-//    val handle = new TesPendingExecutionHandle(null, runId, None, None)
-////    val actor = TestActorRef[TestTesAsyncBackendJobExecutionActor]//buildTestActorRef(TestableTesExpressionFunctions)
-//    val tesExecutionActor = system.actorOf(Props(new TestTesAsyncBackendJobExecutionActor(mock[StandardAsyncExecutionActorParams]))) //new TestTesAsyncBackendJobExecutionActor(mock[StandardAsyncExecutionActorParams])
-//
-//    val tesStatus = tesExecutionActor.pollTesStatus(handle, false)
-//
-//   val mockTesVmCostData = TesVmCostData(Option("time"), Option("0.203"))
-//   val status = Running(Option(mockTesVmCostData))
-//
-//    // val pollTesStatus = PrivateMethod[Future[TesRunStatus]](Symbol("pollTesStatus"))
-//
-//        // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
-//    // val pollStat = idk invokePrivate pollTesStatus(handle, false)
-//    //when(mocker.pollStatusAsync(handle)).thenReturn(Future.successful(Running(Option(mockTesVmCostData))))
-//    // when(pollStat).thenReturn(Future.successful(Running(Option(mockTesVmCostData))))
-//  System.out.print(tesStatus)
-//    // val webReq =
-//    // when(actor.underlyingActor.fetchFullTaskView(handle)).thenReturn(Future.successful(mockTaskLog))
-//    val mockmock = mock[TestableTesAsyncBackendJobExecutionActor]
-//    doReturn(Future.successful(status)).when(mockmock).queryStatusAndMaybeCostData(handle, false)
-////    doReturn(Future.fromTry(Success(mockTaskLog))).when(mockmock).fetchFullTaskView(handle)
-//
-////    when(actor.underlyingActor.queryStatusAndMaybeCostData(handle, false)).thenReturn(Future.successful(status))
-//    //val query = actor.underlyingActor.queryStatusAndMaybeCostData(handle, false)
-//    // System.out.print(query)
-////    val result = actor.underlyingActor.pollTesStatus(handle, false)
-////    System.out.print(result)
-//
-////    whenReady(query) { m =>
-////      System.out.print(m)
-//  }
 
   private val httpPathTestCases = Table(
     ("test name", "http path", "local path in input dir"),
@@ -563,11 +493,97 @@ class TesAsyncBackendJobExecutionActorSpec
     }
   }
 
-  private def makeRuntimeAttributes(job: CommandCallNode) = {
-    val evaluatedAttributes =
-      RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.callable.runtimeAttributes, null, Map.empty)
-    RuntimeAttributeDefinition.addDefaultsToAttributes(runtimeAttributesBuilder.definitions.toSet, NoOptions)(
-      evaluatedAttributes.getOrElse(fail("Failed to evaluate runtime attributes"))
-    )
-  }
+  val tesResponse =
+    """{
+      |  "id": "0166e1e8_2a12c2e2e86a44cd88c6c41322f85c9a",
+      |  "state": "RUNNING",
+      |  "name": "fetch_sra_to_bam.Fetch_SRA_to_BAM",
+      |  "description": "0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6:BackendJobDescriptorKey_CommandCallNode_fetch_sra_to_bam.Fetch_SRA_to_BAM:-1:1",
+      |  "inputs": [
+      |    {
+      |      "name": "commandScript",
+      |      "description": "fetch_sra_to_bam.Fetch_SRA_to_BAM.commandScript",
+      |      "url": "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-5fa76398-ac93-4d16-944f-15e844f79e7b/workspace-services/cbas/terra-app-2aece314-9a52-4b70-86d8-5d6f7d3f2189/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/script",
+      |      "path": "/cromwell-executions/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/script",
+      |      "type": "FILE",
+      |      "content": null,
+      |      "streamable": false
+      |    }
+      |  ],
+      |  "outputs": [
+      |    {
+      |      "name": "rc",
+      |      "description": "fetch_sra_to_bam.Fetch_SRA_to_BAM.rc",
+      |      "url": "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-5fa76398-ac93-4d16-944f-15e844f79e7b/workspace-services/cbas/terra-app-2aece314-9a52-4b70-86d8-5d6f7d3f2189/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/rc",
+      |      "path": "/cromwell-executions/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/rc",
+      |      "type": "FILE"
+      |    },
+      |    {
+      |      "name": "stdout",
+      |      "description": "fetch_sra_to_bam.Fetch_SRA_to_BAM.stdout",
+      |      "url": "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-5fa76398-ac93-4d16-944f-15e844f79e7b/workspace-services/cbas/terra-app-2aece314-9a52-4b70-86d8-5d6f7d3f2189/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/stdout",
+      |      "path": "/cromwell-executions/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/stdout",
+      |      "type": "FILE"
+      |    },
+      |    {
+      |      "name": "stderr",
+      |      "description": "fetch_sra_to_bam.Fetch_SRA_to_BAM.stderr",
+      |      "url": "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-5fa76398-ac93-4d16-944f-15e844f79e7b/workspace-services/cbas/terra-app-2aece314-9a52-4b70-86d8-5d6f7d3f2189/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/stderr",
+      |      "path": "/cromwell-executions/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/stderr",
+      |      "type": "FILE"
+      |    },
+      |    {
+      |      "name": "commandScript",
+      |      "description": "fetch_sra_to_bam.Fetch_SRA_to_BAM.commandScript",
+      |      "url": "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-5fa76398-ac93-4d16-944f-15e844f79e7b/workspace-services/cbas/terra-app-2aece314-9a52-4b70-86d8-5d6f7d3f2189/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/script",
+      |      "path": "/cromwell-executions/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/script",
+      |      "type": "FILE"
+      |    },
+      |    {
+      |      "name": "fetch_sra_to_bam.Fetch_SRA_to_BAM.output.0",
+      |      "description": "fetch_sra_to_bam.Fetch_SRA_to_BAM.output.0",
+      |      "url": "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-5fa76398-ac93-4d16-944f-15e844f79e7b/workspace-services/cbas/terra-app-2aece314-9a52-4b70-86d8-5d6f7d3f2189/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/OUT_PLATFORM",
+      |      "path": "/cromwell-executions/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/OUT_PLATFORM",
+      |      "type": "FILE"
+      |    },
+      |    {
+      |      "name": "fetch_sra_to_bam.Fetch_SRA_to_BAM.output.1",
+      |      "description": "fetch_sra_to_bam.Fetch_SRA_to_BAM.output.1",
+      |      "url": "https://lz813a3d637adefec2c6e88f.blob.core.windows.net/sc-5fa76398-ac93-4d16-944f-15e844f79e7b/workspace-services/cbas/terra-app-2aece314-9a52-4b70-86d8-5d6f7d3f2189/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/OUT_STRAIN",
+      |      "path": "/cromwell-executions/fetch_sra_to_bam/0166e1e8-59c6-4ff7-abe9-4aa2e20f24f6/call-Fetch_SRA_to_BAM/execution/OUT_STRAIN",
+      |      "type": "FILE"
+      |    },
+      |  ],
+      |  "logs": [
+      |    {
+      |      "logs": [
+      |        {
+      |          "start_time": "2024-04-04T20:20:32.240066+00:00",
+      |          "end_time": "2024-04-04T20:22:32.077818+00:00",
+      |          "stdout": null,
+      |          "stderr": null,
+      |          "exit_code": 0
+      |        }
+      |      ],
+      |      "metadata": {
+      |        "vm_size": "Standard_D5_v2",
+      |        "vm_family": "standardDv2Family",
+      |        "vm_low_priority": "true",
+      |        "vm_memory_in_gib": "56.0",
+      |        "vm_vcpus_available": "16",
+      |        "vm_price_per_hour_usd": "0.203",
+      |        "vm_hyper_v_generations": "[\"V1\"]",
+      |        "vm_max_data_disk_count": "64",
+      |        "encryption_at_host_supported": "false",
+      |        "vm_resource_disk_size_in_gib": "800.0",
+      |        "cromwell_rc": "0"
+      |      },
+      |      "start_time": "2024-04-04T20:17:01.0408443+00:00",
+      |      "end_time": "2024-04-04T20:22:36.6841675+00:00",
+      |      "outputs": [],
+      |      "system_logs": []
+      |    }
+      |  ],
+      |  "creation_time": "2024-04-04T20:16:50.3092382+00:00"
+      |}""".stripMargin
 }

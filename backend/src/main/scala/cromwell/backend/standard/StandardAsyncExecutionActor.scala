@@ -927,7 +927,7 @@ trait StandardAsyncExecutionActor
     *
     * @param jobId The job to abort.
     */
-  def tryAbort(jobId: StandardAsyncJob, httpHandler: HttpHandler = ): Unit = {}
+  def tryAbort(jobId: StandardAsyncJob): Unit = {}
 
   /**
     * Returns true if when an abort signal is retrieved, the actor makes an attempt to abort and then immediately stops

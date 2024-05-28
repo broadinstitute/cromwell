@@ -299,10 +299,8 @@ object TesAsyncBackendJobExecutionActor {
               CallMetadataKeys.VmCostUsd -> v.vmCost.get
             )
             tellMetadataFn(metadata)
-            System.out.print(getTesStatusFn(state, tesVmCostData, handle.pendingJob.jobId))
             getTesStatusFn(state, tesVmCostData, handle.pendingJob.jobId)
           case None => {
-            System.out.print("in the none")
             getTesStatusFn(t.state, tesVmCostData, handle.pendingJob.jobId)
           }
         }

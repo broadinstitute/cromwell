@@ -301,7 +301,6 @@ class TesAsyncBackendJobExecutionActorSpec
         Failed()
 
       case s if s.contains("SYSTEM_ERROR") =>
-        System.out.print("TES STATUS" + s)
         Error()
 
       case _ => Running(withCostData)

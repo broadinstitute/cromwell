@@ -142,20 +142,17 @@ object WorkflowFlatMetadata {
     element match {
       case array: Vector[Any] =>
         JsArray(
-          array.map(value =>
-            if (value.getClass.getName.equals("java.util.ArrayList")) {
-              parseArray(value.asInstanceOf[util.List[Any]].asScala.toVector)
-            } else {
-              parseArray(value)
-            }
-          )
+          array.map {
+            case value: java.util.ArrayList[_] => parseArray(value.asInstanceOf[util.List[Any]].asScala.toVector)
+            case value: Any => parseArray(value)
+          }
         )
       case _ =>
-        element.getClass.getName match {
-          case "java.lang.Boolean" => JsBoolean.apply(element.asInstanceOf[Boolean])
-          case "java.lang.Integer" => JsNumber.apply(element.asInstanceOf[Int])
-          case "java.lang.Float" => JsNumber.apply(element.asInstanceOf[Float])
-          case "java.lang.Double" => JsNumber.apply(element.asInstanceOf[Double])
+        element match {
+          case value: java.lang.Boolean => JsBoolean.apply(value)
+          case value: java.lang.Integer => JsNumber.apply(value)
+          case value: java.lang.Float => JsNumber.apply(value)
+          case value: java.lang.Double => JsNumber.apply(value)
           case _ => JsString.apply(element.asInstanceOf[String])
         }
     }

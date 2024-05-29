@@ -8,9 +8,9 @@ files {
 metadata {
   workflowName: wf
   status: Succeeded
-  "outputs.wf.out.x" = "500"
-  "outputs.wf.out.y" = "600"
-  "outputs.wf.out.z" = "700"
+  "outputs.wf.out.x" = 500
+  "outputs.wf.out.y" = 600
+  "outputs.wf.out.z" = 700
   "outputs.wf.contents" = "f1\talice\nf2\tbob\nf3\tchuck"
 }
 

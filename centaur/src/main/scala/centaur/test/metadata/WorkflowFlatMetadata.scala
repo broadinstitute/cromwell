@@ -118,14 +118,12 @@ object WorkflowFlatMetadata {
           /*
             FIXME/TODO:
 
-            As part of WX-1629
-            https://broadworkbench.atlassian.net/jira/software/c/projects/WX/boards/174?selectedIssue=WX-1629, this
-            was changed to allow Centaur tests to perform comparisons that take data type into account instead of
-            casting all values to strings before comparing. However, it seems that expected values from *.test files
-            are read in as either Strings, Numbers, or Lists -- as such, in order to compare booleans, a cast is
-            required. This isn't ideal because it makes it impossible to use the Strings "true" or "false" -- they will
-            always be cast to booleans. The changes necessary to fix this are more wide reaching than the scope of
-            WX-1629, so this must be fixed in the future.
+            As part of WX-1629, this was changed to allow Centaur tests to perform comparisons that take data type
+            into account instead of casting all values to strings before comparing. However, it seems that expected
+            values from *.test files are read in as either Strings, Numbers, or Lists -- as such, in order to compare
+            booleans, a cast is required. This isn't ideal because it makes it impossible to use the Strings "true" or
+            "false" -- they will always be cast to booleans. The changes necessary to fix this are more wide reaching
+            than the scope of WX-1629, so this must be fixed in the future.
            */
           if (v.unwrapped().asInstanceOf[String] == "true" || v.unwrapped().asInstanceOf[String] == "false") {
             key -> JsBoolean.apply(v.unwrapped().asInstanceOf[String].toBoolean)

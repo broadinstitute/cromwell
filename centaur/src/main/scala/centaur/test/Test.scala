@@ -581,6 +581,13 @@ object Operations extends StrictLogging {
       }
     }
 
+    /*
+      This function removes extraneous quotation marks before checking for equality between the first and second set
+      because the actual outputs (from the caller) are in a "cleaned" state but the expected outputs may have extra
+      quotation marks if the output is a String (e.g., the actual output will be "hello" but the expected output will read
+      "\"hello\""). This function cleans the outputs to make sure that we're not reporting a false difference caused by
+      quotes that should have been removed.
+     */
     private def checkIfActuallySame(firstSet: Set[(String, JsValue)], secondSet: Set[(String, JsValue)]): Boolean = {
       firstSet.foreach { value =>
         secondSet.find(keyValue => keyValue._1 == value._1) match {

@@ -361,7 +361,6 @@ class TesAsyncBackendJobExecutionActorSpec
     }
   }
 
-
   private val httpPathTestCases = Table(
     ("test name", "http path", "local path in input dir"),
     (

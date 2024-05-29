@@ -1,7 +1,6 @@
 package cromwell.backend.impl.tes
 
 import com.typesafe.config.ConfigFactory
-import cromwell.backend.BackendConfigurationDescriptor
 
 object TesTestConfig {
 

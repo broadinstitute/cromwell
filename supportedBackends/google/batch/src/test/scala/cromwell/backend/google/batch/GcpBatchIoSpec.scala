@@ -19,14 +19,14 @@ class GcpBatchIoSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     val transport = mockTransport(403)
     val request = transport.createRequestFactory().buildGetRequest(HttpTesting.SIMPLE_GENERIC_URL)
     val mockedResponse = intercept[HttpResponseException](request.execute())
-    io.isFatalJesException(mockedResponse) should be(true)
+    io.isFatalBatchException(mockedResponse) should be(true)
   }
 
   it should "consider 429 as a transient exception" in {
     val transport = mockTransport(429)
     val request = transport.createRequestFactory().buildGetRequest(HttpTesting.SIMPLE_GENERIC_URL)
     val mockedResponse = intercept[HttpResponseException](request.execute())
-    io.isTransientJesException(mockedResponse) should be(true)
+    io.isTransientBatchException(mockedResponse) should be(true)
   }
 
   private def mockTransport(statusCode: Int) = new MockHttpTransport() {

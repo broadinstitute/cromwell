@@ -89,7 +89,10 @@ object GcpBatchConfigurationAttributes
 
   lazy val Logger: Logger = LoggerFactory.getLogger("BatchConfiguration")
 
-  val BatchApiDefaultQps = 1000
+  // Default queries per 100 seconds
+  // Batch allows up to 6000 queries per minute (100 requests per second).
+  // See: https://cloud.google.com/batch/quotas
+  val BatchApiDefaultQp100s = 10000
   val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
 
   val checkpointingIntervalKey = "checkpointing-interval"
@@ -132,7 +135,7 @@ object GcpBatchConfigurationAttributes
     checkpointingIntervalKey
   )
 
-  private val deprecatedJesKeys: Map[String, String] = Map(
+  private val deprecatedBatchKeys: Map[String, String] = Map(
     "batch.default-zones" -> "default-runtime-attributes.zones"
   )
 
@@ -196,7 +199,7 @@ object GcpBatchConfigurationAttributes
       }
     }
 
-    warnDeprecated(configKeys, deprecatedJesKeys, Logger)
+    warnDeprecated(configKeys, deprecatedBatchKeys, Logger)
 
     val project: ErrorOr[String] = validate {
       backendConfig.as[String]("project")
@@ -238,6 +241,7 @@ object GcpBatchConfigurationAttributes
           )
       }
     }
+
     val requestWorkers: ErrorOr[Int Refined Positive] =
       validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
 
@@ -429,7 +433,7 @@ object GcpBatchConfigurationAttributes
   def validateQps(config: Config): ErrorOr[Int Refined Positive] = {
     import eu.timepit.refined._
 
-    val qp100s = config.as[Option[Int]]("batch-queries-per-100-seconds").getOrElse(BatchApiDefaultQps)
+    val qp100s = config.as[Option[Int]]("batch-queries-per-100-seconds").getOrElse(BatchApiDefaultQp100s)
     val qpsCandidate = qp100s / 100
 
     refineV[Positive](qpsCandidate) match {

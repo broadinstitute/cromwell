@@ -470,7 +470,7 @@ class BatchBackendCacheHitCopyingActorSpec
 
     val workflowDescriptor = mock[BackendWorkflowDescriptor]
     workflowDescriptor.id returns workflow.id
-    workflowDescriptor.workflowOptions returns WorkflowOptions.fromMap(Map("jes_gcs_root" -> "foo")).get
+    workflowDescriptor.workflowOptions returns WorkflowOptions.fromMap(Map("batch_gcs_root" -> "foo")).get
 
     val workflowPaths = mock[GcpBatchWorkflowPaths]
     workflowPaths.standardStreamNameToFileNameMetadataMapper returns mapper

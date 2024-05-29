@@ -39,7 +39,8 @@ class TesAsyncBackendJobExecutionActorSpec
   behavior of "TesAsyncBackendJobExecutionActor"
 
   type StandardAsyncRunInfo = Any
-  type StandardAsyncPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, TesRunStatus]
+  type StandardAsyncPendingExecutionHandle =
+    PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, TesRunStatus]
   implicit private val ec: ExecutionContext = system.dispatcher
 
   val standardParams: StandardAsyncExecutionActorParams = mock[StandardAsyncExecutionActorParams]
@@ -99,11 +100,31 @@ class TesAsyncBackendJobExecutionActorSpec
   )
 
   val mockTaskLog_1 = Task(
-    Option(""), Option("Running"), Option("name"), Option("description"), Option(Seq.empty), Option(Seq.empty), null, null, null, null, Option(Seq(mockTesTaskLog))
+    Option(""),
+    Option("Running"),
+    Option("name"),
+    Option("description"),
+    Option(Seq.empty),
+    Option(Seq.empty),
+    null,
+    null,
+    null,
+    null,
+    Option(Seq(mockTesTaskLog))
   )
 
   val mockTaskLog_2 = Task(
-    Option(""), Option("EXECUTOR_ERROR"), Option("name"), Option("description"), Option(Seq.empty), Option(Seq.empty), null, null, null, null, Option(Seq(mockTesTaskLog))
+    Option(""),
+    Option("EXECUTOR_ERROR"),
+    Option("name"),
+    Option("description"),
+    Option(Seq.empty),
+    Option(Seq.empty),
+    null,
+    null,
+    null,
+    null,
+    Option(Seq(mockTesTaskLog))
   )
 
   val mockMinimalView = MinimalTaskView("foo id", "Running")
@@ -166,9 +187,8 @@ class TesAsyncBackendJobExecutionActorSpec
   def mockFetchFullTaskView_1(handle: StandardAsyncPendingExecutionHandle, handler: HttpHandler): Future[Task] =
     Future.successful(mockTaskLog_1)
 
-  def mockFetchFullTaskView_2(handle: StandardAsyncPendingExecutionHandle, handler: HttpHandler): Future[Task] = {
+  def mockFetchFullTaskView_2(handle: StandardAsyncPendingExecutionHandle, handler: HttpHandler): Future[Task] =
     Future.successful(mockTaskLog_2)
-  }
 
   def mockFetchMinimalTaskView(handle: StandardAsyncPendingExecutionHandle,
                                handler: HttpHandler
@@ -176,11 +196,11 @@ class TesAsyncBackendJobExecutionActorSpec
     Future.successful(mockMinimalView)
 
   def mockFetchMinimalTaskView_2(handle: StandardAsyncPendingExecutionHandle,
-                               handler: HttpHandler
-                              ): Future[MinimalTaskView] =
+                                 handler: HttpHandler
+  ): Future[MinimalTaskView] =
     Future.successful(mockMinimalView_2)
 
-  def mockGetTesStatus(state: Option[String], withCostData: Option[TesVmCostData], jobId: String): TesRunStatus = {
+  def mockGetTesStatus(state: Option[String], withCostData: Option[TesVmCostData], jobId: String): TesRunStatus =
     state match {
       case s if s.contains("COMPLETE") =>
         Complete(withCostData)
@@ -197,7 +217,6 @@ class TesAsyncBackendJobExecutionActorSpec
       case _ =>
         Running(withCostData)
     }
-  }
 
   def mockTellMetadata(metadataMap: Map[String, Any]): Unit = {
     Future.successful(metadataMap)
@@ -296,29 +315,29 @@ class TesAsyncBackendJobExecutionActorSpec
     val mockHttpClient = mock[HttpHandler]
 
     val tesStatusWithData = TesAsyncBackendJobExecutionActor.queryStatusAndMaybeCostData(handle,
-      true,
-                                                                                 mockHttpClient,
-                                                                                 mockFetchFullTaskView_1,
-                                                                                 mockFetchMinimalTaskView,
-                                                                                 mockGetTesStatus,
-                                                                                 mockTellMetadata
+                                                                                         true,
+                                                                                         mockHttpClient,
+                                                                                         mockFetchFullTaskView_1,
+                                                                                         mockFetchMinimalTaskView,
+                                                                                         mockGetTesStatus,
+                                                                                         mockTellMetadata
     )
 
     whenReady(tesStatusWithData) { s =>
-      s shouldEqual(Running(Option(TesVmCostData(Option("2024-04-04T20:20:32.240066+00:00"), Option("0.203")))))
+      s shouldEqual (Running(Option(TesVmCostData(Option("2024-04-04T20:20:32.240066+00:00"), Option("0.203")))))
     }
 
     val tesStatusNoData = TesAsyncBackendJobExecutionActor.queryStatusAndMaybeCostData(handle,
-      false,
-      mockHttpClient,
-      mockFetchFullTaskView_1,
-      mockFetchMinimalTaskView,
-      mockGetTesStatus,
-      mockTellMetadata
+                                                                                       false,
+                                                                                       mockHttpClient,
+                                                                                       mockFetchFullTaskView_1,
+                                                                                       mockFetchMinimalTaskView,
+                                                                                       mockGetTesStatus,
+                                                                                       mockTellMetadata
     )
 
     whenReady(tesStatusNoData) { s =>
-      s shouldEqual(Running(None))
+      s shouldEqual (Running(None))
     }
   }
 
@@ -329,7 +348,15 @@ class TesAsyncBackendJobExecutionActorSpec
     val mockHttpClient = mock[HttpHandler]
 
     // No cost data
-    val actualStatus = TesAsyncBackendJobExecutionActor.pollTesStatus(handle, true, mockHttpClient, mockFetchFullTaskView_2, mockFetchMinimalTaskView, mockGetTesStatus, mockTellMetadata, mockGetErrorLogs)
+    val actualStatus = TesAsyncBackendJobExecutionActor.pollTesStatus(handle,
+                                                                      true,
+                                                                      mockHttpClient,
+                                                                      mockFetchFullTaskView_2,
+                                                                      mockFetchMinimalTaskView,
+                                                                      mockGetTesStatus,
+                                                                      mockTellMetadata,
+                                                                      mockGetErrorLogs
+    )
     val expectedStatus = Failed(List("an error!"), None)
 
     whenReady(actualStatus) { s =>
@@ -339,7 +366,15 @@ class TesAsyncBackendJobExecutionActorSpec
     // With cost data on handle
     val handleWithData = new StandardAsyncPendingExecutionHandle(null, runId, None, Option(Running(costData)))
 
-    val actualStatusWithData = TesAsyncBackendJobExecutionActor.pollTesStatus(handleWithData, true, mockHttpClient, mockFetchFullTaskView_2, mockFetchMinimalTaskView, mockGetTesStatus, mockTellMetadata, mockGetErrorLogs)
+    val actualStatusWithData = TesAsyncBackendJobExecutionActor.pollTesStatus(handleWithData,
+                                                                              true,
+                                                                              mockHttpClient,
+                                                                              mockFetchFullTaskView_2,
+                                                                              mockFetchMinimalTaskView,
+                                                                              mockGetTesStatus,
+                                                                              mockTellMetadata,
+                                                                              mockGetErrorLogs
+    )
     val expectedStatus2 = Failed(List("an error!"), costData)
 
     whenReady(actualStatusWithData) { s =>
@@ -353,7 +388,15 @@ class TesAsyncBackendJobExecutionActorSpec
     val handle = new StandardAsyncPendingExecutionHandle(null, runId, None, Option(Running(costData)))
     val mockHttpClient = mock[HttpHandler]
 
-    val actualStatus = TesAsyncBackendJobExecutionActor.pollTesStatus(handle, false, mockHttpClient, mockFetchFullTaskView_2, mockFetchMinimalTaskView_2, mockGetTesStatus, mockTellMetadata, mockGetErrorLogs)
+    val actualStatus = TesAsyncBackendJobExecutionActor.pollTesStatus(handle,
+                                                                      false,
+                                                                      mockHttpClient,
+                                                                      mockFetchFullTaskView_2,
+                                                                      mockFetchMinimalTaskView_2,
+                                                                      mockGetTesStatus,
+                                                                      mockTellMetadata,
+                                                                      mockGetErrorLogs
+    )
     val expectedStatus = Error(List("an error!"), costData)
 
     whenReady(actualStatus) { s =>

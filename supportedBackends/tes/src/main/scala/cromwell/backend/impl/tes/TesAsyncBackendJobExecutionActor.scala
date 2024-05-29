@@ -15,10 +15,26 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{determineWSMSasEndpointFromInputs, generateLocalizedSasScriptPreamble, getErrorSeq, getTaskEndTime, pollTesStatus}
+import cromwell.backend.async.{
+  AbortedExecutionHandle,
+  ExecutionHandle,
+  FailedNonRetryableExecutionHandle,
+  PendingExecutionHandle
+}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{
+  determineWSMSasEndpointFromInputs,
+  generateLocalizedSasScriptPreamble,
+  getErrorSeq,
+  getTaskEndTime,
+  pollTesStatus
+}
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{
+  ScriptPreambleData,
+  StandardAsyncExecutionActor,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob
+}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
@@ -235,17 +251,24 @@ object TesAsyncBackendJobExecutionActor {
     } yield errors
 
   def pollTesStatus(
-                     handle: StandardAsyncPendingExecutionHandle,
-                     fetchCostData: Boolean,
-                     httpHandler: HttpHandler,
-                     fetchFullTaskViewFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[Task],
-                     fetchMinimalTaskViewFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[MinimalTaskView],
-                     getTesStatusFn: (Option[String], Option[TesVmCostData], String) => TesRunStatus,
-                     tellMetadataFn: (Map[String, Any]) => Unit,
-                     getErrorLogsFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[Seq[String]]
-                   )(implicit ec: ExecutionContext): Future[TesRunStatus] =
+    handle: StandardAsyncPendingExecutionHandle,
+    fetchCostData: Boolean,
+    httpHandler: HttpHandler,
+    fetchFullTaskViewFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[Task],
+    fetchMinimalTaskViewFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[MinimalTaskView],
+    getTesStatusFn: (Option[String], Option[TesVmCostData], String) => TesRunStatus,
+    tellMetadataFn: (Map[String, Any]) => Unit,
+    getErrorLogsFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[Seq[String]]
+  )(implicit ec: ExecutionContext): Future[TesRunStatus] =
     for {
-      status <- queryStatusAndMaybeCostData(handle, fetchCostData, httpHandler, fetchFullTaskViewFn, fetchMinimalTaskViewFn, getTesStatusFn, tellMetadataFn)
+      status <- queryStatusAndMaybeCostData(handle,
+                                            fetchCostData,
+                                            httpHandler,
+                                            fetchFullTaskViewFn,
+                                            fetchMinimalTaskViewFn,
+                                            getTesStatusFn,
+                                            tellMetadataFn
+      )
       errorLog <- status match {
         case Error(_, _) | Failed(_, _) => getErrorLogsFn(handle, httpHandler)
         case _ => Future.successful(Seq.empty[String])
@@ -257,14 +280,15 @@ object TesAsyncBackendJobExecutionActor {
       }
     } yield statusWithLog
 
-  def queryStatusAndMaybeCostData(handle: StandardAsyncPendingExecutionHandle,
-                                  fetchCostData: Boolean,
-                                  httpHandler: HttpHandler,
-                                  fetchFullTaskViewFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[Task],
-                                  fetchMinimalTaskViewFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[MinimalTaskView],
-                                  getTesStatusFn: (Option[String], Option[TesVmCostData], String) => TesRunStatus,
-                                  tellMetadataFn: (Map[String, Any]) => Unit
-                                 )(implicit ec: ExecutionContext): Future[TesRunStatus] =
+  def queryStatusAndMaybeCostData(
+    handle: StandardAsyncPendingExecutionHandle,
+    fetchCostData: Boolean,
+    httpHandler: HttpHandler,
+    fetchFullTaskViewFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[Task],
+    fetchMinimalTaskViewFn: (StandardAsyncPendingExecutionHandle, HttpHandler) => Future[MinimalTaskView],
+    getTesStatusFn: (Option[String], Option[TesVmCostData], String) => TesRunStatus,
+    tellMetadataFn: (Map[String, Any]) => Unit
+  )(implicit ec: ExecutionContext): Future[TesRunStatus] =
     if (fetchCostData) {
       val task = fetchFullTaskViewFn(handle, httpHandler)
       task map { t =>
@@ -284,9 +308,8 @@ object TesAsyncBackendJobExecutionActor {
             )
             tellMetadataFn(metadata)
             getTesStatusFn(state, tesVmCostData, handle.pendingJob.jobId)
-          case None => {
+          case None =>
             getTesStatusFn(t.state, tesVmCostData, handle.pendingJob.jobId)
-          }
         }
       }
     } else {
@@ -449,7 +472,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       _ <- writeScriptFile()
       taskMessage <- taskMessageFuture
       entity <- Marshal(taskMessage).to[RequestEntity]
-      ctr <- makeRequest[CreateTaskResponse](HttpRequest(method = HttpMethods.POST, uri = tesEndpoint, entity = entity), httpHandler)
+      ctr <- makeRequest[CreateTaskResponse](HttpRequest(method = HttpMethods.POST, uri = tesEndpoint, entity = entity),
+                                             httpHandler
+      )
     } yield PendingExecutionHandle(jobDescriptor, StandardAsyncJob(ctr.id), None, previousState = None)
   }
 
@@ -537,8 +562,26 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
    * */
   override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
     handle.previousState.flatMap(_.costData) match {
-      case Some(TesVmCostData(_, _)) => pollTesStatus(handle, fetchCostData = false, httpHandler, fetchFullTaskView, fetchMinimalTesTask, getTesStatus, tellMetadata, getErrorLogs)
-      case _ => pollTesStatus(handle, fetchCostData = true, httpHandler, fetchFullTaskView, fetchMinimalTesTask, getTesStatus, tellMetadata, getErrorLogs)
+      case Some(TesVmCostData(_, _)) =>
+        pollTesStatus(handle,
+                      fetchCostData = false,
+                      httpHandler,
+                      fetchFullTaskView,
+                      fetchMinimalTesTask,
+                      getTesStatus,
+                      tellMetadata,
+                      getErrorLogs
+        )
+      case _ =>
+        pollTesStatus(handle,
+                      fetchCostData = true,
+                      httpHandler,
+                      fetchFullTaskView,
+                      fetchMinimalTesTask,
+                      getTesStatus,
+                      tellMetadata,
+                      getErrorLogs
+        )
     }
 
   private def getTesStatus(state: Option[String], withCostData: Option[TesVmCostData], jobId: String): TesRunStatus =

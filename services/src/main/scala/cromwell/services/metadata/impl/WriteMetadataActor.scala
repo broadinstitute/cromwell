@@ -29,16 +29,7 @@ class WriteMetadataActor(override val batchSize: Int,
   private val statsRecorder = MetadataStatisticsRecorder(metadataStatisticsRecorderSettings)
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
-    val cleanedMetadataWriteActions = if (metadataKeysToClean.isEmpty) e else sanitizeInputs(e)
-    val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
-
-    val (putWithoutResponse, putWithResponse) = cleanedMetadataWriteActions.foldLeft(empty) {
-      case ((putEvents, putAndRespondEvents), action: PutMetadataAction) =>
-        (putEvents ++ action.events, putAndRespondEvents)
-      case ((putEvents, putAndRespondEvents), action: PutMetadataActionAndRespond) =>
-        (putEvents, putAndRespondEvents :+ (action.events -> action.replyTo))
-    }
-    val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
+    val (cleanedMetadataWriteActions, allPutEvents, putWithResponse) = prepareMetadata(e)
     val dbAction = addMetadataEvents(allPutEvents)
 
     statsRecorder.processEventsAndGenerateAlerts(allPutEvents) foreach (a =>
@@ -56,6 +47,22 @@ class WriteMetadataActor(override val batchSize: Int,
     }
 
     dbAction.map(_ => allPutEvents.size)
+  }
+
+  def prepareMetadata(
+    e: NonEmptyVector[MetadataWriteAction]
+  ): (NonEmptyVector[MetadataWriteAction], Iterable[MetadataEvent], List[(Iterable[MetadataEvent], ActorRef)]) = {
+    val cleanedMetadataWriteActions = if (metadataKeysToClean.isEmpty) e else sanitizeInputs(e)
+    val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
+
+    val (putWithoutResponse, putWithResponse) = cleanedMetadataWriteActions.foldLeft(empty) {
+      case ((putEvents, putAndRespondEvents), action: PutMetadataAction) =>
+        (putEvents ++ action.events, putAndRespondEvents)
+      case ((putEvents, putAndRespondEvents), action: PutMetadataActionAndRespond) =>
+        (putEvents, putAndRespondEvents :+ (action.events -> action.replyTo))
+    }
+    val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
+    (cleanedMetadataWriteActions, allPutEvents, putWithResponse)
   }
 
   def sanitizeInputs(

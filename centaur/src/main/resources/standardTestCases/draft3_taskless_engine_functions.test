@@ -19,8 +19,8 @@ metadata {
   "outputs.taskless_engine_functions.int_cross_string.3.left": 2
   "outputs.taskless_engine_functions.int_cross_string.3.right": "b"
 
-  "outputs.taskless_engine_functions.transposed_matrix.0": "[1,1]"
-  "outputs.taskless_engine_functions.transposed_matrix.1": "[0,0]"
+  "outputs.taskless_engine_functions.transposed_matrix.0": [1,1]
+  "outputs.taskless_engine_functions.transposed_matrix.1": [0,0]
 
   "outputs.taskless_engine_functions.flattened_matrix.0": 1
   "outputs.taskless_engine_functions.flattened_matrix.1": 0
@@ -41,7 +41,7 @@ metadata {
   "outputs.taskless_engine_functions.file_basename": "file.txt"
   "outputs.taskless_engine_functions.file_basename_extensionless": "file"
 
-  "outputs.taskless_engine_functions.f_floor": "1"
-  "outputs.taskless_engine_functions.f_ceiling": "2"
-  "outputs.taskless_engine_functions.f_round": "1"
+  "outputs.taskless_engine_functions.f_floor": 1
+  "outputs.taskless_engine_functions.f_ceiling": 2
+  "outputs.taskless_engine_functions.f_round": 1
 }

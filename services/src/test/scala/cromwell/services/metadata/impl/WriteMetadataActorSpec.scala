@@ -314,6 +314,32 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
     }
   }
 
+  it should s"test metadata types are correct before db insertion" in {
+    val registry = TestProbe().ref
+    val writeActor =
+      TestFSMRef(new BatchSizeCountingWriteMetadataActor(10, 10.millis, registry, Int.MaxValue, List("metadata_key")) {
+        override val metadataDatabaseInterface = mockDatabaseInterface(100)
+      })
+
+    val metadataEvents = PutMetadataAction(
+      List(
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue(100)),
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue(5.5)),
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue(true)),
+        MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "metadata_key"), MetadataValue("hello"))
+      )
+    )
+
+    val processedMetadataTuple = writeActor.underlyingActor.prepareMetadata(NonEmptyVector(metadataEvents, Vector()))
+    val allPutEvents = processedMetadataTuple._2
+
+    allPutEvents.zipWithIndex.map { eventWithIndex =>
+      val expectedEvent = metadataEvents.events.toList(eventWithIndex._2)
+      val actualEvent = eventWithIndex._1
+      actualEvent shouldBe expectedEvent
+    }
+  }
+
   // Mock database interface.
   // A customizable number of failures occur between each success
   def mockDatabaseInterface(failuresBetweenEachSuccess: Int) = new MetadataSqlDatabase with SqlDatabase {

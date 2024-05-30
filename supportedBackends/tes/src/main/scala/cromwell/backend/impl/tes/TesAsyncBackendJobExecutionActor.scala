@@ -47,7 +47,9 @@ import java.time.temporal.ChronoUnit
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-case class TesVmCostData(startTime: Option[String], vmCost: Option[String])
+case class TesVmCostData(startTime: Option[String], vmCost: Option[String]) {
+  val fullyPopulated: Boolean = startTime.nonEmpty && vmCost.nonEmpty
+}
 sealed trait TesRunStatus {
   def isTerminal: Boolean
   def sysLogs: Seq[String] = Seq.empty[String]
@@ -233,16 +235,10 @@ object TesAsyncBackendJobExecutionActor {
   def getTaskEndTime(
     taskLogs: Future[TaskLog]
   )(implicit ec: ExecutionContext): Future[Option[String]] =
-    for {
-      tesLogs <- taskLogs
-      endTime = tesLogs.end_time
-    } yield endTime
+    taskLogs.map(_.end_time)
 
   def getErrorSeq(taskLogs: Future[TaskLog])(implicit ec: ExecutionContext): Future[Option[Seq[String]]] =
-    for {
-      tesLogs <- taskLogs
-      errors = tesLogs.system_logs
-    } yield errors
+    taskLogs.map(_.system_logs)
 
   def pollTesStatus(
     handle: StandardAsyncPendingExecutionHandle,
@@ -518,10 +514,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
                               handle: StandardAsyncPendingExecutionHandle
   ): Map[String, Any] = {
     val logs = getTaskLogs(handle, httpHandler)
-    val taskEndTime = for {
-      optionEndTime <- getTaskEndTime(logs)
-      endTime = optionEndTime
-    } yield endTime
+    val taskEndTime = getTaskEndTime(logs)
 
     val errors = for {
       errors <- runStatus match {
@@ -556,29 +549,19 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
    * and also fetch the cost data. If there is a previous status, we look and see if the cost data has been fetched.
    * If not, we poll for the status AND cost information in TES.
    * */
-  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] =
-    handle.previousState.flatMap(_.costData) match {
-      case Some(TesVmCostData(_, _)) =>
-        pollTesStatus(handle,
-                      fetchCostData = false,
-                      httpHandler,
-                      fetchFullTaskView,
-                      fetchMinimalTesTask,
-                      getTesStatus,
-                      tellMetadata,
-                      getErrorLogs
-        )
-      case _ =>
-        pollTesStatus(handle,
-                      fetchCostData = true,
-                      httpHandler,
-                      fetchFullTaskView,
-                      fetchMinimalTesTask,
-                      getTesStatus,
-                      tellMetadata,
-                      getErrorLogs
-        )
-    }
+  override def pollStatusAsync(handle: StandardAsyncPendingExecutionHandle): Future[TesRunStatus] = {
+    val fetchCostData = !handle.previousState.flatMap(_.costData).map(_.fullyPopulated).getOrElse(false)
+    pollTesStatus(handle,
+                  fetchCostData,
+                  httpHandler,
+                  fetchFullTaskView,
+                  fetchMinimalTesTask,
+                  getTesStatus,
+                  tellMetadata,
+                  getErrorLogs
+    )
+
+  }
 
   private def getTesStatus(state: Option[String], withCostData: Option[TesVmCostData], jobId: String): TesRunStatus =
     state match {
@@ -631,15 +614,10 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   ): Future[MinimalTaskView] =
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL"),
                                  httpHandler
-    ) map { response =>
-      response
-    }
+    )
 
   def fetchFullTaskView(handle: StandardAsyncPendingExecutionHandle, httpHandler: HttpHandler): Future[Task] =
-    makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL"), httpHandler) map {
-      response =>
-        response
-    }
+    makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL"), httpHandler)
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: StandardAsyncPendingExecutionHandle @unchecked, e: Exception) =>

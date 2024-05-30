@@ -21,13 +21,7 @@ import cromwell.backend.async.{
   FailedNonRetryableExecutionHandle,
   PendingExecutionHandle
 }
-import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor.{
-  determineWSMSasEndpointFromInputs,
-  generateLocalizedSasScriptPreamble,
-  getErrorSeq,
-  getTaskEndTime,
-  pollTesStatus
-}
+import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor._
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{
   ScriptPreambleData,
@@ -540,7 +534,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
     errors.onComplete {
       case Success(r) =>
-        metadataMap.addOne(CallMetadataKeys.Failures -> r)
+        if (r.iterator.nonEmpty) {
+          metadataMap.addOne(CallMetadataKeys.Failures -> r)
+        }
       case Failure(e) => log.error(e.getMessage)
     }
 

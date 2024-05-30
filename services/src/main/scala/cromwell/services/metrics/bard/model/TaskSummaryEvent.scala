@@ -24,10 +24,9 @@ case class TaskSummaryEvent(workflowId: UUID,
   override def eventName: String = "task:summary"
 
   override def getProperties: java.util.Map[String, Any] =
-    super.assembleScalaProperties.map {
+    (super.assembleScalaProperties.map {
       case (field, None) => (field, null)
       case (field, Some(value)) => (field, value)
       case t => t
-    }.asJava
-
+    } + ("distinct_id" -> workflowId)).asJava
 }

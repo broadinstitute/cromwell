@@ -46,7 +46,8 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with BardTestUtils {
                                     |     "cpuStartTime": "$cpuStart",
                                     |     "endTime": "$end",
                                     |     "jobSeconds": $jobSeconds,
-                                    |     "cpuSeconds": $cpuSeconds
+                                    |     "cpuSeconds": $cpuSeconds,
+                                    |     "distinct_id": "$workflowId"
                                     |   }
                                     | }
                                     |""".stripMargin)),

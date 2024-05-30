@@ -1,6 +1,5 @@
 package cromwell.backend.standard
 
-import java.io.IOException
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cats.implicits._
@@ -11,11 +10,7 @@ import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked._
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{
-  BackendJobExecutionResponse,
-  JobAbortedResponse,
-  JobReconnectionNotSupportedException
-}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._
@@ -25,9 +20,9 @@ import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.validation._
+import cromwell.core._
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
@@ -43,6 +38,7 @@ import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
+import java.io.IOException
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -916,9 +912,8 @@ trait StandardAsyncExecutionActor
     * @param handle The handle of the running job.
     * @return A set of actions when the job is complete
     */
-  def onTaskComplete(runStatus: StandardAsyncRunState,
-                     handle: StandardAsyncPendingExecutionHandle
-  ): Map[String, Any] = Map()
+  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Map[String, Any] =
+    Map()
 
   /**
     * Attempts to abort a job when an abort signal is retrieved.

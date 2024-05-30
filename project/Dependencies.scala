@@ -643,9 +643,6 @@ object Dependencies {
   // Version of the swagger UI to write into config files
   val swaggerUiVersion: String = swaggerUiV
 
-  val perfDependencies: List[ModuleID] = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
-    googleApiClientDependencies ++ googleCloudDependencies
-
   val drsLocalizerDependencies: List[ModuleID] = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
@@ -675,7 +672,6 @@ object Dependencies {
       implDrsDependencies ++
       implFtpDependencies ++
       languageFactoryDependencies ++
-      perfDependencies ++
       serverDependencies ++
       sfsBackendDependencies ++
       spiDependencies ++

@@ -8,6 +8,7 @@ import cromwell.core.ExecutionEvent
 import cromwell.core.logging.JobLogger
 import mouse.all._
 import PipelinesUtilityConversions._
+import wdl.util.StringUtil
 
 import scala.language.postfixOps
 
@@ -67,7 +68,7 @@ trait PipelinesUtilityConversions {
     // characters (typically emoji). Some databases have trouble storing these; replace them with the standard
     // "unknown character" unicode symbol.
     val name = Option(event.getContainerStopped) match {
-      case Some(_) => cleanUtf8mb4(event.getDescription)
+      case Some(_) => StringUtil.cleanUtf8mb4(event.getDescription)
       case _ => event.getDescription
     }
 
@@ -101,9 +102,4 @@ object PipelinesUtilityConversions {
         None
       }
   }
-
-  lazy val utf8mb4Regex = "[\\x{10000}-\\x{FFFFF}]"
-  lazy val utf8mb3Replacement = "\uFFFD" // This is the standard char for replacing invalid/unknown unicode chars
-  def cleanUtf8mb4(in: String): String =
-    in.replaceAll(utf8mb4Regex, utf8mb3Replacement)
 }

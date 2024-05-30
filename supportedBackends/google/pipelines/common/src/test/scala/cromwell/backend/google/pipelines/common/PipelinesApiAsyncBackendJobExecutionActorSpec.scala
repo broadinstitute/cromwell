@@ -10,32 +10,17 @@ import cats.data.NonEmptyList
 import com.google.api.client.http.HttpRequest
 import com.google.cloud.NoCredentials
 import common.collections.EnhancedCollections._
-import cromwell.backend.BackendJobExecutionActor.{
-  BackendJobExecutionResponse,
-  JobFailedNonRetryableResponse,
-  JobFailedRetryableResponse
-}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
-import cromwell.backend.async.{
-  AbortedExecutionHandle,
-  ExecutionHandle,
-  FailedNonRetryableExecutionHandle,
-  FailedRetryableExecutionHandle
-}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor.JesPendingExecutionHandle
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, RunStatus}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{
-  DefaultStandardAsyncExecutionActorParams,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob,
-  StandardExpressionFunctionsParams,
-  StartAndEndTimes
-}
+import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams, StartAndEndTimes}
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
@@ -46,6 +31,7 @@ import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
+import cromwell.services.metrics.bard.BardEventing.BardEventRequest
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.scalatest._
@@ -298,7 +284,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
                              promise: Promise[BackendJobExecutionResponse],
                              jesSingletonActor: ActorRef,
                              shouldBePreemptible: Boolean,
-                             serviceRegistryActor: ActorRef = kvService,
+                             serviceRegistryActor: ActorRef,
                              referenceInputFilesOpt: Option[Set[PipelinesApiInput]] = None,
                              dockerImageCacheTestingParamsOpt: Option[DockerImageCacheTestingParameters] = None
   ): ActorRef = {
@@ -355,12 +341,15 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
 
     // TODO: Use this to check the new KV entries are there!
     // val kvProbe = TestProbe("kvProbe")
+    val bardProbe = TestProbe("bardProbe")
 
-    val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)
+    val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible, bardProbe.ref)
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
       backend ! runStatus
     }
+
+    bardProbe.expectMsgAnyClassOf(classOf[BardEventRequest])
 
     Await.result(promise.future, Timeout)
   }

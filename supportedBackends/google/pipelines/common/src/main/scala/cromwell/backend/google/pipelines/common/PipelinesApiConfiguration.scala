@@ -3,7 +3,7 @@ package cromwell.backend.google.pipelines.common
 import com.typesafe.config.Config
 import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.backend.google.pipelines.common.api.PipelinesApiFactoryInterface
-import cromwell.backend.google.pipelines.common.authentication.{PipelinesApiAuths, PipelinesApiDockerCredentials}
+import cromwell.backend.google.pipelines.common.authentication.PipelinesApiDockerCredentials
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.BackendDockerConfiguration
 import net.ceedubs.ficus.Ficus._
@@ -17,7 +17,6 @@ class PipelinesApiConfiguration(val configurationDescriptor: BackendConfiguratio
                                 val papiAttributes: PipelinesApiConfigurationAttributes
 ) extends DefaultJsonProtocol {
 
-  val jesAuths: PipelinesApiAuths = papiAttributes.auths
   val root: String = configurationDescriptor.backendConfig.getString("root")
   val pipelineTimeout: FiniteDuration = papiAttributes.pipelineTimeout
   val runtimeConfig: Option[Config] = configurationDescriptor.backendRuntimeAttributesConfig

@@ -80,7 +80,7 @@ workflow biscayne_new_engine_functions {
     # =================================================
     Pair[Array[String], Array[String]] unzipped_a = unzip(zipped_a)
     Pair[Array[String], Array[String]] unzipped_b = unzip(zipped_b)
-    Pair[Array[String], Array[String]] unzipped_c = unzip(zipped_c)
+    Pair[Array[String], Array[Float]] unzipped_c = unzip(zipped_c)
   }
 }
 

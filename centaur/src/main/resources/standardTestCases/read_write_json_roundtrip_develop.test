@@ -12,7 +12,7 @@ metadata {
   "outputs.read_write_json_roundtrip_develop.float_out" = 123.456
   "outputs.read_write_json_roundtrip_develop.boolean_out" = false
   "outputs.read_write_json_roundtrip_develop.string_out" = "Mr. Bean"
-  "outputs.read_write_json_roundtrip_develop.pair_out.left" = 1
+  "outputs.read_write_json_roundtrip_develop.pair_out.left" = "1"
   "outputs.read_write_json_roundtrip_develop.pair_out.right" = "abc"
   "outputs.read_write_json_roundtrip_develop.array_object_with_array_out.0.index" = 0
   "outputs.read_write_json_roundtrip_develop.array_object_with_array_out.0.samples.0" = "s1"

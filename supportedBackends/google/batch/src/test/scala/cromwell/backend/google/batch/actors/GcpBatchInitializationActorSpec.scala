@@ -44,30 +44,30 @@ class GcpBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
        |}
     """.stripMargin
 
-  private def getJesBackendProps(workflowDescriptor: BackendWorkflowDescriptor,
-                                 calls: Set[CommandCallNode],
-                                 jesConfiguration: GcpBatchConfiguration
+  private def getBatchBackendProps(workflowDescriptor: BackendWorkflowDescriptor,
+                                   calls: Set[CommandCallNode],
+                                   batchConfiguration: GcpBatchConfiguration
   ): Props = {
     val ioActor = mockIoActor
     val params = GcpBatchInitializationActorParams(workflowDescriptor,
                                                    ioActor,
                                                    calls,
-                                                   jesConfiguration,
+                                                   batchConfiguration,
                                                    emptyActor,
                                                    restarting = false
     )
     Props(new GcpBatchInitializationActor(params)).withDispatcher(BackendDispatcher)
   }
 
-  private def getJesBackend(workflowDescriptor: BackendWorkflowDescriptor,
-                            calls: Set[CommandCallNode],
-                            conf: BackendConfigurationDescriptor
+  private def getBatchBackend(workflowDescriptor: BackendWorkflowDescriptor,
+                              calls: Set[CommandCallNode],
+                              conf: BackendConfigurationDescriptor
   ) = {
-    val props = getJesBackendProps(workflowDescriptor,
-                                   calls,
-                                   new GcpBatchConfiguration(conf, googleConfiguration, batchAttributes)
+    val props = getBatchBackendProps(workflowDescriptor,
+                                     calls,
+                                     new GcpBatchConfiguration(conf, googleConfiguration, batchAttributes)
     )
-    system.actorOf(props, "TestableJesInitializationActor-" + UUID.randomUUID)
+    system.actorOf(props, "TestableBatchInitializationActor-" + UUID.randomUUID)
   }
 
   behavior of "GcpBatchInitializationActor"
@@ -77,7 +77,7 @@ class GcpBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
     within(Timeout) {
       val workflowDescriptor =
         buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { docker: "ubuntu/latest" test: true }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, defaultBackendConfig)
+      val backend = getBatchBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, defaultBackendConfig)
       val eventPattern =
         "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
       EventFilter.warning(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
@@ -93,7 +93,7 @@ class GcpBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
   it should "return InitializationFailed when docker runtime attribute key is not present" in {
     within(Timeout) {
       val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-      val backend = getJesBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, defaultBackendConfig)
+      val backend = getBatchBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, defaultBackendConfig)
       backend ! Initialize
       expectMsgPF() { case InitializationFailed(failure) =>
         failure match {
@@ -139,12 +139,10 @@ object GcpBatchInitializationActorSpec {
       |  // This is the maximum polling interval (in seconds):
       |  maximum-polling-interval = 600
       |
-      |  genomics {
-      |  // A reference to an auth defined in the `google` stanza at the top.  This auth is used to create
-      |  // Pipelines and manipulate auth JSONs.
+      |  batch {
+      |  // A reference to an auth defined in the `google` stanza at the top.
+      |  // This auth is used to create jobs and manipulate auth JSONs.
       |     auth = "application-default"
-      |     // Endpoint for APIs, no reason to change this unless directed by Google.
-      |     endpoint-url = "https://genomics.googleapis.com/"
       |  }
       |
       |  default-runtime-attributes {

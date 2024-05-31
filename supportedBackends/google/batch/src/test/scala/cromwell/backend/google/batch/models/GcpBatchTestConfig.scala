@@ -18,7 +18,7 @@ object GcpBatchTestConfig {
       |project = "my-cromwell-workflows"
       |root = "gs://my-cromwell-workflows-bucket"
       |
-      |genomics {
+      |batch {
       |  auth = "application-default"
       |  location = "us-central1"
       |}
@@ -47,7 +47,7 @@ object GcpBatchTestConfig {
       |project = "my-cromwell-workflows"
       |root = "gs://my-cromwell-workflows-bucket"
       |
-      |genomics {
+      |batch {
       |  auth = "application-default"
       |}
       |
@@ -85,7 +85,7 @@ object GcpBatchTestConfig {
        |  default = "batch"
        |  providers {
        |    batch {
-       |      actor-factory = "cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory"
+       |      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
        |      config {
        |      $BatchBackendConfigString
        |      }

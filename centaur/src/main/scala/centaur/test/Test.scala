@@ -356,7 +356,7 @@ object Operations extends StrictLogging {
                   }
 
                   val message =
-                    s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id}).$failuresString METADATA $metadata !!!!! "
+                    s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id}).$failuresString"
                   IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ =>

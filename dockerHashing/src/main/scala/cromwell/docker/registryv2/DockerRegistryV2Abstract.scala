@@ -158,6 +158,11 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   }
 
   /**
+   * Gets the authorization scheme to use for the token request.
+   */
+  protected def getAuthorizationScheme(dockerImageIdentifier: DockerImageIdentifier): AuthScheme = AuthScheme.Bearer
+
+  /**
     * Returns true if this flow is able to process this docker image,
     * false otherwise
     */
@@ -241,7 +246,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
                               manifestHeader: Accept
   ): IO[Request[IO]] = {
     val authorizationHeader: Option[Authorization] =
-      token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
+      token.map(t => Authorization(Credentials.Token(getAuthorizationScheme(imageId), t)))
     val request = Method.GET(
       buildManifestUri(imageId),
       List(

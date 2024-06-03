@@ -280,8 +280,8 @@ object TesAsyncBackendJobExecutionActor {
           case Some(v) =>
             val state = t.state
             val metadata = Map(
-              CallMetadataKeys.TaskStartTime -> v.startTime.get,
-              CallMetadataKeys.VmCostUsd -> v.vmCost.get
+              CallMetadataKeys.TaskStartTime -> v.startTime.getOrElse(""),
+              CallMetadataKeys.VmCostUsd -> v.vmCost.getOrElse("")
             )
             tellMetadataFn(metadata)
             getTesStatusFn(state, tesVmCostData, handle.pendingJob.jobId)

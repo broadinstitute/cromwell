@@ -1310,8 +1310,7 @@ trait StandardAsyncExecutionActor
     state match {
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
-        System.out.print(metadata)
-        // onTaskComplete(state, oldHandle)
+        onTaskComplete(state, oldHandle)
         tellMetadata(metadata)
         handleExecutionResult(state, oldHandle)
       case s =>

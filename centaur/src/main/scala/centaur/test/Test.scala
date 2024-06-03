@@ -1,6 +1,5 @@
 package centaur.test
 
-import java.util.UUID
 import cats.Monad
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
@@ -22,18 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{
-  CallCacheDiff,
-  Failed,
-  HashDifference,
-  SubmittedWorkflow,
-  Succeeded,
-  TerminalStatus,
-  WaasDescription,
-  WorkflowId,
-  WorkflowMetadata,
-  WorkflowStatus
-}
+import cromwell.api.model.{CallCacheDiff, Failed, HashDifference, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.azure.AzureUtils
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -46,6 +34,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import spray.json._
 
+import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -367,7 +356,7 @@ object Operations extends StrictLogging {
                   }
 
                   val message =
-                    s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id}).$failuresString"
+                    s"Unexpected terminal status $s but was waiting for $expectedStatus (workflow ID: ${workflow.id}).$failuresString METADATA $metadata !!!!! "
                   IO.raiseError(CentaurTestException(message, testDefinition, workflow, metadata))
               }
             case _ =>

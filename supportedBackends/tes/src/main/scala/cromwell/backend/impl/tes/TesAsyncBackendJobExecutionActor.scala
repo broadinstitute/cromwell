@@ -510,9 +510,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
 
   override def requestsAbortAndDiesImmediately: Boolean = false
 
-  override def onTaskComplete(runStatus: TesRunStatus,
-                              handle: StandardAsyncPendingExecutionHandle
-  ): Map[String, Any] = {
+  override def onTaskComplete(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Unit = {
     val logs = getTaskLogs(handle, httpHandler)
     val taskEndTime = getTaskEndTime(logs)
 
@@ -523,24 +521,18 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       }
     } yield errors
 
-    val metadataMap = scala.collection.mutable.Map[String, Any]()
-
     errors.onComplete {
       case Success(r) =>
         if (r.iterator.nonEmpty) {
-          metadataMap.addOne(CallMetadataKeys.Failures -> r)
+          tellMetadata(Map(CallMetadataKeys.Failures -> r))
         }
       case Failure(e) => log.error(e.getMessage)
     }
 
     taskEndTime.onComplete {
-      case Success(result) => result.map(r => metadataMap.addOne(CallMetadataKeys.TaskEndTime -> r))
+      case Success(result) => result.map(r => tellMetadata(Map(CallMetadataKeys.TaskEndTime -> r)))
       case Failure(e) => log.error(e.getMessage)
     }
-
-    val immutableMap = metadataMap.map(kv => (kv._1, kv._2)).toMap
-    tellMetadata(immutableMap)
-    immutableMap
   }
 
   /*

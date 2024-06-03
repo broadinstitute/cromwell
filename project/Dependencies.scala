@@ -402,6 +402,8 @@ object Dependencies {
     "batch",
     "core",
     "cloudwatchlogs",
+    "ecr",
+    "ecrpublic",
     "s3",
     "sts",
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)

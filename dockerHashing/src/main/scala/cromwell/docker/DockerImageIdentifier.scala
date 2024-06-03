@@ -1,5 +1,6 @@
 package cromwell.docker
 
+import cromwell.docker.registryv2.flows.aws.AwsElasticContainerRegistry.isEcr
 import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry
 
 import scala.util.{Failure, Success, Try}
@@ -19,7 +20,9 @@ sealed trait DockerImageIdentifier {
   lazy val nameWithDefaultRepository =
     // In ACR, the repository is part of the registry domain instead of the path
     // e.g. `terrabatchdev.azurecr.io`
-    if (host.exists(_.contains(AzureContainerRegistry.domain)))
+    // In ECR, an image with no repository is supported
+    // e.g. 123456790.dkr.ecr.eu-west-2.amazonaws.com/example-tool
+    if (host.exists(_.contains(AzureContainerRegistry.domain)) || host.exists(isEcr))
       image
     else
       repository.getOrElse("library") + s"/$image"

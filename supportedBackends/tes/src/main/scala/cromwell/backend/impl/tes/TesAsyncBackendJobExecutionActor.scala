@@ -268,6 +268,7 @@ object TesAsyncBackendJobExecutionActor {
   )(implicit ec: ExecutionContext): Future[TesRunStatus] =
     if (fetchCostData) {
       val task = fetchFullTaskViewFn(handle)
+      System.out.print("FULL TASK VIEW:      " + task)
       task map { t =>
         val tesVmCostData = for {
           responseLogs <- t.logs
@@ -291,6 +292,7 @@ object TesAsyncBackendJobExecutionActor {
       }
     } else {
       val minimalTaskView = fetchMinimalTaskViewFn(handle)
+      System.out.print("MINIMAL TASK VIEW:      " + minimalTaskView)
       minimalTaskView map { t =>
         val state = t.state
         getTesStatusFn(Option(state), Option.empty, handle.pendingJob.jobId)

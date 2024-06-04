@@ -273,7 +273,7 @@ object TesAsyncBackendJobExecutionActor {
         val tesVmCostData = for {
           responseLogs <- t.logs
           startTime <- responseLogs.headOption.map(_.start_time)
-          vmCost = Option("0.203")
+          vmCost <- responseLogs.headOption.map(_.metadata.flatMap(_.get("vm_price_per_hour_usd")))
           tesVmCostData = TesVmCostData(startTime, vmCost)
         } yield tesVmCostData
 
@@ -292,7 +292,6 @@ object TesAsyncBackendJobExecutionActor {
       }
     } else {
       val minimalTaskView = fetchMinimalTaskViewFn(handle)
-      System.out.print("MINIMAL TASK VIEW:      " + minimalTaskView)
       minimalTaskView map { t =>
         val state = t.state
         System.out.print("MINIMAL TASK VIEW:      " + t)
@@ -651,8 +650,9 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             )
           }
         } else {
-          System.out.print("RESPONSE BEFORE UNMARSHAL:      " + response)
-          Unmarshal(response.entity).to[A]
+          val resp = Unmarshal(response.entity).to[A]
+          System.out.print(resp)
+          resp
         }
     } yield data
 }

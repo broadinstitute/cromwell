@@ -344,6 +344,7 @@ object Operations extends StrictLogging {
 
               CentaurCromwellClient.metadata(workflow = workflow, args = Option(reducedMetadataOptions)) flatMap {
                 metadata =>
+                  System.out.println("METADATA IN TEST.SCALA:       " + metadata)
                   val failuresString = if (expectedStatus == Succeeded) {
                     (for {
                       metadataJson <- parse(metadata.value).toOption

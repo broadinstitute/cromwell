@@ -269,11 +269,11 @@ object TesAsyncBackendJobExecutionActor {
     if (fetchCostData) {
       val task = fetchFullTaskViewFn(handle)
       task map { t =>
-        System.out.print("FULL TASK VIEW:      " + t)
+        System.out.print("FULL TASK VIEW:      " + handle.pendingJob.jobId)
         val tesVmCostData = for {
           responseLogs <- t.logs
           startTime <- responseLogs.headOption.map(_.start_time)
-          vmCost <- responseLogs.headOption.map(_.metadata.flatMap(_.get("vm_price_per_hour_usd")))
+          vmCost = Option("0.203")
           tesVmCostData = TesVmCostData(startTime, vmCost)
         } yield tesVmCostData
 
@@ -296,7 +296,6 @@ object TesAsyncBackendJobExecutionActor {
       minimalTaskView map { t =>
         val state = t.state
         System.out.print("MINIMAL TASK VIEW:      " + t)
-        System.out.print("HANDLE PENDING JOB ID:      " + handle.pendingJob.jobId)
         getTesStatusFn(Option(state), Option.empty, handle.pendingJob.jobId)
       }
     }

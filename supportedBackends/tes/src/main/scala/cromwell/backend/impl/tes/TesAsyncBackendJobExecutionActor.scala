@@ -15,20 +15,10 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{
-  AbortedExecutionHandle,
-  ExecutionHandle,
-  FailedNonRetryableExecutionHandle,
-  PendingExecutionHandle
-}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor._
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{
-  ScriptPreambleData,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob
-}
+import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
@@ -658,8 +648,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             )
           }
         } else {
-          System.out.print("UNMARSHALLLLLL     " + Unmarshal(response.entity).to[A])
-          System.out.print("RESPONSE.ENTITY      " + response.entity)
           Unmarshal(response.entity).to[A]
         }
     } yield data

@@ -15,10 +15,20 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{
+  AbortedExecutionHandle,
+  ExecutionHandle,
+  FailedNonRetryableExecutionHandle,
+  PendingExecutionHandle
+}
 import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor._
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{
+  ScriptPreambleData,
+  StandardAsyncExecutionActor,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob
+}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
@@ -228,7 +238,7 @@ object TesAsyncBackendJobExecutionActor {
     taskLogs.map(_.end_time)
 
   def getErrorSeq(taskLogs: Future[TaskLog])(implicit ec: ExecutionContext): Future[Option[Seq[String]]] =
-    taskLogs.map(_.system_logs)
+    taskLogs.map(e => e.system_logs)
 
   def pollTesStatus(
     handle: StandardAsyncPendingExecutionHandle,
@@ -500,15 +510,13 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     val errors = for {
       errors <- runStatus match {
         case Error(_, _) | Failed(_, _) => getErrorSeq(logs)
-        case _ => Future.successful(Seq.empty[String])
+        case _ => Future.successful(Option(Seq.empty[String]))
       }
     } yield errors
 
     errors.onComplete {
       case Success(r) =>
-        if (r.iterator.nonEmpty) {
-          tellMetadata(Map(CallMetadataKeys.Failures -> r))
-        }
+        if (r.nonEmpty) { r.map(r => tellMetadata(Map(CallMetadataKeys.Failures -> r))) }
       case Failure(e) => log.error(e.getMessage)
     }
 
@@ -650,6 +658,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             )
           }
         } else {
+          System.out.print("UNMARSHALLLLLL     " + Unmarshal(response.entity).to[A])
+          System.out.print("RESPONSE.ENTITY      " + response.entity)
           Unmarshal(response.entity).to[A]
         }
     } yield data

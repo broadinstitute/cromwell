@@ -444,7 +444,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
       Future.successful
     )
-
+    System.out.print("INSIDE executeAsync()   ")
     for {
       _ <- writeScriptFile()
       taskMessage <- taskMessageFuture
@@ -581,11 +581,15 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  private def fetchMinimalTesTask(handle: StandardAsyncPendingExecutionHandle): Future[MinimalTaskView] =
+  private def fetchMinimalTesTask(handle: StandardAsyncPendingExecutionHandle): Future[MinimalTaskView] = {
+    System.out.print("INSIDE MINIMAL TASK VIEW")
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL"))
+  }
 
-  private def fetchFullTaskView(handle: StandardAsyncPendingExecutionHandle): Future[Task] =
+  private def fetchFullTaskView(handle: StandardAsyncPendingExecutionHandle): Future[Task] = {
+    System.out.print("INSIDE FULL TASK VIEW")
     makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL"))
+  }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: StandardAsyncPendingExecutionHandle @unchecked, e: Exception) =>
@@ -651,7 +655,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           }
         } else {
           val resp = Unmarshal(response.entity).to[A]
-          System.out.print(resp)
+          System.out.print("UMARSHALLED RESPONSE:      " + resp)
           resp
         }
     } yield data

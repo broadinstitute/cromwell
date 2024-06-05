@@ -18,11 +18,11 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
       "size_bytes" -> JsNumber(obj.size_bytes)
     )
 
-    def read(value: JsValue): OutputFileLog =
+    def read(value: JsValue): OutputFileLog = {
+      System.out.print("VALUE:       " + value)
       value.asJsObject.getFields("url", "path", "size_bytes") match {
         case Seq(JsString(url), JsString(path), JsString(size_bytes)) => OutputFileLog(url, path, size_bytes.toInt)
         case _ =>
-          System.out.print("VALUE:       " + value.asJsObject)
           System.out.print("VALUE AS JS OBJECT:      " + value.asJsObject)
           System.out.print("VALUE GET FIELDS:        " + value.asJsObject.getFields("url", "path", "size_bytes"))
           System.out.print(
@@ -30,6 +30,7 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
           )
           throw DeserializationException("Cannot deserialize OutputFileLog")
       }
+    }
   }
   implicit val resourcesFormat = jsonFormat6(Resources)
   implicit val inputFormat = jsonFormat6(Input)

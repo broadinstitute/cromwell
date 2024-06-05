@@ -438,7 +438,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       errors => Future.failed(new RuntimeException(errors.toList.mkString(", "))),
       Future.successful
     )
-    System.out.print("INSIDE executeAsync()   ")
     for {
       _ <- writeScriptFile()
       taskMessage <- taskMessageFuture

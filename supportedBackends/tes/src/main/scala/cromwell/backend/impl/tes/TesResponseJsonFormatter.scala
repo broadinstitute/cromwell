@@ -18,13 +18,19 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
   implicit val createTaskResponseFormat = jsonFormat1(CreateTaskResponse)
   implicit val cancelTaskResponseFormat = jsonFormat0(CancelTaskResponse)
 
+  /** OutputFileLog is partly defined by size_byte: Int which is supplied as string as described by the TES spec.
+   * We create a custom deserializer to read the size_byte string and turn it into the Int Cromwell expects
+   */
   implicit object customJsonFormatOutputFileLog extends RootJsonFormat[OutputFileLog] {
     def write(obj: OutputFileLog): JsValue = JsArray(JsString(obj.url), JsString(obj.path), JsNumber(obj.size_bytes))
 
-    def read(value: JsValue) = value match {
-      case JsArray(Vector(JsString(url), JsString(path), JsString(size_bytes))) =>
-        OutputFileLog(url, path, size_bytes.toInt)
-      case _ => deserializationError("Cannot deserialize into OutputFileLog")
-    }
+    def read(value: JsValue) = {
+      System.out.print("READ OUTPUTFILELOG:       " + value)
+      jsonFormat3(OutputFileLog).read(value)
+    } // value match {
+//      case JsArray(Vector(JsString(url), JsString(path), JsString(size_bytes))) =>
+//        OutputFileLog(url, path, size_bytes.toInt)
+//      case _ => deserializationError("Cannot deserialize into OutputFileLog")
+//    }
   }
 }

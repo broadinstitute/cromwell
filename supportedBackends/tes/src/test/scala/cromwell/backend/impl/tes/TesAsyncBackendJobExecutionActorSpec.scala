@@ -1,9 +1,8 @@
 package cromwell.backend.impl.tes
 
-import akka.testkit.ImplicitSender
 import common.mock.MockSugar
 import cromwell.backend.async.PendingExecutionHandle
-import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.StandardAsyncJob
 import cromwell.backend.{BackendJobDescriptorKey, BackendSpec}
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.JobLogger
@@ -14,8 +13,6 @@ import org.mockito.ArgumentMatchers.any
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
-import org.scalatest.{BeforeAndAfter, PrivateMethodTester}
-import spray.json.DefaultJsonProtocol
 import wom.graph.CommandCallNode
 
 import java.time.Duration
@@ -29,11 +26,7 @@ class TesAsyncBackendJobExecutionActorSpec
     with AnyFlatSpecLike
     with Matchers
     with BackendSpec
-    with ImplicitSender
-    with BeforeAndAfter
     with MockSugar
-    with DefaultJsonProtocol
-    with PrivateMethodTester
     with TableDrivenPropertyChecks {
 
   behavior of "TesAsyncBackendJobExecutionActor"
@@ -43,7 +36,6 @@ class TesAsyncBackendJobExecutionActorSpec
     PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, TesRunStatus]
   implicit private val ec: ExecutionContext = system.dispatcher
 
-  val standardParams: StandardAsyncExecutionActorParams = mock[StandardAsyncExecutionActorParams]
   val fullyQualifiedName = "this.name.is.more.than.qualified"
   val workflowName = "mockWorkflow"
   val someBlobUrl =

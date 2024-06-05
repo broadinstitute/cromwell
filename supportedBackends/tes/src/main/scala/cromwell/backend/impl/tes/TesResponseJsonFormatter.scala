@@ -12,16 +12,29 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
    * We create a custom deserializer to read the size_byte string and turn it into the Int Cromwell expects
    */
   implicit object customJsonFormatOutputFileLog extends RootJsonFormat[OutputFileLog] {
-    def write(obj: OutputFileLog): JsValue = JsObject(
-      "url" -> JsString(obj.url),
-      "path" -> JsString(obj.path),
-      "size_bytes" -> JsNumber(obj.size_bytes)
-    )
+    def write(obj: OutputFileLog): JsValue = {
+      val maybeSize: Option[(String, JsString)] = obj.size_bytes.map(size => "size_bytes" -> JsString(size.toString))
+      maybeSize match {
+        case Some(size) =>
+          JsObject(
+            "url" -> JsString(obj.url),
+            "path" -> JsString(obj.path),
+            size
+          )
+        case None =>
+          JsObject(
+            "url" -> JsString(obj.url),
+            "path" -> JsString(obj.path)
+          )
+      }
+    }
 
     def read(value: JsValue): OutputFileLog = {
       System.out.print("VALUE:       " + value)
       value.asJsObject.getFields("url", "path", "size_bytes") match {
-        case Seq(JsString(url), JsString(path), JsString(size_bytes)) => OutputFileLog(url, path, size_bytes.toInt)
+        case Seq(JsString(url), JsString(path), JsString(size_bytes)) =>
+          OutputFileLog(url, path, Option(size_bytes.toInt))
+        case Seq(JsString(url), JsString(path)) => OutputFileLog(url, path, Option.empty)
         case _ =>
           System.out.print("VALUE AS JS OBJECT:      " + value.asJsObject)
           System.out.print("VALUE GET FIELDS:        " + value.asJsObject.getFields("url", "path", "size_bytes"))

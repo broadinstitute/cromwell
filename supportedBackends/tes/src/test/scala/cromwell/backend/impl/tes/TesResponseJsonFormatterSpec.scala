@@ -27,10 +27,10 @@ class TesResponseJsonFormatterSpec
 
     val outputFileLog = parsedJson.convertTo[OutputFileLog]
 
-    outputFileLog.size_bytes shouldEqual(Some(2))
-    outputFileLog.url shouldEqual("/home/runner/work/cromwell/cromwell/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc")
-    outputFileLog.path shouldEqual("/cromwell-executions/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc")
-}
+    outputFileLog.size_bytes shouldEqual (Some(2))
+    outputFileLog.url shouldEqual "/home/runner/work/cromwell/cromwell/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc"
+    outputFileLog.path shouldEqual "/cromwell-executions/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc"
+  }
 
   it should "deserialize an OutputFileLog without size_bytes" in {
     val json =
@@ -39,8 +39,8 @@ class TesResponseJsonFormatterSpec
     val parsedJson = json.parseJson
     val outputFileLog = parsedJson.convertTo[OutputFileLog]
 
-    outputFileLog.url shouldEqual("/home/runner/work/cromwell/cromwell/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc")
-    outputFileLog.path shouldEqual("/cromwell-executions/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc")
+    outputFileLog.url shouldEqual "/home/runner/work/cromwell/cromwell/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc"
+    outputFileLog.path shouldEqual "/cromwell-executions/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc"
     outputFileLog.size_bytes shouldBe empty
   }
 }

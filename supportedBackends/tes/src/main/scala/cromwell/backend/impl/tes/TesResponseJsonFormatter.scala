@@ -12,17 +12,18 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
    * We create a custom deserializer to read the size_byte string and turn it into the Int Cromwell expects
    */
   implicit object customJsonFormatOutputFileLog extends RootJsonFormat[OutputFileLog] {
-    def write(obj: OutputFileLog): JsValue = JsArray(JsString(obj.url), JsString(obj.path), JsNumber(obj.size_bytes))
+    def write(obj: OutputFileLog): JsValue = JsObject(
+      "url" -> JsString(obj.url),
+      "path" -> JsString(obj.path),
+      "size_bytes" -> JsNumber(obj.size_bytes)
+    )
 
-    def read(value: JsValue): OutputFileLog = {
-      System.out.print("FIELDS:     " + value.asJsObject.getFields("url", "path", "size_bytes").getClass)
-      // System.out.print("GET CLASS:     " + value.getClass)
+    def read(value: JsValue): OutputFileLog =
       value.asJsObject.getFields("url", "path", "size_bytes") match {
         case Seq(JsString(url), JsString(path), JsString(size_bytes)) =>
           OutputFileLog(url, path, size_bytes.toInt)
         case _ => throw DeserializationException("Cannot deserialize OutputFileLog")
       }
-    }
   }
 
   implicit val resourcesFormat = jsonFormat6(Resources)

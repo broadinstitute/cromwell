@@ -1,6 +1,5 @@
 package cromwell.backend.impl.tes
 
-import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
@@ -15,10 +14,20 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{
+  AbortedExecutionHandle,
+  ExecutionHandle,
+  FailedNonRetryableExecutionHandle,
+  PendingExecutionHandle
+}
 import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor._
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{
+  ScriptPreambleData,
+  StandardAsyncExecutionActor,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob
+}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
@@ -269,7 +278,6 @@ object TesAsyncBackendJobExecutionActor {
     if (fetchCostData) {
       val task = fetchFullTaskViewFn(handle)
       task map { t =>
-        System.out.print("FULL TASK VIEW:      " + handle.pendingJob.jobId)
         val tesVmCostData = for {
           responseLogs <- t.logs
           startTime <- responseLogs.headOption.map(_.start_time)
@@ -294,23 +302,9 @@ object TesAsyncBackendJobExecutionActor {
       val minimalTaskView = fetchMinimalTaskViewFn(handle)
       minimalTaskView map { t =>
         val state = t.state
-        System.out.print("MINIMAL TASK VIEW:      " + t)
         getTesStatusFn(Option(state), Option.empty, handle.pendingJob.jobId)
       }
     }
-}
-
-trait HttpHandler {
-  def singleRequest(httpRequest: HttpRequest, requestHeaders: List[HttpHeader])(implicit
-    actorSystem: ActorSystem
-  ): Future[HttpResponse]
-}
-
-object HttpHandlerImpl extends HttpHandler {
-  override def singleRequest(httpRequest: HttpRequest, requestHeaders: List[HttpHeader])(implicit
-    actorSystem: ActorSystem
-  ): Future[HttpResponse] =
-    Http().singleRequest(httpRequest.withHeaders(requestHeaders))
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
@@ -581,15 +575,11 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
   }
 
-  private def fetchMinimalTesTask(handle: StandardAsyncPendingExecutionHandle): Future[MinimalTaskView] = {
-    System.out.print("INSIDE MINIMAL TASK VIEW")
+  private def fetchMinimalTesTask(handle: StandardAsyncPendingExecutionHandle): Future[MinimalTaskView] =
     makeRequest[MinimalTaskView](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=MINIMAL"))
-  }
 
-  private def fetchFullTaskView(handle: StandardAsyncPendingExecutionHandle): Future[Task] = {
-    System.out.print("INSIDE FULL TASK VIEW")
+  private def fetchFullTaskView(handle: StandardAsyncPendingExecutionHandle): Future[Task] =
     makeRequest[Task](HttpRequest(uri = s"$tesEndpoint/${handle.pendingJob.jobId}?view=FULL"))
-  }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (oldHandle: StandardAsyncPendingExecutionHandle @unchecked, e: Exception) =>
@@ -654,9 +644,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
             )
           }
         } else {
-          val resp = Unmarshal(response.entity).to[A]
-          System.out.print("UMARSHALLED RESPONSE:      " + resp)
-          resp
+          Unmarshal(response.entity).to[A]
         }
     } yield data
 }

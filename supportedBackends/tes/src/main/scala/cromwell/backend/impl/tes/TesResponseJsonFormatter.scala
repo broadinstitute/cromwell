@@ -12,19 +12,19 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
   implicit val outputFormat = jsonFormat5(Output)
   implicit val executorFormat = jsonFormat7(Executor)
   implicit val executorLogFormat = jsonFormat5(ExecutorLog)
-  implicit val outputFileLogFormat = jsonFormat2(OutputFileLog)
   implicit val taskLogFormat = jsonFormat6(TaskLog)
   implicit val taskFormat = jsonFormat11(Task)
   implicit val minimalTaskView = jsonFormat2(MinimalTaskView)
   implicit val createTaskResponseFormat = jsonFormat1(CreateTaskResponse)
   implicit val cancelTaskResponseFormat = jsonFormat0(CancelTaskResponse)
 
-//  implicit object myCustomJsonFormatOutputFileLog extends RootJsonFormat[OutputFileLog] {
-//    def write(obj: OutputFileLog): JsValue = jsonFormat3(OutputFileLog).write(obj)
-//
-//    def read(value: JsValue) = {
-//      jsonFormat3(OutputFileLog).read(value)
-//      new OutputFileLog()
-//    }
-//  }
+  implicit object customJsonFormatOutputFileLog extends RootJsonFormat[OutputFileLog] {
+    def write(obj: OutputFileLog): JsValue = JsArray(JsString(obj.url), JsString(obj.path), JsNumber(obj.size_bytes))
+
+    def read(value: JsValue) = value match {
+      case JsArray(Vector(JsString(url), JsString(path), JsString(size_bytes))) =>
+        OutputFileLog(url, path, size_bytes.toInt)
+      case _ => deserializationError("Cannot deserialize into OutputFileLog")
+    }
+  }
 }

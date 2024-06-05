@@ -15,10 +15,11 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
     def write(obj: OutputFileLog): JsValue = JsArray(JsString(obj.url), JsString(obj.path), JsNumber(obj.size_bytes))
 
     def read(value: JsValue): OutputFileLog = {
-      System.out.print("FIELDS:     " + value.asJsObject.getFields("url", "path", "size_bytes"))
-      System.out.print("GET CLASS:     " + value.getClass)
+      System.out.print("FIELDS:     " + value.asJsObject.getFields("url", "path", "size_bytes").getClass)
+      // System.out.print("GET CLASS:     " + value.getClass)
       value.asJsObject.getFields("url", "path", "size_bytes") match {
-        case Seq(JsString(url), JsString(path), JsString(size_bytes)) => OutputFileLog(url, path, size_bytes.toInt)
+        case JsArray(Vector(JsString(url), JsString(path), JsString(size_bytes))) =>
+          OutputFileLog(url, path, size_bytes.toInt)
         case _ => throw DeserializationException("Cannot deserialize OutputFileLog")
       }
     }

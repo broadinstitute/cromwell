@@ -15,7 +15,7 @@ metadata {
   status: Aborted
   "calls.scheduled_abort.let_me_run.executionStatus": "Done"
   "calls.scheduled_abort.aborted.executionStatus": "Aborted"
-  "calls.scheduled_abort.aborted.backendStatus": /Cancelled/
+  "calls.scheduled_abort.aborted.backendStatus": "Cancelled"
 }
 
 absent-metadata-keys: ["calls.scheduled_abort.lost_in_space.status"]

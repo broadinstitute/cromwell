@@ -14,20 +14,10 @@ import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
 import cromwell.backend.BackendJobLifecycleActor
-import cromwell.backend.async.{
-  AbortedExecutionHandle,
-  ExecutionHandle,
-  FailedNonRetryableExecutionHandle,
-  PendingExecutionHandle
-}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor._
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
-import cromwell.backend.standard.{
-  ScriptPreambleData,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob
-}
+import cromwell.backend.standard.{ScriptPreambleData, StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.Retry._
@@ -57,10 +47,12 @@ sealed trait TesRunStatus {
 
 case class Running(override val costData: Option[TesVmCostData] = Option.empty) extends TesRunStatus {
   def isTerminal = false
+  override def toString = "Running"
 }
 
 case class Complete(override val costData: Option[TesVmCostData] = Option.empty) extends TesRunStatus {
   def isTerminal = true
+  override def toString = "Complete"
 }
 
 case class Error(override val sysLogs: Seq[String] = Seq.empty[String],
@@ -79,6 +71,7 @@ case class Failed(override val sysLogs: Seq[String] = Seq.empty[String],
 
 case class Cancelled(override val costData: Option[TesVmCostData] = Option.empty) extends TesRunStatus {
   def isTerminal = true
+  override def toString = "Cancelled"
 }
 
 object TesAsyncBackendJobExecutionActor {
@@ -288,11 +281,8 @@ object TesAsyncBackendJobExecutionActor {
         tesVmCostData match {
           case Some(v) =>
             val state = t.state
-            val metadata = Map(
-              CallMetadataKeys.TaskStartTime -> v.startTime.getOrElse(""),
-              CallMetadataKeys.VmCostUsd -> v.vmCost.getOrElse("")
-            )
-            tellMetadataFn(metadata)
+            val taskStartTime = v.startTime.map(s => tellMetadataFn(Map(CallMetadataKeys.TaskStartTime -> s)))
+            val vmCostUsd = v.vmCost.map(v => tellMetadataFn(Map(CallMetadataKeys.VmCostUsd -> v)))
             getTesStatusFn(state, tesVmCostData, handle.pendingJob.jobId)
           case None =>
             getTesStatusFn(t.state, tesVmCostData, handle.pendingJob.jobId)

@@ -18,7 +18,7 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
       System.out.print("FIELDS:     " + value.asJsObject.getFields("url", "path", "size_bytes"))
       System.out.print("GET CLASS:     " + value.getClass)
       value.asJsObject.getFields("url", "path", "size_bytes") match {
-        case Seq(JsString(url), JsString(path), JsNumber(size_bytes)) => OutputFileLog(url, path, size_bytes.toInt)
+        case Seq(JsString(url), JsString(path), JsString(size_bytes)) => OutputFileLog(url, path, size_bytes.toInt)
         case _ => throw DeserializationException("Cannot deserialize OutputFileLog")
       }
     }

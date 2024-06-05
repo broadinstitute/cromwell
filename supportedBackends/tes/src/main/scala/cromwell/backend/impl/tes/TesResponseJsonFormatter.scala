@@ -30,18 +30,11 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
     }
 
     def read(value: JsValue): OutputFileLog = {
-      System.out.print("VALUE:       " + value)
       value.asJsObject.getFields("url", "path", "size_bytes") match {
         case Seq(JsString(url), JsString(path), JsString(size_bytes)) =>
           OutputFileLog(url, path, Option(size_bytes.toInt))
         case Seq(JsString(url), JsString(path)) => OutputFileLog(url, path, Option.empty)
-        case _ =>
-          System.out.print("VALUE AS JS OBJECT:      " + value.asJsObject)
-          System.out.print("VALUE GET FIELDS:        " + value.asJsObject.getFields("url", "path", "size_bytes"))
-          System.out.print(
-            "VALUE GET FIELDS CLASS:        " + value.asJsObject.getFields("url", "path", "size_bytes").getClass
-          )
-          throw DeserializationException("Cannot deserialize OutputFileLog")
+        case _ => throw DeserializationException("Cannot deserialize OutputFileLog")
       }
     }
   }
@@ -50,7 +43,6 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
   implicit val outputFormat = jsonFormat5(Output)
   implicit val executorFormat = jsonFormat7(Executor)
   implicit val executorLogFormat = jsonFormat5(ExecutorLog)
-//  implicit val outputFileLog = jsonFormat3(OutputFileLog)
   implicit val taskLogFormat = jsonFormat6(TaskLog)
   implicit val taskFormat = jsonFormat11(Task)
   implicit val minimalTaskView = jsonFormat2(MinimalTaskView)

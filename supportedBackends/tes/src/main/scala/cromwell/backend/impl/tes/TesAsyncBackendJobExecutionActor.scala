@@ -281,8 +281,8 @@ object TesAsyncBackendJobExecutionActor {
         tesVmCostData match {
           case Some(v) =>
             val state = t.state
-            val taskStartTime = v.startTime.map(s => tellMetadataFn(Map(CallMetadataKeys.TaskStartTime -> s)))
-            val vmCostUsd = v.vmCost.map(v => tellMetadataFn(Map(CallMetadataKeys.VmCostUsd -> v)))
+            v.startTime.foreach(s => tellMetadataFn(Map(CallMetadataKeys.TaskStartTime -> s)))
+            v.vmCost.foreach(v => tellMetadataFn(Map(CallMetadataKeys.VmCostUsd -> v)))
             getTesStatusFn(state, tesVmCostData, handle.pendingJob.jobId)
           case None =>
             getTesStatusFn(t.state, tesVmCostData, handle.pendingJob.jobId)

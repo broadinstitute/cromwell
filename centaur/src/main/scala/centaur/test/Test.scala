@@ -21,7 +21,18 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, HashDifference, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{
+  CallCacheDiff,
+  Failed,
+  HashDifference,
+  SubmittedWorkflow,
+  Succeeded,
+  TerminalStatus,
+  WaasDescription,
+  WorkflowId,
+  WorkflowMetadata,
+  WorkflowStatus
+}
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.azure.AzureUtils
 import cromwell.cloudsupport.gcp.GoogleConfiguration

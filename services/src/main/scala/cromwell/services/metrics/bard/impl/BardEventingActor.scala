@@ -39,5 +39,6 @@ object BardEventingActor {
   def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef): Props =
     Props(new BardEventingActor(serviceConfig, globalConfig, serviceRegistryActor))
       .withDispatcher(ServiceDispatcher)
+      .withMailbox("akka.bard-actor-mailbox")
 
 }

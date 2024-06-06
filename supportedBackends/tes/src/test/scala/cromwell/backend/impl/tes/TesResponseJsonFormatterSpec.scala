@@ -27,7 +27,7 @@ class TesResponseJsonFormatterSpec
 
     val outputFileLog = parsedJson.convertTo[OutputFileLog]
 
-    outputFileLog.size_bytes shouldEqual (Some(2))
+    outputFileLog.size_bytes shouldEqual 2
     outputFileLog.url shouldEqual "/home/runner/work/cromwell/cromwell/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc"
     outputFileLog.path shouldEqual "/cromwell-executions/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc"
   }
@@ -41,6 +41,6 @@ class TesResponseJsonFormatterSpec
 
     outputFileLog.url shouldEqual "/home/runner/work/cromwell/cromwell/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc"
     outputFileLog.path shouldEqual "/cromwell-executions/array_literal_locations/2859c3d9-390a-4ac2-9cc4-ee9c603156ce/call-array_literal_locations_ii/shard-2/execution/rc"
-    outputFileLog.size_bytes shouldBe empty
+    outputFileLog.size_bytes shouldEqual 0
   }
 }

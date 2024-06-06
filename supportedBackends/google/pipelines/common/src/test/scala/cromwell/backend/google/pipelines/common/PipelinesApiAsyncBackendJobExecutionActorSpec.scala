@@ -1829,7 +1829,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       Promise[BackendJobExecutionResponse](),
       statusPoller.ref,
       shouldBePreemptible = false,
-      serviceRegistryActor = serviceRegistryProbe.ref,
+      serviceRegistryActor = serviceRegistryProbe.ref
     )
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
@@ -1853,7 +1853,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     taskSummary.cloudPlatform should be(Some("gcp"))
     taskSummary.dockerImage should be(Some("ubuntu:latest"))
     taskSummary.cpuCount should be(1)
-    taskSummary.memoryBytes should be(2.147483648E9)
+    taskSummary.memoryBytes should be(2.147483648e9)
     taskSummary.startTime should not be empty
     taskSummary.cpuStartTime should be(None)
     taskSummary.endTime should not be empty
@@ -1862,7 +1862,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
   }
 
   it should "send bard metrics message on task failure" in {
-    val runStatus = UnsuccessfulRunStatus(Status.ABORTED,
+    val runStatus = UnsuccessfulRunStatus(
+      Status.ABORTED,
       Option("13: retryable error"),
       Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
       Option("fakeMachine"),
@@ -1880,7 +1881,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       Promise[BackendJobExecutionResponse](),
       statusPoller.ref,
       shouldBePreemptible = false,
-      serviceRegistryActor = serviceRegistryProbe.ref,
+      serviceRegistryActor = serviceRegistryProbe.ref
     )
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
@@ -1904,7 +1905,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     taskSummary.cloudPlatform should be(Some("gcp"))
     taskSummary.dockerImage should be(Some("ubuntu:latest"))
     taskSummary.cpuCount should be(1)
-    taskSummary.memoryBytes should be(2.147483648E9)
+    taskSummary.memoryBytes should be(2.147483648e9)
     taskSummary.startTime should not be empty
     taskSummary.cpuStartTime should be(None)
     taskSummary.endTime should not be empty

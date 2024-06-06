@@ -390,7 +390,7 @@ final case class Resources(cpu_cores: Option[Int],
                            backend_parameters: Option[Map[String, Option[String]]]
 )
 
-final case class OutputFileLog(url: String, path: String, size_bytes: Option[Int])
+final case class OutputFileLog(url: String, path: String, size_bytes: Int)
 
 final case class TaskLog(start_time: Option[String],
                          end_time: Option[String],

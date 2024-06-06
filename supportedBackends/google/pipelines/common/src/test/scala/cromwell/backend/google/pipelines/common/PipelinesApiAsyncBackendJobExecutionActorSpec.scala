@@ -32,6 +32,7 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
 import cromwell.services.metrics.bard.BardEventing.BardEventRequest
+import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.scalatest._
@@ -348,8 +349,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
       backend ! runStatus
     }
-
-    bardProbe.expectMsgAnyClassOf(classOf[BardEventRequest])
 
     Await.result(promise.future, Timeout)
   }
@@ -1796,6 +1795,106 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
 
     jesBackend.getStartAndEndTimes(runningStatus) shouldBe None
 
+  }
+
+  it should "send bard metrics message on task success" in {
+    val runStatus = RunStatus.Success(
+      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance")
+    )
+    val serviceRegistryProbe = TestProbe()
+    val statusPoller = TestProbe("statusPoller")
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+
+    val backend = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      statusPoller.ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+    )
+    backend ! Execute
+    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
+      backend ! runStatus
+    }
+
+    val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
+      case _: BardEventRequest => true
+      case _ => false
+    }
+
+    val taskSummary = bardMessage.asInstanceOf[BardEventRequest].event.asInstanceOf[TaskSummaryEvent]
+    taskSummary.workflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.parentWorkflowId should be(None)
+    taskSummary.rootWorkflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.jobTag should be(jobDescriptor.key.tag)
+    taskSummary.jobFullyQualifiedName should be(jobDescriptor.key.call.fullyQualifiedName)
+    taskSummary.jobIndex should be(None)
+    taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
+    taskSummary.terminalState shouldBe a[String]
+    taskSummary.cloudPlatform should be(Some("gcp"))
+    taskSummary.dockerImage should be(Some("ubuntu:latest"))
+    taskSummary.cpuCount should be(1)
+    taskSummary.memoryBytes should be(2.147483648E9)
+    taskSummary.startTime should not be empty
+    taskSummary.cpuStartTime should be(None)
+    taskSummary.endTime should not be empty
+    taskSummary.jobSeconds should be(0)
+    taskSummary.cpuSeconds should be(None)
+  }
+
+  it should "send bard metrics message on task failure" in {
+    val runStatus = UnsuccessfulRunStatus(Status.ABORTED,
+      Option("13: retryable error"),
+      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance"),
+      wasPreemptible = false
+    )
+    val serviceRegistryProbe = TestProbe()
+    val statusPoller = TestProbe("statusPoller")
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+
+    val backend = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      statusPoller.ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref,
+    )
+    backend ! Execute
+    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
+      backend ! runStatus
+    }
+
+    val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
+      case _: BardEventRequest => true
+      case _ => false
+    }
+
+    val taskSummary = bardMessage.asInstanceOf[BardEventRequest].event.asInstanceOf[TaskSummaryEvent]
+    taskSummary.workflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.parentWorkflowId should be(None)
+    taskSummary.rootWorkflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.jobTag should be(jobDescriptor.key.tag)
+    taskSummary.jobFullyQualifiedName should be(jobDescriptor.key.call.fullyQualifiedName)
+    taskSummary.jobIndex should be(None)
+    taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
+    taskSummary.terminalState shouldBe a[String]
+    taskSummary.cloudPlatform should be(Some("gcp"))
+    taskSummary.dockerImage should be(Some("ubuntu:latest"))
+    taskSummary.cpuCount should be(1)
+    taskSummary.memoryBytes should be(2.147483648E9)
+    taskSummary.startTime should not be empty
+    taskSummary.cpuStartTime should be(None)
+    taskSummary.endTime should not be empty
+    taskSummary.jobSeconds should be(0)
+    taskSummary.cpuSeconds should be(None)
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

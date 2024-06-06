@@ -13,20 +13,11 @@ object TesResponseJsonFormatter extends DefaultJsonProtocol {
    */
   implicit object customJsonFormatOutputFileLog extends RootJsonFormat[OutputFileLog] {
     def write(obj: OutputFileLog): JsValue = {
-      val maybeSize: Option[(String, JsString)] = obj.size_bytes.map(size => "size_bytes" -> JsString(size.toString))
-      maybeSize match {
-        case Some(size) =>
-          JsObject(
-            "url" -> JsString(obj.url),
-            "path" -> JsString(obj.path),
-            size
-          )
-        case None =>
-          JsObject(
-            "url" -> JsString(obj.url),
-            "path" -> JsString(obj.path)
-          )
-      }
+      JsObject(
+        "url" -> JsString(obj.url),
+        "path" -> JsString(obj.path),
+        "size_bytes" -> obj.size_bytes
+      )
     }
 
     def read(value: JsValue): OutputFileLog =

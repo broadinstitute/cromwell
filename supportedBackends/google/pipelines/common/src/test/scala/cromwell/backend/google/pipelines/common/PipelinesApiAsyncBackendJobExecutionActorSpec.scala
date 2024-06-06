@@ -2,6 +2,7 @@ package cromwell.backend.google.pipelines.common
 
 import java.nio.file.Paths
 import java.util.UUID
+
 import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
@@ -300,7 +301,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
                              promise: Promise[BackendJobExecutionResponse],
                              jesSingletonActor: ActorRef,
                              shouldBePreemptible: Boolean,
-                             serviceRegistryActor: ActorRef,
+                             serviceRegistryActor: ActorRef = kvService,
                              referenceInputFilesOpt: Option[Set[PipelinesApiInput]] = None,
                              dockerImageCacheTestingParamsOpt: Option[DockerImageCacheTestingParameters] = None
   ): ActorRef = {
@@ -357,9 +358,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
 
     // TODO: Use this to check the new KV entries are there!
     // val kvProbe = TestProbe("kvProbe")
-    val bardProbe = TestProbe("bardProbe")
 
-    val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible, bardProbe.ref)
+    val backend = executionActor(jobDescriptor, promise, statusPoller.ref, expectPreemptible)
     backend ! Execute
     statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
       backend ! runStatus

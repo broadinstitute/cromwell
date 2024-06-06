@@ -235,12 +235,12 @@ object TesAsyncBackendJobExecutionActor {
     }
 
   def getTaskEndTime(
-    taskLogs: Future[TaskLog]
+    taskLogs: Future[Option[TaskLog]]
   )(implicit ec: ExecutionContext): Future[Option[String]] =
-    taskLogs.map(_.end_time)
+    taskLogs.map(l => l.map(_.end_time.get))
 
-  def getErrorSeq(taskLogs: Future[TaskLog])(implicit ec: ExecutionContext): Future[Option[Seq[String]]] =
-    taskLogs.map(e => e.system_logs)
+  def getErrorSeq(taskLogs: Future[Option[TaskLog]])(implicit ec: ExecutionContext): Future[Option[Seq[String]]] =
+    taskLogs.map(e => e.map(_.system_logs.getOrElse(Seq.empty[String])))
 
   def pollTesStatus(
     handle: StandardAsyncPendingExecutionHandle,
@@ -556,7 +556,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     task.map(t => t.logs.flatMap(_.lastOption).flatMap(_.system_logs).getOrElse(Seq.empty[String]))
   }
 
-  private def getTaskLogs(handle: StandardAsyncPendingExecutionHandle): Future[TaskLog] = {
+  private def getTaskLogs(handle: StandardAsyncPendingExecutionHandle): Future[Option[TaskLog]] = {
     val task = fetchFullTaskView(handle)
     val errorStates = List("EXECUTOR_ERROR", "SYSTEM_ERROR")
 
@@ -570,7 +570,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       if (errorStates.contains(state)) {
         Future.failed(new RuntimeException(s"Failed TES request: $state"))
       }
-      taskLog.flatMap(_.headOption).head
+      taskLog.flatMap(_.headOption)
     }
   }
 

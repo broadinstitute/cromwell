@@ -17,7 +17,9 @@ The `google` stanza in the Cromwell configuration file defines how to authentica
 authentication schemes that might be used:
 
 * `application_default` (default, recommended) - Use [application default](https://developers.google.com/identity/protocols/application-default-credentials) credentials.
-* `service_account` - Use a specific service account and key file (in PEM format) to authenticate.
+<!-- * `service_account` - Use a specific service account and key file (in PEM format) to authenticate. -->
+* `service_account` - Use a specific service account and key file (in JSON format) to authenticate.
+<!-- Is user_account still being used as a method of authentication? This is not something tested and no examples are given in the docs. -->
 * `user_account` - Authenticate as a user.
 * `user_service_account` - Authenticate each individual workflow using service account credentials supplied in the workflow options.
 
@@ -35,8 +37,11 @@ google {
     {
       name = "service-account"
       scheme = "service_account"
+      // Service account ID not needed when testing, do we want to still include this?
       service-account-id = "my-service-account"
+      // Should be json file
       pem-file = "/path/to/file.pem"
+      json-file = "/path/to/file.json"
     },
     {
       name = "user-service-account"
@@ -64,9 +69,11 @@ $ gcloud config set project my-project
 
 **Service Account**
 
-First create a new service account through the [API Credentials](https://console.developers.google.com/apis/credentials) page.  Go to **Create credentials -> Service account key**.  Then in the **Service account** dropdown select **New service account**.  Fill in a name (e.g. `my-account`), and select key type of JSON.
+First create a new service account through the [API Credentials](https://console.developers.google.com/apis/credentials) page.  Go to **Create credentials -> Service account**. Fill in a name (e.g. `my-account`), an ID, and click Create and continue.
 
-Creating the account will cause the JSON file to be downloaded.  The structure of this file is roughly like this (account name is `my-account`):
+Go to IAM & Admin and click on Service Accounts. Find the service account you just created. In the Actions column, click on the kebab menu (three vertically aligned dots) and select Manage keys. 
+
+Click on the Add Key dropdown, select Create new key, and choose the recommended JSON key type. The structure of the file downloaded will look rougly like this (account name is `my-account`):
 
 ```
 {
@@ -82,9 +89,6 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/my-account%40my-project.iam.gserviceaccount.com"
 }
 ```
-
-Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
-`private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
 While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `GCPBATCH.config.batch.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Batch API and not GCS, it's important that this service account, and the service account specified in `GCPBATCH.config.batch.auth` can both read/write the location specified by `GCPBATCH.config.root`
 

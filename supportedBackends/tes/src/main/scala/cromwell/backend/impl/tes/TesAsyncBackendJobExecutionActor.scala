@@ -236,8 +236,14 @@ object TesAsyncBackendJobExecutionActor {
 
   def getTaskEndTime(
     taskLogs: Future[Option[TaskLog]]
-  )(implicit ec: ExecutionContext): Future[Option[String]] =
-    taskLogs.map(l => l.map(_.end_time.get))
+  )(implicit ec: ExecutionContext): Future[Option[String]] = {
+    taskLogs map { optTaskLog: Option[TaskLog] =>
+      for {
+        taskLog: TaskLog <- optTaskLog
+        endTime: String <- taskLog.end_time
+      } yield endTime
+    }
+  }
 
   def getErrorSeq(taskLogs: Future[Option[TaskLog]])(implicit ec: ExecutionContext): Future[Option[Seq[String]]] =
     taskLogs.map(e => e.map(_.system_logs.getOrElse(Seq.empty[String])))

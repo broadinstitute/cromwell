@@ -167,8 +167,8 @@ class TesAsyncBackendJobExecutionActorSpec
     if (pathString.contains(someBlobUrl)) Try(mockBlob) else Try(mockDefault)
   }
 
-  def mockGetTaskLogs(): Future[TaskLog] =
-    Future.successful(mockTesTaskLog)
+  def mockGetTaskLogs(): Future[Option[TaskLog]] =
+    Future.successful(Option(mockTesTaskLog))
 
   def mockGetErrorLogs(handle: StandardAsyncPendingExecutionHandle): Future[Seq[String]] = {
     val logs = mockTesTaskLog

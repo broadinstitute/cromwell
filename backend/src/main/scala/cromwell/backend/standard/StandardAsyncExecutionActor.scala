@@ -1,6 +1,5 @@
 package cromwell.backend.standard
 
-import java.io.IOException
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cats.implicits._
@@ -26,9 +25,9 @@ import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
 import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.validation._
+import cromwell.core._
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
@@ -44,6 +43,7 @@ import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
+import java.io.IOException
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -921,6 +921,15 @@ trait StandardAsyncExecutionActor
   def getTerminalMetadata(runStatus: StandardAsyncRunState): Map[String, Any] = Map.empty
 
   /**
+    * Does a given action when a task has reached a terminal state.
+    *
+    * @param runStatus The run status.
+    * @param handle The handle of the running job.
+    * @return A set of actions when the job is complete
+    */
+  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit = {}
+
+  /**
     * Attempts to abort a job when an abort signal is retrieved.
     *
     * If `requestsAbortAndDiesImmediately` is true, then the actor will die immediately after this method returns.
@@ -1269,6 +1278,7 @@ trait StandardAsyncExecutionActor
                                           StandardAsyncRunState @unchecked
           ] =>
         jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
+        // poll for end time //
         pollStatusAsync(handle) flatMap { backendRunStatus =>
           self ! WarnAboutSlownessIfNecessary
           handlePollSuccess(handle, backendRunStatus)
@@ -1304,6 +1314,7 @@ trait StandardAsyncExecutionActor
     state match {
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
+        onTaskComplete(state, oldHandle)
         tellMetadata(metadata)
         handleExecutionResult(state, oldHandle)
       case s =>

@@ -829,9 +829,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     runStatus match {
       case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.nonEmpty =>
         val offsetDateTimes = terminalRunStatus.eventList.map(_.offsetDateTime)
-        log.info(s"ID-1762 eventList: ${terminalRunStatus.eventList.map(_.name)}")
         val cpuStart = terminalRunStatus.eventList.find(event =>
-          event.name.matches("""^Worker \\"google-pipelines-worker-[A-Za-z0-9]+\\" assigned in .*""")
+          event.name.matches("""^Worker \"google-pipelines-worker-[A-Za-z0-9]+\" assigned in .*""")
         )
         Some(StartAndEndTimes(offsetDateTimes.min, cpuStart.map(_.offsetDateTime), offsetDateTimes.max))
       case _ => None

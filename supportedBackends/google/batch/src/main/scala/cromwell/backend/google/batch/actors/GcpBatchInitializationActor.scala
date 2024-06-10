@@ -16,6 +16,7 @@ import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.OAuth2Credentials
 import cromwell.backend.google.batch._
 import cromwell.backend.google.batch.actors.GcpBatchInitializationActor._
+import cromwell.backend.google.batch.api.GcpBatchRequestFactoryImpl
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{
   VirtualPrivateCloudConfiguration,
   VirtualPrivateCloudLabels,
@@ -249,6 +250,7 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
     runtimeAttributesBuilder = runtimeAttributesBuilder,
     gcpBatchConfiguration = gcpBatchConfiguration,
     gcsCredentials = gcsCreds,
+    requestFactory = new GcpBatchRequestFactoryImpl()(gcpBatchConfiguration.batchAttributes.gcsTransferConfiguration),
     privateDockerEncryptionKeyName = privateDockerEncryptionKeyName,
     privateDockerEncryptedToken = privateDockerEncryptedToken,
     vpcNetworkAndSubnetworkProjectLabels = vpcNetworkAndSubnetworkProjectLabels

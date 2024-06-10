@@ -11,5 +11,5 @@ metadata {
     workflowName: missing_input_failure
     status: Failed
     "failures.0.message": "Workflow failed"
-    "failures.0.causedBy.0.message": "Failed to evaluate 'missing_input_failure.hello.addressee' (reason 1 of 1): Evaluating read_string(wf_hello_input) failed: [Attempted 1 time(s)] - IOException: Could not read from gs://nonexistingbucket/path/doesnt/exist: File not found: gs://nonexistingbucket/path/doesnt/exist"
+    "failures.0.causedBy.0.message": "Failed to evaluate 'missing_input_failure.hello.addressee' (reason 1 of 1): Evaluating read_string(wf_hello_input) failed: [Attempted 1 time(s)] - IOException: Could not read from gs://nonexistingbucket/path/doesnt/exist: 403 Forbidden\nGET https://storage.googleapis.com/download/storage/v1/b/nonexistingbucket/o/path%2Fdoesnt%2Fexist?alt=media\ncentaur@broad-dsde-cromwell-dev.iam.gserviceaccount.com does not have storage.objects.get access to the Google Cloud Storage object. Permission &#39;storage.objects.get&#39; denied on resource (or it may not exist)."
 }

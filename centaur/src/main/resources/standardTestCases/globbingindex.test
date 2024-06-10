@@ -14,8 +14,8 @@ metadata {
   "outputs.globbingindex.staticFilesContent": "staticFile"
   "outputs.globbingindex.staticRefContent": "staticFile"
   "outputs.globbingindex.staticArrayContent": "staticArray"
-  "outputs.globbingindex.staticFilesLength": "1"
-  "outputs.globbingindex.staticRefLength": "1"
-  "outputs.globbingindex.staticArrayLength": "1"
-  "outputs.globbingindex.globArrayLength": "1"
+  "outputs.globbingindex.staticFilesLength": 1
+  "outputs.globbingindex.staticRefLength": 1
+  "outputs.globbingindex.staticArrayLength": 1
+  "outputs.globbingindex.globArrayLength": 1
 }

@@ -12,8 +12,6 @@ object RunnableUtils {
   /**
     * An image with the Google Cloud SDK installed.
     * http://gcr.io/google.com/cloudsdktool/cloud-sdk
-    *
-    * Also update `cromwell.backend.google.pipelines.common.action.ActionUtils`
     */
   val CloudSdkImage: String =
     config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:461.0.0-alpine")

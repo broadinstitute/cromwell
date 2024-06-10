@@ -14,9 +14,9 @@ metadata {
   "outputs.biscayne_read_functions_windows_line_endings.map.y": 600
   "outputs.biscayne_read_functions_windows_line_endings.map.z": 700
   "outputs.biscayne_read_functions_windows_line_endings.map.x": 500
-  "outputs.biscayne_read_functions_windows_line_endings.tsv.0": "[\"line1\",\"line one\"]"
-  "outputs.biscayne_read_functions_windows_line_endings.tsv.1": "[\"line2\",\"line two\"]"
-  "outputs.biscayne_read_functions_windows_line_endings.tsv.2": "[\"line3\",\"line three\"]"
+  "outputs.biscayne_read_functions_windows_line_endings.tsv.0": ["line1","line one"]
+  "outputs.biscayne_read_functions_windows_line_endings.tsv.1": ["line2","line two"]
+  "outputs.biscayne_read_functions_windows_line_endings.tsv.2": ["line3","line three"]
   "outputs.biscayne_read_functions_windows_line_endings.lines.0": "line1"
   "outputs.biscayne_read_functions_windows_line_endings.lines.1": "line2"
   "outputs.biscayne_read_functions_windows_line_endings.lines.2": "line3"

@@ -1783,7 +1783,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
 
     val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
     val middle = ExecutionEvent(
-      "Worker \\\"google-pipelines-worker-46b7b7d92d92f888d4a9596dad3c2007\\\" assigned in \\\"us-central1-c\\\" on a \\\"custom-2-8192\\\" machine",
+      """Worker \"google-pipelines-worker-46b7b7d92d92f888d4a9596dad3c2007\" assigned in \"us-central1-c\" on a \"custom-2-8192\" machine""",
       OffsetDateTime.now().minus(30, ChronoUnit.MINUTES),
       None
     )

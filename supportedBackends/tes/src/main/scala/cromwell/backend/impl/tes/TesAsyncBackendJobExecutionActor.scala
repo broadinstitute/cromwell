@@ -305,9 +305,10 @@ object TesAsyncBackendJobExecutionActor {
       }
     } else {
       val minimalTaskView = fetchMinimalTaskViewFn(handle)
+      val previousCostData = handle.previousState.flatMap(c => c.costData)
       minimalTaskView map { t =>
         val state = t.state
-        getTesStatusFn(Option(state), Option.empty, handle.pendingJob.jobId)
+        getTesStatusFn(Option(state), previousCostData, handle.pendingJob.jobId)
       }
     }
 }

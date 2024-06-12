@@ -1232,7 +1232,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       getPath(value) match {
         case Success(drsPath: DrsPath) => DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync().getOrElse(value)
         case Success(path) => path.pathAsString
-
         case _ => value
       }
     }

@@ -33,8 +33,8 @@ class BardEventingActor(serviceConfig: Config, globalConfig: Config, serviceRegi
         increment(NonEmptyList.of("send_event", "success"), Some("bard"))
       } catch {
         case e: Exception =>
+          logger.error(s"Failed to send event to Bard: ${e.getMessage}", e)
           increment(NonEmptyList.of("send_event", "failure"), Some("bard"))
-          throw e
       }
     // This service currently doesn't do any work on shutdown but the service registry pattern requires it
     // (see https://github.com/broadinstitute/cromwell/issues/2575)

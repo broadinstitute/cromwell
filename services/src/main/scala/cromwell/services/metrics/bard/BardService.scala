@@ -18,13 +18,7 @@ class BardService(bardUrl: String, connectionPoolSize: Int) extends LazyLogging 
 
   def sendEvent(event: BardEvent): Unit = {
     val eventLogRequest = new EventsEventLogRequest().properties(event.getProperties)
-    try
-      client.eventsEventLog(event.eventName, appId, eventLogRequest)
-    catch {
-      // Sending events to Bard is a best-effort affair. If it fails, log the error and move on.
-      case e: Exception =>
-        logger.error(s"Failed to send event to Bard: ${e.getMessage}", e)
-    }
+    client.eventsEventLog(event.eventName, appId, eventLogRequest)
     ()
   }
 

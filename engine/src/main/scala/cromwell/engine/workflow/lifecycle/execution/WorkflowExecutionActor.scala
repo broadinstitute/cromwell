@@ -189,7 +189,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
                                 benignException,
                                 None,
                                 Map.empty,
-                                omitFromWorkflowLevelFailures = true
+                                includeInWorkflowLevelFailures = false
       )
   }
 
@@ -478,13 +478,13 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
                                         reason: Throwable,
                                         returnCode: Option[Int] = None,
                                         jobExecutionMap: JobExecutionMap = Map.empty,
-                                        omitFromWorkflowLevelFailures: Boolean = false
+                                        includeInWorkflowLevelFailures: Boolean = true
   ) = {
     pushFailedCallMetadata(failedJobKey, returnCode, reason, retryableFailure = false)
 
     val dataWithFailure =
-      if (omitFromWorkflowLevelFailures) stateData
-      else stateData.executionFailure(failedJobKey, reason, jobExecutionMap)
+      if (includeInWorkflowLevelFailures) stateData.executionFailure(failedJobKey, reason, jobExecutionMap)
+      else stateData
     /*
      * If new calls are allowed don't seal the execution store as we want to go as far as possible.
      *

@@ -423,8 +423,8 @@ object Dependencies {
       exclude("org.apache.httpcomponents", "httpclient"),
     "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
       exclude("com.google.apis", "google-api-services-genomics"),
-    "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
-    "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
+    "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V,
+  "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5"),
     "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
   ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency

@@ -17,7 +17,7 @@ class BardEventSpec extends AnyFlatSpec with Matchers with BardTestUtils {
     properties.get("jobIndex") should be(jobIndex)
     properties.get("jobAttempt") should be(jobAttempt)
     properties.get("terminalState") should be(terminalState)
-    properties.get("cloudPlatform") should be(cloudPlatform)
+    properties.get("platform") should be(platform)
     properties.get("dockerImage") should be(dockerImage)
     properties.get("cpuCount") should be(cpu)
     properties.get("memoryBytes") should be(memory)

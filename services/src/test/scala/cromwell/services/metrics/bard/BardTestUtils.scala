@@ -1,5 +1,6 @@
 package cromwell.services.metrics.bard
 
+import akka.testkit.TestProbe
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
 
 import java.time.OffsetDateTime
@@ -7,6 +8,8 @@ import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 trait BardTestUtils {
+  implicit val actorSystem = akka.actor.ActorSystem("BardTestUtils")
+  val serviceRegistryProbe: TestProbe = TestProbe()
   val workflowId = UUID.randomUUID()
   val parentWorkflowId = UUID.randomUUID()
   val rootWorkflowId = UUID.randomUUID()
@@ -15,7 +18,7 @@ trait BardTestUtils {
   val jobAttempt = 1
   val jobTag = s"$jobFqn:$jobIndex:$jobAttempt"
   val terminalState = "Complete"
-  val cloudPlatform = "gcp"
+  val platform = "gcp"
   val dockerImage = "ubuntu"
   val cpu = 2
   val memory = 1024d
@@ -33,7 +36,7 @@ trait BardTestUtils {
     Some(jobIndex),
     jobAttempt,
     terminalState,
-    Some(cloudPlatform),
+    Some(platform),
     Some(dockerImage),
     cpu,
     memory,

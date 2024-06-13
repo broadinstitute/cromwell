@@ -92,7 +92,8 @@ trait StandardAsyncExecutionActor
     with StandardCachingActorHelper
     with AsyncIoActorClient
     with KvClient
-    with SlowJobWarning {
+    with SlowJobWarning
+    with PlatformSpecific {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
   override lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
@@ -910,12 +911,6 @@ trait StandardAsyncExecutionActor
   def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = None
 
   /**
-    * The cloud platform of the job, if its running on a cloud provider.
-    *
-    */
-  def cloudPlatform: Option[Platform] = None
-
-  /**
     * Returns true if the status represents a completion.
     *
     * Select meanings by backend:
@@ -1551,7 +1546,7 @@ trait StandardAsyncExecutionActor
             jobDescriptor.key.index,
             jobDescriptor.key.attempt,
             state.getClass.getSimpleName,
-            cloudPlatform.map(_.runtimeKey),
+            platform.map(_.runtimeKey),
             dockerImage,
             cpus,
             memory,

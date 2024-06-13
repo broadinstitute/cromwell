@@ -20,7 +20,7 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with BardTestUtils {
         .when(HttpRequest.request(bardApiPath).withMethod("POST"))
         .respond(HttpResponse.response.withStatusCode(200).withContentType(MediaType.APPLICATION_JSON))
 
-      val bardService = new BardService(bardUrl, 10)
+      val bardService = new BardService(bardUrl, 10, serviceRegistryProbe.ref)
 
       bardService.sendEvent(taskSummaryEvent)
 
@@ -31,14 +31,13 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with BardTestUtils {
           .withBody(new JsonBody(s"""{
                                     |   "properties": {
                                     |     "workflowId": "$workflowId",
-                                    |     "parentWorkflowId": "$parentWorkflowId",
-                                    |     "rootWorkflowId": "$rootWorkflowId",
+                                     |     "rootWorkflowId": "$rootWorkflowId",
                                     |     "jobTag": "$jobTag",
                                     |     "jobFullyQualifiedName": "$jobFqn",
                                     |     "jobIndex": $jobIndex,
                                     |     "jobAttempt": $jobAttempt,
                                     |     "terminalState": "$terminalState",
-                                    |     "cloudPlatform": "$cloudPlatform",
+                                    |     "platform": "$platform",
                                     |     "dockerImage": "$dockerImage",
                                     |     "cpuCount": $cpu,
                                     |     "memoryBytes": $memory,
@@ -71,7 +70,7 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with BardTestUtils {
             .withBody("""{ "error": "Expected Test Error" }""")
         )
 
-      val bardService = new BardService(bardUrl, 10)
+      val bardService = new BardService(bardUrl, 10, serviceRegistryProbe.ref)
 
       bardService.sendEvent(taskSummaryEvent)
 

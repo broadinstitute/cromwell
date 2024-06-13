@@ -1850,7 +1850,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     taskSummary.jobIndex should be(None)
     taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
     taskSummary.terminalState shouldBe a[String]
-    taskSummary.cloudPlatform should be(Some("gcp"))
+    taskSummary.platform should be(Some("gcp"))
     taskSummary.dockerImage should be(Some("ubuntu:latest"))
     taskSummary.cpuCount should be(1)
     taskSummary.memoryBytes should be(2.147483648e9)
@@ -1902,7 +1902,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     taskSummary.jobIndex should be(None)
     taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
     taskSummary.terminalState shouldBe a[String]
-    taskSummary.cloudPlatform should be(Some("gcp"))
+    taskSummary.platform should be(Some("gcp"))
     taskSummary.dockerImage should be(Some("ubuntu:latest"))
     taskSummary.cpuCount should be(1)
     taskSummary.memoryBytes should be(2.147483648e9)

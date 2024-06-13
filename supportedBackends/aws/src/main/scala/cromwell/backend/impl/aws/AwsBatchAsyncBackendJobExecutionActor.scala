@@ -85,7 +85,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     with StandardAsyncExecutionActor
     with AwsBatchJobCachingActorHelper
     with KvClient
-    with AskSupport {
+    with AskSupport
+    with AwsPlatform {
 
   /**
     * The builder for `IoCommands` to the storage system used by jobs executed by this backend
@@ -573,8 +574,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
-
-  override def cloudPlatform: Option[Platform] = Option(Aws)
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =
     exception match {

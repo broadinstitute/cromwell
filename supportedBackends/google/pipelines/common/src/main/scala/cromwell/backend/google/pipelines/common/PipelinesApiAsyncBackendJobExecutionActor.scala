@@ -118,7 +118,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     with PipelinesApiAbortClient
     with PipelinesApiReferenceFilesMappingOperations
     with PipelinesApiDockerCacheMappingOperations
-    with PapiInstrumentation {
+    with PapiInstrumentation
+    with GcpPlatform {
 
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
 

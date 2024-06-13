@@ -27,7 +27,8 @@ import scala.util.{Failure, Success, Try}
 abstract class PipelinesApiBackendLifecycleActorFactory(
   override val name: String,
   override val configurationDescriptor: BackendConfigurationDescriptor
-) extends StandardLifecycleActorFactory {
+) extends StandardLifecycleActorFactory
+    with GcpPlatform {
 
   // Abstract members
   protected def requiredBackendSingletonActor(serviceRegistryActor: ActorRef): Props
@@ -120,8 +121,6 @@ abstract class PipelinesApiBackendLifecycleActorFactory(
         List(dockerCredentials, googleCredentials).flatten
       case _ => List.empty[Any]
     }
-
-  override def platform: Option[Platform] = Option(Gcp)
 }
 
 object PipelinesApiBackendLifecycleActorFactory extends StrictLogging {

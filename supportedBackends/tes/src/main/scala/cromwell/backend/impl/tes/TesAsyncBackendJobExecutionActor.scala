@@ -653,5 +653,5 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         }
     } yield data
 
-  override def cloudPlatform: Option[Platform] = tesConfiguration.platform
+  override def platform: Option[Platform] = tesConfiguration.platform
 }

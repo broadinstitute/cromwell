@@ -31,7 +31,7 @@ class BardServiceSpec extends AnyFlatSpec with Matchers with BardTestUtils {
           .withBody(new JsonBody(s"""{
                                     |   "properties": {
                                     |     "workflowId": "$workflowId",
-                                     |     "rootWorkflowId": "$rootWorkflowId",
+                                    |     "rootWorkflowId": "$rootWorkflowId",
                                     |     "jobTag": "$jobTag",
                                     |     "jobFullyQualifiedName": "$jobFqn",
                                     |     "jobIndex": $jobIndex,

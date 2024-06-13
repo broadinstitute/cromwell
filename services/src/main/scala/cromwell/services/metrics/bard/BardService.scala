@@ -13,15 +13,15 @@ import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory
 import org.springframework.web.client.RestTemplate
 
-class BardService(bardUrl: String, connectionPoolSize: Int, serviceRegistry: ActorRef) extends LazyLogging with
-  CromwellInstrumentation {
+class BardService(bardUrl: String, connectionPoolSize: Int, serviceRegistry: ActorRef)
+    extends LazyLogging
+    with CromwellInstrumentation {
 
   private val restTemplate = makeRestTemplateWithPooling
   private val client = getEventApi(restTemplate)
   private val appId = "cromwell"
 
   override lazy val serviceRegistryActor: ActorRef = serviceRegistry
-
 
   def sendEvent(event: BardEvent): Unit = {
     try {

@@ -19,7 +19,8 @@ class BardEventingActor(serviceConfig: Config, globalConfig: Config, serviceRegi
   implicit val ec: ExecutionContext = context.dispatcher
 
   lazy val bardConfig: BardConfig = BardConfig(serviceConfig)
-  lazy val bardService: BardService = new BardService(bardConfig.baseUrl, bardConfig.connectionPoolSize, serviceRegistry)
+  lazy val bardService: BardService =
+    new BardService(bardConfig.baseUrl, bardConfig.connectionPoolSize, serviceRegistry)
 
   override def receive: Receive = {
     case BardEventRequest(event) if bardConfig.enabled => bardService.sendEvent(event)

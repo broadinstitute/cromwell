@@ -2,7 +2,8 @@
 
 ## 88 Release Notes
 
-### Improved logging behavior
+### Improved status reporting behavior
+
 When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure. 
 
 ### Optional docker soft links

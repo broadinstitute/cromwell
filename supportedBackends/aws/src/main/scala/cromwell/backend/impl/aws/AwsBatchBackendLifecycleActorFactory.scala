@@ -33,12 +33,11 @@ package cromwell.backend.impl.aws
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.{
-  Aws,
+  AwsPlatform,
   BackendConfigurationDescriptor,
   BackendInitializationData,
   BackendWorkflowDescriptor,
-  JobExecutionMap,
-  Platform
+  JobExecutionMap
 }
 import cromwell.backend.standard.{
   StandardAsyncExecutionActor,

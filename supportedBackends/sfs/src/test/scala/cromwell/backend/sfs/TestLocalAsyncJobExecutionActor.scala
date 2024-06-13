@@ -5,12 +5,15 @@ import akka.testkit.TestActorRef
 import cromwell.backend.io.WorkflowPathsWithDocker
 import cromwell.backend.standard._
 import cromwell.backend.validation.{DockerValidation, RuntimeAttributesValidation}
-import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, MinimumRuntimeSettings}
+import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, MinimumRuntimeSettings, Platform}
 import cromwell.core.SimpleIoActor
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 
 class TestLocalAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
     extends BackgroundAsyncJobExecutionActor {
+
+  override def platform: Option[Platform] = None
+
   override lazy val processArgs: SharedFileSystemCommand = {
     val script = jobPaths.script.pathAsString
     if (isDockerRun) {

@@ -22,6 +22,7 @@ trait SSHAccessAction {
       .withEntrypointCommand(ActionUtils.sshEntryPoint)
       .setPortMappings(ActionUtils.sshPortMappings.asJava)
       .setRunInBackground(true)
+      .setIgnoreExitStatus(true)
       .setMounts(mounts.asJava)
 
     val describeAction = ActionBuilder.describeDocker("ssh access action", sshAction)

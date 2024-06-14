@@ -8,6 +8,6 @@ files {
 }
 
 metadata {
-  "calls.docker_hash_quay.quay.runtimeAttributes.docker": "sha256:63f785bf6185a63332fd9ccdaaabc66f47bc63564e2cecc6f99194002ca73ac3",
+  "calls.docker_hash_quay.quay.runtimeAttributes.docker": "quay.io/fedora/fedora-minimal@sha256:63f785bf6185a63332fd9ccdaaabc66f47bc63564e2cecc6f99194002ca73ac3",
   "calls.docker_hash_quay.quay.dockerImageUsed": "quay.io/fedora/fedora-minimal@sha256:63f785bf6185a63332fd9ccdaaabc66f47bc63564e2cecc6f99194002ca73ac3"
 }

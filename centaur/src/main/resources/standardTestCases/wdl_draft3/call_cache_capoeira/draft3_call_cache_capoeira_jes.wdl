@@ -306,7 +306,7 @@ task read_files_different_docker {
     Boolean done = true
     String s = read_string("out") }
   runtime {
-    docker: "ubuntu@sha256:45b23dee08af5e43a7fea6c4cf9c25ccf269ee113168c19722f87876677c5cb2"
+    docker: "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     continueOnReturnCode: 0
     failOnStderr: false
   }

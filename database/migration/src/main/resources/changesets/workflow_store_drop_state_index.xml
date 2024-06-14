@@ -6,7 +6,7 @@
 
     <!-- This index had low cardinality, we found that ignoring it yielded empirically better performance -->
     <changeSet author="anichols" id="workflow_store_drop_state_index" dbms="mysql,hsqldb,postgresql,mariadb">
-        <dropIndex tableName="WORKFLOW_STORE_ENTRY" indexName="WORKFLOW_STORE_STATE_IDX"/>
+        <dropIndex tableName="WORKFLOW_STORE_ENTRY" indexName="IX_WORKFLOW_STORE_ENTRY_WS"/>
     </changeSet>
 
 </databaseChangeLog>

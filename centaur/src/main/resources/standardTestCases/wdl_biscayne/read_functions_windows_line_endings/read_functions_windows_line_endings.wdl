@@ -33,7 +33,7 @@ task read_map {
   }
 
   runtime {
-    docker: "python:3.5.0"
+    docker: "python:3.12.4"
   }
 }
 
@@ -49,7 +49,7 @@ task read_lines {
   }
 
   runtime {
-    docker: "python:3.5.0"
+    docker: "python:3.12.4"
   }
 }
 
@@ -65,7 +65,7 @@ task read_tsv {
   }
 
   runtime {
-    docker: "python:3.5.0"
+    docker: "python:3.12.4"
   }
 }
 
@@ -81,6 +81,6 @@ task read_json {
   }
 
   runtime {
-    docker: "python:3.5.0"
+    docker: "python:3.12.4"
   }
 }

@@ -21,6 +21,9 @@ such as "PAPI error code 9", "no available zones", and/or "quota too low".
 
 Resolved a hotspot in Cromwell to make the `size()` engine function perform much faster on file arrays. Common examples of file arrays could include globs or scatter-gather results. This enhancement applies only to WDL 1.0 and later, because that's when `size()` added [support for arrays](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#acceptable-compound-input-types).
 
+### Removed `IX_WORKFLOW_STORE_ENTRY_WS` on `WORKFLOW_STORE`
+
+This low-cardinality index counterintuitively slowed down workflow pickup queries.
 
 ## 87 Release Notes
 

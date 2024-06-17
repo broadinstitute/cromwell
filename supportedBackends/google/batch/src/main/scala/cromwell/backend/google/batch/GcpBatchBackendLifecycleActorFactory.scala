@@ -26,7 +26,8 @@ import scala.util.{Failure, Try}
 
 class GcpBatchBackendLifecycleActorFactory(override val name: String,
                                            override val configurationDescriptor: BackendConfigurationDescriptor
-) extends StandardLifecycleActorFactory {
+) extends StandardLifecycleActorFactory
+    with GcpPlatform {
 
   override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
 
@@ -103,8 +104,6 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
       )(requestHandler)
     )
   }
-
-  override def platform: Option[Platform] = Option(Gcp)
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {

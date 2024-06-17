@@ -2,8 +2,8 @@ package cromwell.backend.impl.sfs.config
 
 import java.nio.file.FileAlreadyExistsException
 import java.time.Instant
-
 import common.validation.Validation._
+import cromwell.backend.Platform
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
@@ -206,6 +206,8 @@ class BackgroundConfigAsyncJobExecutionActor(override val standardParams: Standa
     extends ConfigAsyncJobExecutionActor
     with BackgroundAsyncJobExecutionActor {
 
+  override def platform: Option[Platform] = None
+
   override def killArgs(job: StandardAsyncJob): SharedFileSystemCommand =
     if (isDockerRun) jobScriptArgs(job, "kill", KillDockerTask, Map(DockerCidInput -> dockerCidInputValue))
     else super[BackgroundAsyncJobExecutionActor].killArgs(job)
@@ -219,6 +221,7 @@ class BackgroundConfigAsyncJobExecutionActor(override val standardParams: Standa
   */
 class DispatchedConfigAsyncJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
     extends ConfigAsyncJobExecutionActor {
+  override def platform: Option[Platform] = None
 
   lazy val jobIdRegexString = configurationDescriptor.backendConfig.getString(JobIdRegexConfig)
 

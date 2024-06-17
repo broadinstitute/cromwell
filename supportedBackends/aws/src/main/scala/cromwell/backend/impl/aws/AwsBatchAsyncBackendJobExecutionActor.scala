@@ -85,7 +85,8 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     with StandardAsyncExecutionActor
     with AwsBatchJobCachingActorHelper
     with KvClient
-    with AskSupport {
+    with AskSupport
+    with AwsPlatform {
 
   /**
     * The builder for `IoCommands` to the storage system used by jobs executed by this backend

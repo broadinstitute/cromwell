@@ -33,6 +33,7 @@ package cromwell.backend.impl.aws
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.{
+  AwsPlatform,
   BackendConfigurationDescriptor,
   BackendInitializationData,
   BackendWorkflowDescriptor,
@@ -56,7 +57,8 @@ import wom.graph.CommandCallNode
   * @param configurationDescriptor configuration descriptor for the backend
   */
 case class AwsBatchBackendLifecycleActorFactory(name: String, configurationDescriptor: BackendConfigurationDescriptor)
-    extends StandardLifecycleActorFactory {
+    extends StandardLifecycleActorFactory
+    with AwsPlatform {
 
   override lazy val initializationActorClass: Class[_ <: StandardInitializationActor] =
     classOf[AwsBatchInitializationActor]
@@ -106,4 +108,5 @@ case class AwsBatchBackendLifecycleActorFactory(name: String, configurationDescr
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] =
     Option(AwsBatchSingletonActor.props(configuration.awsConfig.region, Option(configuration.awsAuth)))
+
 }

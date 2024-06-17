@@ -56,7 +56,7 @@ class TernaryIfEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
   typeTests foreach { case (name, expression, expected) =>
     it should s"evaluate the expression '$name'" in {
-      expression.evaluateType(Map.empty) shouldBeValid expected
+      expression.evaluateType(Map.empty, Map.empty) shouldBeValid expected
     }
   }
 }

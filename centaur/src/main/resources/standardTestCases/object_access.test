@@ -1,6 +1,5 @@
 name: object_access
 testFormat: workflowsuccess
-tags: ["wdl_upgrade"]
 
 files {
   workflow: object_access/object_access.wdl
@@ -12,6 +11,6 @@ metadata {
   "outputs.object_access.lines.0": "1",
   "outputs.object_access.lines.1": "2",
   "outputs.object_access.lines.2": "3",
-  "outputs.object_access.int_a": "1",
-  "outputs.object_access.int_b": "2",
+  "outputs.object_access.int_a": 1,
+  "outputs.object_access.int_b": 2,
 }

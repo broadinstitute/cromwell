@@ -21,13 +21,14 @@ Each `call` has its own subdirectory located at `<workflow_root>/call-<call_name
 Any input files to a call need to be localized into the `<call_dir>/inputs` directory. There are different localization strategies that Cromwell will try until one works:
 
 * `hard-link` - This will create a hard link to the file
-* `soft-link` - Create a symbolic link to the file. This strategy is not applicable for tasks which specify a Docker image and will be ignored.
+* `soft-link` - Create a symbolic link to the file. This strategy is not enabled by default for tasks which specify a 
+  Docker image and will be ignored.
 * `copy` - Make a copy the file
 * `cached-copy` An experimental feature. This copies files to a file cache in 
 `<workflow_root>/cached-inputs` and then hard links them in the `<call_dir>/inputs` directory. 
 
 `cached-copy` is intended for a shared filesystem that runs on multiple physical disks, where docker containers are used. 
-Hard-links don't work between different physical disks and soft-links don't work with docker. Copying uses a lot of
+Hard-links don't work between different physical disks and soft-links don't work with docker by default. Copying uses a lot of
 space if a multitude of tasks use the same input. `cached-copy` copies the file only once to the physical disk containing
 the `<workflow_root>` and then uses hard links for every task that needs the input file. This can save a lot of space.
 
@@ -44,6 +45,72 @@ filesystems {
  }
 }
 ```
+
+### Optional docker soft links
+
+By default when Cromwell runs a local container it only mounts the workflow's execution directory. Thus any symbolic or
+soft links pointing to files outside of the execution directory will resolve to paths that are not accessible within the
+container.
+
+As discussed above regarding `cache-copy`, `soft-link` is disabled by default on docker and other container
+environments, and hard-links do not work across different physical disks.
+
+However, it is possible to manually configure Cromwell to mount input paths such that soft links resolve outside and
+inside containers.
+
+```hocon
+backend {
+  default = "SlurmDocker"
+  providers {
+    SlurmDocker {
+      actor-factory = "cromwell.backend.impl.sfs.config.ConfigBackendLifecycleActorFactory"
+      config {
+        runtime-attributes = """
+        String? docker
+        """
+        # https://slurm.schedmd.com/sbatch.html
+        submit-docker = """
+        set -euo pipefail
+        CACHE_DIR=$HOME/.singularity/cache
+        mkdir -p $CACHE_DIR
+        LOCK_FILE=$CACHE_DIR/singularity_pull_flock
+        DOCKER_NAME=$(sed -e 's/[^A-Za-z0-9._-]/_/g' <<< ${docker})
+        IMAGE=$CACHE_DIR/$DOCKER_NAME.sif
+        (
+          flock --verbose --exclusive --timeout 900 9 || exit 1
+          if [ ! -e "$IMAGE" ]; then
+            singularity build $IMAGE docker://${docker}
+          fi
+        ) 9>$LOCK_FILE
+        sbatch \
+          -J ${job_name} \
+          -D ${cwd} \
+          -o ${cwd}/execution/stdout \
+          -e ${cwd}/execution/stderr \
+          --wrap "singularity exec --containall --bind ${cwd}:${docker_cwd} --bind /mnt/one:/mnt/one:ro --bind /mnt/two:/mnt/two:ro $IMAGE ${job_shell} ${docker_script}"
+        """
+        # ... other configuration ...
+        filesystems {
+          local {
+            caching.duplication-strategy = ["copy"]
+            localization = ["soft-link", "copy"]
+            docker.allow-soft-links: true
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+The important parts of the example configuration above are:
+* `config.filesystems.local.docker.allow-soft-links` set to `true`
+* `config.submit-docker` containing `--bind /mnt/one:/mnt/one:ro --bind /mnt/two:/mnt/two:ro`
+
+In this example the two directories `/mnt/one` and and `/mnt/two` will also be available within containers at their
+original paths outside the container. So soft links pointing to paths under those directories will resolve during the
+job execution. Note that if a user runs a workflow using an input file `/mnt/three/path/to/file` the job will fail
+during execution as `/mnt/three` was not present inside the running container.
 
 ### Additional FileSystems
 

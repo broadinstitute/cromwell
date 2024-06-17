@@ -1,4 +1,4 @@
-import Version.cromwellVersion
+import Version.{Debug, Release, Snapshot, Standard, cromwellVersion}
 import org.apache.ivy.Ivy
 import org.apache.ivy.core.IvyPatternHelper
 import org.apache.ivy.core.module.descriptor.{DefaultModuleDescriptor, MDArtifact}
@@ -36,20 +36,26 @@ object Publishing {
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
      */
     dockerTags := {
-      val versionsCsv = if (Version.isSnapshot) {
-        // Tag looks like `85-443a6fc-SNAP`
-        version.value
-      } else {
-        if (Version.isRelease) {
-          // Tags look like `85`, `85-443a6fc`
-          s"$cromwellVersion,${version.value}"
-        } else {
-          // Tag looks like `85-443a6fc`, `latest`
-          s"${version.value},latest"
-        }
+      val tags = Version.buildType match {
+        case Snapshot =>
+          // Ordinary local build
+          // Looks like `85-443a6fc-SNAP`
+          Seq(version.value)
+        case Release =>
+          // Looks like `85`, `85-443a6fc`
+          Seq(cromwellVersion, version.value)
+        case Debug =>
+          // Ordinary local build with debug stuff
+          // Looks like `85-443a6fc-DEBUG`
+          Seq(version.value)
+        case Standard =>
+          // Merge to `develop`
+          // Looks like `85-443a6fc`, `latest`, `develop`
+          // TODO: once we automate releases, `latest` should move to `Release`
+          Seq(version.value, "latest", "develop")
       }
 
-      // Travis applies (as of 10/22) the `dev` and `develop` tags on merge to `develop`
+      val versionsCsv = tags.mkString(",")
       sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
     },
     docker / imageNames := dockerTags.value map { tag =>
@@ -67,6 +73,11 @@ object Publishing {
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")
+
+        // Extra tools in debug mode only
+        if (Version.buildType == Debug) {
+          addInstruction(installDebugFacilities(version.value))
+        }
 
         /*
         If you use the 'exec' form for an entry point, shell processing is not performed and
@@ -115,6 +126,43 @@ object Publishing {
       removeIntermediateContainers = BuildOptions.Remove.Always
     )
   )
+
+  /**
+    * Install packages needed for debugging when shelled in to a running image.
+    *
+    * This includes:
+    * - The JDK, which includes tools like `jstack` not present in the JRE
+    * - The YourKit Java Profiler
+    * - Various Linux system & development utilities
+    *
+    * @return Instruction to run in the build
+    */
+  def installDebugFacilities(displayVersion: String): Instruction = {
+    import sbtdocker.Instructions
+    import java.time.{ZoneId, ZonedDateTime}
+    import java.time.format.DateTimeFormatter
+
+    val buildTime = ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+
+    // It is optimal to use a single `Run` instruction to minimize the number of layers in the image.
+    //
+    // Documentation:
+    // - https://www.yourkit.com/docs/java-profiler/2024.3/help/docker_broker.jsp#setup
+    Instructions.Run(
+      s"""apt-get update -qq && \\
+         |apt-get install -qq --no-install-recommends file gpg htop jq less nload unzip vim && \\
+         |rm -rf /var/lib/apt/lists/* && \\
+         |mkdir /tmp/docker-build-cache && \\
+         |wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2024.3-docker.zip -P /tmp/docker-build-cache/ && \\
+         |unzip /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3-docker.zip -d /tmp/docker-build-cache && \\
+         |mkdir -p /usr/local/YourKit-JavaProfiler-2024.3/bin/ && \\
+         |cp -R /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ /usr/local/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ && \\
+         |rm -rf /tmp/docker-build-cache && \\
+         |echo "Version $displayVersion built at $buildTime" > /etc/motd && \\
+         |echo "[ ! -z "\\$$TERM" -a -r /etc/motd ] && cat /etc/motd" > /etc/bash.bashrc
+         |""".stripMargin
+    )
+  }
 
   def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] =
     if (pushEnabled) {

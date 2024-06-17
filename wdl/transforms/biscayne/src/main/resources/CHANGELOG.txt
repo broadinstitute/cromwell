@@ -2,3 +2,14 @@
 Synced grammar from OpenWDL `development` version, which is actually development of 2.0. There is no 1.1 Hermes grammar, develop it here.
 Changed version declaration to `development1_1`.
 This disallows `version 1.1` workflows to run with incomplete support. Once development is finished, change to `1.1`.
+
+2024-02-28
+When changing the grammar file, generate a new parser by:
+- changing current working directory to cromwell/wdl/transforms/biscayne
+- running: hermes generate src/main/resources/grammar.hgr \
+          --language=java \
+          --directory=src/main/java \
+          --name=wdl \
+          --java-package=wdl.biscayne.parser \
+          --java-use-apache-commons --java-imports=org.apache.commons.lang3.StringEscapeUtils \
+          --header

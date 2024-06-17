@@ -25,7 +25,7 @@ object GcpBatchAttachedDisk {
         }
       case MountedDiskPattern(mountPoint, sizeGb, diskType) =>
         (sizeGbValidation(sizeGb), diskTypeValidation(diskType)) mapN { (s, dt) =>
-          PipelinesApiEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint))
+          BatchApiEmptyMountedDisk(dt, s, DefaultPathBuilder.get(mountPoint))
         }
       case _ =>
         s"Disk strings should be of the format 'local-disk SIZE TYPE' or '/mount/point SIZE TYPE' but got: '$s'".invalidNel
@@ -65,8 +65,7 @@ trait GcpBatchAttachedDisk {
   def mountPoint: Path
 }
 
-case class PipelinesApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path)
-    extends GcpBatchAttachedDisk {
+case class BatchApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint: Path) extends GcpBatchAttachedDisk {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
 
   override def toString: String = s"$mountPoint $sizeGb ${diskType.diskTypeName}"

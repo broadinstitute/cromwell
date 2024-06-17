@@ -26,6 +26,9 @@ object CallMetadataKeys {
   val BackendLabels = "backendLabels"
   val Labels = "labels"
   val CommandLine = "commandLine"
+  val VmCostUsd = "vmCostUsd"
+  val TaskStartTime = "taskStartTime"
+  val TaskEndTime = "taskEndTime"
 
   object CallCachingKeys {
     val EffectiveModeKey = CallCaching + MetadataKey.KeySeparator + "effectiveCallCachingMode"

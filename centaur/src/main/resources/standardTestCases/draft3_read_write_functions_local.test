@@ -14,9 +14,9 @@ metadata {
   "outputs.read_write_functions.lines.0": "line1"
   "outputs.read_write_functions.lines.1": "line2"
   "outputs.read_write_functions.lines.2": "line3"
-  "outputs.read_write_functions.tsv.0": "[\"line1\",\"line one\"]"
-  "outputs.read_write_functions.tsv.1": "[\"line2\",\"line two\"]"
-  "outputs.read_write_functions.tsv.2": "[\"line3\",\"line three\"]"
+  "outputs.read_write_functions.tsv.0": ["line1","line one"]
+  "outputs.read_write_functions.tsv.1": ["line2","line two"]
+  "outputs.read_write_functions.tsv.2": ["line3","line three"]
   "outputs.read_write_functions.map.key1": "value1"
   "outputs.read_write_functions.map.key2": "value2"
   "outputs.read_write_functions.map.key3": "value3"

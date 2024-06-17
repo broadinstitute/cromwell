@@ -192,7 +192,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         workflowActor ! StartWorkflowCommand
       }
       Await.result(promise.future, TestExecutionTimeout)
-      probe.expectTerminated(workflowActor, 2.seconds)
+      probe.expectTerminated(workflowActor, 15.seconds)
       supervisor.expectMsgPF(AwaitAlmostNothing, "parent should get a failed response") {
         case x: WorkflowFailedResponse =>
           x.workflowId should be(workflowId)

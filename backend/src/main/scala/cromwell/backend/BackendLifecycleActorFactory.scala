@@ -14,7 +14,7 @@ import wom.graph.CommandCallNode
 
 import scala.concurrent.ExecutionContext
 
-trait BackendLifecycleActorFactory {
+trait BackendLifecycleActorFactory extends PlatformSpecific {
 
   /**
     * Name of the backend.
@@ -162,6 +162,11 @@ trait BackendLifecycleActorFactory {
   def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor,
                             initializationDataOption: Option[BackendInitializationData]
   ): List[Any] = List.empty
+
+  /**
+    * Allows Cromwell to self-identify which cloud it's running on for runtime attribute purposes
+    */
+  override def platform: Option[Platform] = None
 }
 
 object BackendLifecycleActorFactory {

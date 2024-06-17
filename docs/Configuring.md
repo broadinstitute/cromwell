@@ -134,18 +134,18 @@ system.max-concurrent-workflows = 5000
 
 **New Workflow Poll Rate**
 
-Cromwell will look for new workflows to start on a regular interval, configured as a number of seconds. You can change the polling rate from the default `2` seconds by editing the value:
+Cromwell will look for new workflows to start on a regular interval, configured as a number of seconds. You can change the polling rate from the default `20` seconds by editing the value:
 
 ```hocon
-system.new-workflow-poll-rate = 2
+system.new-workflow-poll-rate = 20
 ```
 
 **Max Workflow Launch Count**
 
-On every poll, Cromwell will take at limited number of new submissions, provided there are new workflows to launch and the `system.max-concurrent-workflows` number has not been reached. While the default is to launch up to `50` workflows, you can override this by setting:
+On every poll, Cromwell will take at limited number of new submissions, provided there are new workflows to launch and the `system.max-concurrent-workflows` number has not been reached. While the default is to launch up to `1` workflow, you can override this by setting:
 
 ```hocon
-system.max-workflow-launch-count = 50
+system.max-workflow-launch-count = 1
 ```
 
 ***Abort configuration***
@@ -519,7 +519,7 @@ config section:
              md5.
     * `md5`. The well-known md5sum algorithm
 * Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file 
-caching strategy and can therefore never work with containers.
+caching strategy and can therefore do not work with containers by default.
     * `path` creates a md5 hash of the path.
     * `path+modtime` creates a md5 hash of the path and its modification time.
 * Fingerprinting. This strategy works with containers.

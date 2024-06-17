@@ -10,7 +10,7 @@ workflow import_structs {
 
   output {
     B b_out = b
-    String sc_out = sc.i
+    Int sc_out = sc.i
     String sc2_out = sc2.s
   }
 }

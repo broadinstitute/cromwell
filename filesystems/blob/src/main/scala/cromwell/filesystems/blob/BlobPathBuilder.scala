@@ -110,12 +110,12 @@ object BlobPath {
   // They do this for all files they touch, regardless of size, and the root/metadata property is authoritative over native.
   //
   // N.B. most if not virtually all large files in the wild will NOT have this key populated because they were not created
-  // by TES or its associated upload utility [4].
+  // by TES or its associated upload utility [3].
   //
   // [0] https://learn.microsoft.com/en-us/azure/storage/blobs/scalability-targets
   // [1] https://learn.microsoft.com/en-us/rest/api/storageservices/version-2019-12-12
   // [2] https://github.com/microsoft/ga4gh-tes/blob/03feb746bb961b72fa91266a56db845e3b31be27/src/Tes.Runner/Transfer/BlobBlockApiHttpUtils.cs#L25
-  // [4] https://github.com/microsoft/ga4gh-tes/blob/main/src/Tes.RunnerCLI/scripts/roothash.sh
+  // [3] https://github.com/microsoft/ga4gh-tes/blob/main/src/Tes.RunnerCLI/scripts/roothash.sh
   private val largeBlobFileMetadataKey = "md5_4mib_hashlist_root_hash"
 
   def cleanedNioPathString(nioString: String): String = {

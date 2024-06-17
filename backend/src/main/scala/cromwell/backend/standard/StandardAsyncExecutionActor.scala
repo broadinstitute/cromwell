@@ -1,6 +1,5 @@
 package cromwell.backend.standard
 
-import java.io.IOException
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.event.LoggingReceive
 import cats.implicits._
@@ -24,25 +23,32 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
+import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.validation._
+import cromwell.core._
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
-import cromwell.core._
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
+import cromwell.services.metrics.bard.BardEventing.BardEventRequest
+import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
+import wdl4s.parser.MemoryUnit
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
+import java.io.IOException
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -69,6 +75,8 @@ case class DefaultStandardAsyncExecutionActorParams(
 // Override to `false` when we need the script to set an environment variable in the parent shell.
 case class ScriptPreambleData(bashString: String, executeInSubshell: Boolean = true)
 
+case class StartAndEndTimes(jobStart: OffsetDateTime, cpuStart: Option[OffsetDateTime], jobEnd: OffsetDateTime)
+
 /**
   * An extension of the generic AsyncBackendJobExecutionActor providing a standard abstract implementation of an
   * asynchronous polling backend.
@@ -84,7 +92,8 @@ trait StandardAsyncExecutionActor
     with StandardCachingActorHelper
     with AsyncIoActorClient
     with KvClient
-    with SlowJobWarning {
+    with SlowJobWarning
+    with PlatformSpecific {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
   override lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
@@ -748,10 +757,10 @@ trait StandardAsyncExecutionActor
     RuntimeAttributesValidation.extract(FailOnStderrValidation.instance, validatedRuntimeAttributes)
 
   /**
-    * Returns the behavior for continuing on the return code, obtained by converting `returnCodeContents` to an Int.
-    *
-    * @return the behavior for continuing on the return code.
-    */
+   * Returns the behavior for continuing on the return code, obtained by converting `returnCodeContents` to an Int.
+   *
+   * @return the behavior for continuing on the return code.
+   */
   lazy val continueOnReturnCode: ContinueOnReturnCode =
     RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
 
@@ -894,7 +903,25 @@ trait StandardAsyncExecutionActor
   def getTerminalEvents(runStatus: StandardAsyncRunState): Seq[ExecutionEvent] = Seq.empty
 
   /**
+    * Get the min and max event times from a terminal run status
+    *
+    * @param runStatus The terminal run status, as defined by isTerminal.
+    * @return The min and max event times, if events exist.
+    */
+  def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = None
+
+  /**
     * Returns true if the status represents a completion.
+    *
+    * Select meanings by backend:
+    * - TES:
+    *     `cromwell.backend.impl.tes.Complete` derived from "state": "COMPLETE"
+    * - Life Sciences:
+    *     `com.google.api.services.genomics.v2alpha1.model.Operation.getDone` is true
+    *     -- AND --
+    *     `com.google.api.services.genomics.v2alpha1.model.Operation#getError` is empty
+    * - GCP Batch:
+    *     `com.google.cloud.batch.v1.JobStatus.State` is `SUCCEEDED`
     *
     * @param runStatus The run status.
     * @return True if the job is done.
@@ -908,6 +935,15 @@ trait StandardAsyncExecutionActor
     * @return The job metadata.
     */
   def getTerminalMetadata(runStatus: StandardAsyncRunState): Map[String, Any] = Map.empty
+
+  /**
+    * Does a given action when a task has reached a terminal state.
+    *
+    * @param runStatus The run status.
+    * @param handle The handle of the running job.
+    * @return A set of actions when the job is complete
+    */
+  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit = {}
 
   /**
     * Attempts to abort a job when an abort signal is retrieved.
@@ -1054,7 +1090,7 @@ trait StandardAsyncExecutionActor
     * @return The execution handle.
     */
   def retryElseFail(backendExecutionStatus: Future[ExecutionHandle],
-                    retryWithMoreMemory: Boolean = false
+                    memoryRetry: MemoryRetryResult = MemoryRetryResult.none
   ): Future[ExecutionHandle] =
     backendExecutionStatus flatMap {
       case failedRetryableOrNonRetryable: FailedExecutionHandle =>
@@ -1069,33 +1105,46 @@ trait StandardAsyncExecutionActor
           case None => Map.empty[String, KvPair]
         }
 
-        val maxRetriesNotReachedYet = previousFailedRetries < maxRetries
         failedRetryableOrNonRetryable match {
-          case failed: FailedNonRetryableExecutionHandle if maxRetriesNotReachedYet =>
-            (retryWithMoreMemory, memoryRetryFactor, previousMemoryMultiplier) match {
-              case (true, Some(retryFactor), Some(previousMultiplier)) =>
-                val nextMemoryMultiplier = previousMultiplier * retryFactor.value
-                saveAttrsAndRetry(failed,
-                                  kvsFromPreviousAttempt,
-                                  kvsForNextAttempt,
-                                  incFailedCount = true,
-                                  Option(nextMemoryMultiplier)
-                )
-              case (true, Some(retryFactor), None) =>
-                saveAttrsAndRetry(failed,
-                                  kvsFromPreviousAttempt,
-                                  kvsForNextAttempt,
-                                  incFailedCount = true,
-                                  Option(retryFactor.value)
-                )
-              case (_, _, _) =>
-                saveAttrsAndRetry(failed, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
-            }
-          case failedNonRetryable: FailedNonRetryableExecutionHandle => Future.successful(failedNonRetryable)
+          case failedNonRetryable: FailedNonRetryableExecutionHandle if previousFailedRetries < maxRetries =>
+            // The user asked us to retry finitely for them, possibly with a memory modification
+            evaluateFailureRetry(failedNonRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, memoryRetry)
+          case failedNonRetryable: FailedNonRetryableExecutionHandle =>
+            // No reason to retry
+            Future.successful(failedNonRetryable)
           case failedRetryable: FailedRetryableExecutionHandle =>
+            // Retry infinitely and unconditionally (!)
             saveAttrsAndRetry(failedRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = false)
         }
       case _ => backendExecutionStatus
+    }
+
+  private def evaluateFailureRetry(handle: FailedNonRetryableExecutionHandle,
+                                   kvsFromPreviousAttempt: Map[String, KvPair],
+                                   kvsForNextAttempt: Map[String, KvPair],
+                                   memoryRetry: MemoryRetryResult
+  ): Future[FailedRetryableExecutionHandle] =
+    (memoryRetry.oomDetected, memoryRetry.factor, memoryRetry.previousMultiplier) match {
+      case (true, Some(retryFactor), Some(previousMultiplier)) =>
+        // Subsequent memory retry attempt
+        val nextMemoryMultiplier = previousMultiplier * retryFactor.value
+        saveAttrsAndRetry(handle,
+                          kvsFromPreviousAttempt,
+                          kvsForNextAttempt,
+                          incFailedCount = true,
+                          Option(nextMemoryMultiplier)
+        )
+      case (true, Some(retryFactor), None) =>
+        // First memory retry attempt
+        saveAttrsAndRetry(handle,
+                          kvsFromPreviousAttempt,
+                          kvsForNextAttempt,
+                          incFailedCount = true,
+                          Option(retryFactor.value)
+        )
+      case (_, _, _) =>
+        // Not an OOM
+        saveAttrsAndRetry(handle, kvsFromPreviousAttempt, kvsForNextAttempt, incFailedCount = true)
     }
 
   private def saveAttrsAndRetry(failedExecHandle: FailedExecutionHandle,
@@ -1245,6 +1294,7 @@ trait StandardAsyncExecutionActor
                                           StandardAsyncRunState @unchecked
           ] =>
         jobLogger.debug(s"$tag Polling Job ${handle.pendingJob}")
+        // poll for end time //
         pollStatusAsync(handle) flatMap { backendRunStatus =>
           self ! WarnAboutSlownessIfNecessary
           handlePollSuccess(handle, backendRunStatus)
@@ -1280,7 +1330,9 @@ trait StandardAsyncExecutionActor
     state match {
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
+        onTaskComplete(state, oldHandle)
         tellMetadata(metadata)
+        tellBard(state)
         handleExecutionResult(state, oldHandle)
       case s =>
         Future.successful(
@@ -1400,7 +1452,9 @@ trait StandardAsyncExecutionActor
                 None
               )
             )
-            retryElseFail(executionHandle, outOfMemoryDetected)
+            retryElseFail(executionHandle,
+                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+            )
           case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
             Future.successful(AbortedExecutionHandle)
           case Success(returnCodeAsInt) =>
@@ -1430,7 +1484,9 @@ trait StandardAsyncExecutionActor
                 None
               )
             )
-            retryElseFail(executionHandle, outOfMemoryDetected)
+            retryElseFail(executionHandle,
+                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+            )
           case _ =>
             val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
             retryElseFail(failureStatus)
@@ -1469,6 +1525,40 @@ trait StandardAsyncExecutionActor
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
+
+  def tellBard(state: StandardAsyncRunState): Unit =
+    getStartAndEndTimes(state) match {
+      case Some(startAndEndTimes: StartAndEndTimes) =>
+        val dockerImage =
+          RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
+        val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
+        val memory = RuntimeAttributesValidation
+          .extract(MemoryValidation.instance(), validatedRuntimeAttributes)
+          .to(MemoryUnit.Bytes)
+          .amount
+        serviceRegistryActor ! BardEventRequest(
+          TaskSummaryEvent(
+            workflowDescriptor.id.id,
+            workflowDescriptor.possibleParentWorkflowId.map(_.id),
+            workflowDescriptor.rootWorkflowId.id,
+            jobDescriptor.key.tag,
+            jobDescriptor.key.call.fullyQualifiedName,
+            jobDescriptor.key.index,
+            jobDescriptor.key.attempt,
+            state.getClass.getSimpleName,
+            platform.map(_.runtimeKey),
+            dockerImage,
+            cpus,
+            memory,
+            startAndEndTimes.jobStart.toString,
+            startAndEndTimes.cpuStart.map(_.toString),
+            startAndEndTimes.jobEnd.toString,
+            startAndEndTimes.jobStart.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS),
+            startAndEndTimes.cpuStart.map(_.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS))
+          )
+        )
+      case _ => ()
+    }
 
   implicit override protected lazy val ec: ExecutionContextExecutor = context.dispatcher
 }

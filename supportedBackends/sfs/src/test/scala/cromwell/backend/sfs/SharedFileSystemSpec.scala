@@ -29,6 +29,12 @@ class SharedFileSystemSpec
   private val cachedCopyLocalization = ConfigFactory.parseString(""" localization: [cached-copy] """)
   private val cachedCopyLocalizationMaxHardlinks =
     ConfigFactory.parseString("""{localization: [cached-copy], max-hardlinks: 3 }""")
+  private val softLinkDockerLocalization = ConfigFactory.parseString(
+    """
+      |localization: [soft-link]
+      |docker.allow-soft-links: true
+      |""".stripMargin
+  )
   private val localPathBuilder = List(DefaultPathBuilder)
 
   def localizationTest(config: Config,
@@ -104,6 +110,7 @@ class SharedFileSystemSpec
 
   it should "localize a file via symbolic link" in {
     localizationTest(softLinkLocalization, docker = false, symlink = true)
+    localizationTest(softLinkDockerLocalization, docker = true, symlink = true)
   }
 
   it should "localize a file via cached copy" in {
@@ -180,6 +187,28 @@ class SharedFileSystemSpec
     cachedFile.foreach(countLinks(_) should be <= 3)
     orig.delete(swallowIOExceptions = true)
     dests.foreach(_.delete(swallowIOExceptions = true))
+  }
+
+  it should "throw a fatal exception if docker soft link localization fails" in {
+    val callDir = DefaultPathBuilder.createTempDirectory("SharedFileSystem")
+    val orig = DefaultPathBuilder.createTempFile("inputFile")
+    val testText =
+      """This is a simple text to check if the localization
+        | works correctly for the file contents.
+        |""".stripMargin
+    orig.touch()
+    orig.writeText(testText)
+
+    val inputs = fqnWdlMapToDeclarationMap(Map("input" -> WomSingleFile(orig.pathAsString)))
+    val sharedFS: SharedFileSystem = new SharedFileSystem {
+      override val pathBuilders: PathBuilders = localPathBuilder
+      override val sharedFileSystemConfig: Config = softLinkLocalization
+
+      implicit override def actorContext: ActorContext = null
+    }
+    val result = sharedFS.localizeInputs(callDir, docker = true)(inputs)
+    result.isFailure shouldBe true
+    result.failed.get.isInstanceOf[CromwellFatalExceptionMarker] shouldBe true
   }
 
   private[this] def countLinks(file: Path): Int = file.getAttribute("unix:nlink").asInstanceOf[Int]

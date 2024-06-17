@@ -169,7 +169,6 @@ cromwell::private::create_build_variables() {
     backend_type="${CROMWELL_BUILD_TYPE}"
     backend_type="${backend_type#centaurEngineUpgrade}"
     backend_type="${backend_type#centaurPapiUpgrade}"
-    backend_type="${backend_type#centaurWdlUpgrade}"
     backend_type="${backend_type#centaurHoricromtal}"
     backend_type="${backend_type#centaur}"
     backend_type="$(echo "${backend_type}" | sed 's/\([A-Z]\)/_\1/g' | tr '[:upper:]' '[:lower:]' | cut -c 2-)"
@@ -200,7 +199,7 @@ cromwell::private::create_build_variables() {
     esac
 
     if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
-        CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_NUMBER}"
+        CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_TYPE}-${CROMWELL_BUILD_NUMBER}"
     else
         CROMWELL_BUILD_DOCKER_TAG="${CROMWELL_BUILD_PROVIDER}-${CROMWELL_BUILD_TYPE}-${CROMWELL_BUILD_GIT_HASH_SUFFIX}"
     fi
@@ -835,7 +834,6 @@ cromwell::private::setup_prior_version_resources() {
 cromwell::private::generate_code_coverage() {
     sbt -Dsbt.supershell=false --warn coverageReport
     sbt -Dsbt.supershell=false --warn coverageAggregate
-    bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
 cromwell::private::start_build_heartbeat() {

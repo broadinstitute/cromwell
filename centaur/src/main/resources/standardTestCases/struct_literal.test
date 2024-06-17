@@ -1,0 +1,12 @@
+name: struct_literal
+testFormat: workflowsuccess
+
+files {
+  workflow: struct_literal/struct_literal.wdl
+}
+
+metadata {
+  workflowName: struct_literal
+  status: Succeeded
+  "outputs.struct_literal.out": 44
+}

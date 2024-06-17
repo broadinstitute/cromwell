@@ -13,8 +13,8 @@ import scala.util.Failure
 class GcpBatchAttachedDiskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TryValues {
   val validTable = Table(
     ("unparsed", "parsed"),
-    ("/mnt 3 SSD", PipelinesApiEmptyMountedDisk(DiskType.SSD, 3, DefaultPathBuilder.get("/mnt"))),
-    ("/mnt/my_path 10 HDD", PipelinesApiEmptyMountedDisk(DiskType.HDD, 10, DefaultPathBuilder.get("/mnt/my_path"))),
+    ("/mnt 3 SSD", BatchApiEmptyMountedDisk(DiskType.SSD, 3, DefaultPathBuilder.get("/mnt"))),
+    ("/mnt/my_path 10 HDD", BatchApiEmptyMountedDisk(DiskType.HDD, 10, DefaultPathBuilder.get("/mnt/my_path"))),
     ("local-disk 100 SSD", GcpBatchWorkingDisk(DiskType.SSD, 100)),
     ("local-disk 100 LOCAL", GcpBatchWorkingDisk(DiskType.LOCAL, 100))
   )

@@ -31,6 +31,8 @@ class DummyAsyncExecutionActor(override val standardParams: StandardAsyncExecuti
     with StandardAsyncExecutionActor
     with CromwellInstrumentation {
 
+  override def platform: Option[Nothing] = None
+
   /** The type of the run info when a job is started. */
   override type StandardAsyncRunInfo = String
 

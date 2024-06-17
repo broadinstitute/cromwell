@@ -2,6 +2,7 @@ package cromwell.engine.workflow.lifecycle.materialization
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
+import akka.util.Timeout
 import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
@@ -36,6 +37,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.languages.util.ImportResolver._
 import cromwell.languages.util.LanguageFactoryUtil
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
+import cromwell.services.auth.GithubAuthVendingSupport
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import eu.timepit.refined.refineV
@@ -50,7 +52,9 @@ import wom.runtime.WomOutputRuntimeExtractor
 import wom.values.{WomString, WomValue}
 
 import scala.concurrent.Future
+import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 object MaterializeWorkflowDescriptorActor {
@@ -183,7 +187,7 @@ object MaterializeWorkflowDescriptorActor {
 }
 
 // TODO WOM: need to decide where to draw the line between language specific initialization and WOM
-class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
+class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: ActorRef,
                                          workflowId: WorkflowId,
                                          cromwellBackends: => CromwellBackends,
                                          importLocalFilesystem: Boolean,
@@ -191,7 +195,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
                                          hogGroup: HogGroup
 ) extends LoggingFSM[MaterializeWorkflowDescriptorActorState, Unit]
     with StrictLogging
-    with WorkflowLogging {
+    with WorkflowLogging
+    with GithubAuthVendingSupport {
 
   import MaterializeWorkflowDescriptorActor._
   val tag = self.path.name
@@ -203,6 +208,8 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   implicit val ec = context.dispatcher
 
   protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
+
+  final private val githubAuthVendingTimeout = Timeout(60.seconds)
 
   startWith(ReadyToMaterializeState, ())
 
@@ -281,10 +288,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
   }
 
   private def workflowInitializationFailed(errors: NonEmptyList[String], replyTo: ActorRef) =
-    sender() ! MaterializeWorkflowDescriptorFailureResponse(new IllegalArgumentException with MessageAggregation {
-      val exceptionContext = "Workflow input processing failed"
-      val errorMessages = errors.toList
-    })
+    sender() ! MaterializeWorkflowDescriptorFailureResponse(
+      new IllegalArgumentException with MessageAggregation with NoStackTrace {
+        val exceptionContext = "Workflow input processing failed"
+        val errorMessages = errors.toList
+      }
+    )
 
   private def workflowOptionsAndPathBuilders(
     sourceFiles: WorkflowSourceFilesCollection
@@ -346,7 +355,12 @@ class MaterializeWorkflowDescriptorActor(serviceRegistryActor: ActorRef,
     for {
       _ <- publishLabelsToMetadata(id, labels.asMap, serviceRegistryActor)
       zippedImportResolver <- zippedResolverCheck
-      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(None, Map.empty)
+      importAuthProviderOpt <- importAuthProvider(conf)(githubAuthVendingTimeout).toIOChecked
+      importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(
+        None,
+        Map.empty,
+        importAuthProviderOpt.toList
+      )
       sourceAndResolvers <- fromEither[IO](
         LanguageFactoryUtil.findWorkflowSource(sourceFiles.workflowSource, sourceFiles.workflowUrl, importResolvers)
       )

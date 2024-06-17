@@ -22,5 +22,6 @@ class LoadConfigSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers 
     LoadConfig.IoNormalWindowMaximum shouldBe 60.seconds
     LoadConfig.MonitoringFrequency shouldBe 5.seconds
     LoadConfig.PAPIThreshold shouldBe 10000
+    LoadConfig.BatchThreshold shouldBe 10000
   }
 }

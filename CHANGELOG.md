@@ -2,6 +2,10 @@
 
 ## 88 Release Notes
 
+### Improved status reporting behavior
+
+When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure. 
+
 ### Optional docker soft links
 
 Cromwell now allows opting into configured soft links on shared file systems such as HPC environments. More details can

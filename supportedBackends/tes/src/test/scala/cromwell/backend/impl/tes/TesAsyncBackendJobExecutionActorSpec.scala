@@ -1,21 +1,23 @@
 package cromwell.backend.impl.tes
 
+import akka.event.LoggingAdapter
 import common.mock.MockSugar
 import cromwell.backend.async.PendingExecutionHandle
-import cromwell.backend.standard.StandardAsyncJob
+import cromwell.backend.standard.{StandardAsyncJob, StartAndEndTimes}
 import cromwell.backend.{BackendJobDescriptorKey, BackendSpec}
 import cromwell.core.TestKitSuite
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, NioPath}
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.http.HttpPathBuilder
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import org.mockito.ArgumentMatchers.any
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import wom.graph.CommandCallNode
 
-import java.time.Duration
+import java.time.{Duration, OffsetDateTime}
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 import scala.concurrent.{ExecutionContext, Future}
@@ -309,7 +311,14 @@ class TesAsyncBackendJobExecutionActorSpec
     )
 
     whenReady(tesStatusWithData) { s =>
-      s shouldEqual (Running(Option(TesVmCostData(Option("2024-04-04T20:20:32.240066+00:00"), Option("0.203")))))
+      s shouldEqual (Running(
+        Option(
+          TesVmCostData(Option("2024-04-04T20:20:32.240066+00:00"),
+                        Option("2024-04-04T20:22:32.077818+00:00"),
+                        Option("0.203")
+          )
+        )
+      ))
     }
 
     val tesStatusNoData = TesAsyncBackendJobExecutionActor.queryStatusAndMaybeCostData(handle,
@@ -327,7 +336,7 @@ class TesAsyncBackendJobExecutionActorSpec
 
   it should "return expected error states with expected data" in {
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val costData = Option(TesVmCostData(Option("time"), Option("0.203")))
+    val costData = Option(TesVmCostData(Option("time"), Option("time"), Option("0.203")))
     val handle = new StandardAsyncPendingExecutionHandle(null, runId, None, Option(Running(None)))
 
     // No cost data
@@ -365,7 +374,7 @@ class TesAsyncBackendJobExecutionActorSpec
 
   it should "return expected error states with expected data false" in {
     val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val costData = Option(TesVmCostData(Option("time"), Option("0.203")))
+    val costData = Option(TesVmCostData(Option("time"), Option("time"), Option("0.203")))
     val handle = new StandardAsyncPendingExecutionHandle(null, runId, None, Option(Running(costData)))
     val actualStatus = TesAsyncBackendJobExecutionActor.pollTesStatus(handle,
                                                                       false,
@@ -429,5 +438,42 @@ class TesAsyncBackendJobExecutionActorSpec
       val actual = TesAsyncBackendJobExecutionActor.mapInputPath(httpPathWithParams.get, jobPaths, commandDirectory)
       actual shouldBe s"${jobPaths.callInputsDockerRoot}/$localPathInInputDir"
     }
+  }
+
+  it should "return task start and end time" in {
+    val runId = StandardAsyncJob(UUID.randomUUID().toString)
+    val handle = new StandardAsyncPendingExecutionHandle(null, runId, None, None)
+
+    val tesStatusWithData = TesAsyncBackendJobExecutionActor.queryStatusAndMaybeCostData(handle,
+                                                                                         true,
+                                                                                         mockFetchFullTaskView_1,
+                                                                                         mockFetchMinimalTaskView,
+                                                                                         mockGetTesStatus,
+                                                                                         mockTellMetadata
+    )
+
+    whenReady(tesStatusWithData) { s =>
+      TesAsyncBackendJobExecutionActor.getStartAndEndTimes(s,
+                                                           mock[LoggingAdapter],
+                                                           mock[(InstrumentationPath, Option[String]) => Unit]
+      ) shouldBe
+        Some(
+          StartAndEndTimes(
+            OffsetDateTime.parse("2024-04-04T20:20:32.240066+00:00"),
+            Option(OffsetDateTime.parse("2024-04-04T20:20:32.240066+00:00")),
+            OffsetDateTime.parse("2024-04-04T20:22:32.077818+00:00")
+          )
+        )
+
+    }
+  }
+
+  it should "return None when task start or end time are improperly formatted" in {
+    TesAsyncBackendJobExecutionActor.getStartAndEndTimes(
+      Complete(Option(TesVmCostData(Option("badlyFormattedTime"), Option("badlyFormattedTime"), None))),
+      mock[LoggingAdapter],
+      mock[(InstrumentationPath, Option[String]) => Unit]
+    ) shouldBe None
+
   }
 }

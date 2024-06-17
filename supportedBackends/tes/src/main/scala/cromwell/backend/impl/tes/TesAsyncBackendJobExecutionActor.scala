@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
@@ -8,6 +9,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
+import cats.data.NonEmptyList
 import cats.implicits._
 import common.collections.EnhancedCollections._
 import common.exception.AggregatedMessageException
@@ -26,7 +28,8 @@ import cromwell.backend.standard.{
   ScriptPreambleData,
   StandardAsyncExecutionActor,
   StandardAsyncExecutionActorParams,
-  StandardAsyncJob
+  StandardAsyncJob,
+  StartAndEndTimes
 }
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -35,18 +38,21 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.blob.{BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.http.HttpPath
+import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.metadata.CallMetadataKeys
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
-import java.time.Duration
+import java.time.format.DateTimeParseException
+import java.time.{Duration, OffsetDateTime}
 import java.time.temporal.ChronoUnit
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-case class TesVmCostData(startTime: Option[String], vmCost: Option[String]) {
+case class TesVmCostData(startTime: Option[String], endTime: Option[String], vmCost: Option[String]) {
   val fullyPopulated: Boolean = startTime.nonEmpty && vmCost.nonEmpty
 }
 sealed trait TesRunStatus {
@@ -289,8 +295,9 @@ object TesAsyncBackendJobExecutionActor {
         val tesVmCostData = for {
           responseLogs <- t.logs
           startTime <- responseLogs.headOption.map(_.start_time)
+          endTime <- responseLogs.headOption.map(_.end_time)
           vmCost <- responseLogs.headOption.map(_.metadata.flatMap(_.get("vm_price_per_hour_usd")))
-          tesVmCostData = TesVmCostData(startTime, vmCost)
+          tesVmCostData = TesVmCostData(startTime, endTime, vmCost)
         } yield tesVmCostData
 
         tesVmCostData match {
@@ -311,12 +318,31 @@ object TesAsyncBackendJobExecutionActor {
         getTesStatusFn(Option(state), previousCostData, handle.pendingJob.jobId)
       }
     }
+
+  def getStartAndEndTimes(runStatus: StandardAsyncRunState,
+                          logger: LoggingAdapter,
+                          incrementFn: (InstrumentationPath, Option[String]) => Unit
+  ): Option[StartAndEndTimes] = runStatus.costData match {
+    case Some(TesVmCostData(Some(_ @startTime), Some(_ @endTime), _)) =>
+      try {
+        val parsedStartTime = OffsetDateTime.parse(startTime)
+        val parsedEndTime = OffsetDateTime.parse(endTime)
+        Some(StartAndEndTimes(parsedStartTime, Option(parsedStartTime), parsedEndTime))
+      } catch {
+        case dateTimeParseException: DateTimeParseException =>
+          incrementFn(NonEmptyList.of("parse_tes_timestamp", "failure"), Some("bard"))
+          logger.error(s"Parsing TES task start and end time failed: $dateTimeParseException")
+          None
+      }
+    case _ => None
+  }
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
     extends BackendJobLifecycleActor
     with StandardAsyncExecutionActor
-    with TesJobCachingActorHelper {
+    with TesJobCachingActorHelper
+    with CromwellInstrumentation {
   implicit val actorSystem = context.system
   implicit val materializer = ActorMaterializer()
 
@@ -653,17 +679,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         }
     } yield data
 
-  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = runStatus.costData match {
-    case Some(TesVmCostData(Some(_@startTime), Some(_@endTime), _)) =>
-      try {
-        val parsedStartTime = OffsetDateTime.parse(startTime)
-        val parsedEndTime = OffsetDateTime.parse(endTime)
-        Some(StartAndEndTimes(parsedStartTime, Option(parsedStartTime), parsedEndTime))
-      } catch {
-        case dateTimeParseException: DateTimeParseException => log.error(s"Parsing TES task start and end time failed: $dateTimeParseException")
-          None
-      }
-    case _ => None
-  }
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
+    TesAsyncBackendJobExecutionActor.getStartAndEndTimes(runStatus, log, increment)
   override def platform: Option[Platform] = tesConfiguration.platform
 }

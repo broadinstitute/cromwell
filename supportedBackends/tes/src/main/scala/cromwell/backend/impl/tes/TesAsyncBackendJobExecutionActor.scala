@@ -653,5 +653,17 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         }
     } yield data
 
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = runStatus.costData match {
+    case Some(TesVmCostData(Some(_@startTime), Some(_@endTime), _)) =>
+      try {
+        val parsedStartTime = OffsetDateTime.parse(startTime)
+        val parsedEndTime = OffsetDateTime.parse(endTime)
+        Some(StartAndEndTimes(parsedStartTime, Option(parsedStartTime), parsedEndTime))
+      } catch {
+        case dateTimeParseException: DateTimeParseException => log.error(s"Parsing TES task start and end time failed: $dateTimeParseException")
+          None
+      }
+    case _ => None
+  }
   override def platform: Option[Platform] = tesConfiguration.platform
 }

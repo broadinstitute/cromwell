@@ -41,7 +41,8 @@ import cromwell.backend.standard.{
   StandardAdHocValue,
   StandardAsyncExecutionActor,
   StandardAsyncExecutionActorParams,
-  StandardAsyncJob
+  StandardAsyncJob,
+  StartAndEndTimes
 }
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
@@ -117,7 +118,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     with PipelinesApiAbortClient
     with PipelinesApiReferenceFilesMappingOperations
     with PipelinesApiDockerCacheMappingOperations
-    with PapiInstrumentation {
+    with PapiInstrumentation
+    with GcpPlatform {
 
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
 
@@ -822,6 +824,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       case successStatus: RunStatus.Success => successStatus.eventList
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
+    }
+
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
+    runStatus match {
+      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.nonEmpty =>
+        val offsetDateTimes = terminalRunStatus.eventList.map(_.offsetDateTime)
+        val cpuStart = terminalRunStatus.eventList.find(event =>
+          event.name.matches("""^Worker[\s\"\\]+google-pipelines-worker-[a-zA-Z0-9\s\"\\]+assigned in.*""")
+        )
+        Some(StartAndEndTimes(offsetDateTimes.min, cpuStart.map(_.offsetDateTime), offsetDateTimes.max))
+      case _ => None
     }
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =

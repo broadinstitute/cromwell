@@ -46,7 +46,6 @@ import wom.values.WomFile
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
-import java.time.format.DateTimeParseException
 import java.time.{Duration, OffsetDateTime}
 import java.time.temporal.ChronoUnit
 import scala.concurrent.{ExecutionContext, Future}
@@ -324,14 +323,14 @@ object TesAsyncBackendJobExecutionActor {
                           incrementFn: (InstrumentationPath, Option[String]) => Unit
   ): Option[StartAndEndTimes] = runStatus.costData match {
     case Some(TesVmCostData(Some(_ @startTime), Some(_ @endTime), _)) =>
-      try {
-        val parsedStartTime = OffsetDateTime.parse(startTime)
-        val parsedEndTime = OffsetDateTime.parse(endTime)
-        Some(StartAndEndTimes(parsedStartTime, Option(parsedStartTime), parsedEndTime))
-      } catch {
-        case dateTimeParseException: DateTimeParseException =>
+      Try {
+        (OffsetDateTime.parse(startTime), OffsetDateTime.parse(endTime))
+      } match {
+        case Success((parsedStartTime, parsedEndTime)) =>
+          Some(StartAndEndTimes(parsedStartTime, Option(parsedStartTime), parsedEndTime))
+        case Failure(e: Throwable) =>
           incrementFn(NonEmptyList.of("parse_tes_timestamp", "failure"), Some("bard"))
-          logger.error(s"Parsing TES task start and end time failed: $dateTimeParseException")
+          logger.error(s"Parsing TES task start and end time failed: $e")
           None
       }
     case _ => None

@@ -59,6 +59,8 @@ import wom.types.{WomArrayType, WomMapType, WomSingleFileType, WomStringType}
 import wom.values._
 
 import java.nio.file.Paths
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
@@ -1547,6 +1549,35 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       )
     )
 
+  }
+
+  private def setupBackend: TestableGcpBatchJobExecutionActor = {
+    val womFile = WomSingleFile("gs://blah/b/c.txt")
+    val workflowInputs = Map("file_passing.f" -> womFile)
+    val callInputs = Map(
+      "in" -> womFile, // how does one programmatically map the wf inputs to the call inputs?
+      "out_name" -> WomString("out") // is it expected that this isn't using the default?
+    )
+    makeBatchActorRef(SampleWdl.FilePassingWorkflow, workflowInputs, "a", callInputs).underlyingActor
+  }
+
+  it should "not try to extract start, cpu start, and end times from terminal run statuses" in {
+    val jesBackend = setupBackend
+
+    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val middle = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(30, ChronoUnit.MINUTES), None)
+    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
+    val successStatus = RunStatus.Success(Seq(middle, end, start))
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
+  }
+
+  it should "return None trying to get start and end times from a status containing no events" in {
+    val jesBackend = setupBackend
+
+    val successStatus = RunStatus.Success(Seq())
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

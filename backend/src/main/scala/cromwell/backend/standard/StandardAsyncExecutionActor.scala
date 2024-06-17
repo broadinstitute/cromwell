@@ -31,18 +31,23 @@ import cromwell.core.path.Path
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
+import cromwell.services.metrics.bard.BardEventing.BardEventRequest
+import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
+import wdl4s.parser.MemoryUnit
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import java.io.IOException
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -70,6 +75,8 @@ case class DefaultStandardAsyncExecutionActorParams(
 // Override to `false` when we need the script to set an environment variable in the parent shell.
 case class ScriptPreambleData(bashString: String, executeInSubshell: Boolean = true)
 
+case class StartAndEndTimes(jobStart: OffsetDateTime, cpuStart: Option[OffsetDateTime], jobEnd: OffsetDateTime)
+
 /**
   * An extension of the generic AsyncBackendJobExecutionActor providing a standard abstract implementation of an
   * asynchronous polling backend.
@@ -85,7 +92,8 @@ trait StandardAsyncExecutionActor
     with StandardCachingActorHelper
     with AsyncIoActorClient
     with KvClient
-    with SlowJobWarning {
+    with SlowJobWarning
+    with PlatformSpecific {
   this: Actor with ActorLogging with BackendJobLifecycleActor =>
 
   override lazy val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
@@ -895,6 +903,14 @@ trait StandardAsyncExecutionActor
   def getTerminalEvents(runStatus: StandardAsyncRunState): Seq[ExecutionEvent] = Seq.empty
 
   /**
+    * Get the min and max event times from a terminal run status
+    *
+    * @param runStatus The terminal run status, as defined by isTerminal.
+    * @return The min and max event times, if events exist.
+    */
+  def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = None
+
+  /**
     * Returns true if the status represents a completion.
     *
     * Select meanings by backend:
@@ -1316,6 +1332,7 @@ trait StandardAsyncExecutionActor
         val metadata = getTerminalMetadata(state)
         onTaskComplete(state, oldHandle)
         tellMetadata(metadata)
+        tellBard(state)
         handleExecutionResult(state, oldHandle)
       case s =>
         Future.successful(
@@ -1508,6 +1525,40 @@ trait StandardAsyncExecutionActor
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
+
+  def tellBard(state: StandardAsyncRunState): Unit =
+    getStartAndEndTimes(state) match {
+      case Some(startAndEndTimes: StartAndEndTimes) =>
+        val dockerImage =
+          RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
+        val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
+        val memory = RuntimeAttributesValidation
+          .extract(MemoryValidation.instance(), validatedRuntimeAttributes)
+          .to(MemoryUnit.Bytes)
+          .amount
+        serviceRegistryActor ! BardEventRequest(
+          TaskSummaryEvent(
+            workflowDescriptor.id.id,
+            workflowDescriptor.possibleParentWorkflowId.map(_.id),
+            workflowDescriptor.rootWorkflowId.id,
+            jobDescriptor.key.tag,
+            jobDescriptor.key.call.fullyQualifiedName,
+            jobDescriptor.key.index,
+            jobDescriptor.key.attempt,
+            state.getClass.getSimpleName,
+            platform.map(_.runtimeKey),
+            dockerImage,
+            cpus,
+            memory,
+            startAndEndTimes.jobStart.toString,
+            startAndEndTimes.cpuStart.map(_.toString),
+            startAndEndTimes.jobEnd.toString,
+            startAndEndTimes.jobStart.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS),
+            startAndEndTimes.cpuStart.map(_.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS))
+          )
+        )
+      case _ => ()
+    }
 
   implicit override protected lazy val ec: ExecutionContextExecutor = context.dispatcher
 }

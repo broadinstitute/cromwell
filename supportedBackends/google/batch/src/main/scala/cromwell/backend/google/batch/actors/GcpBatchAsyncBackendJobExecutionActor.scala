@@ -156,7 +156,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     with GcpBatchReferenceFilesMappingOperations
     with BatchInstrumentation
     with ActorLogging
-    with CromwellInstrumentation {
+    with CromwellInstrumentation
+    with GcpPlatform {
 
   import GcpBatchAsyncBackendJobExecutionActor._
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder

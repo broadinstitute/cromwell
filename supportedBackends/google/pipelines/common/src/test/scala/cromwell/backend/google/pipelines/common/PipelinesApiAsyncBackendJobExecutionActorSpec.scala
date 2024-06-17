@@ -25,7 +25,7 @@ import cromwell.backend.async.{
   FailedRetryableExecutionHandle
 }
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor.JesPendingExecutionHandle
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
+import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, RunStatus}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
@@ -34,7 +34,8 @@ import cromwell.backend.standard.{
   DefaultStandardAsyncExecutionActorParams,
   StandardAsyncExecutionActorParams,
   StandardAsyncJob,
-  StandardExpressionFunctionsParams
+  StandardExpressionFunctionsParams,
+  StartAndEndTimes
 }
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
@@ -46,6 +47,8 @@ import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
+import cromwell.services.metrics.bard.BardEventing.BardEventRequest
+import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.scalatest._
@@ -64,6 +67,8 @@ import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types._
 import wom.values._
 
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
@@ -1743,6 +1748,169 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       )
     )
 
+  }
+
+  private def setupBackend: TestablePipelinesApiJobExecutionActor = {
+    val inputs = Map(
+      "strs" -> WomArray(WomArrayType(WomStringType), Seq("A", "B", "C").map(WomString))
+    )
+
+    class TestPipelinesApiExpressionFunctions
+        extends PipelinesApiExpressionFunctions(TestableStandardExpressionFunctionsParams) {
+      override def writeFile(path: String, content: String): Future[WomSingleFile] =
+        Future.fromTry(Success(WomSingleFile(s"gs://some/path/file.txt")))
+    }
+
+    val functions = new TestPipelinesApiExpressionFunctions
+    makeJesActorRef(SampleWdl.ArrayIO, Map.empty, "serialize", inputs, functions).underlyingActor
+  }
+
+  it should "extract start and end times from terminal run statuses" in {
+    val jesBackend = setupBackend
+
+    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val middle = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(30, ChronoUnit.MINUTES), None)
+    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
+    val successStatus = RunStatus.Success(Seq(middle, end, start), None, None, None)
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe Some(
+      StartAndEndTimes(start.offsetDateTime, None, end.offsetDateTime)
+    )
+  }
+
+  it should "extract start, end, and cpu start times from terminal run statuses" in {
+    val jesBackend = setupBackend
+
+    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val middle = ExecutionEvent(
+      """Worker \"google-pipelines-worker-46b7b7d92d92f888d4a9596dad3c2007\" assigned in \"us-central1-c\" on a \"custom-2-8192\" machine""",
+      OffsetDateTime.now().minus(30, ChronoUnit.MINUTES),
+      None
+    )
+    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
+    val successStatus = RunStatus.Success(Seq(middle, end, start), None, None, None)
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe Some(
+      StartAndEndTimes(start.offsetDateTime, Some(middle.offsetDateTime), end.offsetDateTime)
+    )
+  }
+
+  it should "return None trying to get start and end times from a status containing no events" in {
+    val jesBackend = setupBackend
+
+    val successStatus = RunStatus.Success(Seq(), None, None, None)
+
+    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
+  }
+
+  it should "return None when getting start and end times from non-terminal statuses" in {
+    val jesBackend = setupBackend
+
+    val runningStatus = RunStatus.Running
+
+    jesBackend.getStartAndEndTimes(runningStatus) shouldBe None
+
+  }
+
+  it should "send bard metrics message on task success" in {
+    val runStatus = RunStatus.Success(
+      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance")
+    )
+    val serviceRegistryProbe = TestProbe()
+    val statusPoller = TestProbe("statusPoller")
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+
+    val backend = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      statusPoller.ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref
+    )
+    backend ! Execute
+    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
+      backend ! runStatus
+    }
+
+    val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
+      case _: BardEventRequest => true
+      case _ => false
+    }
+
+    val taskSummary = bardMessage.asInstanceOf[BardEventRequest].event.asInstanceOf[TaskSummaryEvent]
+    taskSummary.workflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.parentWorkflowId should be(None)
+    taskSummary.rootWorkflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.jobTag should be(jobDescriptor.key.tag)
+    taskSummary.jobFullyQualifiedName should be(jobDescriptor.key.call.fullyQualifiedName)
+    taskSummary.jobIndex should be(None)
+    taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
+    taskSummary.terminalState shouldBe a[String]
+    taskSummary.platform should be(Some("gcp"))
+    taskSummary.dockerImage should be(Some("ubuntu:latest"))
+    taskSummary.cpuCount should be(1)
+    taskSummary.memoryBytes should be(2.147483648e9)
+    taskSummary.startTime should not be empty
+    taskSummary.cpuStartTime should be(None)
+    taskSummary.endTime should not be empty
+    taskSummary.jobSeconds should be(0)
+    taskSummary.cpuSeconds should be(None)
+  }
+
+  it should "send bard metrics message on task failure" in {
+    val runStatus = UnsuccessfulRunStatus(
+      Status.ABORTED,
+      Option("13: retryable error"),
+      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance"),
+      wasPreemptible = false
+    )
+    val serviceRegistryProbe = TestProbe()
+    val statusPoller = TestProbe("statusPoller")
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+
+    val backend = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      statusPoller.ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref
+    )
+    backend ! Execute
+    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
+      backend ! runStatus
+    }
+
+    val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
+      case _: BardEventRequest => true
+      case _ => false
+    }
+
+    val taskSummary = bardMessage.asInstanceOf[BardEventRequest].event.asInstanceOf[TaskSummaryEvent]
+    taskSummary.workflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.parentWorkflowId should be(None)
+    taskSummary.rootWorkflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.jobTag should be(jobDescriptor.key.tag)
+    taskSummary.jobFullyQualifiedName should be(jobDescriptor.key.call.fullyQualifiedName)
+    taskSummary.jobIndex should be(None)
+    taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
+    taskSummary.terminalState shouldBe a[String]
+    taskSummary.platform should be(Some("gcp"))
+    taskSummary.dockerImage should be(Some("ubuntu:latest"))
+    taskSummary.cpuCount should be(1)
+    taskSummary.memoryBytes should be(2.147483648e9)
+    taskSummary.startTime should not be empty
+    taskSummary.cpuStartTime should be(None)
+    taskSummary.endTime should not be empty
+    taskSummary.jobSeconds should be(0)
+    taskSummary.cpuSeconds should be(None)
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

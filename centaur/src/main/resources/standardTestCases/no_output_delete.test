@@ -2,7 +2,7 @@
 
 name: no_output_delete
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [GCPBatch, Papiv2]
 
 files {
   workflow: delete_intermediates/no_output_delete.wdl

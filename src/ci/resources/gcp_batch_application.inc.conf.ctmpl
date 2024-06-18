@@ -1,9 +1,3 @@
-backend {
-  providers {
-    Local.config.filesystems.gcs.auth = "service_account"
-  }
-}
-
 engine {
   filesystems {
     gcs {

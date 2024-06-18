@@ -2,7 +2,7 @@ ignore: false
 name: abort.restart_abort_jes
 testFormat: ScheduledAbortWithRestart
 callMark: scheduled_abort.aborted
-backends: [Papi]
+backends: [GCPBatch, Papi]
 
 files {
   workflow: abort/scheduled_abort.wdl

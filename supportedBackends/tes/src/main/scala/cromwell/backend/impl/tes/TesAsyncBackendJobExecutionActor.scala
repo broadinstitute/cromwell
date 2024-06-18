@@ -321,7 +321,7 @@ object TesAsyncBackendJobExecutionActor {
                           logger: LoggingAdapter,
                           incrementFn: (InstrumentationPath, Option[String]) => Unit
   ): Option[StartAndEndTimes] = runStatus.costData match {
-    case Some(TesVmCostData(Some(_ @startTime), Some(_ @endTime), _)) =>
+    case Some(TesVmCostData(Some(startTime), Some(endTime), _)) =>
       Try {
         (OffsetDateTime.parse(startTime), OffsetDateTime.parse(endTime))
       } match {

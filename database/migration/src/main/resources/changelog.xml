@@ -90,6 +90,7 @@
     <include file="changesets/enlarge_docker_hash_store_entry_id.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_workflow_store_entry_id.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_sub_workflow_store_entry_id.xml" relativeToChangelogFile="true" />
+    <include file="changesets/workflow_store_drop_state_index.xml" relativeToChangelogFile="true" />
     <!-- WARNING!
       This changeset should always be last.
       It is always run (and should always run last) to set table ownership correctly.

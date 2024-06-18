@@ -294,9 +294,8 @@ object TesAsyncBackendJobExecutionActor {
         val tesVmCostData = for {
           responseLogs <- t.logs
           startTime <- responseLogs.headOption.map(_.start_time)
-          endTime <- responseLogs.headOption.map(_.end_time)
           vmCost <- responseLogs.headOption.map(_.metadata.flatMap(_.get("vm_price_per_hour_usd")))
-          tesVmCostData = TesVmCostData(startTime, endTime, vmCost)
+          tesVmCostData = TesVmCostData(startTime, None, vmCost)
         } yield tesVmCostData
 
         tesVmCostData match {
@@ -537,7 +536,16 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     }
 
     taskEndTime.onComplete {
-      case Success(result) => result.map(r => tellMetadata(Map(CallMetadataKeys.TaskEndTime -> r)))
+      case Success(result) =>
+        result.foreach(r => tellMetadata(Map(CallMetadataKeys.TaskEndTime -> r)))
+        val newCostData = runStatus.costData.map(_.copy(endTime = result))
+        runStatus match {
+          case _: Complete => tellBard(Complete(newCostData))
+          case _: Cancelled => tellBard(Cancelled(newCostData))
+          case failed: Failed => tellBard(Failed(sysLogs = failed.sysLogs, costData = newCostData))
+          case error: Error => tellBard(Error(sysLogs = error.sysLogs, costData = newCostData))
+          case _ => ()
+        }
       case Failure(e) => log.error(e.getMessage)
     }
   }

@@ -12,6 +12,7 @@ import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTok
 import cromwell.filesystems.http.HttpPathBuilder
 import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import org.mockito.ArgumentMatchers.any
+import org.mockito.Mockito.verify
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -313,10 +314,7 @@ class TesAsyncBackendJobExecutionActorSpec
     whenReady(tesStatusWithData) { s =>
       s shouldEqual (Running(
         Option(
-          TesVmCostData(Option("2024-04-04T20:20:32.240066+00:00"),
-                        Option("2024-04-04T20:22:32.077818+00:00"),
-                        Option("0.203")
-          )
+          TesVmCostData(Option("2024-04-04T20:20:32.240066+00:00"), None, Option("0.203"))
         )
       ))
     }
@@ -441,31 +439,23 @@ class TesAsyncBackendJobExecutionActorSpec
   }
 
   it should "return task start and end time" in {
-    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val handle = new StandardAsyncPendingExecutionHandle(null, runId, None, None)
-
-    val tesStatusWithData = TesAsyncBackendJobExecutionActor.queryStatusAndMaybeCostData(handle,
-                                                                                         true,
-                                                                                         mockFetchFullTaskView_1,
-                                                                                         mockFetchMinimalTaskView,
-                                                                                         mockGetTesStatus,
-                                                                                         mockTellMetadata
+    val status = Complete(
+      Some(
+        TesVmCostData(Some("2024-04-04T20:20:32.240066+00:00"), Some("2024-04-04T20:22:32.077818+00:00"), Some("0.203"))
+      )
     )
 
-    whenReady(tesStatusWithData) { s =>
-      TesAsyncBackendJobExecutionActor.getStartAndEndTimes(s,
-                                                           mock[LoggingAdapter],
-                                                           mock[(InstrumentationPath, Option[String]) => Unit]
-      ) shouldBe
-        Some(
-          StartAndEndTimes(
-            OffsetDateTime.parse("2024-04-04T20:20:32.240066+00:00"),
-            Option(OffsetDateTime.parse("2024-04-04T20:20:32.240066+00:00")),
-            OffsetDateTime.parse("2024-04-04T20:22:32.077818+00:00")
-          )
+    TesAsyncBackendJobExecutionActor.getStartAndEndTimes(status,
+                                                         mock[LoggingAdapter],
+                                                         mock[(InstrumentationPath, Option[String]) => Unit]
+    ) shouldBe
+      Some(
+        StartAndEndTimes(
+          OffsetDateTime.parse("2024-04-04T20:20:32.240066+00:00"),
+          Option(OffsetDateTime.parse("2024-04-04T20:20:32.240066+00:00")),
+          OffsetDateTime.parse("2024-04-04T20:22:32.077818+00:00")
         )
-
-    }
+      )
   }
 
   it should "return None when task start or end time are improperly formatted" in {
@@ -475,5 +465,42 @@ class TesAsyncBackendJobExecutionActorSpec
       mock[(InstrumentationPath, Option[String]) => Unit]
     ) shouldBe None
 
+  }
+
+  it should "call tellBard with Complete status containing task end time" in {
+    val mockHandle = mock[StandardAsyncPendingExecutionHandle]
+    val getTaskLogsFn = (_: StandardAsyncPendingExecutionHandle) =>
+      Future.successful(
+        Some(
+          TaskLog(Some("2024-04-04T20:20:32.240066+00:00"),
+                  Some("2024-04-04T20:22:32.077818+00:00"),
+                  None,
+                  None,
+                  None,
+                  None
+          )
+        )
+      )
+    val tellMetadataFn = mock[Map[String, Any] => Unit]
+    val tellBardFn = mock[TesRunStatus => Unit]
+    val mockLogger = mock[LoggingAdapter]
+
+    val tesRunStatus = Complete(Some(TesVmCostData(Some("2024-04-04T20:20:32.240066+00:00"), None, Some("0.203"))))
+    val expectedNewCostData = Some(
+      TesVmCostData(Some("2024-04-04T20:20:32.240066+00:00"), Some("2024-04-04T20:22:32.077818+00:00"), Some("0.203"))
+    )
+
+    TesAsyncBackendJobExecutionActor.onTaskComplete(tesRunStatus,
+                                                    mockHandle,
+                                                    getTaskLogsFn,
+                                                    tellMetadataFn,
+                                                    tellBardFn,
+                                                    mockLogger
+    )
+
+    // Wait for any futures to complete, I tried using whenReady and it didn't work.
+    Thread.sleep(500)
+
+    verify(tellBardFn).apply(Complete(expectedNewCostData))
   }
 }

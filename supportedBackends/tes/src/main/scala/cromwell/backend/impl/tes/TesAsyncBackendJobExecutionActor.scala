@@ -317,6 +317,47 @@ object TesAsyncBackendJobExecutionActor {
       }
     }
 
+  def onTaskComplete(runStatus: TesRunStatus,
+                     handle: StandardAsyncPendingExecutionHandle,
+                     getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[Option[TaskLog]],
+                     tellMetadataFn: Map[String, Any] => Unit,
+                     tellBardFn: StandardAsyncRunState => Unit,
+                     logger: LoggingAdapter
+  )(implicit ec: ExecutionContext): Future[Option[String]] = {
+    val logs = getTaskLogsFn(handle)
+    val taskEndTime = getTaskEndTime(logs)
+
+    val errors = for {
+      errors <- runStatus match {
+        case Error(_, _) | Failed(_, _) => getErrorSeq(logs)
+        case _ => Future.successful(Option(Seq.empty[String]))
+      }
+    } yield errors
+
+    errors.onComplete {
+      case Success(r) =>
+        if (r.nonEmpty) {
+          r.map(r => tellMetadataFn(Map(CallMetadataKeys.Failures -> r)))
+        }
+      case Failure(e) => logger.error(e.getMessage)
+    }
+
+    taskEndTime.onComplete {
+      case Success(result) =>
+        result.foreach(r => tellMetadataFn(Map(CallMetadataKeys.TaskEndTime -> r)))
+        val newCostData = runStatus.costData.map(_.copy(endTime = result))
+        runStatus match {
+          case _: Complete => tellBardFn(Complete(newCostData))
+          case _: Cancelled => tellBardFn(Cancelled(newCostData))
+          case failed: Failed => tellBardFn(Failed(sysLogs = failed.sysLogs, costData = newCostData))
+          case error: Error => tellBardFn(Error(sysLogs = error.sysLogs, costData = newCostData))
+          case _ => ()
+        }
+      case Failure(e) => logger.error(e.getMessage)
+    }
+    taskEndTime
+  }
+
   def getStartAndEndTimes(runStatus: StandardAsyncRunState,
                           logger: LoggingAdapter,
                           incrementFn: (InstrumentationPath, Option[String]) => Unit
@@ -519,35 +560,15 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def requestsAbortAndDiesImmediately: Boolean = false
 
   override def onTaskComplete(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Unit = {
-    val logs = getTaskLogs(handle)
-    val taskEndTime = getTaskEndTime(logs)
-
-    val errors = for {
-      errors <- runStatus match {
-        case Error(_, _) | Failed(_, _) => getErrorSeq(logs)
-        case _ => Future.successful(Option(Seq.empty[String]))
-      }
-    } yield errors
-
-    errors.onComplete {
-      case Success(r) =>
-        if (r.nonEmpty) { r.map(r => tellMetadata(Map(CallMetadataKeys.Failures -> r))) }
-      case Failure(e) => log.error(e.getMessage)
-    }
-
-    taskEndTime.onComplete {
-      case Success(result) =>
-        result.foreach(r => tellMetadata(Map(CallMetadataKeys.TaskEndTime -> r)))
-        val newCostData = runStatus.costData.map(_.copy(endTime = result))
-        runStatus match {
-          case _: Complete => tellBard(Complete(newCostData))
-          case _: Cancelled => tellBard(Cancelled(newCostData))
-          case failed: Failed => tellBard(Failed(sysLogs = failed.sysLogs, costData = newCostData))
-          case error: Error => tellBard(Error(sysLogs = error.sysLogs, costData = newCostData))
-          case _ => ()
-        }
-      case Failure(e) => log.error(e.getMessage)
-    }
+    TesAsyncBackendJobExecutionActor.onTaskComplete(
+      runStatus,
+      handle,
+      getTaskLogs,
+      tellMetadata,
+      tellBard,
+      log
+    )
+    ()
   }
 
   /*

@@ -46,6 +46,11 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
     val workflowType = Multipart.FormData.BodyPart("workflowType", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "WDL"))
     val workflowVersion =
       Multipart.FormData.BodyPart("workflowTypeVersion", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "1.0"))
+    val workflowDependencies =
+      Multipart.FormData.BodyPart(
+        "workflowDependencies",
+        HttpEntity(MediaTypes.`application/zip`, Array[Byte](0x0a, 0x0b, 0x0c))
+      )
 
     val workflowSourceTriggerDescribeFailure =
       Multipart.FormData.BodyPart("workflowSource", HttpEntity(ContentTypes.`text/plain(UTF-8)`, "fail to describe"))
@@ -95,7 +100,8 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
               "[reading back DescribeRequest contents] workflow url: None",
               "[reading back DescribeRequest contents] inputs: ",
               "[reading back DescribeRequest contents] type: None",
-              "[reading back DescribeRequest contents] version: None"
+              "[reading back DescribeRequest contents] version: None",
+              "[reading back DescribeRequest contents] dependencies: None"
             ),
             validWorkflow = true
           )
@@ -118,7 +124,8 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
               "[reading back DescribeRequest contents] workflow url: Some(https://raw.githubusercontent.com/broadinstitute/cromwell/develop/womtool/src/test/resources/validate/wdl_draft3/valid/callable_imports/my_workflow.wdl)",
               "[reading back DescribeRequest contents] inputs: ",
               "[reading back DescribeRequest contents] type: None",
-              "[reading back DescribeRequest contents] version: None"
+              "[reading back DescribeRequest contents] version: None",
+              "[reading back DescribeRequest contents] dependencies: None"
             ),
             validWorkflow = true
           )
@@ -146,7 +153,43 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
               "[reading back DescribeRequest contents] workflow url: None",
               "[reading back DescribeRequest contents] inputs: {\"a\":\"is for apple\"}",
               "[reading back DescribeRequest contents] type: Some(WDL)",
-              "[reading back DescribeRequest contents] version: Some(1.0)"
+              "[reading back DescribeRequest contents] version: Some(1.0)",
+              "[reading back DescribeRequest contents] dependencies: None"
+            ),
+            validWorkflow = true
+          )
+        }(responseAs[WorkflowDescription])
+      }
+  }
+
+  it should "include inputs, workflow type, workflow version, and workflow dependencies in the WorkflowSourceFilesCollection" in {
+    Post(
+      s"/womtool/$version/describe",
+      Multipart
+        .FormData(
+          BodyParts.workflowSource,
+          BodyParts.workflowInputs,
+          BodyParts.workflowType,
+          BodyParts.workflowVersion,
+          BodyParts.workflowDependencies
+        )
+        .toEntity()
+    ) ~>
+      akkaHttpService.womtoolRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+
+        assertResult {
+          WorkflowDescription(
+            valid = true,
+            errors = List(
+              "this is fake data from the mock SR actor",
+              "[reading back DescribeRequest contents] workflow hashcode: Some(580529622)",
+              "[reading back DescribeRequest contents] workflow url: None",
+              "[reading back DescribeRequest contents] inputs: {\"a\":\"is for apple\"}",
+              "[reading back DescribeRequest contents] type: Some(WDL)",
+              "[reading back DescribeRequest contents] version: Some(1.0)",
+              "[reading back DescribeRequest contents] dependencies: Some([0x0A, 0x0B, 0x0C])"
             ),
             validWorkflow = true
           )

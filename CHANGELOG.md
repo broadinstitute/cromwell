@@ -13,7 +13,8 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 ### GCP Batch
 
-The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+- The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+- Fixes the preemption error handling, now, the correct error message is printed, this also handles the other potential exit codes.
 
 ### Improved handling of Life Sciences API quota errors
 

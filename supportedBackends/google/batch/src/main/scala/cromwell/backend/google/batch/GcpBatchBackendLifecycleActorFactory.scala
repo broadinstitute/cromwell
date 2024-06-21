@@ -26,8 +26,6 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
 
   import GcpBatchBackendLifecycleActorFactory._
 
-  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
-
   override def jobIdKey: String = "__gcp_batch"
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
 

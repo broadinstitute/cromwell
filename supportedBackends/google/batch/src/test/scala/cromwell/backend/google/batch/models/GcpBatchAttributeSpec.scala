@@ -6,7 +6,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import wom.values.{WomFloat, WomInteger, WomSingleFile, WomString, WomValue}
 
-// TODO: Fix me
 class GcpBatchGpuAttributesSpec extends AnyWordSpecLike with Matchers with GcpBatchRuntimeAttributesSpecsMixin {
 
   val validGpuTypes = List(

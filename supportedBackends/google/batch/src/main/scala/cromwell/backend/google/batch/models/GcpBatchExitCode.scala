@@ -29,7 +29,6 @@ object GcpBatchExitCode {
     VMRecreatedDuringExecution
   )
 
-  // TODO: Add tests
   def fromEventMessage(message: String): Option[GcpBatchExitCode] =
     values.find { target =>
       message.contains(s"exit code ${target.code}")

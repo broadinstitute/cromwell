@@ -181,9 +181,16 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     case Event(JobFailedNonRetryableResponse(jobKey, _: JobNotFoundException, _), _) if restarting =>
       val benignException =
         new Exception(
-          "Cromwell server was restarted while this workflow was running. As part of the restart process, Cromwell attempted to reconnect to this job, however it was never started in the first place. This is a benign failure and not the cause of failure for this workflow, it can be safely ignored."
+          "Task did not start because a previous job has already failed."
         ) with NoStackTrace
-      handleNonRetryableFailure(stateData, jobKey, benignException)
+
+      handleNonRetryableFailure(stateData,
+                                jobKey,
+                                benignException,
+                                None,
+                                Map.empty,
+                                includeInWorkflowLevelFailures = false
+      )
   }
 
   /* ********************** */
@@ -470,11 +477,14 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
                                         failedJobKey: JobKey,
                                         reason: Throwable,
                                         returnCode: Option[Int] = None,
-                                        jobExecutionMap: JobExecutionMap = Map.empty
+                                        jobExecutionMap: JobExecutionMap = Map.empty,
+                                        includeInWorkflowLevelFailures: Boolean = true
   ) = {
     pushFailedCallMetadata(failedJobKey, returnCode, reason, retryableFailure = false)
 
-    val dataWithFailure = stateData.executionFailure(failedJobKey, reason, jobExecutionMap)
+    val dataWithFailure =
+      if (includeInWorkflowLevelFailures) stateData.executionFailure(failedJobKey, reason, jobExecutionMap)
+      else stateData
     /*
      * If new calls are allowed don't seal the execution store as we want to go as far as possible.
      *

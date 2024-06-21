@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <!-- This index had low cardinality, we found that ignoring it yielded empirically better performance -->
+    <changeSet author="anichols" id="workflow_store_drop_state_index" dbms="mysql,hsqldb,postgresql,mariadb">
+        <dropIndex tableName="WORKFLOW_STORE_ENTRY" indexName="IX_WORKFLOW_STORE_ENTRY_WS"/>
+    </changeSet>
+
+</databaseChangeLog>

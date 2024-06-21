@@ -21,8 +21,12 @@ import scala.util.{Failure, Try}
 
 class GcpBatchBackendLifecycleActorFactory(override val name: String,
                                            override val configurationDescriptor: BackendConfigurationDescriptor
-) extends StandardLifecycleActorFactory {
+) extends StandardLifecycleActorFactory
+    with GcpPlatform {
+
   import GcpBatchBackendLifecycleActorFactory._
+
+  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
 
   override def jobIdKey: String = "__gcp_batch"
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
@@ -97,8 +101,6 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
       )(requestHandler)
     )
   }
-
-  override def platform: Option[Platform] = Option(Gcp)
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {

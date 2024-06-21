@@ -178,3 +178,18 @@ object Azure extends Platform {
 object Aws extends Platform {
   override def runtimeKey: String = "aws"
 }
+trait PlatformSpecific {
+  def platform: Option[Platform]
+
+}
+trait GcpPlatform extends PlatformSpecific {
+  override val platform: Option[Platform] = Option(Gcp)
+}
+
+trait AzurePlatform extends PlatformSpecific {
+  override val platform: Option[Platform] = Option(Azure)
+}
+
+trait AwsPlatform extends PlatformSpecific {
+  override val platform: Option[Platform] = Option(Aws)
+}

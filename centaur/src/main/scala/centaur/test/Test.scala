@@ -1,6 +1,5 @@
 package centaur.test
 
-import java.util.UUID
 import cats.Monad
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
@@ -46,6 +45,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import spray.json._
 
+import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._

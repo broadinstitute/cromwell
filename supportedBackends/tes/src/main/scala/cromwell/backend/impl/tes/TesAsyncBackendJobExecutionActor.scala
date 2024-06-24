@@ -295,7 +295,7 @@ object TesAsyncBackendJobExecutionActor {
           responseLogs <- t.logs
           startTime <- responseLogs.headOption.map(_.start_time)
           vmCost <- responseLogs.headOption.map(_.metadata.flatMap(_.get("vm_price_per_hour_usd")))
-          // NB: End time is omitted here so we don't keep polling for it while the task runs. It will be acquired with a separate request when the task completes. 
+          // NB: End time is omitted here so we don't keep polling for it while the task runs. It will be acquired with a separate request when the task completes.
           tesVmCostData = TesVmCostData(startTime, None, vmCost)
         } yield tesVmCostData
 

@@ -474,11 +474,11 @@ class TesAsyncBackendJobExecutionActorSpec
       Future.successful(
         Some(
           TaskLog(Some("2024-04-04T20:20:32.240066+00:00"),
-            Some("2024-04-04T20:22:32.077818+00:00"),
-            None,
-            None,
-            None,
-            None
+                  Some("2024-04-04T20:22:32.077818+00:00"),
+                  None,
+                  None,
+                  None,
+                  None
           )
         )
       )
@@ -492,11 +492,11 @@ class TesAsyncBackendJobExecutionActorSpec
     )
 
     TesAsyncBackendJobExecutionActor.onTaskComplete(tesRunStatus,
-      handle,
-      getTaskLogsFn,
-      tellMetadataFn,
-      tellBardFn,
-      mockLogger
+                                                    handle,
+                                                    getTaskLogsFn,
+                                                    tellMetadataFn,
+                                                    tellBardFn,
+                                                    mockLogger
     )
 
     // Wait for any futures to complete, I tried using whenReady and it didn't work.

@@ -324,7 +324,7 @@ object TesAsyncBackendJobExecutionActor {
                      tellMetadataFn: Map[String, Any] => Unit,
                      tellBardFn: StandardAsyncRunState => Unit,
                      logger: LoggingAdapter
-  )(implicit ec: ExecutionContext): Future[Option[String]] = {
+  )(implicit ec: ExecutionContext): Unit = {
     val logs = getTaskLogsFn(handle)
     val taskEndTime = getTaskEndTime(logs)
 
@@ -356,7 +356,6 @@ object TesAsyncBackendJobExecutionActor {
         }
       case Failure(e) => logger.error(e.getMessage)
     }
-    taskEndTime
   }
 
   def getStartAndEndTimes(runStatus: StandardAsyncRunState,

@@ -1,9 +1,8 @@
 name: chart-update-on-merge
 
 on:
-  pull_request:
-    types:
-      - closed
+  schedule:
+    - cron: "30 11 * * 2"
 
 jobs:
   chart-update:

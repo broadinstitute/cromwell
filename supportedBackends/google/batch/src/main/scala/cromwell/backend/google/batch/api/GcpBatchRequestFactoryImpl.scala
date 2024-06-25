@@ -165,8 +165,8 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val gcpBootDiskSizeMb = convertGbToMib(runtimeAttributes)
 
     // set parent for metadata storage of job information
-    lazy val parent = s"projects/${data.gcpBatchParameters.projectId}/locations/${data.gcpBatchParameters.region}"
-    val gcpSa = ServiceAccount.newBuilder.setEmail(batchAttributes.computeServiceAccount).build
+    lazy val parent = s"projects/${createParameters.projectId}/locations/${data.gcpBatchParameters.region}"
+    val gcpSa = ServiceAccount.newBuilder.setEmail(createParameters.computeServiceAccount).build
 
     // make zones path
     val zones = toZonesPath(runtimeAttributes.zones)

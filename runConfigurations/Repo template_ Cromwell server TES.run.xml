@@ -36,7 +36,6 @@
     <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/tes_application.conf" />
     <method v="2">
       <option name="Make" enabled="true" />
-      <option name="RunConfigurationTask" enabled="false" run_configuration_name="renderCiResources" run_configuration_type="SbtRunConfiguration" />
     </method>
   </configuration>
 </component>

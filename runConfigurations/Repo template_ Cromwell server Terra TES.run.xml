@@ -17,7 +17,6 @@
     <method v="2">
       <option name="Make" enabled="true" />
       <option name="ToolBeforeRunTask" enabled="true" actionId="Tool_External Tools_Acquire Google B2C Token" />
-      <option name="RunConfigurationTask" enabled="true" run_configuration_name="renderCiResources" run_configuration_type="SbtRunConfiguration" />
     </method>
   </configuration>
 </component>

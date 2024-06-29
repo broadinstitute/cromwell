@@ -20,9 +20,10 @@ jobs:
     - id: get-jira-id
       # We're cloning multiple repos, so Cromwell and its actions are at `./cromwell/` instead of `./`
       uses: ./cromwell/.github/library/get_jira_id
-    - uses: olafurpg/setup-scala@v10
+    - uses: actions/setup-java@v4
       with:
-        java-version: adopt@1.11
+        distribution: 'temurin'
+        java-version: '11'
     - name: Clone Cromwhelm
       uses: actions/checkout@v2
       with:

@@ -14,8 +14,7 @@ import java.util.concurrent.atomic.AtomicInteger
   * > main thread).
   */
 object DaemonizedDefaultThreadFactory extends ThreadFactory {
-  private val s = System.getSecurityManager
-  private val group = if (s != null) s.getThreadGroup else Thread.currentThread.getThreadGroup
+  private val group = Thread.currentThread.getThreadGroup
   private val threadNumber = new AtomicInteger(1)
   private val namePrefix = "daemonpool-thread-"
 

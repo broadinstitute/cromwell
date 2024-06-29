@@ -4,7 +4,7 @@ name: 'Set Up Cromwell Steps'
 description: Specific steps that will set up git secrets, java, sbt, and Cromwell on the local machine. 
 inputs:
   cromwell_repo_token:
-    description: "As an input to this action, you are required to pass in a token that can be used to authenticate while checking out Cromwell."
+    description: "Token used to authenticate while checking out Cromwell."
     required: true
 
 runs:

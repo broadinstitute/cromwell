@@ -22,7 +22,7 @@ task read_map {
     Map[String, Int] out_map = read_map(stdout())
   }
   runtime {
-    docker: "python:3.5.0"
+    docker: "python:3.12.4"
   }
 }
 

@@ -15,6 +15,7 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 - The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
 - Fixes pulling Docker image metadata from private GCR repositories.
+- Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
 
 ### Improved handling of Life Sciences API quota errors
 

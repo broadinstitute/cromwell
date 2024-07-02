@@ -9,9 +9,8 @@ import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
 }
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiResponse}
-import cromwell.backend.google.batch.models.RunStatus
+import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}
 import cromwell.core.ExecutionEvent
-import io.grpc.Status
 
 import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -121,7 +120,7 @@ object BatchRequestExecutor {
       } catch {
         // A job can't be cancelled but deleted, which is why we consider 404 status as the job being cancelled successfully
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.NOT_FOUND =>
-          BatchApiResponse.StatusQueried(RunStatus.Aborted(io.grpc.Status.NOT_FOUND))
+          BatchApiResponse.StatusQueried(RunStatus.Aborted)
 
         // We don't need to detect preemptible VMs because that's handled automatically by GCP
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
@@ -136,18 +135,23 @@ object BatchRequestExecutor {
           .map(_.asScala.toList)
           .getOrElse(List.empty)
       )
+      lazy val exitCode = findBatchExitCode(events)
 
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
         RunStatus.Success(events)
       } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
         RunStatus.Running
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
-        // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
-        RunStatus.Failed(Status.OK, events)
+        RunStatus.Failed(exitCode, events)
       } else {
         RunStatus.Initializing
       }
     }
+
+    private def findBatchExitCode(events: List[ExecutionEvent]): Option[GcpBatchExitCode] =
+      events.flatMap { e =>
+        GcpBatchExitCode.fromEventMessage(e.name.toLowerCase)
+      }.headOption
 
     private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] =
       events.map { e =>

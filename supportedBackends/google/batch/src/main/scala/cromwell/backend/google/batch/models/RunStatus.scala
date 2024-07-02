@@ -1,7 +1,6 @@
 package cromwell.backend.google.batch.models
 
 import cromwell.core.ExecutionEvent
-import io.grpc.Status
 
 sealed trait RunStatus
 
@@ -22,27 +21,47 @@ object RunStatus {
   }
 
   sealed trait UnsuccessfulRunStatus extends TerminalRunStatus {
-    val errorCode: Status
+    val exitCode: Option[GcpBatchExitCode]
+    val prettyPrintedError: String
   }
 
   final case class Failed(
-    errorCode: Status,
+    exitCode: Option[GcpBatchExitCode],
     eventList: Seq[ExecutionEvent]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
+
+    override val prettyPrintedError: String =
+      exitCode match {
+        case Some(code) =>
+          code match {
+            case GcpBatchExitCode.VMPreemption => "A Spot VM for the job was preempted during run time"
+            case GcpBatchExitCode.VMReportingTimeout =>
+              "There was a timeout in the backend that caused a VM for the job to no longer receive updates"
+            case GcpBatchExitCode.VMRebootedDuringExecution => "A VM for the job unexpectedly rebooted during run time"
+            case GcpBatchExitCode.VMAndTaskAreUnresponsive =>
+              "A task reached the unresponsive time limit and cannot be cancelled"
+            case GcpBatchExitCode.TaskRunsOverMaximumRuntime =>
+              "A task's run time exceeded the time limit specified in the maxRunDuration, or, a runnable's run time exceeded the time limit specified in the timeout"
+            case GcpBatchExitCode.VMRecreatedDuringExecution =>
+              "A VM for a job is unexpectedly recreated during run time"
+          }
+        case None =>
+          eventList.headOption
+            .map(_.name)
+            .getOrElse(
+              "The job has failed but the exit code couldn't be derived, there isn't an event message either, please review the logs and report a bug"
+            )
+      }
   }
 
-  final case class Aborted(errorCode: Status) extends UnsuccessfulRunStatus {
+  final case object Aborted extends UnsuccessfulRunStatus {
     override def toString = "Aborted"
 
-    override def eventList: Seq[ExecutionEvent] = List.empty
-  }
+    override val exitCode: Option[GcpBatchExitCode] = None
 
-  // TODO: Use this when detecting a preemption or remove it
-  final case class Preempted(
-    errorCode: Status,
-    eventList: Seq[ExecutionEvent]
-  ) extends UnsuccessfulRunStatus {
-    override def toString = "Preempted"
+    override def eventList: Seq[ExecutionEvent] = List.empty
+
+    override val prettyPrintedError: String = "The job was aborted"
   }
 }

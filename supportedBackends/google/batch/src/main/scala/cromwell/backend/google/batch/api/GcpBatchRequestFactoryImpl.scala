@@ -156,7 +156,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
   override def submitRequest(data: GcpBatchRequest): CreateJobRequest = {
 
-    val batchAttributes = data.gcpBatchParameters.batchAttributes
     val runtimeAttributes = data.gcpBatchParameters.runtimeAttributes
     val createParameters = data.createParameters
     val retryCount = data.gcpBatchParameters.runtimeAttributes.preemptible

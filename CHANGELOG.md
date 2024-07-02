@@ -6,6 +6,14 @@
 
 When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure. 
 
+### Removed Docker Hub health check
+
+Cromwell's healthcheck requests to Docker Hub were not authenticated, and thus became subject to rate limiting. To eliminate these false alarms, this functionality has been removed.
+
+The config key `services.HealthMonitor.config.check-dockerhub` is therefore obsolete.
+
+There is no change to any other usage of Docker Hub.
+
 ### Optional docker soft links
 
 Cromwell now allows opting into configured soft links on shared file systems such as HPC environments. More details can
@@ -1065,7 +1073,6 @@ With this one:
 services {
     HealthMonitor {
         config {
-            check-dockerhub: true
             check-engine-database: true
         }
     }
@@ -1093,7 +1100,6 @@ With this one:
 services {
     HealthMonitor {
         config {
-            check-dockerhub: true
             check-engine-database: true
             check-gcs: true
             check-papi-backends: [PAPIv1, PAPIv2]

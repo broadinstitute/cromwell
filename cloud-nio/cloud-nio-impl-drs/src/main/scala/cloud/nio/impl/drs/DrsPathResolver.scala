@@ -202,7 +202,8 @@ object DrsCloudPlatform extends Enumeration {
 
 final case class DrsResolverRequest(url: String,
                                     cloudPlatform: Option[DrsCloudPlatform.Value],
-                                    fields: NonEmptyList[DrsResolverField.Value]
+                                    fields: NonEmptyList[DrsResolverField.Value],
+                                    serviceName: String = "cromwell_drs_localizer"
 )
 
 final case class SADataObject(data: Json)

@@ -13,7 +13,8 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 ### GCP Batch
 
-The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+- The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+- Fixes pulling Docker image metadata from private GCR repositories.
 
 ### Improved handling of Life Sciences API quota errors
 

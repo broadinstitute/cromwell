@@ -15,6 +15,7 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 - The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
 - Fixes pulling Docker image metadata from private GCR repositories.
+- Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
 
 ### Improved handling of Life Sciences API quota errors
 
@@ -31,10 +32,6 @@ Resolved a hotspot in Cromwell to make the `size()` engine function perform much
 The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 
 The index had low cardinality and workflow pickup is faster without it. Migration time depends on workflow store size, but should be very fast for most installations. Terminal workflows are removed from the workflow store, so only running workflows contribute to the cost.
-
-### Bug Fixes
-
-* Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
 
 ## 87 Release Notes
 

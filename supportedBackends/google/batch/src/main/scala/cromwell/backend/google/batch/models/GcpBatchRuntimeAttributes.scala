@@ -55,6 +55,7 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
 object GcpBatchRuntimeAttributes {
 
   val ZonesKey = "zones"
+
   private val ZonesDefaultValue = WomString("us-central1-b")
 
   val PreemptibleKey = "preemptible"
@@ -228,20 +229,20 @@ object GcpBatchRuntimeAttributes {
     )
 
     new GcpBatchRuntimeAttributes(
-      cpu,
-      cpuPlatform,
-      gpuResource,
-      zones,
-      preemptible,
-      bootDiskSize,
-      memory,
-      disks,
-      docker,
-      failOnStderr,
-      continueOnReturnCode,
-      noAddress,
-      useDockerImageCache,
-      checkpointFileName
+      cpu = cpu,
+      cpuPlatform = cpuPlatform,
+      gpuResource = gpuResource,
+      zones = zones,
+      preemptible = preemptible,
+      bootDiskSize = bootDiskSize,
+      memory = memory,
+      disks = disks,
+      dockerImage = docker,
+      failOnStderr = failOnStderr,
+      continueOnReturnCode = continueOnReturnCode,
+      noAddress = noAddress,
+      useDockerImageCache = useDockerImageCache,
+      checkpointFilename = checkpointFileName
     )
   }
 

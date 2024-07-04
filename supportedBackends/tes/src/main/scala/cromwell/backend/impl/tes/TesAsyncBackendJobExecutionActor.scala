@@ -1,5 +1,6 @@
 package cromwell.backend.impl.tes
 
+import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.marshalling.Marshal
@@ -8,6 +9,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
+import cats.data.NonEmptyList
 import cats.implicits._
 import common.collections.EnhancedCollections._
 import common.exception.AggregatedMessageException
@@ -26,7 +28,8 @@ import cromwell.backend.standard.{
   ScriptPreambleData,
   StandardAsyncExecutionActor,
   StandardAsyncExecutionActorParams,
-  StandardAsyncJob
+  StandardAsyncJob,
+  StartAndEndTimes
 }
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -35,18 +38,20 @@ import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.blob.{BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.http.HttpPath
+import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.metadata.CallMetadataKeys
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
-import java.time.Duration
+import java.time.{Duration, OffsetDateTime}
 import java.time.temporal.ChronoUnit
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
-case class TesVmCostData(startTime: Option[String], vmCost: Option[String]) {
+case class TesVmCostData(startTime: Option[String], endTime: Option[String], vmCost: Option[String]) {
   val fullyPopulated: Boolean = startTime.nonEmpty && vmCost.nonEmpty
 }
 sealed trait TesRunStatus {
@@ -290,7 +295,8 @@ object TesAsyncBackendJobExecutionActor {
           responseLogs <- t.logs
           startTime <- responseLogs.headOption.map(_.start_time)
           vmCost <- responseLogs.headOption.map(_.metadata.flatMap(_.get("vm_price_per_hour_usd")))
-          tesVmCostData = TesVmCostData(startTime, vmCost)
+          // NB: End time is omitted here so we don't keep polling for it while the task runs. It will be acquired with a separate request when the task completes.
+          tesVmCostData = TesVmCostData(startTime, None, vmCost)
         } yield tesVmCostData
 
         tesVmCostData match {
@@ -311,12 +317,71 @@ object TesAsyncBackendJobExecutionActor {
         getTesStatusFn(Option(state), previousCostData, handle.pendingJob.jobId)
       }
     }
+
+  def onTaskComplete(runStatus: TesRunStatus,
+                     handle: StandardAsyncPendingExecutionHandle,
+                     getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[Option[TaskLog]],
+                     tellMetadataFn: Map[String, Any] => Unit,
+                     tellBardFn: StandardAsyncRunState => Unit,
+                     logger: LoggingAdapter
+  )(implicit ec: ExecutionContext): Unit = {
+    val logs = getTaskLogsFn(handle)
+    val taskEndTime = getTaskEndTime(logs)
+
+    val errors = for {
+      errors <- runStatus match {
+        case Error(_, _) | Failed(_, _) => getErrorSeq(logs)
+        case _ => Future.successful(Option(Seq.empty[String]))
+      }
+    } yield errors
+
+    errors.onComplete {
+      case Success(r) =>
+        if (r.nonEmpty) {
+          r.map(r => tellMetadataFn(Map(CallMetadataKeys.Failures -> r)))
+        }
+      case Failure(e) => logger.error(e.getMessage)
+    }
+
+    taskEndTime.onComplete {
+      case Success(result) =>
+        result.foreach(r => tellMetadataFn(Map(CallMetadataKeys.TaskEndTime -> r)))
+        val newCostData = runStatus.costData.map(_.copy(endTime = result))
+        runStatus match {
+          case _: Complete => tellBardFn(Complete(newCostData))
+          case _: Cancelled => tellBardFn(Cancelled(newCostData))
+          case failed: Failed => tellBardFn(Failed(sysLogs = failed.sysLogs, costData = newCostData))
+          case error: Error => tellBardFn(Error(sysLogs = error.sysLogs, costData = newCostData))
+          case _ => ()
+        }
+      case Failure(e) => logger.error(e.getMessage)
+    }
+  }
+
+  def getStartAndEndTimes(runStatus: StandardAsyncRunState,
+                          logger: LoggingAdapter,
+                          incrementFn: (InstrumentationPath, Option[String]) => Unit
+  ): Option[StartAndEndTimes] = runStatus.costData match {
+    case Some(TesVmCostData(Some(startTime), Some(endTime), _)) =>
+      Try {
+        (OffsetDateTime.parse(startTime), OffsetDateTime.parse(endTime))
+      } match {
+        case Success((parsedStartTime, parsedEndTime)) =>
+          Some(StartAndEndTimes(parsedStartTime, Option(parsedStartTime), parsedEndTime))
+        case Failure(e: Throwable) =>
+          incrementFn(NonEmptyList.of("parse_tes_timestamp", "failure"), Some("bard"))
+          logger.error(s"Parsing TES task start and end time failed: $e")
+          None
+      }
+    case _ => None
+  }
 }
 
 class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyncExecutionActorParams)
     extends BackendJobLifecycleActor
     with StandardAsyncExecutionActor
-    with TesJobCachingActorHelper {
+    with TesJobCachingActorHelper
+    with CromwellInstrumentation {
   implicit val actorSystem = context.system
   implicit val materializer = ActorMaterializer()
 
@@ -495,26 +560,15 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
   override def requestsAbortAndDiesImmediately: Boolean = false
 
   override def onTaskComplete(runStatus: TesRunStatus, handle: StandardAsyncPendingExecutionHandle): Unit = {
-    val logs = getTaskLogs(handle)
-    val taskEndTime = getTaskEndTime(logs)
-
-    val errors = for {
-      errors <- runStatus match {
-        case Error(_, _) | Failed(_, _) => getErrorSeq(logs)
-        case _ => Future.successful(Option(Seq.empty[String]))
-      }
-    } yield errors
-
-    errors.onComplete {
-      case Success(r) =>
-        if (r.nonEmpty) { r.map(r => tellMetadata(Map(CallMetadataKeys.Failures -> r))) }
-      case Failure(e) => log.error(e.getMessage)
-    }
-
-    taskEndTime.onComplete {
-      case Success(result) => result.map(r => tellMetadata(Map(CallMetadataKeys.TaskEndTime -> r)))
-      case Failure(e) => log.error(e.getMessage)
-    }
+    TesAsyncBackendJobExecutionActor.onTaskComplete(
+      runStatus,
+      handle,
+      getTaskLogs,
+      tellMetadata,
+      tellBard,
+      log
+    )
+    ()
   }
 
   /*
@@ -653,5 +707,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         }
     } yield data
 
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
+    TesAsyncBackendJobExecutionActor.getStartAndEndTimes(runStatus, log, increment)
   override def platform: Option[Platform] = tesConfiguration.platform
 }

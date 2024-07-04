@@ -943,7 +943,9 @@ trait StandardAsyncExecutionActor
     * @param handle The handle of the running job.
     * @return A set of actions when the job is complete
     */
-  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit = {}
+  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit = tellBard(
+    runStatus
+  )
 
   /**
     * Attempts to abort a job when an abort signal is retrieved.
@@ -1332,7 +1334,6 @@ trait StandardAsyncExecutionActor
         val metadata = getTerminalMetadata(state)
         onTaskComplete(state, oldHandle)
         tellMetadata(metadata)
-        tellBard(state)
         handleExecutionResult(state, oldHandle)
       case s =>
         Future.successful(

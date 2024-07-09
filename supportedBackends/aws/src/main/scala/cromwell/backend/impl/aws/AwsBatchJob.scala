@@ -220,6 +220,8 @@ final case class AwsBatchJob(
          |echo '*** DELOCALIZING OUTPUTS ***'
          |$outputCopyCommand
          |echo '*** COMPLETED DELOCALIZATION ***'
+         |echo '*** EXITING WITH RC CODE ***'
+         |exit $$(head -n 1 $workDir/${jobPaths.returnCodeFilename})
          |}
          |""".stripMargin
   }

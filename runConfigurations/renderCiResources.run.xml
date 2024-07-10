@@ -7,7 +7,7 @@
     </option>
     <option name="tasks" value="renderCiResources" />
     <option name="useSbtShell" value="false" />
-    <option name="vmparams" value="-Xms512M -Xmx1024M -Xss1M -XX:+CMSClassUnloadingEnabled" />
+    <option name="vmparams" value="-Xms512M -Xmx1024M -Xss1M" />
     <option name="workingDir" value="$PROJECT_DIR$" />
     <method v="2" />
   </configuration>

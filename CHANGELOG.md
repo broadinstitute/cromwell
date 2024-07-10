@@ -6,6 +6,14 @@
 
 When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure. 
 
+### Removed Docker Hub health check
+
+Cromwell's healthcheck requests to Docker Hub were not authenticated, and thus became subject to rate limiting. To eliminate these false alarms, this functionality has been removed.
+
+The config key `services.HealthMonitor.config.check-dockerhub` is therefore obsolete.
+
+There is no change to any other usage of Docker Hub.
+
 ### Optional docker soft links
 
 Cromwell now allows opting into configured soft links on shared file systems such as HPC environments. More details can
@@ -13,7 +21,10 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 ### GCP Batch
 
-The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+- The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+- Fixes the preemption error handling, now, the correct error message is printed, this also handles the other potential exit codes.
+- Fixes pulling Docker image metadata from private GCR repositories.
+- Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
 
 ### Improved handling of Life Sciences API quota errors
 
@@ -1064,7 +1075,6 @@ With this one:
 services {
     HealthMonitor {
         config {
-            check-dockerhub: true
             check-engine-database: true
         }
     }
@@ -1092,7 +1102,6 @@ With this one:
 services {
     HealthMonitor {
         config {
-            check-dockerhub: true
             check-engine-database: true
             check-gcs: true
             check-papi-backends: [PAPIv1, PAPIv2]

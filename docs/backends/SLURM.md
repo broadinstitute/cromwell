@@ -24,8 +24,8 @@ SLURM {
 }
 ```
 
-For information on how to further configure it, take a look at the [Getting Started on HPC Clusters](../tutorials/HPCIntro).
+For information on how to further configure it, take a look at the [Getting Started on HPC Clusters](../tutorials/HPCIntro.md).
 
 ### Exit code
 
-See also [HPC - Exit code timeout](HPC#Exit-code-timeout)
+See also [HPC - Exit code timeout](HPC.md#Exit-code-timeout)

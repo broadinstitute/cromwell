@@ -20,7 +20,7 @@ import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
-import cromwell.services.healthmonitor.impl.common.{DockerHubMonitor, EngineDatabaseMonitor}
+import cromwell.services.healthmonitor.impl.common.EngineDatabaseMonitor
 import cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor._
 import net.ceedubs.ficus.Ficus._
 
@@ -35,10 +35,7 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config,
                                                   globalConfig: Config,
                                                   serviceRegistryActor: ActorRef
 ) extends ProtoHealthMonitorServiceActor
-    with DockerHubMonitor
     with EngineDatabaseMonitor {
-  implicit override val system = context.system
-
   private lazy val papiBackendConfigurations = serviceConfig
     .as[Set[String]]("check-papi-backends")
     .map(WorkbenchHealthMonitorServiceActor.PapiConfiguration.fromBackendNameValue(_, serviceConfig, globalConfig))

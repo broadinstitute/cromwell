@@ -60,6 +60,7 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
           val requestJson = makeDrsResolverRequest(drsPath, fields).asJson.noSpaces
           postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
           postRequest.setHeader("Authorization", s"Bearer $token")
+          postRequest.setHeader("X-Terra-Service-ID", "cromwell_drs_localizer")
           postRequest
         }
       case Invalid(errors) =>
@@ -202,8 +203,7 @@ object DrsCloudPlatform extends Enumeration {
 
 final case class DrsResolverRequest(url: String,
                                     cloudPlatform: Option[DrsCloudPlatform.Value],
-                                    fields: NonEmptyList[DrsResolverField.Value],
-                                    serviceName: String = "cromwell_drs_localizer"
+                                    fields: NonEmptyList[DrsResolverField.Value]
 )
 
 final case class SADataObject(data: Json)

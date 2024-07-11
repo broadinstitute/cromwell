@@ -97,7 +97,7 @@ trait Delocalization {
     /*
      * Delocalize all the files returned by the runtime output extractor
      */
-    s"""|#!/bin/bash
+    s"""|#!/usr/bin/env bash
         |
         |set -x
         |

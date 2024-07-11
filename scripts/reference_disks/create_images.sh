@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # uncomment/comment toggle verbose debugging
 #set -x

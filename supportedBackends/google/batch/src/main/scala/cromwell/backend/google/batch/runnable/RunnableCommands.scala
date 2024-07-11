@@ -168,7 +168,7 @@ object RunnableCommands {
 
   def multiLineCommandTransformer(shell: String)(commandString: String): String = {
     val randomUuid = UUID.randomUUID().toString
-    val withBashShebang = s"#!/bin/bash\n\n$commandString"
+    val withBashShebang = s"#!/usr/bin/env bash\n\n$commandString"
     val base64EncodedScript = Base64.encodeBase64String(withBashShebang.getBytes(StandardCharsets.UTF_8))
     val scriptPath = s"/tmp/$randomUuid.sh"
 

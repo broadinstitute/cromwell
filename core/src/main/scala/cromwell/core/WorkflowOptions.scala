@@ -56,6 +56,20 @@ object WorkflowOptions {
   case object FinalCallLogsDir extends WorkflowOption("final_call_logs_dir")
   case object FinalWorkflowOutputsDir extends WorkflowOption("final_workflow_outputs_dir")
   case object UseRelativeOutputPaths extends WorkflowOption(name = "use_relative_output_paths")
+  case object FinalWorkflowOutputsMode extends WorkflowOption("workflow_outputs_mode") {
+    // Default to Copy because that was originally the only behavior
+    def fromString(s: Option[String]): FinalWorkflowOutputsMode = {
+      s match {
+        case Some("copy") => Copy
+        case Some("move") => Move
+        case _ => Copy
+      }
+    }
+  }
+
+  sealed trait FinalWorkflowOutputsMode
+  case object Copy extends FinalWorkflowOutputsMode
+  case object Move extends FinalWorkflowOutputsMode
 
   // Misc.
   case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")

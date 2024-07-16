@@ -107,4 +107,28 @@ object LiteralEvaluators {
        a.right.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
       ) mapN { _ ++ _ }
   }
+
+  implicit val stringExpressionEvaluator: FileEvaluator[StringExpression] = new FileEvaluator[StringExpression] {
+    override def predictFilesNeededToEvaluate(a: StringExpression,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType
+    )(implicit
+      fileEvaluator: FileEvaluator[ExpressionElement],
+      valueEvaluator: ValueEvaluator[ExpressionElement]
+    ): ErrorOr[Set[WomFile]] = {
+
+      val evaluatedSets: Seq[Set[WomFile]] = a.pieces.map {
+        case literal: StringLiteral =>
+          stringLiteralEvaluator
+            .predictFilesNeededToEvaluate(literal, inputs, ioFunctionSet, coerceTo)
+            .toList
+            .flatten
+            .toSet
+        case _ => Set.empty[WomFile]
+      }
+      val ret = evaluatedSets.foldLeft(Set[WomFile]())(_ ++ _)
+      ret.validNel
+    }
+  }
 }

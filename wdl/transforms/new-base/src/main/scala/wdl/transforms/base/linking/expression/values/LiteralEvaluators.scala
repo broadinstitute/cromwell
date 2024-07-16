@@ -125,4 +125,5 @@ object LiteralEvaluators {
         EvaluatedValue(WomPair(left.value, right.value), left.sideEffectFiles ++ right.sideEffectFiles)
       }
   }
+
 }

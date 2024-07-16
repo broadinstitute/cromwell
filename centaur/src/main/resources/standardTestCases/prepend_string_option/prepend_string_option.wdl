@@ -25,9 +25,9 @@ workflow prepend_string_option {
     call prepend_string_option_task as second {input: out_suffix = "outSuffix"}
     call prepend_string_option_task as neither
     output {
-        File both_provided = both.outFile
-        File first_provided = first.outFile
-        File second_provided = second.outFile
-        File neither_provided = neither.outFile
+        String both_provided = basename(both.outFile)
+        String first_provided = basename(first.outFile)
+        String second_provided = basename(second.outFile)
+        String neither_provided = basename(neither.outFile)
     }
 }

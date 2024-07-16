@@ -2,6 +2,11 @@
 
 ## 88 Release Notes
 
+### Java 17
+
+As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
+containerized using [Eclipse Temurin](https://adoptium.net/temurin/releases/?version=17).
+
 ### Improved status reporting behavior
 
 When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure. 

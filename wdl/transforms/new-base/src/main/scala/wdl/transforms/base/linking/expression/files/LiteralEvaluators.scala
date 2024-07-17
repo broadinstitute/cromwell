@@ -119,9 +119,10 @@ object LiteralEvaluators {
       fileEvaluator: FileEvaluator[ExpressionElement],
       valueEvaluator: ValueEvaluator[ExpressionElement]
     ): ErrorOr[Set[WomFile]] = {
-      val predictedFiles: Seq[ErrorOr[Set[WomFile]]] = a.pieces.map { case literal: StringLiteral =>
-        stringLiteralEvaluator.predictFilesNeededToEvaluate(literal, inputs, ioFunctionSet, coerceTo)
-      case _ => Valid(Set.empty[WomFile])
+      val predictedFiles: Seq[ErrorOr[Set[WomFile]]] = a.pieces.map {
+        case literal: StringLiteral =>
+          stringLiteralEvaluator.predictFilesNeededToEvaluate(literal, inputs, ioFunctionSet, coerceTo)
+        case _ => Valid(Set.empty[WomFile])
       }
       val sets: Set[WomFile] = predictedFiles.collect { case Valid(set) => set }.foldLeft(Set[WomFile]())(_ ++ _)
       val errors: Seq[NonEmptyList[String]] = predictedFiles.collect { case Invalid(error) => error }

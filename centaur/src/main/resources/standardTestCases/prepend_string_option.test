@@ -1,5 +1,5 @@
-# We expect that when prepending a string to an empty option, nothing is output.
-# We expect that when prepending a string to an option that is present, the two are concatenated.
+# We expect that when combining a string with an empty option, nothing is output.
+# We expect that when combining a string with a present option, the two are concatenated.
 # https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter
 
 name: prepend_string_option

@@ -60,7 +60,7 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
           val requestJson = makeDrsResolverRequest(drsPath, fields).asJson.noSpaces
           postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
           postRequest.setHeader("Authorization", s"Bearer $token")
-          postRequest.setHeader("X-Terra-Service-ID", "cromwell_drs_localizer")
+          postRequest.setHeader("X-App-ID", "cromwell_drs_localizer")
           postRequest
         }
       case Invalid(errors) =>

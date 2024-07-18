@@ -2,6 +2,10 @@
 
 ## 88 Release Notes
 
+### Fixed Optional and String Concatenation Bug
+
+As outlined in the [WDL Spec](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter), concatenating a string with an empty optional now correctly evaluates to the empty string.
+
 ### Improved status reporting behavior
 
 When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure. 

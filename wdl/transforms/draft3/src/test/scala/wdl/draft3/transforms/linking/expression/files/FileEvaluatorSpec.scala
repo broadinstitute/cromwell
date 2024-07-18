@@ -6,7 +6,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.draft3.transforms.linking.expression.values.expressionEvaluator
 import wdl.model.draft3.elements.ExpressionElement
-import wdl.model.draft3.elements.ExpressionElement.{ObjectLiteral, StringLiteral}
+import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
 import wom.expression.NoIoFunctionSet
 import wom.types.{WomCompositeType, WomSingleFileType}
@@ -25,5 +25,21 @@ class FileEvaluatorSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
                                                                         coerceTo = structType
     )
     evaluatedFiles shouldBeValid Set(WomSingleFile("moo.txt"))
+  }
+
+  it should "find files in a string expression" in {
+    val filePiece: StringPiece = StringLiteral("moo.txt")
+    val anotherFilePiece: StringPiece = StringLiteral("boo.txt")
+    val notAFilePiece: StringPiece = NewlineEscape
+    val anotherNotAFilePiece: StringPiece = BackslashEscape
+
+    val expressionElement: ExpressionElement =
+      StringExpression(Seq(filePiece, anotherFilePiece, notAFilePiece, anotherNotAFilePiece))
+
+    val evaluatedFiles = expressionElement.predictFilesNeededToEvaluate(inputs = Map.empty,
+                                                                        ioFunctionSet = NoIoFunctionSet,
+                                                                        coerceTo = WomSingleFileType
+    )
+    evaluatedFiles shouldBeValid Set(WomSingleFile("moo.txt"), WomSingleFile("boo.txt"))
   }
 }

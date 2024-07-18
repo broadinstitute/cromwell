@@ -1,14 +1,16 @@
 package wdl.transforms.base.linking.expression.files
 
+import cats.data.NonEmptyList
+import cats.data.Validated.{Invalid, Valid}
+import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.traverse._
 import cats.syntax.validated._
-import cats.instances.list._
 import common.validation.ErrorOr.ErrorOr
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.graph.expression.{FileEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.expression.FileEvaluator.ops._
+import wdl.model.draft3.graph.expression.{FileEvaluator, ValueEvaluator}
 import wom.expression.IoFunctionSet
 import wom.types.{WomCompositeType, WomSingleFileType, WomType}
 import wom.values.{WomFile, WomSingleFile, WomValue}
@@ -106,5 +108,25 @@ object LiteralEvaluators {
       (a.left.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo),
        a.right.evaluateFilesNeededToEvaluate(inputs, ioFunctionSet, coerceTo)
       ) mapN { _ ++ _ }
+  }
+
+  implicit val stringExpressionEvaluator: FileEvaluator[StringExpression] = new FileEvaluator[StringExpression] {
+    override def predictFilesNeededToEvaluate(a: StringExpression,
+                                              inputs: Map[String, WomValue],
+                                              ioFunctionSet: IoFunctionSet,
+                                              coerceTo: WomType
+    )(implicit
+      fileEvaluator: FileEvaluator[ExpressionElement],
+      valueEvaluator: ValueEvaluator[ExpressionElement]
+    ): ErrorOr[Set[WomFile]] = {
+      val predictedFiles: Seq[ErrorOr[Set[WomFile]]] = a.pieces.map {
+        case literal: StringLiteral =>
+          stringLiteralEvaluator.predictFilesNeededToEvaluate(literal, inputs, ioFunctionSet, coerceTo)
+        case _ => Valid(Set.empty[WomFile])
+      }
+      val sets: Set[WomFile] = predictedFiles.collect { case Valid(set) => set }.foldLeft(Set[WomFile]())(_ ++ _)
+      val errors: Seq[NonEmptyList[String]] = predictedFiles.collect { case Invalid(error) => error }
+      errors.headOption.map(head => head.invalid).getOrElse(sets.validNel)
+    }
   }
 }

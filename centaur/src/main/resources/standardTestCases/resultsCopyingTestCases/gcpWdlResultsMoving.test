@@ -15,9 +15,9 @@ metadata {
   status: Succeeded
 }
 
-# The `cloud-cromwell-dev-self-cleaning-fast` bucket is in a different region than the workflow runs
+# The `centaur-ci-us-east1` bucket is in a different region than the workflow runs
 fileSystemCheck: "gcs"
 outputExpectations: {
-    "gs://cloud-cromwell-dev-self-cleaning-fast/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
+    "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
     "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 0
 }

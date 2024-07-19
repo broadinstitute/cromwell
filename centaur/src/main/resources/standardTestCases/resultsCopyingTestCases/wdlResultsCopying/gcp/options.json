@@ -1,7 +1,7 @@
 {
   "use_relative_output_paths": false,
-  "final_workflow_outputs_dir": "gs://<<bucket-name-placeholder>>/wf_results",
+  "final_workflow_outputs_dir": "gs://centaur-ci-us-east1/wf_results",
   "final_workflow_outputs_mode": "copy",
-  "final_workflow_log_dir": "gs://<<bucket-name-placeholder>>/wf_logs",
-  "final_call_logs_dir": "gs://<<bucket-name-placeholder>>/cl_logs"
+  "final_workflow_log_dir": "gs://centaur-ci-us-east1/wf_logs",
+  "final_call_logs_dir": "gs://centaur-ci-us-east1/cl_logs"
 }

@@ -1,7 +1,11 @@
 name: gcpWdlResultsCopying
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papi, Papiv2, gcpbatch]
 tags: ["copyGcp"]
+
+# Will run on a Cromwell that supports any one of these backends
+backendsMode: any
+backends: [Papi, Papiv2, GCPBatch]
 
 files {
   workflow: wdlResultsCopying/simpleWorkflow.wdl
@@ -14,9 +18,10 @@ metadata {
 
 fileSystemCheck: "gcs"
 outputExpectations: {
-    "gs://<<bucket-name-placeholder>>/wf_results/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
-    "gs://<<bucket-name-placeholder>>/wf_logs/workflow.<<UUID>>.log": 1
-    "gs://<<bucket-name-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stderr": 1
-    "gs://<<bucket-name-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stdout": 1
-    "gs://<<bucket-name-placeholder>>/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask.log": 1
+    "gs://centaur-ci-us-east1/wf_results/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
+    "gs://centaur-ci-us-east1/wf_logs/workflow.<<UUID>>.log": 1
+    "gs://centaur-ci-us-east1/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stderr": 1
+    "gs://centaur-ci-us-east1/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stdout": 1
+    "gs://centaur-ci-us-east1/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask.log": 1
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
 }

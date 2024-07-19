@@ -43,9 +43,8 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String],
     }
   }
 
-  private def isTestFile(file: File) = {
+  private def isTestFile(file: File) =
     file.isRegularFile && file.extension.contains(".test")
-  }
 
   def allTestCases: List[CentaurTestCase] = {
     val optionalTestCases = CentaurConfig.optionalTestPath map (File(_)) map testCases getOrElse List.empty

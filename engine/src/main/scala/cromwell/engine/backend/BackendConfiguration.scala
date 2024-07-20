@@ -21,10 +21,9 @@ case class BackendConfigurationEntry(name: String, lifecycleActorFactoryClass: S
 object BackendConfiguration {
   private val BackendConfig = ConfigFactory.load.getConfig("backend")
   private val DefaultBackendName = BackendConfig.getString("default")
-  private val EnabledBackends = BackendConfig.as[Option[List[String]]]("enabled")
   private val BackendProviders = BackendConfig.getConfig("providers")
   private val BackendNames: Set[String] =
-    BackendProviders.entrySet().asScala.map(_.getKey.split("\\.").toSeq.head).toSet.filter(enabled)
+    BackendProviders.entrySet().asScala.map(_.getKey.split("\\.").toSeq.head).toSet
 
   val AllBackendEntries: List[BackendConfigurationEntry] = BackendNames.toList map { backendName =>
     val entry = BackendProviders.getConfig(backendName)
@@ -43,15 +42,10 @@ object BackendConfiguration {
   }
 
   def backendConfigurationDescriptor(backendName: String): Try[BackendConfigurationDescriptor] =
-    AllBackendEntries.collectFirst {
+    AllBackendEntries.collect {
       case entry if entry.name.equalsIgnoreCase(backendName) => entry.asBackendConfigurationDescriptor
-    } match {
+    }.headOption match {
       case Some(descriptor) => Success(descriptor)
       case None => Failure(new Exception(s"invalid backend: $backendName"))
     }
-
-  def enabled(backendName: String): Boolean = EnabledBackends match {
-    case Some(backends) => backends.contains(backendName)
-    case None => true
-  }
 }

@@ -42,23 +42,6 @@ The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 
 The index had low cardinality and workflow pickup is faster without it. Migration time depends on workflow store size, but should be very fast for most installations. Terminal workflows are removed from the workflow store, so only running workflows contribute to the cost.
 
-### Backend configuration fix
-
-Some testing & example configs reference the `backend.enabled` config key, but Cromwell was ignoring it. Cromwell now respects this key.
-
-Users may experience a behavior change if they have the key in their config and inadvertently relied on it being ignored. See its semantics below, which are also reproduced in the official reference config at `core/src/main/resources/reference.conf`.
-
-```
-backend {
-  default = "Local"
-
-  # When omitted, enable all backends
-  # When a list is provided, enable only those backends
-  # When an empty list is provided, enable no backends
-  enabled = ["Local"]
-}
-```
-
 ## 87 Release Notes
 
 ### GCP Batch

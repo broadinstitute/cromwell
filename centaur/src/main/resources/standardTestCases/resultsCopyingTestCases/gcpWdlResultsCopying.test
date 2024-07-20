@@ -1,11 +1,10 @@
 name: gcpWdlResultsCopying
 testFormat: workflowsuccess
-backends: [Papi, Papiv2, gcpbatch]
 tags: ["copyGcp"]
 
 # Will run on a Cromwell that supports any one of these backends
 backendsMode: any
-backends: [Papi, Papiv2, GCPBatch]
+backends: [Papi, Papiv2, gcpbatch]
 
 files {
   workflow: wdlResultsCopying/simpleWorkflow.wdl

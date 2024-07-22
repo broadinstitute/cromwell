@@ -5,8 +5,8 @@ tags: ["copyGcp"]
 # Will run on a Cromwell that supports any one of these backends
 backendsMode: any
 
-# Currently, Batch does not produce a `simpleStdoutTask.log`. This is being investigated.
-# The assertion on the soruce file `gs://cloud-cromwell-dev-self-cleaning/.../simpleStdoutTask.log` fails on Batch, so it's not related to moving/copying.
+# Asserting on the source file `gs://cloud-cromwell-dev-self-cleaning/.../simpleStdoutTask.log` currently fails on Batch.
+# This is because Batch does not produce a `simpleStdoutTask.log` and instead sends logs go to Cloud Logging. Burwood is going to add a config to allow the old behavior.
 # backends: [Papi, Papiv2, GCPBatch]
 backends: [Papi, Papiv2]
 

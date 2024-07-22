@@ -4,7 +4,11 @@ tags: ["copyGcp"]
 
 # Will run on a Cromwell that supports any one of these backends
 backendsMode: any
-backends: [Papi, Papiv2, gcpbatch]
+
+# Asserting on the source file `gs://cloud-cromwell-dev-self-cleaning/.../simpleStdoutTask.log` currently fails on Batch.
+# This is because Batch does not produce a `simpleStdoutTask.log` and instead sends logs go to Cloud Logging. Burwood is going to add a config to allow the old behavior.
+# backends: [Papi, Papiv2, GCPBatch]
+backends: [Papi, Papiv2]
 
 files {
   workflow: wdlResultsCopying/simpleWorkflow.wdl
@@ -22,5 +26,6 @@ outputExpectations: {
     "gs://centaur-ci-us-east1/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stderr": 1
     "gs://centaur-ci-us-east1/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stdout": 1
     "gs://centaur-ci-us-east1/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask.log": 1
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask.log": 1
     "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
 }

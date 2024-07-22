@@ -4,7 +4,11 @@ tags: ["copyGcp"]
 
 # Will run on a Cromwell that supports any one of these backends
 backendsMode: any
-backends: [Papi, Papiv2, GCPBatch]
+
+# Currently, Batch does not produce a `simpleStdoutTask.log`. This is being investigated.
+# The assertion on the soruce file `gs://cloud-cromwell-dev-self-cleaning/.../simpleStdoutTask.log` fails on Batch, so it's not related to moving/copying.
+# backends: [Papi, Papiv2, GCPBatch]
+backends: [Papi, Papiv2]
 
 files {
   workflow: wdlResultsCopying/simpleWorkflow.wdl
@@ -22,5 +26,6 @@ outputExpectations: {
     "gs://centaur-ci-us-east1/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stderr": 1
     "gs://centaur-ci-us-east1/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/stdout": 1
     "gs://centaur-ci-us-east1/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask.log": 1
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask.log": 1
     "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
 }

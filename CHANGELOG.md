@@ -2,6 +2,11 @@
 
 ## 88 Release Notes
 
+### Java 17
+
+As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
+containerized using [Eclipse Temurin](https://adoptium.net/temurin/releases/?version=17).
+
 ### Fixed Optional and String Concatenation Bug
 
 As outlined in the [WDL Spec](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter), concatenating a string with an empty optional now correctly evaluates to the empty string.

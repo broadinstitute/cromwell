@@ -1,4 +1,4 @@
-import Version.{Debug, Release, Snapshot, Standard, cromwellVersion}
+import Version.{cromwellVersion, Debug, Release, Snapshot, Standard}
 import org.apache.ivy.Ivy
 import org.apache.ivy.core.IvyPatternHelper
 import org.apache.ivy.core.module.descriptor.{DefaultModuleDescriptor, MDArtifact}
@@ -69,7 +69,7 @@ object Publishing {
       val additionalDockerInstr: Seq[Instruction] = (dockerCustomSettings ?? Nil).value
 
       new Dockerfile {
-        from("us.gcr.io/broad-dsp-gcr-public/base/jre:11-debian")
+        from("us.gcr.io/broad-dsp-gcr-public/base/jre:17-debian")
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")
@@ -78,6 +78,17 @@ object Publishing {
         if (Version.buildType == Debug) {
           addInstruction(installDebugFacilities(version.value))
         }
+
+        // Add a custom java opt for CromIAM, this avoids the following error on boot (from Akka):
+        //     class com.typesafe.sslconfig.ssl.DefaultHostnameVerifier (in unnamed module @0x5594a1b5)
+        //     cannot access class sun.security.util.HostnameChecker (in module java.base)
+        //     because module java.base does not export sun.security.util to unnamed module @0x5594a1b5
+        // See https://docs.oracle.com/en/java/javase/17/migrate/migrating-jdk-8-later-jdk-releases.html#GUID-2F61F3A9-0979-46A4-8B49-325BA0EE8B66
+        // TODO remove this once we upgrade Akka past 2.5
+        val addOpensJavaOpt =
+          if (projectName == "cromiam")
+            "--add-opens=java.base/sun.security.util=ALL-UNNAMED"
+          else ""
 
         /*
         If you use the 'exec' form for an entry point, shell processing is not performed and
@@ -114,7 +125,7 @@ object Publishing {
         entryPoint(
           "/bin/bash",
           "-c",
-          s"java $${JAVA_OPTS} -jar /app/$projectName.jar $${${projectName.toUpperCase.replaceAll("-", "_")}_ARGS} $${*}",
+          s"java $${JAVA_OPTS} ${addOpensJavaOpt} -jar /app/$projectName.jar $${${projectName.toUpperCase.replaceAll("-", "_")}_ARGS} $${*}",
           "--"
         )
         // for each custom setting (instruction) run addInstruction()
@@ -210,7 +221,7 @@ object Publishing {
 
   val additionalResolvers = List(
     broadArtifactoryResolver,
-    broadArtifactoryResolverSnap,
+    broadArtifactoryResolverSnap
   ) ++ Resolver.sonatypeOssRepos("releases")
 
   private val artifactoryCredentialsFile =

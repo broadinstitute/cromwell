@@ -12,8 +12,8 @@ import wdl.model.draft3.graph.expression.EvaluatedValue
 import wdl.model.draft3.graph.expression.TypeEvaluator.ops._
 import wdl.model.draft3.graph.expression.ValueEvaluator.ops._
 import wom.expression.NoIoFunctionSet
-import wom.types.{WomBooleanType, WomIntegerType, WomType}
-import wom.values.{WomBoolean, WomInteger, WomValue}
+import wom.types.{WomBooleanType, WomIntegerType, WomStringType, WomType}
+import wom.values.{WomBoolean, WomInteger, WomOptionalValue, WomString, WomValue}
 
 /**
   * Checks that the draft3 value evaluators for ExpressionElements are wired to forward values through to the appropriate
@@ -67,5 +67,23 @@ class UnaryAndBinaryOperatorsEvaluatorSpec extends AnyFlatSpec with CromwellTime
     it should s"evaluate the type of the expression '$name'" in {
       expression.evaluateType(Map.empty, Map.empty) shouldBeValid expectedType
     }
+  }
+
+  it should "correctly evaluate the value of optional and string concatenation" in {
+    // Test name, input expression, output value, output type.
+    val prefixLiteral = PrimitiveLiteralExpressionElement(WomString("myPrefix"))
+    val suffixLiteral = IdentifierLookup("suffixOptional")
+    val inputsWithUndefinedOptional = Map("suffixOptional" -> WomOptionalValue(WomStringType, None))
+    val inputsWithDefinedOptional =
+      Map("suffixOptional" -> WomOptionalValue(WomStringType, Option(WomString("myOptionalValue"))))
+    val addExpression: ExpressionElement = Add(prefixLiteral, suffixLiteral)
+    addExpression.evaluateValue(inputsWithUndefinedOptional, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(
+      WomOptionalValue(WomStringType, None),
+      Seq.empty
+    )
+    addExpression.evaluateValue(inputsWithDefinedOptional, NoIoFunctionSet, None) shouldBeValid EvaluatedValue(
+      WomString("myPrefixmyOptionalValue"),
+      Seq.empty
+    )
   }
 }

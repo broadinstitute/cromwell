@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '11'
+          java-version: '17'
       # The following invocation should be as similar as possible to the one in chart_update_on_merge.yml
       # To state the obvious: This test should not publish anything. It should simply verify that the build completes.
       - name: Build Cromwell Docker

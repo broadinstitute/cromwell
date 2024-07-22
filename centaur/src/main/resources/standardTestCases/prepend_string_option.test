@@ -1,0 +1,20 @@
+# We expect that when combining a string with an empty option, nothing is output.
+# We expect that when combining a string with a present option, the two are concatenated.
+# https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter
+
+name: prepend_string_option
+testFormat: workflowsuccess
+
+files {
+  workflow: prepend_string_option/prepend_string_option.wdl
+}
+
+metadata {
+  workflowName: prepend_string_option
+  status: Succeeded
+
+  "outputs.prepend_string_option.neither_provided": ".maf"
+  "outputs.prepend_string_option.first_provided": "outPrefix.maf"
+  "outputs.prepend_string_option.second_provided": ".outSuffix.maf"
+  "outputs.prepend_string_option.both_provided": "outPrefix.outSuffix.maf"
+}

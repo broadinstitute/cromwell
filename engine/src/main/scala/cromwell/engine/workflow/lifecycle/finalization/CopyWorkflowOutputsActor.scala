@@ -66,10 +66,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     }
   }
 
-  private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
-    val workflowOutputsPath = buildPath(workflowOutputsFilePath)
-    val outputFilePaths = getOutputFilePaths(workflowOutputsPath)
-
+  private def markDuplicates(outputFilePaths: List[(Path, Path)]) = {
     // Check if there are duplicated destination paths and throw an exception if that is the case.
     // This creates a map of destinations and source paths which point to them in cases where there are multiple
     // source paths that point to the same destination.
@@ -89,12 +86,34 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
           s" as multiple files will be copied to the same path: \n${formattedCollidingCopyOptions.mkString("\n")}"
       )
     }
+  }
+
+  private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
+    val workflowOutputsPath = buildPath(workflowOutputsFilePath)
+    val outputFilePaths = getOutputFilePaths(workflowOutputsPath)
+
+    markDuplicates(outputFilePaths)
 
     val copies = outputFilePaths map { case (srcPath, dstPath) =>
       asyncIo.copyAsync(srcPath, dstPath)
     }
 
     Future.sequence(copies)
+  }
+
+  private def moveWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
+    val workflowOutputsPath = buildPath(workflowOutputsFilePath)
+    val outputFilePaths = getOutputFilePaths(workflowOutputsPath)
+
+    markDuplicates(outputFilePaths)
+
+    val moves = outputFilePaths map { case (srcPath, dstPath) =>
+      asyncIo.copyAsync(srcPath, dstPath) flatMap { _ =>
+        asyncIo.deleteAsync(srcPath)
+      }
+    }
+
+    Future.sequence(moves)
   }
 
   private def findFiles(values: Seq[WomValue]): Seq[WomSingleFile] =
@@ -150,9 +169,14 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
   /**
     * Happens after everything else runs
     */
-  final def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] =
-    workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir) match {
-      case Some(outputs) => copyWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
-      case None => Future.successful(FinalizationSuccess)
+  final def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = {
+    val maybeOutputsDir = workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir)
+    val mode = FinalWorkflowOutputsMode.fromString(workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsMode))
+
+    (maybeOutputsDir, mode) match {
+      case (Some(outputs), Copy) => copyWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
+      case (Some(outputs), Move) => moveWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
+      case _ => Future.successful(FinalizationSuccess)
     }
+  }
 }

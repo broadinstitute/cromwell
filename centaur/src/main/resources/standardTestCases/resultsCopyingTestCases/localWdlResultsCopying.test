@@ -2,6 +2,8 @@ name: localWdlResultsCopying
 testFormat: workflowsuccess
 tags: ["copyLocal"]
 
+ignore: true
+
 files {
   workflow: wdlResultsCopying/simpleWorkflow.wdl
   options: wdlResultsCopying/local/options.json

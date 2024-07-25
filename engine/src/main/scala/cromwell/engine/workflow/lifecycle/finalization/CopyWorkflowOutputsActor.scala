@@ -88,11 +88,9 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     }
   }
 
-  private def copyWorkflowOutputs(workflowOutputsFilePath: String,
-                                  descriptor: EngineWorkflowDescriptor
-  ): Future[Seq[Unit]] = {
+  private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
-    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, descriptor)
+    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData)
 
     markDuplicates(outputFilePaths)
 
@@ -103,11 +101,9 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     Future.sequence(copies)
   }
 
-  private def moveWorkflowOutputs(workflowOutputsFilePath: String,
-                                  descriptor: EngineWorkflowDescriptor
-  ): Future[Seq[Unit]] = {
+  private def moveWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
-    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, descriptor)
+    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData)
 
     markDuplicates(outputFilePaths)
 
@@ -128,7 +124,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     }
 
   private def getOutputFilePaths(workflowOutputsPath: Path,
-                                 descriptor: EngineWorkflowDescriptor
+                                 descriptor: EngineWorkflowDescriptor,
+                                 backendInitData: AllBackendInitializationData
   ): List[(Path, Path)] = {
 
     val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
@@ -136,7 +133,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
       // NOTE: Without .toSeq, outputs in arrays only yield the last output
       backend <- descriptor.backendAssignments.values.toSeq
       config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
-      rootPath <- getBackendRootPath(backend, config, descriptor).toSeq
+      rootPath <- getBackendRootPath(backend, config, descriptor, backendInitData).toSeq
       outputFiles = findFiles(workflowOutputs.outputs.values.toSeq).map(_.value)
     } yield (rootPath, outputFiles)
 
@@ -163,9 +160,10 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def getBackendRootPath(backend: String,
                                  config: BackendConfigurationDescriptor,
-                                 descriptor: EngineWorkflowDescriptor
+                                 descriptor: EngineWorkflowDescriptor,
+                                 backendInitData: AllBackendInitializationData
   ): Option[Path] =
-    getBackendFactory(backend) map getRootPath(config, initializationData.get(backend), descriptor)
+    getBackendFactory(backend) map getRootPath(config, backendInitData.get(backend), descriptor)
 
   private def getBackendFactory(backend: String): Option[BackendLifecycleActorFactory] =
     CromwellBackends.backendLifecycleFactoryActorByName(backend).toOption
@@ -184,8 +182,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     val mode = FinalWorkflowOutputsMode.fromString(workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsMode))
 
     (maybeOutputsDir, mode) match {
-      case (Some(outputs), Copy) => copyWorkflowOutputs(outputs, workflowDescriptor) map { _ => FinalizationSuccess }
-      case (Some(outputs), Move) => moveWorkflowOutputs(outputs, workflowDescriptor) map { _ => FinalizationSuccess }
+      case (Some(outputs), Copy) => copyWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
+      case (Some(outputs), Move) => moveWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
       case _ => Future.successful(FinalizationSuccess)
     }
   }

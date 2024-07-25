@@ -88,7 +88,9 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     }
   }
 
-  private def copyWorkflowOutputs(workflowOutputsFilePath: String, descriptor: EngineWorkflowDescriptor): Future[Seq[Unit]] = {
+  private def copyWorkflowOutputs(workflowOutputsFilePath: String,
+                                  descriptor: EngineWorkflowDescriptor
+  ): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
     val outputFilePaths = getOutputFilePaths(workflowOutputsPath, descriptor)
 
@@ -101,7 +103,9 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     Future.sequence(copies)
   }
 
-  private def moveWorkflowOutputs(workflowOutputsFilePath: String, descriptor: EngineWorkflowDescriptor): Future[Seq[Unit]] = {
+  private def moveWorkflowOutputs(workflowOutputsFilePath: String,
+                                  descriptor: EngineWorkflowDescriptor
+  ): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
     val outputFilePaths = getOutputFilePaths(workflowOutputsPath, descriptor)
 
@@ -123,14 +127,16 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
       }
     }
 
-  private def getOutputFilePaths(workflowOutputsPath: Path, descriptor: EngineWorkflowDescriptor): List[(Path, Path)] = {
+  private def getOutputFilePaths(workflowOutputsPath: Path,
+                                 descriptor: EngineWorkflowDescriptor
+  ): List[(Path, Path)] = {
 
     val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
     val rootAndFiles = for {
       // NOTE: Without .toSeq, outputs in arrays only yield the last output
       backend <- descriptor.backendAssignments.values.toSeq
       config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
-      rootPath <- getBackendRootPath(backend, config).toSeq
+      rootPath <- getBackendRootPath(backend, config, descriptor).toSeq
       outputFiles = findFiles(workflowOutputs.outputs.values.toSeq).map(_.value)
     } yield (rootPath, outputFiles)
 
@@ -155,16 +161,20 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     outputFileDestinations.distinct.toList
   }
 
-  private def getBackendRootPath(backend: String, config: BackendConfigurationDescriptor): Option[Path] =
-    getBackendFactory(backend) map getRootPath(config, initializationData.get(backend))
+  private def getBackendRootPath(backend: String,
+                                 config: BackendConfigurationDescriptor,
+                                 descriptor: EngineWorkflowDescriptor
+  ): Option[Path] =
+    getBackendFactory(backend) map getRootPath(config, initializationData.get(backend), descriptor)
 
   private def getBackendFactory(backend: String): Option[BackendLifecycleActorFactory] =
     CromwellBackends.backendLifecycleFactoryActorByName(backend).toOption
 
   private def getRootPath(config: BackendConfigurationDescriptor,
-                          initializationData: Option[BackendInitializationData]
+                          initializationData: Option[BackendInitializationData],
+                          descriptor: EngineWorkflowDescriptor
   )(backendFactory: BackendLifecycleActorFactory): Path =
-    backendFactory.getExecutionRootPath(workflowDescriptor.backendDescriptor, config.backendConfig, initializationData)
+    backendFactory.getExecutionRootPath(descriptor.backendDescriptor, config.backendConfig, initializationData)
 
   /**
     * Happens after everything else runs

@@ -880,6 +880,16 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         contentType = plainTextContentType
       )
 
+      val logFileOutput = GcpBatchFileOutput(
+        logFilename,
+        logGcsPath,
+        DefaultPathBuilder.get(logFilename),
+        workingDisk,
+        optional = true,
+        secondary = false,
+        contentType = plainTextContentType
+      )
+
       val memoryRetryRCFileOutput = GcpBatchFileOutput(
         memoryRetryRCFilename,
         memoryRetryRCGcsPath,
@@ -920,20 +930,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput,
-          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
+          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput,
+          logFileOutputParameter = logFileOutput
         ),
         List.empty
       )
 
     })
-
-    val gcpBatchParameters = CreateGcpBatchParameters(
-      jobDescriptor = jobDescriptor,
-      runtimeAttributes = runtimeAttributes,
-      batchAttributes = batchAttributes,
-      projectId = batchAttributes.project,
-      region = batchAttributes.location
-    )
 
     val runBatchResponse = for {
       _ <- evaluateRuntimeAttributes
@@ -941,6 +944,18 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       customLabels <- Future.fromTry(GcpLabel.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       batchParameters <- generateInputOutputParameters
       createParameters = createBatchParameters(batchParameters, customLabels)
+
+      gcpBatchParameters = CreateGcpBatchParameters(
+        jobDescriptor = jobDescriptor,
+        runtimeAttributes = runtimeAttributes,
+        batchAttributes = batchAttributes,
+        projectId = batchAttributes.project,
+        region = batchAttributes.location,
+        logfile = createParameters.commandScriptContainerPath.sibling(
+          batchParameters.detritusOutputParameters.logFileOutputParameter.name
+        )
+      )
+
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
       _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
       gcsTransferConfiguration = initializationData.gcpBatchConfiguration.batchAttributes.gcsTransferConfiguration

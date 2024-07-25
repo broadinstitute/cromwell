@@ -40,10 +40,13 @@ object GcpBatchRequestFactory {
   case class DetritusOutputParameters(
     monitoringScriptOutputParameter: Option[GcpBatchFileOutput],
     rcFileOutputParameter: GcpBatchFileOutput,
-    memoryRetryRCFileOutputParameter: GcpBatchFileOutput
+    memoryRetryRCFileOutputParameter: GcpBatchFileOutput,
+    logFileOutputParameter: GcpBatchFileOutput
   ) {
-    def all: List[GcpBatchFileOutput] =
-      memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
+    def all: List[GcpBatchFileOutput] = memoryRetryRCFileOutputParameter ::
+      logFileOutputParameter ::
+      rcFileOutputParameter ::
+      monitoringScriptOutputParameter.toList
   }
 
   /**

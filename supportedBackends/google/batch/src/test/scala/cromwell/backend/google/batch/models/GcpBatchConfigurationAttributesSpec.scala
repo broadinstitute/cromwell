@@ -29,18 +29,16 @@ class GcpBatchConfigurationAttributesSpec
   val runtimeConfig: Config = ConfigFactory.load()
 
   it should "parse correct Batch config" in {
-
     val backendConfig = ConfigFactory.parseString(configString())
-    println(backendConfig)
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
-    println(gcpBatchAttributes)
     gcpBatchAttributes.project should be("myProject")
     gcpBatchAttributes.executionBucket should be("gs://myBucket")
     gcpBatchAttributes.maxPollingInterval should be(600)
     gcpBatchAttributes.computeServiceAccount should be("default")
     gcpBatchAttributes.restrictMetadataAccess should be(false)
     gcpBatchAttributes.referenceFileToDiskImageMappingOpt.isEmpty should be(true)
+    gcpBatchAttributes.logsPolicy should be(GcpBatchLogsPolicy.CloudLogging)
   }
 
   it should "parse correct preemptible config" in {
@@ -131,6 +129,29 @@ class GcpBatchConfigurationAttributesSpec
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
     gcpBatchAttributes.gcsTransferConfiguration.transferAttempts.value should be(31380)
+  }
+
+  it should "parse logs-policy = CLOUD_LOGGING" in {
+    val backendConfig = ConfigFactory.parseString(configString(batch = "logs-policy = CLOUD_LOGGING"))
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    gcpBatchAttributes.logsPolicy should be(GcpBatchLogsPolicy.CloudLogging)
+  }
+
+  it should "parse logs-policy = PATH" in {
+    val backendConfig = ConfigFactory.parseString(configString(batch = "logs-policy = PATH"))
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    gcpBatchAttributes.logsPolicy should be(GcpBatchLogsPolicy.Path)
+  }
+
+  it should "reject invalid logs-policy" in {
+    val expected =
+      "Google Cloud Batch configuration is not valid: Errors:\nUnrecognized logs policy entry: INVALID. Supported strategies are CLOUD_LOGGING and PATH."
+    val backendConfig = ConfigFactory.parseString(configString(batch = "logs-policy = INVALID"))
+    val ex = intercept[IllegalArgumentException] {
+      GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    }
+
+    ex.getMessage should be(expected)
   }
 
   private val mockAuth = MockAuthMode("mock")

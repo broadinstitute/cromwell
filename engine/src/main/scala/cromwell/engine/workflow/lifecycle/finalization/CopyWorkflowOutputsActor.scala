@@ -3,7 +3,12 @@ package cromwell.engine.workflow.lifecycle.finalization
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor.BackendWorkflowLifecycleActorResponse
-import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationResponse, FinalizationSuccess, Finalize}
+import cromwell.backend.BackendWorkflowFinalizationActor.{
+  FinalizationFailed,
+  FinalizationResponse,
+  FinalizationSuccess,
+  Finalize
+}
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
@@ -80,7 +85,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
-    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData, workflowOutputs)
+    val outputFilePaths =
+      getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData, workflowOutputs)
 
     markDuplicates(outputFilePaths)
 
@@ -93,7 +99,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def moveWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
-    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData, workflowOutputs)
+    val outputFilePaths =
+      getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData, workflowOutputs)
 
     markDuplicates(outputFilePaths)
 
@@ -114,8 +121,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     val mode = FinalWorkflowOutputsMode.fromString(workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsMode))
 
     (maybeOutputsDir, mode) match {
-      case (Some(outputs), Copy) => copyWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
-      case (Some(outputs), Move) => moveWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
+      case (Some(outputsDir), Copy) => copyWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
+      case (Some(outputsDir), Move) => moveWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
       case _ => Future.successful(FinalizationSuccess)
     }
   }

@@ -90,7 +90,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
-    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData)
+    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData, workflowOutputs)
 
     markDuplicates(outputFilePaths)
 
@@ -103,7 +103,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def moveWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
     val workflowOutputsPath = buildPath(workflowOutputsFilePath)
-    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData)
+    val outputFilePaths = getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData, workflowOutputs)
 
     markDuplicates(outputFilePaths)
 
@@ -125,7 +125,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def getOutputFilePaths(workflowOutputsPath: Path,
                                  descriptor: EngineWorkflowDescriptor,
-                                 backendInitData: AllBackendInitializationData
+                                 backendInitData: AllBackendInitializationData,
+                                 workflowOutputs: CallOutputs
   ): List[(Path, Path)] = {
 
     val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
@@ -146,7 +147,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     lazy val truncateRegex = ".*/call-[^/]*/(shard-[0-9]+/)?(cacheCopy/)?(attempt-[0-9]+/)?(execution/)?".r
     val outputFileDestinations = rootAndFiles flatMap { case (workflowRoot, outputs) =>
       outputs map { output =>
-        val outputPath = PathFactory.buildPath(output, pathBuilders)
+        val outputPath = PathFactory.buildPath(output, descriptor.pathBuilders)
         outputPath -> {
           if (useRelativeOutputPaths) {
             val pathRelativeToExecDir = truncateRegex.replaceFirstIn(outputPath.pathAsString, "")

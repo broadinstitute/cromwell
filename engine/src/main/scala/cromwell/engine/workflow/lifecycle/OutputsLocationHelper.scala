@@ -1,13 +1,17 @@
 package cromwell.engine.workflow.lifecycle
 
-import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
+import cromwell.backend.{
+  AllBackendInitializationData,
+  BackendConfigurationDescriptor,
+  BackendInitializationData,
+  BackendLifecycleActorFactory
+}
 import cromwell.core.CallOutputs
 import cromwell.core.WorkflowOptions.UseRelativeOutputPaths
 import cromwell.core.path.{Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import wom.values.{WomSingleFile, WomValue}
-
 
 trait OutputsLocationHelper {
 
@@ -19,10 +23,10 @@ trait OutputsLocationHelper {
     }
 
   protected def getOutputFilePaths(workflowOutputsPath: Path,
-                                 descriptor: EngineWorkflowDescriptor,
-                                 backendInitData: AllBackendInitializationData,
-                                 workflowOutputs: CallOutputs
-                                ): List[(Path, Path)] = {
+                                   descriptor: EngineWorkflowDescriptor,
+                                   backendInitData: AllBackendInitializationData,
+                                   workflowOutputs: CallOutputs
+  ): List[(Path, Path)] = {
 
     val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
     val rootAndFiles = for {
@@ -58,7 +62,7 @@ trait OutputsLocationHelper {
                                  config: BackendConfigurationDescriptor,
                                  descriptor: EngineWorkflowDescriptor,
                                  backendInitData: AllBackendInitializationData
-                                ): Option[Path] =
+  ): Option[Path] =
     getBackendFactory(backend) map getRootPath(config, backendInitData.get(backend), descriptor)
 
   private def getBackendFactory(backend: String): Option[BackendLifecycleActorFactory] =
@@ -67,7 +71,7 @@ trait OutputsLocationHelper {
   private def getRootPath(config: BackendConfigurationDescriptor,
                           initializationData: Option[BackendInitializationData],
                           descriptor: EngineWorkflowDescriptor
-                         )(backendFactory: BackendLifecycleActorFactory): Path =
+  )(backendFactory: BackendLifecycleActorFactory): Path =
     backendFactory.getExecutionRootPath(descriptor.backendDescriptor, config.backendConfig, initializationData)
 
 }

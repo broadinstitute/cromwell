@@ -3,27 +3,16 @@ package cromwell.engine.workflow.lifecycle.finalization
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor.BackendWorkflowLifecycleActorResponse
-import cromwell.backend.BackendWorkflowFinalizationActor.{
-  FinalizationFailed,
-  FinalizationResponse,
-  FinalizationSuccess,
-  Finalize
-}
-import cromwell.backend.{
-  AllBackendInitializationData,
-  BackendConfigurationDescriptor,
-  BackendInitializationData,
-  BackendLifecycleActorFactory
-}
+import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationResponse, FinalizationSuccess, Finalize}
+import cromwell.backend.AllBackendInitializationData
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
 import cromwell.core._
 import cromwell.core.io.AsyncIoActorClient
-import cromwell.core.path.{Path, PathCopier, PathFactory}
+import cromwell.core.path.{Path, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
+import cromwell.engine.workflow.lifecycle.OutputsLocationHelper
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import wom.values.{WomSingleFile, WomValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -47,7 +36,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 ) extends Actor
     with ActorLogging
     with PathFactory
-    with AsyncIoActorClient {
+    with AsyncIoActorClient
+    with OutputsLocationHelper {
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
   implicit val ec = context.dispatcher
   override val pathBuilders = workflowDescriptor.pathBuilders
@@ -115,65 +105,6 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
     Future.sequence(moves)
   }
-
-  private def findFiles(values: Seq[WomValue]): Seq[WomSingleFile] =
-    values flatMap {
-      _.collectAsSeq { case file: WomSingleFile =>
-        file
-      }
-    }
-
-  private def getOutputFilePaths(workflowOutputsPath: Path,
-                                 descriptor: EngineWorkflowDescriptor,
-                                 backendInitData: AllBackendInitializationData,
-                                 workflowOutputs: CallOutputs
-  ): List[(Path, Path)] = {
-
-    val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
-    val rootAndFiles = for {
-      // NOTE: Without .toSeq, outputs in arrays only yield the last output
-      backend <- descriptor.backendAssignments.values.toSeq
-      config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
-      rootPath <- getBackendRootPath(backend, config, descriptor, backendInitData).toSeq
-      outputFiles = findFiles(workflowOutputs.outputs.values.toSeq).map(_.value)
-    } yield (rootPath, outputFiles)
-
-    // This regex will make sure the path is relative to the execution folder.
-    // the call-.* part is there to prevent arbitrary folders called execution to get caught.
-    // Truncate regex is declared here. If it were declared in the if statement the regex would have to be
-    // compiled for every single file.
-    // "execution" should be optional, because its not created on AWS.
-    // Also cacheCopy or attempt-<int> folders are optional.
-    lazy val truncateRegex = ".*/call-[^/]*/(shard-[0-9]+/)?(cacheCopy/)?(attempt-[0-9]+/)?(execution/)?".r
-    val outputFileDestinations = rootAndFiles flatMap { case (workflowRoot, outputs) =>
-      outputs map { output =>
-        val outputPath = PathFactory.buildPath(output, descriptor.pathBuilders)
-        outputPath -> {
-          if (useRelativeOutputPaths) {
-            val pathRelativeToExecDir = truncateRegex.replaceFirstIn(outputPath.pathAsString, "")
-            workflowOutputsPath.resolve(pathRelativeToExecDir)
-          } else PathCopier.getDestinationFilePath(workflowRoot, outputPath, workflowOutputsPath)
-        }
-      }
-    }
-    outputFileDestinations.distinct.toList
-  }
-
-  private def getBackendRootPath(backend: String,
-                                 config: BackendConfigurationDescriptor,
-                                 descriptor: EngineWorkflowDescriptor,
-                                 backendInitData: AllBackendInitializationData
-  ): Option[Path] =
-    getBackendFactory(backend) map getRootPath(config, backendInitData.get(backend), descriptor)
-
-  private def getBackendFactory(backend: String): Option[BackendLifecycleActorFactory] =
-    CromwellBackends.backendLifecycleFactoryActorByName(backend).toOption
-
-  private def getRootPath(config: BackendConfigurationDescriptor,
-                          initializationData: Option[BackendInitializationData],
-                          descriptor: EngineWorkflowDescriptor
-  )(backendFactory: BackendLifecycleActorFactory): Path =
-    backendFactory.getExecutionRootPath(descriptor.backendDescriptor, config.backendConfig, initializationData)
 
   /**
     * Happens after everything else runs

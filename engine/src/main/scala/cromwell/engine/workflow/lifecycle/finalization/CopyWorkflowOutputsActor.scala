@@ -14,7 +14,7 @@ import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
 import cromwell.core._
 import cromwell.core.io.AsyncIoActorClient
-import cromwell.core.path.{Path, PathFactory}
+import cromwell.core.path.Path
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.OutputsLocationHelper
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -40,7 +40,6 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
                                initializationData: AllBackendInitializationData
 ) extends Actor
     with ActorLogging
-    with PathFactory
     with AsyncIoActorClient
     with OutputsLocationHelper {
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
@@ -83,10 +82,9 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     }
   }
 
-  private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
-    val workflowOutputsPath = buildPath(workflowOutputsFilePath)
+  private def copyWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
     val outputFilePaths =
-      getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData, workflowOutputs)
+      getOutputFilePaths(outputsDir, workflowDescriptor, initializationData, workflowOutputs)
 
     markDuplicates(outputFilePaths)
 
@@ -97,10 +95,9 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     Future.sequence(copies)
   }
 
-  private def moveWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
-    val workflowOutputsPath = buildPath(workflowOutputsFilePath)
+  private def moveWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
     val outputFilePaths =
-      getOutputFilePaths(workflowOutputsPath, workflowDescriptor, initializationData, workflowOutputs)
+      getOutputFilePaths(outputsDir, workflowDescriptor, initializationData, workflowOutputs)
 
     markDuplicates(outputFilePaths)
 

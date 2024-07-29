@@ -13,7 +13,7 @@ import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import wom.values.{WomSingleFile, WomValue}
 
-trait OutputsLocationHelper {
+trait OutputsLocationHelper extends PathFactory {
 
   private def findFiles(values: Seq[WomValue]): Seq[WomSingleFile] =
     values flatMap {
@@ -22,12 +22,13 @@ trait OutputsLocationHelper {
       }
     }
 
-  protected def getOutputFilePaths(workflowOutputsPath: Path,
+  protected def getOutputFilePaths(outputsDir: String,
                                    descriptor: EngineWorkflowDescriptor,
                                    backendInitData: AllBackendInitializationData,
                                    workflowOutputs: CallOutputs
   ): List[(Path, Path)] = {
-
+    PathFactory.buildPath(outputsDir, descriptor.pathBuilders)
+    val workflowOutputsPath = buildPath(outputsDir)
     val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
     val rootAndFiles = for {
       // NOTE: Without .toSeq, outputs in arrays only yield the last output

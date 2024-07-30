@@ -11,7 +11,7 @@ import cromwell.backend.BackendWorkflowFinalizationActor.{
 }
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.Dispatcher.IoDispatcher
-import cromwell.core.WorkflowOptions._
+import cromwell.core.WorkflowOptions.{Copy, Move}
 import cromwell.core._
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.core.path.Path
@@ -114,10 +114,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     * Happens after everything else runs
     */
   final def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = {
-    val maybeOutputsDir = workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir)
-    val mode = FinalWorkflowOutputsMode.fromString(workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsMode))
-
-    (maybeOutputsDir, mode) match {
+    (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsMode) match {
       case (Some(outputsDir), Copy) => copyWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
       case (Some(outputsDir), Move) => moveWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
       case _ => Future.successful(FinalizationSuccess)

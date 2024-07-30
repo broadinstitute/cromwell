@@ -26,7 +26,7 @@ trait OutputsLocationHelper {
                                    descriptor: EngineWorkflowDescriptor,
                                    backendInitData: AllBackendInitializationData,
                                    workflowOutputs: CallOutputs
-  ): List[(Path, Path)] = {
+  ): Map[Path, Path] = {
     val workflowOutputsPath = PathFactory.buildPath(outputsDir, descriptor.pathBuilders)
     val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
     val rootAndFiles = for {
@@ -55,7 +55,7 @@ trait OutputsLocationHelper {
         }
       }
     }
-    outputFileDestinations.distinct.toList
+    outputFileDestinations.distinct.toMap
   }
 
   private def getBackendRootPath(backend: String,

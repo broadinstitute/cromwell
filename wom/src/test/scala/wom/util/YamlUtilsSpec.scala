@@ -80,7 +80,7 @@ class YamlUtilsSpec
       "a null yaml",
       null,
       refineMV[NonNegative](0),
-      null
+      "Cannot invoke \"String.length()\" because \"s\" is null"
     ),
     (
       "an empty yaml mapping when limited to zero nodes",

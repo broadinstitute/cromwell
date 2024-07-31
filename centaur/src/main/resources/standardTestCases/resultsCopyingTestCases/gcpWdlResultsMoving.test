@@ -1,0 +1,23 @@
+name: gcpWdlResultsMoving
+testFormat: workflowsuccess
+tags: ["copyGcp"]
+
+# Will run on a Cromwell that supports any one of these backends
+backendsMode: any
+backends: [Papi, Papiv2, GCPBatch]
+
+files {
+  workflow: wdlResultsCopying/simpleWorkflow.wdl
+  options: wdlResultsMoving/gcp/options.json
+}
+
+metadata {
+  status: Succeeded
+}
+
+# The `centaur-ci-us-east1` bucket is in a different region than the workflow runs
+fileSystemCheck: "gcs"
+outputExpectations: {
+    "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 0
+}

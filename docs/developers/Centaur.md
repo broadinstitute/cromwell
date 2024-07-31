@@ -5,7 +5,7 @@ Centaur is an integration testing suite for the [Cromwell](http://github.com/bro
 Centaur expects to find a Cromwell server properly configured and running in server mode, listening on port 8000.  
 This can be configured by modifying the `cromwellUrl` parameter in `application.conf`.
 
-You can get a build of your current cromwell code with [these instructions](Building.md).
+You can get a build of your current Cromwell code with [these instructions](Building.md).
 The server can be run with `java -jar <Cromwell JAR> server`, checkout [this page](../CommandLine.md) 
 for more detailed instructions. 
 You can now run the tests from another terminal.

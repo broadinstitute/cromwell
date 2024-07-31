@@ -1,0 +1,8 @@
+{
+  "use_relative_output_paths":true,
+  "final_workflow_outputs_dir":"gs://centaur-ci-us-east1/wf_results",
+  "final_workflow_log_dir":"gs://centaur-ci-us-east1/wf_logs",
+  "final_call_logs_dir":"gs://centaur-ci-us-east1/cl_logs",
+  "read_from_cache": false,
+  "write_to_cache": false
+}

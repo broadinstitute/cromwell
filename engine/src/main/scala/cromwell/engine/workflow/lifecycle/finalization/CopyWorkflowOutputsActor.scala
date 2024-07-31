@@ -9,21 +9,15 @@ import cromwell.backend.BackendWorkflowFinalizationActor.{
   FinalizationSuccess,
   Finalize
 }
-import cromwell.backend.{
-  AllBackendInitializationData,
-  BackendConfigurationDescriptor,
-  BackendInitializationData,
-  BackendLifecycleActorFactory
-}
+import cromwell.backend.AllBackendInitializationData
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.WorkflowOptions._
 import cromwell.core._
 import cromwell.core.io.AsyncIoActorClient
-import cromwell.core.path.{Path, PathCopier, PathFactory}
+import cromwell.core.path.Path
 import cromwell.engine.EngineWorkflowDescriptor
-import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
+import cromwell.engine.workflow.lifecycle.OutputsLocationHelper
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import wom.values.{WomSingleFile, WomValue}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
@@ -46,8 +40,8 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
                                initializationData: AllBackendInitializationData
 ) extends Actor
     with ActorLogging
-    with PathFactory
-    with AsyncIoActorClient {
+    with AsyncIoActorClient
+    with OutputsLocationHelper {
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
   implicit val ec = context.dispatcher
   override val pathBuilders = workflowDescriptor.pathBuilders
@@ -66,10 +60,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     }
   }
 
-  private def copyWorkflowOutputs(workflowOutputsFilePath: String): Future[Seq[Unit]] = {
-    val workflowOutputsPath = buildPath(workflowOutputsFilePath)
-    val outputFilePaths = getOutputFilePaths(workflowOutputsPath)
-
+  private def markDuplicates(outputFilePaths: List[(Path, Path)]) = {
     // Check if there are duplicated destination paths and throw an exception if that is the case.
     // This creates a map of destinations and source paths which point to them in cases where there are multiple
     // source paths that point to the same destination.
@@ -89,6 +80,13 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
           s" as multiple files will be copied to the same path: \n${formattedCollidingCopyOptions.mkString("\n")}"
       )
     }
+  }
+
+  private def copyWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
+    val outputFilePaths =
+      getOutputFilePaths(outputsDir, workflowDescriptor, initializationData, workflowOutputs)
+
+    markDuplicates(outputFilePaths)
 
     val copies = outputFilePaths map { case (srcPath, dstPath) =>
       asyncIo.copyAsync(srcPath, dstPath)
@@ -97,62 +95,32 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     Future.sequence(copies)
   }
 
-  private def findFiles(values: Seq[WomValue]): Seq[WomSingleFile] =
-    values flatMap {
-      _.collectAsSeq { case file: WomSingleFile =>
-        file
+  private def moveWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
+    val outputFilePaths =
+      getOutputFilePaths(outputsDir, workflowDescriptor, initializationData, workflowOutputs)
+
+    markDuplicates(outputFilePaths)
+
+    val moves = outputFilePaths map { case (srcPath, dstPath) =>
+      asyncIo.copyAsync(srcPath, dstPath) flatMap { _ =>
+        asyncIo.deleteAsync(srcPath)
       }
     }
 
-  private def getOutputFilePaths(workflowOutputsPath: Path): List[(Path, Path)] = {
-
-    val useRelativeOutputPaths: Boolean = workflowDescriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
-    val rootAndFiles = for {
-      // NOTE: Without .toSeq, outputs in arrays only yield the last output
-      backend <- workflowDescriptor.backendAssignments.values.toSeq
-      config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
-      rootPath <- getBackendRootPath(backend, config).toSeq
-      outputFiles = findFiles(workflowOutputs.outputs.values.toSeq).map(_.value)
-    } yield (rootPath, outputFiles)
-
-    // This regex will make sure the path is relative to the execution folder.
-    // the call-.* part is there to prevent arbitrary folders called execution to get caught.
-    // Truncate regex is declared here. If it were declared in the if statement the regex would have to be
-    // compiled for every single file.
-    // "execution" should be optional, because its not created on AWS.
-    // Also cacheCopy or attempt-<int> folders are optional.
-    lazy val truncateRegex = ".*/call-[^/]*/(shard-[0-9]+/)?(cacheCopy/)?(attempt-[0-9]+/)?(execution/)?".r
-    val outputFileDestinations = rootAndFiles flatMap { case (workflowRoot, outputs) =>
-      outputs map { output =>
-        val outputPath = PathFactory.buildPath(output, pathBuilders)
-        outputPath -> {
-          if (useRelativeOutputPaths) {
-            val pathRelativeToExecDir = truncateRegex.replaceFirstIn(outputPath.pathAsString, "")
-            workflowOutputsPath.resolve(pathRelativeToExecDir)
-          } else PathCopier.getDestinationFilePath(workflowRoot, outputPath, workflowOutputsPath)
-        }
-      }
-    }
-    outputFileDestinations.distinct.toList
+    Future.sequence(moves)
   }
-
-  private def getBackendRootPath(backend: String, config: BackendConfigurationDescriptor): Option[Path] =
-    getBackendFactory(backend) map getRootPath(config, initializationData.get(backend))
-
-  private def getBackendFactory(backend: String): Option[BackendLifecycleActorFactory] =
-    CromwellBackends.backendLifecycleFactoryActorByName(backend).toOption
-
-  private def getRootPath(config: BackendConfigurationDescriptor,
-                          initializationData: Option[BackendInitializationData]
-  )(backendFactory: BackendLifecycleActorFactory): Path =
-    backendFactory.getExecutionRootPath(workflowDescriptor.backendDescriptor, config.backendConfig, initializationData)
 
   /**
     * Happens after everything else runs
     */
-  final def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] =
-    workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir) match {
-      case Some(outputs) => copyWorkflowOutputs(outputs) map { _ => FinalizationSuccess }
-      case None => Future.successful(FinalizationSuccess)
+  final def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = {
+    val maybeOutputsDir = workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir)
+    val mode = FinalWorkflowOutputsMode.fromString(workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsMode))
+
+    (maybeOutputsDir, mode) match {
+      case (Some(outputsDir), Copy) => copyWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
+      case (Some(outputsDir), Move) => moveWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
+      case _ => Future.successful(FinalizationSuccess)
     }
+  }
 }

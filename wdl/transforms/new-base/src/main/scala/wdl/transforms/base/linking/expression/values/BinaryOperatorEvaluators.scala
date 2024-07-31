@@ -50,10 +50,16 @@ object BinaryOperatorEvaluators {
           a.right.evaluateValue(inputs, ioFunctionSet, forCommandInstantiationOptions) flatMap { right =>
             val rawResult = op(left.value, right.value)
 
-            // Allow unsupplied optionals, but only if we're instantiating a command:
+            // Operations with empty optionals generally fail.
+            // However, if we're instantiating a command or prepending a string, return an empty option of string.
+            // https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter
             val handleOptionals = rawResult.recover {
               case OptionalNotSuppliedException(_) if forCommandInstantiationOptions.isDefined =>
                 WomOptionalValue(WomStringType, None)
+              case OptionalNotSuppliedException(_) =>
+                left.value.womType match {
+                  case WomStringType => WomOptionalValue(WomStringType, None)
+                }
             }
 
             handleOptionals.toErrorOr map { newValue =>

@@ -34,7 +34,7 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String],
   SuccessReporters.getClass
 
   private def testCases(baseFile: File): List[CentaurTestCase] = {
-    val files = baseFile.list.filter(_.isRegularFile).toList
+    val files = baseFile.listRecursively.filter(isTestFile).toList
     val testCases = files.traverse(CentaurTestCase.fromFile(cromwellTracker))
 
     testCases match {
@@ -42,6 +42,9 @@ abstract class AbstractCentaurTestCaseSpec(cromwellBackends: List[String],
       case Invalid(e) => throw new IllegalStateException("\n" + e.toList.mkString("\n") + "\n")
     }
   }
+
+  private def isTestFile(file: File) =
+    file.isRegularFile && file.extension.contains(".test")
 
   def allTestCases: List[CentaurTestCase] = {
     val optionalTestCases = CentaurConfig.optionalTestPath map (File(_)) map testCases getOrElse List.empty

@@ -71,6 +71,7 @@ public abstract class AmazonS3Factory {
                .httpClient(httpClient)
                .serviceConfiguration(s3Configuration)
                .overrideConfiguration(clientOverrideConfiguration)
+               .crossRegionAccessEnabled(true)
                .region(region);
 
 

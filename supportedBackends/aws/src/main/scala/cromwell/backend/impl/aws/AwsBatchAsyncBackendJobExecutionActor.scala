@@ -981,7 +981,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         |$globLinkCommand
         |
         |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
-        |ls -1 $globDirectory| grep -v $controlFileName > $globList
+        |ls -1 $globDirectory | grep -v $controlFileName > $globList
         |""".stripMargin
   }
 }

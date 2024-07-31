@@ -23,7 +23,7 @@ public class S3FileSystem extends FileSystem implements Comparable<S3FileSystem>
     private final String key;
     private final S3Client client;
     private final String endpoint;
-    private int cache;
+    private final int cache;
 
     public S3FileSystem(S3FileSystemProvider provider, String key, S3Client client, String endpoint) {
         this.provider = provider;
@@ -109,15 +109,13 @@ public class S3FileSystem extends FileSystem implements Comparable<S3FileSystem>
         throw new UnsupportedOperationException();
     }
 
-//    /**
-//     * Deprecated: since SDKv2 many S3 operations need to be signed with a client using the same Region as the location
-//     * of the bucket. Prefer S3Path.client() instead.
-//     * @return
-//     */
-//    @Deprecated
-//    public S3Client getClient() {
-//        return client;
-//    }
+    /**
+     * get the client associated with this fileSystem.
+     * @return S3Client
+     */
+    public S3Client getClient() {
+        return client;
+    }
 
     /**
      * get the endpoint associated with this fileSystem.

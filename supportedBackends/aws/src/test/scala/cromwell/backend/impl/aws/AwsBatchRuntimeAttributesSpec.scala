@@ -77,7 +77,9 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     Vector(Map.empty[String, String]),
     Vector(Map.empty[String, String]),
     false,
-    false
+    false,
+    "/Cromwell/job/",
+    Map("tag1" -> "value1")
   )
 
   val expectedDefaultsLocalFS = new AwsBatchRuntimeAttributes(
@@ -97,6 +99,8 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     Vector(Map.empty[String, String]),
     false,
     false,
+    "/Cromwell/job/",
+    Map(),
     "local"
   )
 

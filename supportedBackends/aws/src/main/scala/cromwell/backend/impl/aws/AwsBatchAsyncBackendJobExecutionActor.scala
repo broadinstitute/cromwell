@@ -212,7 +212,9 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       configuration.efsMntPoint,
       Option(runtimeAttributes.efsMakeMD5),
       Option(runtimeAttributes.efsDelocalize),
-      Option(runtimeAttributes.tagResources)
+      Option(runtimeAttributes.tagResources),
+      runtimeAttributes.logGroupName,
+      runtimeAttributes.additionalTags
     )
 
   // setup batch client to query job container info
@@ -742,7 +744,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         retryElseFail(failureStatus)
       }
     }
-
   }
 
   // get the exit code of the job.
@@ -980,7 +981,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         |$globLinkCommand
         |
         |# list all the files (except the control file) that match the glob into a file called glob-[md5 of glob].list
-        |ls -1 $globDirectory | grep -v $controlFileName > $globList
+        |ls -1 $globDirectory| grep -v $controlFileName > $globList
         |""".stripMargin
   }
 }

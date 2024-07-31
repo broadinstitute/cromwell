@@ -62,6 +62,10 @@ object AwsBatchTestConfig {
       |    queueArn: "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"
       |    scriptBucketName: "my-bucket"
       |    awsBatchRetryAttempts: 1
+      |    logGroupName: "/Cromwell/job/"
+      |    resourceTags {
+      |       tag1: "value1"
+      |    }
       |}
       |
       |""".stripMargin
@@ -144,6 +148,7 @@ object AwsBatchTestConfigForLocalFS {
       |    queueArn: "arn:aws:batch:us-east-1:111222333444:job-queue/job-queue"
       |    scriptBucketName: ""
       |    awsBatchRetryAttempts: 1
+      |    logGroupName: "/Cromwell/job/"
       |}
       |
       |""".stripMargin

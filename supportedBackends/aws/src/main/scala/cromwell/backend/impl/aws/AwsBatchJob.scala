@@ -91,7 +91,9 @@ final case class AwsBatchJob(
   efsMntPoint: Option[String],
   efsMakeMD5: Option[Boolean],
   efsDelocalize: Option[Boolean],
-  tagResources: Option[Boolean]
+  tagResources: Option[Boolean],
+  logGroupName: String,
+  additionalTags: Map[String, String]
 ) {
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
@@ -214,7 +216,7 @@ final case class AwsBatchJob(
          |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination"  ||
          |        { echo "attempt $$i to copy $$s3_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # check data integrity
-         |    _check_data_integrity "$$destination" "$$s3_path" || 
+         |    _check_data_integrity "$$destination" "$$s3_path" ||
          |       { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # copy succeeded
          |    break
@@ -251,7 +253,7 @@ final case class AwsBatchJob(
          |        break
          |    fi
          |    # if destination is not a bucket : abort
-         |    if ! [[ "$$destination" =~ s3://([^/]+)/(.+) ]]; then 
+         |    if ! [[ "$$destination" =~ s3://([^/]+)/(.+) ]]; then
          |     echo "$$destination is not an S3 path with a bucket and key."
          |      DELOCALIZATION_FAILED=1
          |      break
@@ -261,21 +263,21 @@ final case class AwsBatchJob(
          |       # make sure to strip the trailing / in destination
          |       destination=$${destination%/}
          |       # glob directory. do recursive copy
-         |       $awsCmd s3 cp --no-progress "$$local_path" "$$destination" --recursive --exclude "cromwell_glob_control_file" || 
-         |         { echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue; } 
+         |       $awsCmd s3 cp --no-progress "$$local_path" "$$destination" --recursive --exclude "cromwell_glob_control_file" ||
+         |         { echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |       # check integrity for each of the files (allow spaces)
          |       SAVEIFS="$$IFS"
          |       IFS=$$'\n'
          |       for FILE in $$(cd "$$local_path" ; ls | grep -v cromwell_glob_control_file); do
-         |           _check_data_integrity "$$local_path/$$FILE" "$$destination/$$FILE" || 
+         |           _check_data_integrity "$$local_path/$$FILE" "$$destination/$$FILE" ||
          |               { echo "data content length difference detected in attempt $$i to copy $$local_path/$$FILE failed" && sleep $$((7 * "$$i")) && continue 2; }
          |       done
          |       IFS="$$SAVEIFS"
-         |    else 
-         |      $awsCmd s3 cp --no-progress "$$local_path" "$$destination" || 
-         |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; } 
+         |    else
+         |      $awsCmd s3 cp --no-progress "$$local_path" "$$destination" ||
+         |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |      # check content length for data integrity
-         |      _check_data_integrity "$$local_path" "$$destination" || 
+         |      _check_data_integrity "$$local_path" "$$destination" ||
          |         { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    fi
          |    # copy succeeded
@@ -286,7 +288,7 @@ final case class AwsBatchJob(
          |function _get_multipart_chunk_size() {
          |  local file_path="$$1"
          |  # file size
-         |  file_size=$$(stat --printf="%s" "$$file_path") 
+         |  file_size=$$(stat --printf="%s" "$$file_path")
          |  # chunk_size : you can have at most 10K parts with at least one 5MB part
          |  # this reflects the formula in s3-copy commands of cromwell (S3FileSystemProvider.java)
          |  #   => long partSize = Math.max((objectSize / 10000L) + 1, 5 * 1024 * 1024);
@@ -299,9 +301,9 @@ final case class AwsBatchJob(
          |function _check_data_integrity() {
          |  local local_path="$$1"
          |  local s3_path="$$2"
-         |  
+         |
          |  # remote : use content_length
-         |  if [[ "$$s3_path" =~ s3://([^/]+)/(.+) ]]; then 
+         |  if [[ "$$s3_path" =~ s3://([^/]+)/(.+) ]]; then
          |        bucket="$${BASH_REMATCH[1]}"
          |        key="$${BASH_REMATCH[2]}"
          |  else
@@ -331,8 +333,8 @@ final case class AwsBatchJob(
          |  INSTANCE_ID=$$(cat /var/lib/cloud/data/instance-id)
          |  VOLUME_IDS=$$($awsCmd ec2 describe-volumes --filters Name=attachment.instance-id,Values=$$INSTANCE_ID --query 'Volumes[].VolumeId' --output text)
          |  echo " - Tagging instance $$INSTANCE_ID"
-         |  # add tags. if tag key exists, append tag if value not in comma seperated list yet. 
-         |  # info : tags wfid, taskID cannot have spaces by design. wfName does not allow spaces in WDL spec. 
+         |  # add tags. if tag key exists, append tag if value not in comma seperated list yet.
+         |  # info : tags wfid, taskID cannot have spaces by design. wfName does not allow spaces in WDL spec.
          |  WFIDS=$$(_combine_tags $$($awsCmd ec2 describe-tags --filters "Name=resource-id,Values=$$INSTANCE_ID" "Name=key,Values=cromwell-root-workflow-id" --query 'Tags[].Value' --output text) $$WFID)
          |  TASKIDS=$$(_combine_tags $$($awsCmd ec2 describe-tags --filters "Name=resource-id,Values=$$INSTANCE_ID" "Name=key,Values=cromwell-task-id" --query 'Tags[].Value' --output text) $$TASKID)
          |  WFNAMES=$$(_combine_tags $$($awsCmd ec2 describe-tags --filters "Name=resource-id,Values=$$INSTANCE_ID" "Name=key,Values=cromwell-root-workflow-name" --query 'Tags[].Value' --output text) $$WFNAME)
@@ -368,7 +370,7 @@ final case class AwsBatchJob(
          |if [[ "${doTagging}" == "true" ]]; then
          |  echo "*** TAGGING RESOURCES ***"
          |  _add_tags
-         |fi 
+         |fi
          |
          |echo '*** LOCALIZING INPUTS ***'
          |if [ ! -d $workDir ]; then mkdir $workDir && chmod 777 $workDir; fi
@@ -379,7 +381,7 @@ final case class AwsBatchJob(
          |if [[ $$LOCALIZATION_FAILED -eq 1 ]]; then
          |  echo '*** LOCALIZATION FAILED ***'
          |  exit 1
-         |else 
+         |else
          |  echo '*** COMPLETED LOCALIZATION ***'
          |fi
          |set +e
@@ -437,9 +439,9 @@ final case class AwsBatchJob(
               Log.debug("Add cmd to create MD5 sibling.")
               // this does NOT regenerate the md5 in case the file is overwritten !
               s"""
-                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then 
+                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then
                  |   # the glob list
-                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 ); 
+                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 );
                  |   # globbed files, using specified number of cpus for parallel processing.
                         SAVEIFS="$$IFS"
                  |IFS=$$'\n'
@@ -496,8 +498,8 @@ final case class AwsBatchJob(
             Log.debug("Add cmd to create MD5 sibling.")
             md5_cmd =
               s"""
-                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then 
-                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 ); 
+                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then
+                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 );
                  |fi
                  |""".stripMargin
           } else {
@@ -532,7 +534,7 @@ final case class AwsBatchJob(
          |if [[ "${doTagging}" == "true" ]]; then
          |  echo "*** TAGGING RESOURCES ***"
          |  _add_tags
-         |fi 
+         |fi
          |
          |echo '*** DELOCALIZING OUTPUTS ***'
          |DELOCALIZATION_FAILED=0
@@ -629,6 +631,7 @@ final case class AwsBatchJob(
             .resourceRequirements(resourceRequirements.asJava)
             .build()
         )
+        .tags(runtimeAttributes.additionalTags.asJava)
         .jobQueue(runtimeAttributes.queueArn)
         .jobDefinition(definitionArn)
       // tagging activated : add to request
@@ -890,7 +893,7 @@ final case class AwsBatchJob(
       .getLogEvents(
         GetLogEventsRequest.builder
           // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/ContainerDetail.html#logStreamName--
-          .logGroupName("/aws/batch/job")
+          .logGroupName(runtimeAttributes.logGroupName)
           .logStreamName(detail.container.logStreamName)
           .startFromHead(true)
           .build

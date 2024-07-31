@@ -55,6 +55,7 @@ import scala.jdk.CollectionConverters._
 
 /**
  * Attributes that are provided to the job at runtime
+ *
  * @param cpu number of vCPU
  * @param gpuCount number of gpu
  * @param zones the aws availability zones to run in
@@ -71,8 +72,10 @@ import scala.jdk.CollectionConverters._
  * @param awsBatchEvaluateOnExit Evaluate on exit strategy setting for AWS batch retry
  * @param ulimits ulimit values to be passed to the container
  * @param efsDelocalize should we delocalize efs files to s3
- * @param efsMakeMD5 should we make a sibling md5 file as part of the job 
+ * @param efsMakeMD5 should we make a sibling md5 file as part of the job
  * @param tagResources should we tag resources
+ * @param logGroupName the CloudWatch log group name to write logs to
+ * @param additionalTags a map of tags to add to the AWS Batch job submission
  */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      gpuCount: Int,
@@ -90,6 +93,8 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      ulimits: Vector[Map[String, String]],
                                      efsDelocalize: Boolean,
                                      efsMakeMD5: Boolean,
+                                     logGroupName: String,
+                                     additionalTags: Map[String, String],
                                      fileSystem: String = "s3",
                                      tagResources: Boolean = false
 )
@@ -121,6 +126,12 @@ object AwsBatchRuntimeAttributes {
   private val DisksDefaultValue = WomString(s"${AwsBatchWorkingDisk.Name}")
 
   private val MemoryDefaultValue = "2 GB"
+
+  private val logGroupNameKey = "logGroupName"
+  private val logGroupNameValidationInstance = new StringRuntimeAttributesValidation(logGroupNameKey)
+  private val LogGroupNameDefaultValue = WomString("/aws/batch/job")
+
+  private val additionalTagsKey = "additionalTags"
 
   val UlimitsKey = "ulimits"
   private val UlimitsDefaultValue =
@@ -157,6 +168,12 @@ object AwsBatchRuntimeAttributes {
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
     noAddressValidationInstance
       .withDefault(noAddressValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
+
+  private def logGroupNameValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
+    logGroupNameValidationInstance
+      .withDefault(
+        logGroupNameValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse LogGroupNameDefaultValue
+      )
 
   private def scriptS3BucketNameValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
     ScriptS3BucketNameValidation(scriptS3BucketKey).withDefault(
@@ -255,6 +272,7 @@ object AwsBatchRuntimeAttributes {
         dockerValidation,
         queueArnValidation(runtimeConfig),
         scriptS3BucketNameValidation(runtimeConfig),
+        logGroupNameValidation(runtimeConfig),
         awsBatchRetryAttemptsValidation(runtimeConfig),
         awsBatchEvaluateOnExitValidation(runtimeConfig),
         ulimitsValidation(runtimeConfig),
@@ -273,6 +291,7 @@ object AwsBatchRuntimeAttributes {
         noAddressValidation(runtimeConfig),
         dockerValidation,
         queueArnValidation(runtimeConfig),
+        logGroupNameValidation(runtimeConfig),
         awsBatchRetryAttemptsValidation(runtimeConfig),
         awsBatchEvaluateOnExitValidation(runtimeConfig),
         ulimitsValidation(runtimeConfig),
@@ -319,6 +338,20 @@ object AwsBatchRuntimeAttributes {
         )
       case _ => ""
     }
+    val logGroupName: String =
+      RuntimeAttributesValidation.extract(logGroupNameValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val additionalTags: Map[String, String] = runtimeAttrsConfig
+      .collect {
+        case config if config.hasPath(additionalTagsKey) =>
+          config
+            .getObject(additionalTagsKey)
+            .entrySet()
+            .asScala
+            .map(e => e.getKey -> e.getValue.unwrapped().toString)
+            .toMap
+      }
+      .getOrElse(Map.empty[String, String])
+
     val awsBatchRetryAttempts: Int = RuntimeAttributesValidation.extract(
       awsBatchRetryAttemptsValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
@@ -356,6 +389,8 @@ object AwsBatchRuntimeAttributes {
       ulimits,
       efsDelocalize,
       efsMakeMD5,
+      logGroupName,
+      additionalTags,
       fileSystem,
       tagResources
     )

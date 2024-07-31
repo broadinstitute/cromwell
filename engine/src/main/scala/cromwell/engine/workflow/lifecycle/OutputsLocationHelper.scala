@@ -1,12 +1,6 @@
 package cromwell.engine.workflow.lifecycle
 
-import cromwell.backend.{
-  AllBackendInitializationData,
-  BackendConfigurationDescriptor,
-  BackendInitializationData,
-  BackendLifecycleActorFactory
-}
-import cromwell.core.CallOutputs
+import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
 import cromwell.core.WorkflowOptions.UseRelativeOutputPaths
 import cromwell.core.path.{Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
@@ -22,10 +16,10 @@ trait OutputsLocationHelper {
       }
     }
 
-  protected def getOutputFilePaths(outputsDir: String,
-                                   descriptor: EngineWorkflowDescriptor,
-                                   backendInitData: AllBackendInitializationData,
-                                   workflowOutputs: CallOutputs
+  protected def outputFilePathMapping(outputsDir: String,
+                                      descriptor: EngineWorkflowDescriptor,
+                                      backendInitData: AllBackendInitializationData,
+                                      workflowOutputs: Seq[WomValue]
   ): Map[Path, Path] = {
     val workflowOutputsPath = PathFactory.buildPath(outputsDir, descriptor.pathBuilders)
     val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
@@ -34,7 +28,7 @@ trait OutputsLocationHelper {
       backend <- descriptor.backendAssignments.values.toSeq
       config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
       rootPath <- getBackendRootPath(backend, config, descriptor, backendInitData).toSeq
-      outputFiles = findFiles(workflowOutputs.outputs.values.toSeq).map(_.value)
+      outputFiles = findFiles(workflowOutputs).map(_.value)
     } yield (rootPath, outputFiles)
 
     // This regex will make sure the path is relative to the execution folder.

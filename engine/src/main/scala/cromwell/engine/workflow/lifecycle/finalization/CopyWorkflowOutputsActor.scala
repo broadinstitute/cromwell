@@ -83,7 +83,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def copyWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
     val outputFilePaths =
-      getOutputFilePaths(outputsDir, workflowDescriptor, initializationData, workflowOutputs)
+      outputFilePathMapping(outputsDir, workflowDescriptor, initializationData, workflowOutputs.outputs.values.toSeq)
 
     markDuplicates(outputFilePaths)
 
@@ -96,7 +96,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def moveWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
     val outputFilePaths =
-      getOutputFilePaths(outputsDir, workflowDescriptor, initializationData, workflowOutputs)
+      outputFilePathMapping(outputsDir, workflowDescriptor, initializationData, workflowOutputs.outputs.values.toSeq)
 
     markDuplicates(outputFilePaths)
 

@@ -35,7 +35,11 @@ import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{
 }
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.{ActiveExecutionStore, ExecutionStore}
-import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse, OutputsLocationHelper}
+import cromwell.engine.workflow.lifecycle.{
+  EngineLifecycleActorAbortCommand,
+  EngineLifecycleActorAbortedResponse,
+  OutputsLocationHelper
+}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -410,23 +414,24 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     import spray.json._
 
     def handleSuccessfulWorkflowOutputs(outputs: Map[GraphOutputNode, WomValue]) = {
-      val mapping: Map[String, String] = (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsMode) match {
-        case (Some(outputDir), Move) =>
-          outputFilePathMapping(outputDir, workflowDescriptor, params.initializationData, outputs.values.toSeq) map { case (src, dst) =>
-            (src.pathAsString, dst.pathAsString)
-          }
-        case _ =>
-          Map.empty[String, String]
-      }
+      val mapping: Map[String, String] =
+        (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsMode) match {
+          case (Some(outputDir), Move) =>
+            outputFilePathMapping(outputDir, workflowDescriptor, params.initializationData, outputs.values.toSeq) map {
+              case (src, dst) =>
+                (src.pathAsString, dst.pathAsString)
+            }
+          case _ =>
+            Map.empty[String, String]
+        }
 
-      def moveOrIdentity(file: WomValue): WomValue = {
+      def moveOrIdentity(file: WomValue): WomValue =
         mapping.get(file.valueString) match {
           case Some(dst) =>
             // TODO: how does this interact with globbing?
             WomSingleFile(dst)
           case None => file
         }
-      }
 
       val fullyQualifiedOutputs = outputs map { case (outputNode, value) =>
         outputNode.identifier.fullyQualifiedName.value -> moveOrIdentity(value)

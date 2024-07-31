@@ -20,6 +20,7 @@ import cromwell.backend._
 import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionStatus._
+import cromwell.core.WorkflowOptions.Move
 import cromwell.core._
 import cromwell.core.io.AsyncIo
 import cromwell.core.logging.WorkflowLogging
@@ -34,7 +35,7 @@ import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{
 }
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.{ActiveExecutionStore, ExecutionStore}
-import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
+import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse, OutputsLocationHelper}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -60,7 +61,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     with CallMetadataHelper
     with StopAndLogSupervisor
     with Timers
-    with CromwellInstrumentation {
+    with CromwellInstrumentation
+    with OutputsLocationHelper {
 
   implicit val ec: ExecutionContextExecutor = context.dispatcher
   override val serviceRegistryActor: ActorRef = params.serviceRegistryActor
@@ -408,18 +410,38 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     import spray.json._
 
     def handleSuccessfulWorkflowOutputs(outputs: Map[GraphOutputNode, WomValue]) = {
+      val mapping: Map[String, String] = (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsMode) match {
+        case (Some(outputDir), Move) =>
+          outputFilePathMapping(outputDir, workflowDescriptor, params.initializationData, outputs.values.toSeq) map { case (src, dst) =>
+            (src.pathAsString, dst.pathAsString)
+          }
+        case _ =>
+          Map.empty[String, String]
+      }
+
+      def moveOrIdentity(file: WomValue): WomValue = {
+        mapping.get(file.valueString) match {
+          case Some(dst) =>
+            // TODO: how does this interact with globbing?
+            WomSingleFile(dst)
+          case None => file
+        }
+      }
+
       val fullyQualifiedOutputs = outputs map { case (outputNode, value) =>
-        outputNode.identifier.fullyQualifiedName.value -> value
+        outputNode.identifier.fullyQualifiedName.value -> moveOrIdentity(value)
       }
       // Publish fully qualified workflow outputs to log and metadata
       workflowLogger.info(
         s"""Workflow ${workflowDescriptor.callable.name} complete. Final Outputs:
            |${fullyQualifiedOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
       )
+
+      // Fully qualified to match `CALL_FQN` column in metadata table
       pushWorkflowOutputMetadata(fullyQualifiedOutputs)
 
       val localOutputs = CallOutputs(outputs map { case (outputNode, value) =>
-        outputNode.graphOutputPort -> value
+        outputNode.graphOutputPort -> moveOrIdentity(value)
       })
 
       val currentCumulativeOutputs = data.cumulativeOutputs ++ localOutputs.outputs.values

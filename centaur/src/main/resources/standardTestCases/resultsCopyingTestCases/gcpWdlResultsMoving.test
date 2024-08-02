@@ -13,6 +13,7 @@ files {
 
 metadata {
   status: Succeeded
+  "outputs.simpleWorkflow.outFile": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt"
 }
 
 # The `centaur-ci-us-east1` bucket is in a different region than the workflow runs

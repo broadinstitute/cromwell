@@ -31,7 +31,6 @@ case class CromwellAggregatedException(throwables: Seq[Throwable], exceptionCont
     with ThrowableAggregation
     with NoStackTrace
 
-
 case class CacheConfig(concurrency: Int, size: Long, ttl: FiniteDuration)
 
 import net.ceedubs.ficus.Ficus._

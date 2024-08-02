@@ -446,7 +446,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       pushWorkflowOutputMetadata(fullyQualifiedOutputs)
 
       val localOutputs = CallOutputs(outputs map { case (outputNode, value) =>
-        outputNode.graphOutputPort -> moveOrIdentity(value)
+        outputNode.graphOutputPort -> value
       })
 
       val currentCumulativeOutputs = data.cumulativeOutputs ++ localOutputs.outputs.values

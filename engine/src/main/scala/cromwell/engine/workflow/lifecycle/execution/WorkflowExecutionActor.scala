@@ -425,13 +425,19 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
             Map.empty[String, String]
         }
 
-      def moveOrIdentity(file: WomValue): WomValue =
-        mapping.get(file.valueString) match {
-          case Some(dst) =>
-            // TODO: how does this interact with globbing?
-            WomSingleFile(dst)
-          case None => file
+      def moveOrIdentity(file: WomValue): WomValue = {
+        file match {
+          case single: WomSingleFile =>
+            mapping.get(single.valueString) match {
+              case Some(dst) =>
+                WomSingleFile(dst)
+              case None =>
+                single
+            }
+          case array: WomArray =>
+            WomArray(array.value.map(moveOrIdentity))
         }
+      }
 
       val fullyQualifiedOutputs = outputs map { case (outputNode, value) =>
         outputNode.identifier.fullyQualifiedName.value -> moveOrIdentity(value)

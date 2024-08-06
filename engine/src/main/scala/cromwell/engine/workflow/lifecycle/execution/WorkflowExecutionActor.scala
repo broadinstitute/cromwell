@@ -425,8 +425,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
             Map.empty[String, String]
         }
 
-      def moveOrIdentity(file: WomValue): WomValue =
-        file match {
+      def moveOrIdentity(value: WomValue): WomValue =
+        value match {
           case single: WomSingleFile =>
             mapping.get(single.valueString) match {
               case Some(dst) =>
@@ -436,6 +436,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
             }
           case array: WomArray =>
             WomArray(array.value.map(moveOrIdentity))
+          case nonFileValue =>
+            nonFileValue
         }
 
       val fullyQualifiedOutputs = outputs map { case (outputNode, value) =>

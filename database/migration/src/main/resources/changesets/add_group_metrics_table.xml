@@ -3,6 +3,9 @@
                    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <!-- The 'engineSharedCromwellDbRole' can be set via JAVA_OPTS if desired (eg -DengineSharedCromwellDbRole=...). -->
+    <property  name="engineSharedCromwellDbRole" value=""/>
     
     <changeSet id="add_group_metrics_entry_table" author="sshah" dbms="mysql,hsqldb,mariadb,postgresql">
         <comment>Table that tracks when a group or billing project ran into Cloud Quota exhaustion</comment>
@@ -24,6 +27,23 @@
                      tableName="GROUP_METRICS_ENTRY" unique="false">
             <column name="GROUP_ID"/>
         </createIndex>
+    </changeSet>
+
+    <!--
+        This changeset will be applied whenever the 'sharedCromwellDbRole' property is set.
+     -->
+    <changeSet id="set_table_ownership" author="sshah" dbms="postgresql">
+        <preConditions onFail="MARK_RAN">
+            <!-- check that 'engineSharedCromwellDbRole' role is set, and matches something in the pg_roles table -->
+            <sqlCheck expectedResult="1">
+                SELECT count(1)
+                FROM pg_roles
+                where '${engineSharedCromwellDbRole}' != '' and pg_roles.rolname = '${engineSharedCromwellDbRole}';
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            ALTER TABLE "GROUP_METRICS_ENTRY" OWNER TO ${engineSharedCromwellDbRole};
+        </sql>
     </changeSet>
 
 </databaseChangeLog>

@@ -14,11 +14,19 @@ files {
 metadata {
   status: Succeeded
   "outputs.simpleWorkflow.outFile": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt"
+  "outputs.simpleWorkflow.outGlob.0": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-"~~
+  "outputs.simpleWorkflow.outGlob.1": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-"~~
+  "outputs.simpleWorkflow.outGlob.2": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-"~~
 }
 
 # The `centaur-ci-us-east1` bucket is in a different region than the workflow runs
 fileSystemCheck: "gcs"
 outputExpectations: {
     "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
+    # We don't currently have a way to check for glob contents, so do the next best thing by asserting the expected count
+    "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/": 4
+    # "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-3860fac5129fd76b802f49dcd7f9a9f6/foo.zardoz": 1
+    # "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-3860fac5129fd76b802f49dcd7f9a9f6/bar.zardoz": 1
+    # "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-3860fac5129fd76b802f49dcd7f9a9f6/baz.zardoz": 1
     "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 0
 }

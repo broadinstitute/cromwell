@@ -20,7 +20,10 @@ trait GroupMetricsEntryComponent {
     def quotaExhaustionDetected = column[Timestamp]("QUOTA_EXHAUSTION_DETECTED")
 
     // TODO: should `groupMetricsEntryId` have `.?` at end ??
-    override def * : ProvenShape[GroupMetricsEntry] = (groupId, quotaExhaustionDetected, groupMetricsEntryId.?) <> ((GroupMetricsEntry.apply _).tupled, GroupMetricsEntry.unapply)
+    override def * : ProvenShape[GroupMetricsEntry] = (groupId,
+                                                       quotaExhaustionDetected,
+                                                       groupMetricsEntryId.?
+    ) <> ((GroupMetricsEntry.apply _).tupled, GroupMetricsEntry.unapply)
 
     def ixGroupMetricsEntryGi = index("IX_GROUP_METRICS_ENTRY_GI", groupId, unique = false)
   }

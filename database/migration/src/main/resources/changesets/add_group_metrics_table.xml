@@ -4,7 +4,7 @@
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
     
-    <changeSet id="add_group_metrics_entry_table" author="sshah" dbms="mysql,hsqldb">
+    <changeSet id="add_group_metrics_entry_table" author="sshah" dbms="mysql,hsqldb,mariadb,postgresql">
         <comment>Table that tracks when a group or billing project ran into Cloud Quota exhaustion</comment>
         <createTable tableName="GROUP_METRICS_ENTRY">
             <column autoIncrement="true" name="GROUP_METRICS_ENTRY_ID" type="BIGINT">
@@ -19,7 +19,7 @@
         </createTable>
     </changeSet>
     
-    <changeSet id="add_index_for_group_metrics_table" author="sshah" dbms="mysql,hsqldb">
+    <changeSet id="add_index_for_group_metrics_table" author="sshah" dbms="mysql,hsqldb,mariadb,postgresql">
         <createIndex indexName="IX_GROUP_METRICS_ENTRY_GI"
                      tableName="GROUP_METRICS_ENTRY" unique="false">
             <column name="GROUP_ID"/>

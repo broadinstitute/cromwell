@@ -11,7 +11,7 @@ import cromwell.backend.BackendWorkflowFinalizationActor.{
 }
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.Dispatcher.IoDispatcher
-import cromwell.core.WorkflowOptions._
+import cromwell.core.WorkflowOptions.{Copy, Move}
 import cromwell.core._
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.core.path.Path
@@ -44,7 +44,6 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     with OutputsLocationHelper {
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
   implicit val ec = context.dispatcher
-  override val pathBuilders = workflowDescriptor.pathBuilders
 
   override def receive = LoggingReceive { case Finalize =>
     performActionThenRespond(afterAll()(context.dispatcher), FinalizationFailed)(context.dispatcher)
@@ -60,13 +59,13 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     }
   }
 
-  private def markDuplicates(outputFilePaths: List[(Path, Path)]) = {
+  private def markDuplicates(outputFilePaths: Map[Path, Path]) = {
     // Check if there are duplicated destination paths and throw an exception if that is the case.
     // This creates a map of destinations and source paths which point to them in cases where there are multiple
     // source paths that point to the same destination.
     val duplicatedDestPaths: Map[Path, List[Path]] =
       outputFilePaths.groupBy { case (_, destPath) => destPath }.collect {
-        case (destPath, list) if list.size > 1 => destPath -> list.map { case (source, _) => source }
+        case (destPath, list) if list.size > 1 => destPath -> list.toList.map { case (source, _) => source }
       }
     if (duplicatedDestPaths.nonEmpty) {
       val formattedCollidingCopyOptions = duplicatedDestPaths.toList
@@ -84,11 +83,11 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def copyWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
     val outputFilePaths =
-      getOutputFilePaths(outputsDir, workflowDescriptor, initializationData, workflowOutputs)
+      outputFilePathMapping(outputsDir, workflowDescriptor, initializationData, workflowOutputs.outputs.values.toSeq)
 
     markDuplicates(outputFilePaths)
 
-    val copies = outputFilePaths map { case (srcPath, dstPath) =>
+    val copies = outputFilePaths.toList map { case (srcPath, dstPath) =>
       asyncIo.copyAsync(srcPath, dstPath)
     }
 
@@ -97,11 +96,11 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
 
   private def moveWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
     val outputFilePaths =
-      getOutputFilePaths(outputsDir, workflowDescriptor, initializationData, workflowOutputs)
+      outputFilePathMapping(outputsDir, workflowDescriptor, initializationData, workflowOutputs.outputs.values.toSeq)
 
     markDuplicates(outputFilePaths)
 
-    val moves = outputFilePaths map { case (srcPath, dstPath) =>
+    val moves = outputFilePaths.toList map { case (srcPath, dstPath) =>
       asyncIo.copyAsync(srcPath, dstPath) flatMap { _ =>
         asyncIo.deleteAsync(srcPath)
       }
@@ -113,14 +112,10 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
   /**
     * Happens after everything else runs
     */
-  final def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] = {
-    val maybeOutputsDir = workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsDir)
-    val mode = FinalWorkflowOutputsMode.fromString(workflowDescriptor.getWorkflowOption(FinalWorkflowOutputsMode))
-
-    (maybeOutputsDir, mode) match {
+  final def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] =
+    (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsMode) match {
       case (Some(outputsDir), Copy) => copyWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
       case (Some(outputsDir), Move) => moveWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
       case _ => Future.successful(FinalizationSuccess)
     }
-  }
 }

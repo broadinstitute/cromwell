@@ -2,6 +2,10 @@
 
 ## 88 Release Notes
 
+### New table 'GROUP_METRICS_ENTRY'
+
+A new table called `GROUP_METRICS_ENTRY` has been added. The purpose of this table is to track when a group or billing project last ran into Cloud Quota exhaustion.
+
 ### Java 17
 
 As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and

@@ -20,7 +20,7 @@
     </changeSet>
     
     <changeSet id="add_index_for_group_metrics_table" author="sshah" dbms="mysql,hsqldb">
-        <createIndex indexName="IX_GROUP_METRICS_ENTRY_GROUP_ID"
+        <createIndex indexName="IX_GROUP_METRICS_ENTRY_GI"
                      tableName="GROUP_METRICS_ENTRY" unique="false">
             <column name="GROUP_ID"/>
         </createIndex>

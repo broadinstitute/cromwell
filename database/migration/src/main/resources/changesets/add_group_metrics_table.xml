@@ -13,7 +13,7 @@
             <column name="GROUP_ID" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="QUOTA_EXHAUSTION_DETECTED" type="DATETIME">
+            <column name="QUOTA_EXHAUSTION_DETECTED" type="DATETIME(6)">
                 <constraints nullable="false"/>
             </column>
         </createTable>

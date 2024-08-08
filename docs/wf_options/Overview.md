@@ -2,7 +2,7 @@
 
 Workflow options can affect the execution of a single workflow without having to change configuration options or restart Cromwell. 
 
-You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the [CLI](../CommandLine.md) or the [REST endpoint](../api/RESTAPI.md):
+You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the [CLI](../CommandLine.md) or the Submit endpoint:
 
 ```json
 {

@@ -142,7 +142,7 @@ object Publishing {
     import java.time.{ZoneId, ZonedDateTime}
     import java.time.format.DateTimeFormatter
 
-    val buildTime = ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+    val buildTime = ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"))
 
     // It is optimal to use a single `Run` instruction to minimize the number of layers in the image.
     //

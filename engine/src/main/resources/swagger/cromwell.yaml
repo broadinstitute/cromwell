@@ -1,7 +1,3 @@
-#
-# After any edits to this file run `sbt generateRestApiDocs` and commit the generated changes to `docs/api/RESTAPI.md`.
-#
-
 swagger: '2.0'
 
 # This line is included when the YAML is served by Cromwell if it sees an environment variable called "SWAGGER_BASE_PATH"

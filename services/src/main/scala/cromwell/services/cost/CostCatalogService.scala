@@ -1,34 +1,38 @@
 package cromwell.services.cost
 
-import akka.actor.ActorRef
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport
-import com.google.api.client.json.gson.GsonFactory
+import akka.actor.{Actor, ActorRef}
+import com.google.cloud.billing.v1._
+import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.services.instrumentation.CromwellInstrumentation
-import com.google.api.services.cloudbilling.Cloudbilling
-import com.google.api.services.cloudbilling.model.Sku
-import scala.jdk.CollectionConverters._
+import common.util.StringUtil.EnhancedToStringable
+import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
-class CostCatalogService(serviceRegistry: ActorRef) extends LazyLogging
-  with CromwellInstrumentation {
+case class CostCatalogMessage() extends ServiceRegistryMessage {
+  override val serviceName = "CostCatalogService"
+}
 
-  override def serviceRegistryActor: ActorRef = serviceRegistry
-  val JsonFactory = GsonFactory.getDefaultInstance
-  val HttpTransport = GoogleNetHttpTransport.newTrustedTransport
-  val billingClient = constructBillingClient
+class CostCatalogService(serviceConfig: Config, globalConfig: Config, serviceRegistry: ActorRef) extends Actor with LazyLogging{
+  override def receive: Receive = {
+    case CostCatalogMessage() => {
+      fetchPublicCostCatalog()
+      logger.error(
+        s"Got message"
+      )
+    }
+    case ShutdownCommand => context stop self
+    case other =>
+      logger.error(
+        s"Programmer Error: Unexpected message ${other.toPrettyElidedString(1000)} received by ${this.self.path.name}."
+      )
+  }
+  def serviceRegistryActor: ActorRef = serviceRegistry
 
-  def fetchPublicCostCatalog: List[Sku] = {
-    val res = billingClient.services().skus().list("parent").execute()
-    res.getSkus.asScala.toList
+  def fetchPublicCostCatalog(): Unit = {
+    val cloudCatalogClient = CloudCatalogClient.create
+    val request = ListSkusRequest.newBuilder.setParent(ServiceName.of("[SERVICE]").toString).setCurrencyCode("currencyCode1004773790").setPageSize(883849137).setPageToken("pageToken873572522").build
+    val response = cloudCatalogClient.listSkus(request)
+    response.iterateAll().forEach(println)
   }
 
-  private def constructBillingClient: Cloudbilling = {
-    new Cloudbilling.Builder(
-      HttpTransport,
-      JsonFactory,
-      null
-    )
-      .setApplicationName("Cromwell Cloud Billing Client")
-      .build()
-  }
 }

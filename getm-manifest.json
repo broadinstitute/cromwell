@@ -1,0 +1,10 @@
+[{
+  "url": "https://my.fake/url123",
+  "filepath": "path/to/local/download/dest"
+}, {
+  "url": "https://my.fake/url1234",
+  "filepath": "path/to/local/download/dest2"
+}, {
+  "url": "https://my.fake/url1235",
+  "filepath": "path/to/local/download/dest3"
+}]

@@ -8,6 +8,7 @@ import common.util.StringUtil.EnhancedToStringable
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
+
 case class CostCatalogMessage() extends ServiceRegistryMessage {
   override val serviceName = "CostCatalogService"
 }
@@ -30,7 +31,7 @@ class CostCatalogService(serviceConfig: Config, globalConfig: Config, serviceReg
 
   def fetchPublicCostCatalog(): Unit = {
     val cloudCatalogClient = CloudCatalogClient.create
-    val request = ListSkusRequest.newBuilder.setParent(ServiceName.of("[SERVICE]").toString).setCurrencyCode("currencyCode1004773790").setPageSize(883849137).setPageToken("pageToken873572522").build
+    val request = ListSkusRequest.newBuilder().setParent("services/6F81-5844-456A").build()
     val response = cloudCatalogClient.listSkus(request)
     response.iterateAll().forEach(println)
   }

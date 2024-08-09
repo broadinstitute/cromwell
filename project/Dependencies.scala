@@ -50,9 +50,9 @@ object Dependencies {
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20230421-2.0.0"
   private val googleCloudMonitoringV = "3.2.5"
-  private val googleCloudNioV = "0.124.8"
+  private val googleCloudNioV = "0.127.18"
   private val googleCloudStorageV = "2.17.2"
-  private val googleGaxGrpcV = "2.25.0"
+  private val googleGaxGrpcV = "2.48.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
   private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
@@ -60,11 +60,11 @@ object Dependencies {
   private val googleCloudBatchV1 = "0.18.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
-  private val googleOauth2V = "1.5.3"
+  private val googleOauth2V = "1.23.0"
   private val googleOauthClientV = "1.33.1"
   private val googleCloudResourceManagerV = "1.17.0"
-  private val grpcV = "1.54.1"
-  private val guavaV = "31.0.1-jre"
+  private val grpcV = "1.65.1"
+  private val guavaV = "33.2.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
@@ -592,16 +592,6 @@ object Dependencies {
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies ++
     testDatabaseDependencies
 
-  val servicesDependencies: List[ModuleID] = List(
-    "com.google.api" % "gax-grpc" % googleGaxGrpcV,
-    "org.apache.commons" % "commons-csv" % commonsCsvV,
-    "bio.terra" % "bard-client-resttemplate" % bardClientV
-      exclude("org.springframework", "spring-aop")
-      exclude("org.springframework", "spring-jcl"),
-    "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V // Needed for rest-template connection pooling
-
-  ) ++ testDatabaseDependencies ++ akkaHttpDependencies ++ mockServerDependencies
-
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 
   val cromiamDependencies: List[ModuleID] = List(
@@ -800,8 +790,19 @@ object Dependencies {
   )
 
   private val protobufJavaOverrides = List(
-    "com.google.protobuf" % "protobuf-java" % "3.21.2",
+    "com.google.protobuf" % "protobuf-java" % "3.25.3",
   )
+
+  val servicesDependencies: List[ModuleID] = List(
+    "com.google.cloud" % "google-cloud-billing" % "2.47.0",
+    "com.google.api" % "gax-grpc" % googleGaxGrpcV,
+    "org.apache.commons" % "commons-csv" % commonsCsvV,
+    "bio.terra" % "bard-client-resttemplate" % bardClientV
+      exclude("org.springframework", "spring-aop")
+      exclude("org.springframework", "spring-jcl"),
+    "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V // Needed for rest-template connection pooling
+
+  ) ++ testDatabaseDependencies ++ akkaHttpDependencies ++ mockServerDependencies ++ googleCloudDependencies
 
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use

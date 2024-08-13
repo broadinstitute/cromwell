@@ -7,21 +7,9 @@
 As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
 containerized using [Eclipse Temurin](https://adoptium.net/temurin/releases/?version=17).
 
-### Fixed Optional and String Concatenation Bug
-
-As outlined in the [WDL Spec](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter), concatenating a string with an empty optional now correctly evaluates to the empty string.
-
 ### Improved status reporting behavior
 
-When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure. 
-
-### Removed Docker Hub health check
-
-Cromwell's healthcheck requests to Docker Hub were not authenticated, and thus became subject to rate limiting. To eliminate these false alarms, this functionality has been removed.
-
-The config key `services.HealthMonitor.config.check-dockerhub` is therefore obsolete.
-
-There is no change to any other usage of Docker Hub.
+When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure.
 
 ### Optional docker soft links
 
@@ -41,10 +29,6 @@ Users reported cases where Life Sciences jobs failed due to insufficient quota, 
 quota is available (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
 such as "PAPI error code 9", "no available zones", and/or "quota too low".
 
-### Improved `size()` function performance on arrays
-
-Resolved a hotspot in Cromwell to make the `size()` engine function perform much faster on file arrays. Common examples of file arrays could include globs or scatter-gather results. This enhancement applies only to WDL 1.0 and later, because that's when `size()` added [support for arrays](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#acceptable-compound-input-types).
-
 ### Database
 
 #### New table 'GROUP_METRICS_ENTRY'
@@ -56,6 +40,30 @@ A new table called `GROUP_METRICS_ENTRY` has been added. The purpose of this tab
 The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 
 The index had low cardinality and workflow pickup is faster without it. Migration time depends on workflow store size, but should be very fast for most installations. Terminal workflows are removed from the workflow store, so only running workflows contribute to the cost.
+
+### Bug fixes
+
+#### Improved `size()` function performance on arrays
+
+Resolved a hotspot in Cromwell to make the `size()` engine function perform much faster on file arrays. Common examples of file arrays could include globs or scatter-gather results. This enhancement applies only to WDL 1.0 and later, because that's when `size()` added [support for arrays](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#acceptable-compound-input-types).
+
+#### Fixed Optional and String Concatenation Bug
+
+As outlined in the [WDL Spec](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter), concatenating a string with an empty optional now correctly evaluates to the empty string.
+
+### Removals
+
+#### `RESTAPI.md` docs discontinued
+
+Due to deprecation of the underlying library, Markdown docs will no longer be generated from the Cromwell API Swagger. The recommended alternative is starting a server and viewing the Swagger directly.
+
+#### Removed Docker Hub health check
+
+Cromwell's healthcheck requests to Docker Hub were not authenticated, and thus became subject to rate limiting. To eliminate these false alarms, this functionality has been removed.
+
+The config key `services.HealthMonitor.config.check-dockerhub` is therefore obsolete.
+
+There is no change to any other usage of Docker Hub.
 
 ## 87 Release Notes
 

@@ -2,7 +2,7 @@
 
 The default mode for most applications of Cromwell, suitable for production use. Server mode starts Cromwell as a web server that exposes REST endpoints. All features and APIs are available.
 
-By default the server will be accessible at `http://localhost:8000`. See the [Server Section](Configuring#server) of the configuration for more information on how to configure it. A description of the endpoints can be found in the [API Section](api/RESTAPI).
+By default the server will be accessible at `http://localhost:8000`. See the [Server Section](Configuring#server) of the configuration for more information on how to configure it.
 
 Follow the [Server Tutorial](tutorials/ServerMode) to get your Cromwell server up and running in a few steps.
 

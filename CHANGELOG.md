@@ -2,10 +2,6 @@
 
 ## 88 Release Notes
 
-### New table 'GROUP_METRICS_ENTRY'
-
-A new table called `GROUP_METRICS_ENTRY` has been added. The purpose of this table is to track when a group or billing project last ran into Cloud Quota exhaustion.
-
 ### Java 17
 
 As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
@@ -49,7 +45,13 @@ such as "PAPI error code 9", "no available zones", and/or "quota too low".
 
 Resolved a hotspot in Cromwell to make the `size()` engine function perform much faster on file arrays. Common examples of file arrays could include globs or scatter-gather results. This enhancement applies only to WDL 1.0 and later, because that's when `size()` added [support for arrays](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#acceptable-compound-input-types).
 
-### Database migration
+### Database
+
+#### New table 'GROUP_METRICS_ENTRY'
+
+A new table called `GROUP_METRICS_ENTRY` has been added. The purpose of this table is to track when a group or billing project last ran into Cloud Quota exhaustion.
+
+#### Index removal
 
 The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 

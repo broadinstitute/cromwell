@@ -67,7 +67,7 @@ class RunnableBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   def memoryRetryExpectedCommand(lookupString: String): List[String] =
     List(
       "-c",
-      s"grep -E -q '$lookupString' /cromwell_root/stderr ; echo $$? > /cromwell_root/memory_retry_rc"
+      s"grep -E -q '$lookupString' /mnt/disks/cromwell_root/stderr ; echo $$? > /mnt/disks/cromwell_root/memory_retry_rc"
     )
 
   val volumes = List(

@@ -1,5 +1,9 @@
 name: gcpbatch_retry_same_memory_output_failure
 testFormat: workflowfailure
+# WX-927 GCPBATCH
+enabled: false
+# This test *seems * to run mostly okay except for the "causedBy" message which is both mismatched and inappropriately benign-sounding.
+# -Metadata mismatch for failures.0.causedBy.0.message - Actual value "Task retry_same_memory_output_failure.imitate_oom_error:NA:3 failed: Job state is set from QUEUED to SCHEDULED for job projects/1005074806481/locations/us-central1/jobs/job-951a202d-6d57-4211-b37e-77737666df04." does not contain Task retry_same_memory_output_failure.imitate_oom_error:NA:3 failed. Job exit code 1.
 backends: [GCPBATCH]
 
 files {

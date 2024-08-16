@@ -4,7 +4,6 @@ backends: [GCPBATCH]
 
 files {
   workflow: retry_with_more_memory/gcpbatch/retry_with_more_memory.wdl
-  inputs: gcpbatch/batch_backend.inputs
 }
 
 metadata {

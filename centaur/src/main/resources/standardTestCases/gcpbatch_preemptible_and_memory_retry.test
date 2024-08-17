@@ -2,7 +2,7 @@ name: gcpbatch_preemptible_and_memory_retry
 testFormat: workflowfailure
 # The original version of this test seems to have been tailored to the quirks of Papi v2 in depending on the misdiagnosis of its own VM deletion as a preemption event. GCP Batch perhaps more correctly diagnoses the VM deletion as a weird non-preemption happening, but that frustrates the logic of this test.
 # Disabling this as it's not possible to induce a real preemption.
-enabled: false
+ignore: true
 backends: [GCPBATCH]
 
 files {

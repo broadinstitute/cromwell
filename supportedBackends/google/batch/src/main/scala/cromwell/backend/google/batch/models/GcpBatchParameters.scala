@@ -32,7 +32,7 @@ sealed trait BatchParameter {
   /**
     * Path in the docker container. It must be mounted on the docker from / to its hostPath
     *
-    * e.g: /cromwell_root/root_bucket/input_data/my_input.bam
+    * e.g: /mnt/disks/cromwell_root/root_bucket/input_data/my_input.bam
     */
   def containerPath: Path = mount.mountPoint.resolve(relativeHostPath)
 

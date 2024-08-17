@@ -17,13 +17,10 @@ import cromwell.backend._
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models._
+import cromwell.backend.google.batch.runnable.RunnableUtils.MountPointPath
 import cromwell.backend.google.batch.util.BatchExpressionFunctions
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{
-  DefaultStandardAsyncExecutionActorParams,
-  StandardAsyncExecutionActorParams,
-  StandardExpressionFunctionsParams
-}
+import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardExpressionFunctionsParams}
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
@@ -279,7 +276,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     )
 
     GcpBatchAsyncBackendJobExecutionActor.generateDrsLocalizerManifest(inputs) shouldEqual
-      "drs://drs.example.org/aaa,/mnt/disks/cromwell_root/path/to/aaa.bai\r\ndrs://drs.example.org/bbb,/mnt/disks/cromwell_root/path/to/bbb.bai\r\n"
+      s"drs://drs.example.org/aaa,$MountPointPath/path/to/aaa.bai\r\ndrs://drs.example.org/bbb,$MountPointPath/path/to/bbb.bai\r\n"
   }
 
   it should "map GCS paths and *only* GCS paths to local" in {
@@ -372,7 +369,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         }
 
         mappedInputs(gcsFileKey) match {
-          case wdlFile: WomSingleFile => wdlFile.value shouldBe "/mnt/disks/cromwell_root/blah/abc"
+          case wdlFile: WomSingleFile => wdlFile.value shouldBe s"$MountPointPath/blah/abc"
           case _ => fail("test setup error")
         }
       case Left(badtimes) => fail(badtimes.toList.mkString(", "))
@@ -843,54 +840,54 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val batchOutputs = Set(
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file1",
+        s"$MountPointPath/path/to/file1",
         gcsPath("gs://path/to/file1"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file1"),
+        DefaultPathBuilder.get(s"$MountPointPath/path/to/file1"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file2",
+        s"$MountPointPath/path/to/file2",
         gcsPath("gs://path/to/file2"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file2"),
+        DefaultPathBuilder.get(s"$MountPointPath/path/to/file2"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file3",
+        s"$MountPointPath/path/to/file3",
         gcsPath("gs://path/to/file3"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file3"),
+        DefaultPathBuilder.get(s"$MountPointPath/path/to/file3"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file4",
+        s"$MountPointPath/path/to/file4",
         gcsPath("gs://path/to/file4"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file4"),
+        DefaultPathBuilder.get(s"$MountPointPath/path/to/file4"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file5",
+        s"$MountPointPath/path/to/file5",
         gcsPath("gs://path/to/file5"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file5"),
+        DefaultPathBuilder.get(s"$MountPointPath/path/to/file5"),
         workingDisk,
         optional = false,
         secondary = false
       )
     )
     val outputValues = Seq(
-      WomSingleFile("/cromwell_root/path/to/file1"),
+      WomSingleFile(s"$MountPointPath/path/to/file1"),
       WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile("/cromwell_root/path/to/file2"), WomSingleFile("/cromwell_root/path/to/file3"))
+               Seq(WomSingleFile(s"$MountPointPath/path/to/file2"), WomSingleFile(s"$MountPointPath/path/to/file3"))
       ),
       WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
              Map(
-               WomSingleFile("/cromwell_root/path/to/file4") -> WomSingleFile("/cromwell_root/path/to/file5")
+               WomSingleFile(s"$MountPointPath/path/to/file4") -> WomSingleFile(s"$MountPointPath/path/to/file5")
              )
       )
     )

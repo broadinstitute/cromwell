@@ -1,7 +1,7 @@
 package cromwell.backend.google.batch.util
 
 import common.util.StringUtil._
-import cromwell.backend.google.batch.io.GcpBatchWorkingDisk
+import cromwell.backend.google.batch.runnable.RunnableUtils.MountPointPath
 import cromwell.core.path.Path
 
 object RuntimeOutputMapping {
@@ -14,19 +14,19 @@ object RuntimeOutputMapping {
    *
    * For instance:
    *
-   * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+   * file:///mnt/disks/cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
    * ->
    * call-A/file.txt
    *
    * Which will be delocalized to
    * gs://bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-B/call-A/file.txt
    * instead of
-   * gs://bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-B/cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+   * gs://bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-B/mnt/disks/cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
    */
   def prefixFilters(workflowRoot: Path): List[String] = List(
     "file://",
     "/",
-    GcpBatchWorkingDisk.MountPoint.pathAsString.relativeDirectory,
+    MountPointPath.relativeDirectory,
     workflowRoot.pathWithoutScheme.relativeDirectory
   )
 

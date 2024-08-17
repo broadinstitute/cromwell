@@ -4,6 +4,7 @@ import com.google.cloud.batch.v1.{Runnable, Volume}
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.google.batch.runnable.RunnableBuilder.EnhancedRunnableBuilder
 import cromwell.backend.google.batch.runnable.RunnableLabels._
+import cromwell.backend.google.batch.runnable.RunnableUtils.MountPointPath
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -67,7 +68,7 @@ class RunnableBuilderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   def memoryRetryExpectedCommand(lookupString: String): List[String] =
     List(
       "-c",
-      s"grep -E -q '$lookupString' /mnt/disks/cromwell_root/stderr ; echo $$? > /mnt/disks/cromwell_root/memory_retry_rc"
+      s"grep -E -q '$lookupString' $MountPointPath/stderr ; echo $$? > $MountPointPath/memory_retry_rc"
     )
 
   val volumes = List(

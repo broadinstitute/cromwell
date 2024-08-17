@@ -6,6 +6,7 @@ import cats.syntax.validated._
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.backend.DiskPatterns._
+import cromwell.backend.google.batch.runnable.RunnableUtils.MountPointPath
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wom.values._
 
@@ -72,7 +73,7 @@ case class BatchApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint:
 }
 
 object GcpBatchWorkingDisk {
-  val MountPoint: Path = DefaultPathBuilder.get("/mnt/disks/cromwell_root")
+  val MountPoint: Path = DefaultPathBuilder.get(MountPointPath)
   val Name = "local-disk"
   val Default = GcpBatchWorkingDisk(DiskType.SSD, 10)
 }

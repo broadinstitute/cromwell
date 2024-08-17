@@ -9,6 +9,8 @@ object RunnableUtils {
 
   private val config = ConfigFactory.load().getConfig("google")
 
+  val MountPointPath: String = "/mnt/disks/cromwell_root"
+
   /**
     * An image with the Google Cloud SDK installed.
     * http://gcr.io/google.com/cloudsdktool/cloud-sdk

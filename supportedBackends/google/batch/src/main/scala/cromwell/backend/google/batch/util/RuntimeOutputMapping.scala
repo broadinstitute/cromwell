@@ -1,7 +1,7 @@
 package cromwell.backend.google.batch.util
 
 import common.util.StringUtil._
-import cromwell.backend.google.batch.runnable.RunnableUtils.MountPointPath
+import cromwell.backend.google.batch.runnable.RunnableUtils.MountPoint
 import cromwell.core.path.Path
 
 object RuntimeOutputMapping {
@@ -26,7 +26,7 @@ object RuntimeOutputMapping {
   def prefixFilters(workflowRoot: Path): List[String] = List(
     "file://",
     "/",
-    MountPointPath.relativeDirectory,
+    MountPoint.relativeDirectory,
     workflowRoot.pathWithoutScheme.relativeDirectory
   )
 

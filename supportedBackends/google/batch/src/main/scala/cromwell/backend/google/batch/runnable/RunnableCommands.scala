@@ -163,7 +163,7 @@ object RunnableCommands {
 
   def checkIfStderrContainsRetryKeys(retryLookupKeys: List[String]): String = {
     val lookupKeysAsString = retryLookupKeys.mkString("|")
-    s"grep -E -q '$lookupKeysAsString' $MountPointPath/stderr ; echo $$? > $MountPointPath/memory_retry_rc"
+    s"grep -E -q '$lookupKeysAsString' $MountPoint/stderr ; echo $$? > $MountPoint/memory_retry_rc"
   }
 
   def multiLineCommandTransformer(shell: String)(commandString: String): String = {

@@ -670,7 +670,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                             disks: Seq[GcpBatchAttachedDisk]
   ): (Path, GcpBatchAttachedDisk) = {
     val absolutePath = DefaultPathBuilder.get(path) match {
-      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPoint.resolve(p)
+      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPointPath.resolve(p)
       case p => p
     }
 
@@ -729,9 +729,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
 
   private val DockerMonitoringLogPath: Path =
-    GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringLogFilename)
+    GcpBatchWorkingDisk.MountPointPath.resolve(gcpBatchCallPaths.batchMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path =
-    GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
+    GcpBatchWorkingDisk.MountPointPath.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
 
   // noinspection ActorMutableStateInspection
   @scala.annotation.unused
@@ -861,7 +861,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
   }
 
-  override lazy val commandDirectory: Path = GcpBatchWorkingDisk.MountPoint
+  override lazy val commandDirectory: Path = GcpBatchWorkingDisk.MountPointPath
 
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {

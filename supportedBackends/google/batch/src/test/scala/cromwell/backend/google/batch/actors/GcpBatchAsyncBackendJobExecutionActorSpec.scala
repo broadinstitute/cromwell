@@ -17,7 +17,7 @@ import cromwell.backend._
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models._
-import cromwell.backend.google.batch.runnable.RunnableUtils.MountPointPath
+import cromwell.backend.google.batch.runnable.RunnableUtils.MountPoint
 import cromwell.backend.google.batch.util.BatchExpressionFunctions
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.{
@@ -280,7 +280,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     )
 
     GcpBatchAsyncBackendJobExecutionActor.generateDrsLocalizerManifest(inputs) shouldEqual
-      s"drs://drs.example.org/aaa,$MountPointPath/path/to/aaa.bai\r\ndrs://drs.example.org/bbb,$MountPointPath/path/to/bbb.bai\r\n"
+      s"drs://drs.example.org/aaa,$MountPoint/path/to/aaa.bai\r\ndrs://drs.example.org/bbb,$MountPoint/path/to/bbb.bai\r\n"
   }
 
   it should "map GCS paths and *only* GCS paths to local" in {
@@ -373,7 +373,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         }
 
         mappedInputs(gcsFileKey) match {
-          case wdlFile: WomSingleFile => wdlFile.value shouldBe s"$MountPointPath/blah/abc"
+          case wdlFile: WomSingleFile => wdlFile.value shouldBe s"$MountPoint/blah/abc"
           case _ => fail("test setup error")
         }
       case Left(badtimes) => fail(badtimes.toList.mkString(", "))
@@ -844,54 +844,54 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val batchOutputs = Set(
       GcpBatchFileOutput(
-        s"$MountPointPath/path/to/file1",
+        s"$MountPoint/path/to/file1",
         gcsPath("gs://path/to/file1"),
-        DefaultPathBuilder.get(s"$MountPointPath/path/to/file1"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file1"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPointPath/path/to/file2",
+        s"$MountPoint/path/to/file2",
         gcsPath("gs://path/to/file2"),
-        DefaultPathBuilder.get(s"$MountPointPath/path/to/file2"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file2"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPointPath/path/to/file3",
+        s"$MountPoint/path/to/file3",
         gcsPath("gs://path/to/file3"),
-        DefaultPathBuilder.get(s"$MountPointPath/path/to/file3"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file3"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPointPath/path/to/file4",
+        s"$MountPoint/path/to/file4",
         gcsPath("gs://path/to/file4"),
-        DefaultPathBuilder.get(s"$MountPointPath/path/to/file4"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file4"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPointPath/path/to/file5",
+        s"$MountPoint/path/to/file5",
         gcsPath("gs://path/to/file5"),
-        DefaultPathBuilder.get(s"$MountPointPath/path/to/file5"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file5"),
         workingDisk,
         optional = false,
         secondary = false
       )
     )
     val outputValues = Seq(
-      WomSingleFile(s"$MountPointPath/path/to/file1"),
+      WomSingleFile(s"$MountPoint/path/to/file1"),
       WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile(s"$MountPointPath/path/to/file2"), WomSingleFile(s"$MountPointPath/path/to/file3"))
+               Seq(WomSingleFile(s"$MountPoint/path/to/file2"), WomSingleFile(s"$MountPoint/path/to/file3"))
       ),
       WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
              Map(
-               WomSingleFile(s"$MountPointPath/path/to/file4") -> WomSingleFile(s"$MountPointPath/path/to/file5")
+               WomSingleFile(s"$MountPoint/path/to/file4") -> WomSingleFile(s"$MountPoint/path/to/file5")
              )
       )
     )

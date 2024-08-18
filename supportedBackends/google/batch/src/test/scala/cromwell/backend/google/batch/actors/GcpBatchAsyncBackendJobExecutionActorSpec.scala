@@ -20,7 +20,11 @@ import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.runnable.RunnableUtils.MountPointPath
 import cromwell.backend.google.batch.util.BatchExpressionFunctions
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardExpressionFunctionsParams}
+import cromwell.backend.standard.{
+  DefaultStandardAsyncExecutionActorParams,
+  StandardAsyncExecutionActorParams,
+  StandardExpressionFunctionsParams
+}
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels

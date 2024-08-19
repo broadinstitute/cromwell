@@ -1,6 +1,6 @@
 name: docker_size_dockerhub
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: docker_size/docker_size_dockerhub.wdl

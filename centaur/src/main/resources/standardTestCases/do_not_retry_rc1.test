@@ -1,6 +1,6 @@
 name: do_not_retry_rc1
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: retry_with_more_memory/do_not_retry_rc1.wdl

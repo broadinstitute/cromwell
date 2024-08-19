@@ -992,6 +992,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   val futureKvJobKey: KvJobKey =
     KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
+  override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId)
+
   override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] =
     reconnectToExistingJob(jobId)
 

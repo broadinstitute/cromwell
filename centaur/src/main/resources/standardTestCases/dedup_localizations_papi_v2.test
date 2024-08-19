@@ -1,6 +1,6 @@
 name: dedup_localizations_papi_v2
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: dedup_localizations_papi_v2/dedup_localizations_papi_v2.wdl

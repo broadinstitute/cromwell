@@ -1,6 +1,6 @@
 name: hello_google_legacy_machine_selection
 testFormat: workflowsuccess
-backends: [ Papiv2 ]
+backends: [ Papiv2, GCPBATCH ]
 
 files {
   workflow: wdl_draft3/hello/hello.wdl

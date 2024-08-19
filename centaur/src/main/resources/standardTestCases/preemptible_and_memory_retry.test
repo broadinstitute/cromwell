@@ -1,6 +1,6 @@
 name: preemptible_and_memory_retry
 testFormat: workflowfailure
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: retry_with_more_memory/preemptible_and_memory_retry.wdl

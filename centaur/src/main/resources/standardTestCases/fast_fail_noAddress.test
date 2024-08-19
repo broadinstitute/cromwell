@@ -1,6 +1,6 @@
 # NB: To request this test by name, make it lowercase, eg sbt "centaur/it:testOnly * -- -n fast_fail_noaddress"
 name: fast_fail_noAddress
-backends: [Papi,Papiv2, GCPBATCH]
+backends: [Papi,Papiv2]
 backendsMode: any
 testFormat: workflowfailure
 

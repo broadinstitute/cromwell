@@ -1,7 +1,6 @@
 package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
-
 import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
@@ -269,6 +268,21 @@ trait MetadataDatabaseAccess {
     ) map
       metadataToMetadataEvents(id)
   }
+
+  def queryCost(id: WorkflowId, includeTaskBreakdown: Boolean, includeSubworkflowBreakdown: Boolean, timeout: Duration)(
+    implicit ec: ExecutionContext
+  ): Future[Double] = // TODO return way more stuff
+    // !! this is where the actual logic goes, below is a placeholder !!
+    metadataDatabaseInterface
+      .queryMetadataEntryWithKeyConstraints(id.toString,
+                                            List("vmCostPerHour"),
+                                            List.empty,
+                                            CallOrWorkflowQuery,
+                                            timeout
+      )
+      .map(metadataToMetadataEvents(id))
+      // unsafe summing of metadata values
+      .map(_.map(m => m.value.map(_.value).getOrElse("0").toDouble).sum)
 
   def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] =
     for {

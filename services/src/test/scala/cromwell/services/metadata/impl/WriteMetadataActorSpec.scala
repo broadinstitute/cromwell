@@ -436,6 +436,12 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
     override def getWorkflowLabels(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Nothing =
       notImplemented()
 
+    override def getWorkflowCost(workflowExecutionUuid: String,
+                                 includeTaskBreakdown: Boolean,
+                                 includeSubworkflowBreakdown: Boolean
+    )(implicit ec: ExecutionContext): Nothing =
+      notImplemented()
+
     override def getRootAndSubworkflowLabels(rootWorkflowExecutionUuid: String)(implicit
       ec: ExecutionContext
     ): Nothing = notImplemented()

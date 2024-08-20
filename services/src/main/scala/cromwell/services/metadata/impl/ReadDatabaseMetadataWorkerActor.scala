@@ -38,6 +38,10 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) =>
       evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
     case GetLogs(workflowId) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
+    case GetCost(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown) =>
+      evaluateRespondAndStop(sender(),
+                             queryCostAndRespond(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown)
+      )
     case QueryForWorkflowsMatchingParameters(parameters) =>
       evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(parameters))
     case WorkflowOutputs(id) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
@@ -154,6 +158,16 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
       LogsResponse(id, s)
     } recover { case t =>
       LogsFailure(id, t)
+    }
+
+  private def queryCostAndRespond(id: WorkflowId,
+                                  includeTaskBreakdown: Boolean,
+                                  includeSubworkflowBreakdown: Boolean
+  ): Future[MetadataServiceResponse] =
+    queryCost(id, includeTaskBreakdown, includeSubworkflowBreakdown, metadataReadTimeout) map { s =>
+      CostResponse(id, s: Double)
+    } recover { case t =>
+      CostFailure(id, t)
     }
 
 }

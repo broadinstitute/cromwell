@@ -339,12 +339,11 @@ trait SharedFileSystem extends PathFactory {
   private def localizeWomFile(toDestPath: WomFile => String => Try[PairOfFiles],
                               strategies: LazyList[DuplicationStrategy],
                               docker: Boolean
-  )(womFile: WomFile): WomFile = {
+  )(womFile: WomFile): WomFile =
     womFile mapWomFile { file =>
       val result = toDestPath(file)(file.value) flatMap { case PairOfFiles(src, dst) =>
         duplicate("localize", src, dst, strategies, docker).map(_ => dst.pathAsString)
       }
       result.get
     }
-  }
 }

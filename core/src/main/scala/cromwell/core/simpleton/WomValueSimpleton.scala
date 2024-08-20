@@ -34,7 +34,7 @@ object WomValueSimpleton {
     // Pass the simplifyMode down to recursive calls without having to sling the parameter around explicitly.
     def simplify(
       name: String
-    )(implicit simplifyMode: SimplifyMode = SimplifyMode(forCaching = false)): Iterable[WomValueSimpleton] = {
+    )(implicit simplifyMode: SimplifyMode = SimplifyMode(forCaching = false)): Iterable[WomValueSimpleton] =
       womValue match {
         case prim: WomPrimitive => List(WomValueSimpleton(name, prim))
         case opt: WomOptionalValue => opt.value.map(_.simplify(name)).getOrElse(Seq.empty)
@@ -50,7 +50,6 @@ object WomValueSimpleton {
         case womCoproduct: WomCoproductValue => womCoproduct.womValue.simplify(name)
         case other => throw new Exception(s"Cannot simplify wdl value $other of type ${other.womType}")
       }
-    }
   }
 
   implicit class WomValuesSimplifier(womValues: Map[String, WomValue]) {

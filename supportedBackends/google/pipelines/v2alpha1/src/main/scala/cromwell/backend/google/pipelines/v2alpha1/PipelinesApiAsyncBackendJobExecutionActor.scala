@@ -17,13 +17,7 @@ import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import org.apache.commons.codec.digest.DigestUtils
 import wom.core.FullyQualifiedName
 import wom.expression.FileEvaluation
-import wom.values.{
-  GlobFunctions,
-  WomFile,
-  WomGlobFile,
-  WomSingleFile,
-  WomUnlistedDirectory
-}
+import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomSingleFile, WomUnlistedDirectory}
 
 import java.io.FileNotFoundException
 import scala.concurrent.Future

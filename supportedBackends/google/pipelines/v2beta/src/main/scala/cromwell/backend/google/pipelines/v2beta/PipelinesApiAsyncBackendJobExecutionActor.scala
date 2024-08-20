@@ -20,13 +20,7 @@ import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import org.apache.commons.io.output.ByteArrayOutputStream
 import wom.core.FullyQualifiedName
 import wom.expression.FileEvaluation
-import wom.values.{
-  GlobFunctions,
-  WomFile,
-  WomGlobFile,
-  WomSingleFile,
-  WomUnlistedDirectory
-}
+import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomSingleFile, WomUnlistedDirectory}
 
 import java.nio.charset.Charset
 

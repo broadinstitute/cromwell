@@ -11,12 +11,7 @@ import cromwell.core.path.{Path, PathFactory}
 import wom.expression.IoFunctionSet.{IoDirectory, IoElement, IoFile}
 import wom.expression.{IoFunctionSet, IoFunctionSetAdapter}
 import wom.graph.CommandCallNode
-import wom.values.{
-  WomFile,
-  WomGlobFile,
-  WomSingleFile,
-  WomUnlistedDirectory
-}
+import wom.values.{WomFile, WomGlobFile, WomSingleFile, WomUnlistedDirectory}
 
 import scala.concurrent.Future
 import scala.util.Try

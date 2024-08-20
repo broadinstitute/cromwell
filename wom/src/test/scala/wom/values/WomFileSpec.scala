@@ -105,7 +105,7 @@ class WomFileSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
 
   }
 
-   val addInvalidIntegerTests = Table(
+  val addInvalidIntegerTests = Table(
     ("description", "womFile", "expected"),
     ("a single directory", singleDir, "Cannot perform operation: single/dir + WomInteger(42)"),
     ("a single file", singleFile, "Cannot perform operation: single/file + WomInteger(42)"),

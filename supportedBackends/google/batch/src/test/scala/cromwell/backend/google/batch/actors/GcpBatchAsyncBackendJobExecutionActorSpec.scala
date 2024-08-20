@@ -170,7 +170,8 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
           backendInitializationDataOption = Option(buildInitializationData(jobDescriptor, batchConfiguration)),
           backendSingletonActorOption = Option(batchSingletonActor),
           completionPromise = promise,
-          minimumRuntimeSettings = MinimumRuntimeSettings()
+          minimumRuntimeSettings = MinimumRuntimeSettings(),
+          groupMetricsActor = emptyActor
         ),
         functions
       )

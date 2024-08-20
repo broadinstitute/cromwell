@@ -80,6 +80,7 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
       Option(initializationData),
       backendSingletonActor,
       classOf[AwsBatchAsyncBackendJobExecutionActor],
+      groupMetricsActor = system.actorOf(Props.empty, "TestGroupMetricsActor"),
       MinimumRuntimeSettings()
     )
     val testJJEA = TestActorRef[TestAwsBatchJobExecutionActor](
@@ -123,6 +124,7 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
       Option(initializationData),
       backendSingletonActor,
       classOf[AwsBatchAsyncBackendJobExecutionActor],
+      groupMetricsActor = system.actorOf(Props.empty, "TestGroupMetricsActor"),
       MinimumRuntimeSettings()
     )
     val testJJEA = TestActorRef[TestAwsBatchJobExecutionActor](

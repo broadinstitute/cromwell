@@ -123,7 +123,8 @@ class SubWorkflowExecutionActorSpec
           rootConfig,
           new AtomicInteger(),
           fileHashCacheActor = None,
-          blacklistCache = None
+          blacklistCache = None,
+          groupMetricsActor = system.actorOf(Props.empty, "TestGroupMetricsActor")
         ) {
           override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId): ActorRef = preparationActor.ref
           override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor): ActorRef =

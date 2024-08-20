@@ -3,7 +3,6 @@ package cromwell.database.slick.tables
 import java.sql.Timestamp
 import javax.sql.rowset.serial.{SerialBlob, SerialClob}
 import cromwell.database.sql.tables.WorkflowStoreEntry
-import slick.lifted.CompiledFunction
 
 trait WorkflowStoreEntryComponent {
 

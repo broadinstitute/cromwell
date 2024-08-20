@@ -46,9 +46,9 @@ import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
-import java.time.{LocalDateTime, OffsetDateTime}
-import java.time.temporal.ChronoUnit
 import java.io.IOException
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}

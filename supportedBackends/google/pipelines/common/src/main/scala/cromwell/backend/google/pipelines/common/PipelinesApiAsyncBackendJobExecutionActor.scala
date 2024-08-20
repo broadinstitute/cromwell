@@ -531,7 +531,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           inputOutputParameters = inputOutputParameters,
           projectId = googleProject(
             jobDescriptor.workflowDescriptor
-          ), // <--- using WorkflowOptionKeys.GoogleProject as projectId here
+          ),
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
           googleLabels = backendLabels ++ customLabels,
           preemptible = preemptible,

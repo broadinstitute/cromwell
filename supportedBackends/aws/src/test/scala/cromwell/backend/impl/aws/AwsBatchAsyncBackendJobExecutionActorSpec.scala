@@ -188,7 +188,8 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
           backendInitializationDataOption = Option(buildInitializationData(jobDescriptor, configuration)),
           backendSingletonActorOption = Option(singletonActor),
           completionPromise = promise,
-          minimumRuntimeSettings = MinimumRuntimeSettings()
+          minimumRuntimeSettings = MinimumRuntimeSettings(),
+          groupMetricsActor = emptyActor
         ),
         functions
       )

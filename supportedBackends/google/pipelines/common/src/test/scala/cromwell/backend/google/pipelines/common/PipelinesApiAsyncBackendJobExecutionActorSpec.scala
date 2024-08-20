@@ -184,7 +184,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
           backendInitializationDataOption = Option(buildInitializationData(jobDescriptor, jesConfiguration)),
           backendSingletonActorOption = Option(jesSingletonActor),
           completionPromise = promise,
-          minimumRuntimeSettings = MinimumRuntimeSettings()
+          minimumRuntimeSettings = MinimumRuntimeSettings(),
+          groupMetricsActor = emptyActor // TODO: Saloni - can this be non-empty actor and be tested?
         ),
         functions
       )

@@ -142,9 +142,6 @@ object WomValueBuilder {
           k -> toWomValue(valueType, ss)
         }
         WomObject.withTypeUnsafe(map, composite)
-      case coproductType: WomCoproductType =>
-        // We don't currently record the actual type of the coproduct value so use the same heuristics as for Any.
-        WomCoproductValue(coproductType, toWomValue(WomAnyType, components))
 
       case WomAnyType =>
         // Ok, we're going to have to guess, but the keys should give us some clues:

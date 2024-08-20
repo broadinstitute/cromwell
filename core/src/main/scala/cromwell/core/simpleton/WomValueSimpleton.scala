@@ -47,7 +47,6 @@ object WomValueSimpleton {
           womObjectLike.values flatMap { case (key, value) =>
             value.simplify(s"$name:${key.escapeMeta}")
           }
-        case womCoproduct: WomCoproductValue => womCoproduct.womValue.simplify(name)
         case other => throw new Exception(s"Cannot simplify wdl value $other of type ${other.womType}")
       }
   }

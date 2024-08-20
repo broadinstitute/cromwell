@@ -2,7 +2,7 @@
 
 name: missing_delete
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: delete_intermediates/missing_delete.wdl

@@ -1,6 +1,6 @@
 name: retry_with_more_memory_after_137
 testFormat: workflowfailure
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: retry_with_more_memory/retry_with_more_memory_after_137.wdl

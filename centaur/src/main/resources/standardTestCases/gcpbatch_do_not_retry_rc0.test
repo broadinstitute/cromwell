@@ -1,0 +1,15 @@
+name: gcpbatch_do_not_retry_rc0
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: retry_with_more_memory/gcpbatch/do_not_retry_rc0.wdl
+  options: retry_with_more_memory/retry_with_more_memory.options
+}
+
+metadata {
+  workflowName: do_not_retry_rc0
+  status: Succeeded
+  "calls.do_not_retry_rc0.imitate_oom_error.executionStatus": "Done"
+  "calls.do_not_retry_rc0.imitate_oom_error.runtimeAttributes.memory": "1 GB"
+}

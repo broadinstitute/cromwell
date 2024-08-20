@@ -22,7 +22,7 @@ object Dependencies {
   private val azureAppInsightsLogbackV = "2.6.4"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.4.10"
-  private val bardClientV = "1.0.7"
+  private val bardClientV = "1.0.8"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
@@ -383,6 +383,8 @@ object Dependencies {
     "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
   )
 
+  private val googlePapiBatchDependencies = googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
+
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`
   org.lerch:s3fs:1.0.1 depends on a preview release of software.amazon.awssdk:s3.
@@ -427,7 +429,7 @@ object Dependencies {
   "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5"),
     "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
-  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
+  )
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
@@ -449,7 +451,7 @@ object Dependencies {
     "com.lihaoyi" %% "pprint" % pprintV,
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
-  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies ++ azureDependencies
+  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ googlePapiBatchDependencies ++ betterFilesDependencies ++ awsCloudDependencies ++ azureDependencies
 
   val databaseSqlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,

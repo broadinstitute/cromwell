@@ -1,6 +1,6 @@
 name: quota_fail_retry
 testFormat: workflowfailure
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: quota_fail_retry/quota_fail_retry.wdl

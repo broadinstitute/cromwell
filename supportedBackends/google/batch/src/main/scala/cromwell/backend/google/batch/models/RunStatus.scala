@@ -47,7 +47,8 @@ object RunStatus {
               "A VM for a job is unexpectedly recreated during run time"
           }
         case None =>
-          eventList.headOption
+          // Take the last event as that is more likely to be indicative of what killed the job than the first event.
+          eventList.lastOption
             .map(_.name)
             .getOrElse(
               "The job has failed but the exit code couldn't be derived, there isn't an event message either, please review the logs and report a bug"

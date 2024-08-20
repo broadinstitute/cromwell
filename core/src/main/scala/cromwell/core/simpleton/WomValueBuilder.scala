@@ -101,39 +101,6 @@ object WomValueBuilder {
         case MapElementPattern("right", more) => PairRight -> component.copy(path = more)
       }
 
-    def toWomFile(components: Iterable[SimpletonComponent]) =
-      // If there's just one simpleton, it's a primitive (file or directory)
-      if (components.size == 1) components.asPrimitive
-      else {
-        // Otherwise make a map of the components and detect the type of file from the class field
-        val groupedListing = components.asMap
-
-        def isClass(className: String) =
-          groupedListing
-            .get(ClassKey)
-            /* If the class field is in an array it will be prefixed with a ':', so check for that as well.
-             * e.g: secondaryFiles[0]:class -> "File"
-             *      secondaryFiles[0]:value -> "file/path"
-             * would produce a Map(
-             *  ":class" -> List(Simpleton("File")),
-             *  ":value" -> List(Simpleton("file/path"))
-             * )
-             */
-            .orElse(groupedListing.get(s":$ClassKey"))
-            .map(_.asPrimitive.valueString)
-            .contains(className)
-
-        def isDirectory = isClass(WomValueSimpleton.DirectoryClass)
-        def isFile = isClass(WomValueSimpleton.FileClass)
-
-        if (isDirectory) toWomValue(WomMaybeListedDirectoryType, components)
-        else if (isFile) toWomValue(WomMaybePopulatedFileType, components)
-        else
-          throw new IllegalArgumentException(
-            s"There is no WomFile that can be built from simpletons: ${groupedListing.toList.mkString(", ")}"
-          )
-      }
-
     outputType match {
       case _: WomPrimitiveType =>
         components.asPrimitive
@@ -175,35 +142,6 @@ object WomValueBuilder {
           k -> toWomValue(valueType, ss)
         }
         WomObject.withTypeUnsafe(map, composite)
-      case WomMaybeListedDirectoryType =>
-        val directoryValues = components.asMap
-
-        val value = directoryValues.get("value").map(_.asString)
-        val listing = directoryValues
-          .get("listing")
-          .map(_.asArray.map(toWomFile).collect { case womFile: WomFile => womFile })
-
-        WomMaybeListedDirectory(value, listing)
-      case WomMaybePopulatedFileType =>
-        val populatedValues = components.asMap
-
-        val value = populatedValues.get("value").map(_.asString)
-        val checksum = populatedValues.get("checksum").map(_.asString)
-        val size = populatedValues.get("size").map(_.asString.toLong)
-        val format = populatedValues.get("format").map(_.asString)
-        val contents = populatedValues.get("contents").map(_.asString)
-        val secondaryFiles = populatedValues.get("secondaryFiles").toList.flatMap {
-          _.asArray.map(toWomFile).collect { case womFile: WomFile => womFile }
-        }
-
-        WomMaybePopulatedFile(
-          valueOption = value,
-          checksumOption = checksum,
-          sizeOption = size,
-          formatOption = format,
-          contentsOption = contents,
-          secondaryFiles = secondaryFiles
-        )
       case coproductType: WomCoproductType =>
         // We don't currently record the actual type of the coproduct value so use the same heuristics as for Any.
         WomCoproductValue(coproductType, toWomValue(WomAnyType, components))

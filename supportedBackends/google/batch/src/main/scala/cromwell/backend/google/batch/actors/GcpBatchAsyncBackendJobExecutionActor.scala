@@ -194,8 +194,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                            localPathArray: Seq[WomFile]
   ): Iterable[GcpBatchInput] =
     (remotePathArray zip localPathArray) flatMap {
-      case (remotePath: WomMaybeListedDirectory, localPath) =>
-        maybeListedDirectoryToBatchParameters(inputName, remotePath, localPath.valueString)
       case (remotePath: WomUnlistedDirectory, localPath) =>
         Seq(
           GcpBatchDirectoryInput(inputName,
@@ -204,8 +202,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                  workingDisk
           )
         )
-      case (remotePath: WomMaybePopulatedFile, localPath) =>
-        maybePopulatedFileToBatchParameters(inputName, remotePath, localPath.valueString)
       case (remotePath, localPath) =>
         Seq(
           GcpBatchFileInput(inputName,
@@ -215,26 +211,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           )
         )
     }
-
-  private def maybePopulatedFileToBatchParameters(inputName: String,
-                                                  maybePopulatedFile: WomMaybePopulatedFile,
-                                                  localPath: String
-  ) = {
-    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap { secondaryFile =>
-      gcpBatchInputsFromWomFiles(secondaryFile.valueString,
-                                 List(secondaryFile),
-                                 List(relativeLocalizationPath(secondaryFile))
-      )
-    }
-
-    Seq(
-      GcpBatchFileInput(inputName,
-                        getPath(maybePopulatedFile.valueString).get,
-                        DefaultPathBuilder.get(localPath),
-                        workingDisk
-      )
-    ) ++ secondaryFiles
-  }
 
   /**
    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
@@ -775,28 +751,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                                   fileEvaluation.secondary
     )
     List(directoryOutput)
-  }
-
-  private def maybeListedDirectoryToBatchParameters(inputName: String,
-                                                    womMaybeListedDirectory: WomMaybeListedDirectory,
-                                                    localPath: String
-  ) = womMaybeListedDirectory match {
-    // If there is a path, simply localize as a directory
-    case WomMaybeListedDirectory(Some(path), _, _, _) =>
-      List(GcpBatchDirectoryInput(inputName, getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
-
-    // If there is a listing, recurse and call gcpBatchInputsFromWomFiles on all the listed files
-    case WomMaybeListedDirectory(_, Some(listing), _, _) if listing.nonEmpty =>
-      listing.flatMap {
-        case womFile: WomFile if isAdHocFile(womFile) =>
-          gcpBatchInputsFromWomFiles(makeSafeReferenceName(womFile.valueString), List(womFile), List(fileName(womFile)))
-        case womFile: WomFile =>
-          gcpBatchInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
-                                     List(womFile),
-                                     List(relativeLocalizationPath(womFile))
-          )
-      }
-    case _ => List.empty
   }
 
   def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[GcpBatchFileOutput] = {

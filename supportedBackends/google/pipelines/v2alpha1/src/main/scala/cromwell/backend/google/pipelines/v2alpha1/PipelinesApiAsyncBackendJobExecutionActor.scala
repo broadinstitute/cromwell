@@ -21,8 +21,6 @@ import wom.values.{
   GlobFunctions,
   WomFile,
   WomGlobFile,
-  WomMaybeListedDirectory,
-  WomMaybePopulatedFile,
   WomSingleFile,
   WomUnlistedDirectory
 }
@@ -45,8 +43,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
                                                         jobDescriptor: BackendJobDescriptor
   ): Iterable[PipelinesApiInput] =
     (remotePathArray zip localPathArray) flatMap {
-      case (remotePath: WomMaybeListedDirectory, localPath) =>
-        maybeListedDirectoryToPipelinesParameters(inputName, remotePath, localPath.valueString)
       case (remotePath: WomUnlistedDirectory, localPath) =>
         Seq(
           PipelinesApiDirectoryInput(inputName,
@@ -55,8 +51,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
                                      workingDisk
           )
         )
-      case (remotePath: WomMaybePopulatedFile, localPath) =>
-        maybePopulatedFileToPipelinesParameters(inputName, remotePath, localPath.valueString)
       case (remotePath, localPath) =>
         Seq(
           PipelinesApiFileInput(inputName,
@@ -396,54 +390,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
         }
       }
     }
-
-  private def maybePopulatedFileToPipelinesParameters(inputName: String,
-                                                      maybePopulatedFile: WomMaybePopulatedFile,
-                                                      localPath: String
-  ) = {
-    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap { secondaryFile =>
-      pipelinesApiInputsFromWomFiles(secondaryFile.valueString,
-                                     List(secondaryFile),
-                                     List(relativeLocalizationPath(secondaryFile)),
-                                     jobDescriptor
-      )
-    }
-
-    Seq(
-      PipelinesApiFileInput(inputName,
-                            getPath(maybePopulatedFile.valueString).get,
-                            DefaultPathBuilder.get(localPath),
-                            workingDisk
-      )
-    ) ++ secondaryFiles
-  }
-
-  private def maybeListedDirectoryToPipelinesParameters(inputName: String,
-                                                        womMaybeListedDirectory: WomMaybeListedDirectory,
-                                                        localPath: String
-  ) = womMaybeListedDirectory match {
-    // If there is a path, simply localize as a directory
-    case WomMaybeListedDirectory(Some(path), _, _, _) =>
-      List(PipelinesApiDirectoryInput(inputName, getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
-
-    // If there is a listing, recurse and call pipelinesApiInputsFromWomFiles on all the listed files
-    case WomMaybeListedDirectory(_, Some(listing), _, _) if listing.nonEmpty =>
-      listing.flatMap {
-        case womFile: WomFile if isAdHocFile(womFile) =>
-          pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
-                                         List(womFile),
-                                         List(fileName(womFile)),
-                                         jobDescriptor
-          )
-        case womFile: WomFile =>
-          pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
-                                         List(womFile),
-                                         List(relativeLocalizationPath(womFile)),
-                                         jobDescriptor
-          )
-      }
-    case _ => List.empty
-  }
 
   override def generateSingleFileOutputs(womFile: WomSingleFile,
                                          fileEvaluation: FileEvaluation

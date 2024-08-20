@@ -90,23 +90,3 @@ case object WomGlobFileType extends WomPrimitiveFileType {
     case _ => invalid(s"$this + $rhs")
   }
 }
-
-case object WomMaybeListedDirectoryType extends WomFileType {
-  override protected def coercion: PartialFunction[Any, WomMaybeListedDirectory] = {
-    case s: String => WomMaybeListedDirectory(s.trim)
-    case s: JsString => WomMaybeListedDirectory(s.value.trim)
-    case s: WomString => WomMaybeListedDirectory(s.valueString.trim)
-    case d: WomUnlistedDirectory => WomMaybeListedDirectory(d.value)
-    case d: WomMaybeListedDirectory => d
-  }
-}
-
-case object WomMaybePopulatedFileType extends WomFileType {
-  override protected def coercion: PartialFunction[Any, WomMaybePopulatedFile] = {
-    case s: String => WomMaybePopulatedFile(s.trim)
-    case s: JsString => WomMaybePopulatedFile(s.value.trim)
-    case s: WomString => WomMaybePopulatedFile(s.valueString.trim)
-    case f: WomSingleFile => WomMaybePopulatedFile(f.value)
-    case f: WomMaybePopulatedFile => f
-  }
-}

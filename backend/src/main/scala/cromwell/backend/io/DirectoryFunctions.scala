@@ -14,8 +14,6 @@ import wom.graph.CommandCallNode
 import wom.values.{
   WomFile,
   WomGlobFile,
-  WomMaybeListedDirectory,
-  WomMaybePopulatedFile,
   WomSingleFile,
   WomUnlistedDirectory
 }
@@ -94,21 +92,7 @@ object DirectoryFunctions {
           val errorOrListPaths = listFiles(pathFactory.buildPath(womUnlistedDirectory.value.ensureSlashed))
           errorOrListPaths.map(_.map(path => WomSingleFile(path.pathAsString)))
 
-        case womMaybePopulatedFile: WomMaybePopulatedFile =>
-          val allFiles: List[WomFile] =
-            womMaybePopulatedFile.valueOption.toList.map(WomSingleFile) ++ womMaybePopulatedFile.secondaryFiles
-          allFiles.traverse(listWomSingleFiles).map(_.flatten)
-
-        case w: WomMaybeListedDirectory =>
-          (w.valueOption, w.listingOption) match {
-            case (None, None) => Nil.valid
-            case (Some(value), None) => listWomSingleFiles(WomUnlistedDirectory(value))
-            case (None, Some(listing)) => listing.toList.traverse(listWomSingleFiles).map(_.flatten)
-            // TODO: WOM: WOMFILE: This is a special case where files from a different path are supposed to end up under the directory. If this implementation is correct, remove this TODO.
-            case (Some(_), Some(listing)) => listing.toList.traverse(listWomSingleFiles).map(_.flatten)
-          }
         // TODO: WOM: WOMFILE: How did a glob get here? Should this link into glob functions to list the globs?
-
         case _: WomGlobFile => s"Unexpected glob / unable to list glob files at this time: $womFile".invalidNel
       }
 

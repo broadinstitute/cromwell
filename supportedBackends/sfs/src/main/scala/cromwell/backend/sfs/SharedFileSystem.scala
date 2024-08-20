@@ -299,7 +299,6 @@ trait SharedFileSystem extends PathFactory {
         if (inputsRoot.isParentOf(localInputPath)) localInputPath
         else {
           val nameOverride = womFile match {
-            case directory: WomMaybeListedDirectory => directory.basename
             case _ => None
           }
           // Concatenate call directory with absolute input path
@@ -341,18 +340,11 @@ trait SharedFileSystem extends PathFactory {
                               strategies: LazyList[DuplicationStrategy],
                               docker: Boolean
   )(womFile: WomFile): WomFile = {
-    val localized = womFile mapWomFile { file =>
+    womFile mapWomFile { file =>
       val result = toDestPath(file)(file.value) flatMap { case PairOfFiles(src, dst) =>
         duplicate("localize", src, dst, strategies, docker).map(_ => dst.pathAsString)
       }
       result.get
     }
-    val sized = localized collect {
-      case womMaybePopulatedFile @ WomMaybePopulatedFile(Some(path), _, None, _, _, _, _) =>
-        val pair = toDestPath(womMaybePopulatedFile)(path).get
-        val srcSize = pair.src.size
-        womMaybePopulatedFile.copy(sizeOption = Option(srcSize))
-    }
-    sized
   }
 }

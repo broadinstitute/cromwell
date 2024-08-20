@@ -10,7 +10,6 @@ object HogGroup {
 
   type HogGroupDeciderFunction = (WorkflowOptions, WorkflowId) => HogGroup
 
-  // this is where hog group name is decided
   // NB: This is separated out from the apply so that we only have to load the config once:
   val HogGroupDeciderFunction: HogGroupDeciderFunction = {
     val config = ConfigFactory.load

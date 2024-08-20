@@ -222,7 +222,7 @@ trait WorkflowStoreEntryComponent {
   /**
     * Useful for updating state for all entries matching a given state
     */
-  val workflowStateForWorkflowState: CompiledFunction[driver.api.Rep[String] => Query[Rep[String], String, Seq], driver.api.Rep[String], String, Query[Rep[String], String, Seq], Seq[String]] = Compiled((workflowState: Rep[String]) =>
+  val workflowStateForWorkflowState = Compiled((workflowState: Rep[String]) =>
     for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowState === workflowState

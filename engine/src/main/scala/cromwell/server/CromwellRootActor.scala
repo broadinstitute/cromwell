@@ -21,7 +21,11 @@ import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
-import cromwell.engine.workflow.lifecycle.finalization.{CopyWorkflowLogsActor, WorkflowCallbackActor, WorkflowCallbackConfig}
+import cromwell.engine.workflow.lifecycle.finalization.{
+  CopyWorkflowLogsActor,
+  WorkflowCallbackActor,
+  WorkflowCallbackConfig
+}
 import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobTokenDispenserActor}
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.AbortConfig
 import cromwell.engine.workflow.workflowstore._
@@ -221,7 +225,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
     "JobExecutionTokenDispenser"
   )
 
-  lazy val groupMetricsActor: ActorRef = context.actorOf(GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface))
+  lazy val groupMetricsActor: ActorRef =
+    context.actorOf(GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface))
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(

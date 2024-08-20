@@ -24,7 +24,7 @@ task sleep {
 
   # I set `broad-dsde-cromwell-dev` to have super low CPU quota in `us-west3` (Salt Lake City) for this test
   runtime {
-    cpu: 10
+    cpu: 12
     docker: "ubuntu:latest"
     zones: "us-west3-a us-west3-b us-west3-c"
   }

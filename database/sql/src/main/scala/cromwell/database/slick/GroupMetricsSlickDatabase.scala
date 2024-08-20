@@ -5,15 +5,18 @@ import cromwell.database.sql.tables.GroupMetricsEntry
 
 import scala.concurrent.{ExecutionContext, Future}
 
-trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase{
+trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase {
   this: EngineSlickDatabase =>
 
   import dataAccess.driver.api._
 
-  override def recordGroupMetricsEntry(groupMetricsEntry: GroupMetricsEntry)(implicit ec: ExecutionContext): Future[Unit] = {
+  override def recordGroupMetricsEntry(
+    groupMetricsEntry: GroupMetricsEntry
+  )(implicit ec: ExecutionContext): Future[Unit] = {
     val action = for {
-      updateCount <- dataAccess.quotaExhaustionForGroupId(groupMetricsEntry.groupId).update(groupMetricsEntry.quotaExhaustionDetected)
-      _ = println(s"@@@@@@@@@@ Update count: ${updateCount}")
+      updateCount <- dataAccess
+        .quotaExhaustionForGroupId(groupMetricsEntry.groupId)
+        .update(groupMetricsEntry.quotaExhaustionDetected)
       _ <- updateCount match {
         case 0 => dataAccess.groupMetricsEntryIdsAutoInc += groupMetricsEntry
         case _ => assertUpdateCount("recordGroupMetricsEntry", updateCount, 1)

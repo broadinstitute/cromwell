@@ -279,7 +279,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                      serviceRegistryActor,
                                      ioActor,
                                      backendSingletonActor,
-    groupMetricsActor
+                                     groupMetricsActor
   )
 
   private[preparation] def prepareBackendDescriptor(inputEvaluation: WomEvaluatedCallInputs,
@@ -315,7 +315,13 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     )
     BackendJobPreparationSucceeded(
       jobDescriptor,
-      jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor, groupMetricsActor)
+      jobExecutionProps(jobDescriptor,
+                        initializationData,
+                        serviceRegistryActor,
+                        ioActor,
+                        backendSingletonActor,
+                        groupMetricsActor
+      )
     )
   }
 

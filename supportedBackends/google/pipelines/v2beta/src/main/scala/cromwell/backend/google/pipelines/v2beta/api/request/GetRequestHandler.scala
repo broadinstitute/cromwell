@@ -125,7 +125,6 @@ trait GetRequestHandler { this: RequestHandler =>
             case None => Success(executionEvents, machineType, zone, instanceName)
           }
         } else if (isQuotaDelayed(events)) {
-          // part of v2beta backend
           AwaitingCloudQuota
         } else if (operation.hasStarted) {
           Running

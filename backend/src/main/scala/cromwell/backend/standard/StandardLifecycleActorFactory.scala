@@ -119,7 +119,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                          serviceRegistryActor,
                                          ioActor,
                                          backendSingletonActorOption,
-      groupMetricsActor
+                                         groupMetricsActor
     )
     Props(new StandardSyncExecutionActor(params)).withDispatcher(Dispatcher.BackendDispatcher)
   }

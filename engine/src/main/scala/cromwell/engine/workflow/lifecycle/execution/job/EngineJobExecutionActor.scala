@@ -622,13 +622,11 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     runJob(updatedData)
   }
 
-  // hog group used here, can this be where we check quota delay before giving tokens?
   private def requestRestartCheckToken(): Unit =
     jobRestartCheckTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup,
                                                          backendLifecycleActorFactory.jobRestartCheckTokenType
     )
 
-  // hog group used here, can this be where we check quota delay before giving tokens?
   private def requestExecutionToken(): Unit =
     jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup,
                                                       backendLifecycleActorFactory.jobExecutionTokenType

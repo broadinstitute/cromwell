@@ -12,7 +12,6 @@ import cromwell.database.sql.tables.GroupMetricsEntry
 
 import java.time.OffsetDateTime
 
-// TODO: where should this file be located?
 class GroupMetricsActor(engineDbInterface: EngineSqlDatabase) extends Actor with ActorLogging {
 
   implicit val ec: MessageDispatcher = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
@@ -21,12 +20,12 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase) extends Actor with
     case RecordGroupQuotaExhaustion(group) =>
       log.info(s"Recording quota exhaustion for group '$group'.")
       val groupMetricsEntry = GroupMetricsEntry(group, OffsetDateTime.now.toSystemTimestamp)
-      println(s"##### FIND ME ^_^ QUOTA EXHAUSTION ^_^ Group: '${groupMetricsEntry.groupId}' Timestamp: '${groupMetricsEntry.quotaExhaustionDetected}' !!!!!!!!")
       engineDbInterface.recordGroupMetricsEntry(groupMetricsEntry)
       ()
-    case other => log.error(
-      s"Programmer Error: Unexpected message ${other.toPrettyElidedString(1000)} received by ${this.self.path.name}."
-    )
+    case other =>
+      log.error(
+        s"Programmer Error: Unexpected message ${other.toPrettyElidedString(1000)} received by ${this.self.path.name}."
+      )
   }
 }
 
@@ -35,7 +34,7 @@ object GroupMetricsActor {
   sealed trait GroupMetricsActorMessage
 
   case class RecordGroupQuotaExhaustion(group: String) extends GroupMetricsActorMessage
-//  case class GetGroupMetrics(group: String) extends GroupMetricsActorMessage
 
-  def props(engineDbInterface: EngineSqlDatabase): Props =  Props(new GroupMetricsActor(engineDbInterface)).withDispatcher(EngineDispatcher)
+  def props(engineDbInterface: EngineSqlDatabase): Props =
+    Props(new GroupMetricsActor(engineDbInterface)).withDispatcher(EngineDispatcher)
 }

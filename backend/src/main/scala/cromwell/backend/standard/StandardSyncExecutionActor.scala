@@ -28,7 +28,7 @@ case class DefaultStandardSyncExecutionActorParams(
   override val backendSingletonActorOption: Option[ActorRef],
   override val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor],
   override val groupMetricsActor: ActorRef,
-  override val minimumRuntimeSettings: MinimumRuntimeSettings,
+  override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardSyncExecutionActorParams
 
 /**

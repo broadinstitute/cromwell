@@ -30,7 +30,7 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
   // !!!!!!! updates running in a single transaction.            !!!!!!!!
   // !!!!!!! https://broadworkbench.atlassian.net/browse/BA-6262 !!!!!!!!
   // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  private def manualUpsertQuery(jobKeyValueEntry: JobKeyValueEntry)(implicit ec: ExecutionContext) = for {
+  private def manualUpsertQuery(jobKeyValueEntry: JobKeyValueEntry)(implicit ec: ExecutionContext): DBIOAction[Unit, NoStream, Effect.Write with Effect.All] = for {
     updateCount <- dataAccess
       .storeValuesForJobKeyAndStoreKey(
         (jobKeyValueEntry.workflowExecutionUuid,

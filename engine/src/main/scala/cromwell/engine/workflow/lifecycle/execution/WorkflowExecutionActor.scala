@@ -824,7 +824,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       jobExecutionTokenDispenserActor = params.jobExecutionTokenDispenserActor,
       backendSingleton,
       command,
-      callCachingParameters
+      callCachingParameters,
+      params.groupMetricsActor
     )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)
@@ -865,7 +866,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         params.rootConfig,
         params.totalJobsByRootWf,
         fileHashCacheActor = params.fileHashCacheActor,
-        blacklistCache = params.blacklistCache
+        blacklistCache = params.blacklistCache,
+        groupMetricsActor = params.groupMetricsActor
       ),
       s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
@@ -998,7 +1000,8 @@ object WorkflowExecutionActor {
     rootConfig: Config,
     totalJobsByRootWf: AtomicInteger,
     fileHashCacheActor: Option[ActorRef],
-    blacklistCache: Option[BlacklistCache]
+    blacklistCache: Option[BlacklistCache],
+    groupMetricsActor: ActorRef
   )
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
@@ -1017,7 +1020,8 @@ object WorkflowExecutionActor {
             rootConfig: Config,
             totalJobsByRootWf: AtomicInteger,
             fileHashCacheActor: Option[ActorRef],
-            blacklistCache: Option[BlacklistCache]
+            blacklistCache: Option[BlacklistCache],
+            groupMetricsActor: ActorRef
   ): Props =
     Props(
       WorkflowExecutionActor(
@@ -1038,7 +1042,8 @@ object WorkflowExecutionActor {
           rootConfig,
           totalJobsByRootWf,
           fileHashCacheActor = fileHashCacheActor,
-          blacklistCache = blacklistCache
+          blacklistCache = blacklistCache,
+          groupMetricsActor = groupMetricsActor
         )
       )
     ).withDispatcher(EngineDispatcher)

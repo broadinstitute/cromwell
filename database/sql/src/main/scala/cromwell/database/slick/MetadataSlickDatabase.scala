@@ -80,6 +80,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action)
   }
 
+  // add query
   override def addMetadataEntries(metadataEntries: Iterable[MetadataEntry],
                                   startMetadataKey: String,
                                   endMetadataKey: String,
@@ -326,6 +327,7 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action, timeout = timeout)
   }
 
+  // update query
   private def updateWorkflowMetadataSummaryEntry(
     buildUpdatedWorkflowMetadataSummaryEntry: (Option[WorkflowMetadataSummaryEntry],
                                                Seq[MetadataEntry]

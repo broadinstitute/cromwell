@@ -7,6 +7,7 @@ import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
+import cromwell.backend.standard.GroupMetricsActor
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
@@ -20,11 +21,7 @@ import cromwell.engine.io.{IoActor, IoActorProxy}
 import cromwell.engine.workflow.WorkflowManagerActor
 import cromwell.engine.workflow.WorkflowManagerActor.AbortAllWorkflowsCommand
 import cromwell.engine.workflow.lifecycle.execution.callcaching.{CallCache, CallCacheReadActor, CallCacheWriteActor}
-import cromwell.engine.workflow.lifecycle.finalization.{
-  CopyWorkflowLogsActor,
-  WorkflowCallbackActor,
-  WorkflowCallbackConfig
-}
+import cromwell.engine.workflow.lifecycle.finalization.{CopyWorkflowLogsActor, WorkflowCallbackActor, WorkflowCallbackConfig}
 import cromwell.engine.workflow.tokens.{DynamicRateLimiter, JobTokenDispenserActor}
 import cromwell.engine.workflow.workflowstore.AbortRequestScanningActor.AbortConfig
 import cromwell.engine.workflow.workflowstore._
@@ -224,6 +221,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
     "JobExecutionTokenDispenser"
   )
 
+  lazy val groupMetricsActor: ActorRef = context.actorOf(GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface))
+
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
       config = config,
@@ -243,7 +242,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
-      workflowHeartbeatConfig = workflowHeartbeatConfig
+      workflowHeartbeatConfig = workflowHeartbeatConfig,
+      groupMetricsActor = groupMetricsActor
     ),
     "WorkflowManagerActor"
   )

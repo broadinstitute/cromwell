@@ -10,11 +10,7 @@ import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked._
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{
-  BackendJobExecutionResponse,
-  JobAbortedResponse,
-  JobReconnectionNotSupportedException
-}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._
@@ -46,7 +42,7 @@ import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
-import java.time.OffsetDateTime
+import java.time.{LocalDateTime, OffsetDateTime}
 import java.time.temporal.ChronoUnit
 import java.io.IOException
 import scala.concurrent._
@@ -68,7 +64,8 @@ case class DefaultStandardAsyncExecutionActorParams(
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val backendSingletonActorOption: Option[ActorRef],
   override val completionPromise: Promise[BackendJobExecutionResponse],
-  override val minimumRuntimeSettings: MinimumRuntimeSettings
+  override val groupMetricsActor: ActorRef,
+  override val minimumRuntimeSettings: MinimumRuntimeSettings,
 ) extends StandardAsyncExecutionActorParams
 
 // Typically we want to "executeInSubshell" for encapsulation of bash code.
@@ -1057,6 +1054,9 @@ trait StandardAsyncExecutionActor
     */
   def retryEvaluateOutputs(exception: Exception): Boolean = false
 
+  // TODO: add comment
+  def checkAndRecordQuotaExhaustion(runStatus: StandardAsyncRunState): Unit = ()
+
   /**
     * Process a successful run, as defined by `isSuccess`.
     *
@@ -1299,6 +1299,7 @@ trait StandardAsyncExecutionActor
         // poll for end time //
         pollStatusAsync(handle) flatMap { backendRunStatus =>
           self ! WarnAboutSlownessIfNecessary
+          // probably where status is being added to metadata?
           handlePollSuccess(handle, backendRunStatus)
         } recover { case throwable =>
           handlePollFailure(handle, throwable)
@@ -1316,18 +1317,29 @@ trait StandardAsyncExecutionActor
     * @param state The updated run state.
     * @return The updated execution handle.
     */
+    // function polling for job status
   def handlePollSuccess(oldHandle: StandardAsyncPendingExecutionHandle,
                         state: StandardAsyncRunState
   ): Future[ExecutionHandle] = {
     val previousState = oldHandle.previousState
+//
+    println(s"@@@@@@@@@@@@@@@@ ${LocalDateTime.now()} FIND ME: Inside handlePollSuccess - job ID is '${oldHandle.pendingJob.jobId}' - previousState is '${previousState.getOrElse(" - ")}'")
+    println(s"@@@@@@@@@@@@@@@@ ${LocalDateTime.now()} FIND ME: Inside handlePollSuccess - job ID is '${oldHandle.pendingJob.jobId}' - new state is '${state}'")
+
     if (!(previousState exists statusEquivalentTo(state))) {
       // If this is the first time checking the status, we log the transition as '-' to 'currentStatus'. Otherwise just use
       // the state names.
       // This logging and metadata publishing assumes that StandardAsyncRunState subtypes `toString` nicely to state names.
       val prevStatusName = previousState.map(_.toString).getOrElse("-")
       jobLogger.info(s"Status change from $prevStatusName to $state")
+
+//      println(s"####### FIND ME BackendStatus being put in Metadata: ${state.toString}")
+
       tellMetadata(Map(CallMetadataKeys.BackendStatus -> state))
     }
+
+    // record if group has run into quota exhaustion
+    checkAndRecordQuotaExhaustion(state)
 
     state match {
       case _ if isTerminal(state) =>
@@ -1525,6 +1537,12 @@ trait StandardAsyncExecutionActor
   def tellMetadata(metadataKeyValues: Map[String, Any]): Unit = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
+
+//    println(s"####### FIND ME values being put in Metadata: ${metadataKeyValues.toString()}")
+
+    // can we detect AwaitingCloudQuota here?
+//    println(s"###### FIND ME jobDescriptor.workflowDescriptor.hogGroup: ${jobDescriptor.workflowDescriptor.hogGroup.value}")
+//    println(s"###### FIND ME jobDescriptor.workflowDescriptor.workflowOptions: ${jobDescriptor.workflowDescriptor.workflowOptions.toString}")
   }
 
   def tellBard(state: StandardAsyncRunState): Unit =

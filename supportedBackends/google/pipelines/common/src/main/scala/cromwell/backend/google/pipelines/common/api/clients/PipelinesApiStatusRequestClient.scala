@@ -42,6 +42,7 @@ trait PipelinesApiStatusRequestClient { this: Actor with ActorLogging with PapiI
     pollingActorClientPromise match {
       case Some(p) => p.future
       case None =>
+        // maybe here job status is being polled?
         papiApiActor ! PipelinesApiRequestManager.PAPIStatusPollRequest(workflowId,
                                                                         self,
                                                                         requestFactory.getRequest(jobId),

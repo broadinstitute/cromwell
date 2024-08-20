@@ -3,6 +3,7 @@ package cromwell.database.slick.tables
 import java.sql.Timestamp
 import javax.sql.rowset.serial.{SerialBlob, SerialClob}
 import cromwell.database.sql.tables.WorkflowStoreEntry
+import slick.lifted.CompiledFunction
 
 trait WorkflowStoreEntryComponent {
 
@@ -221,7 +222,7 @@ trait WorkflowStoreEntryComponent {
   /**
     * Useful for updating state for all entries matching a given state
     */
-  val workflowStateForWorkflowState = Compiled((workflowState: Rep[String]) =>
+  val workflowStateForWorkflowState: CompiledFunction[driver.api.Rep[String] => Query[Rep[String], String, Seq], driver.api.Rep[String], String, Query[Rep[String], String, Seq], Seq[String]] = Compiled((workflowState: Rep[String]) =>
     for {
       workflowStoreEntry <- workflowStoreEntries
       if workflowStoreEntry.workflowState === workflowState

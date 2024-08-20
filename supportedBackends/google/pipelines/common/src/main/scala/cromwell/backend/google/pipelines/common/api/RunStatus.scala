@@ -10,6 +10,7 @@ sealed trait RunStatus
 
 object RunStatus {
   case object Initializing extends RunStatus
+  // only used in v2beta
   case object AwaitingCloudQuota extends RunStatus
   case object Running extends RunStatus
 

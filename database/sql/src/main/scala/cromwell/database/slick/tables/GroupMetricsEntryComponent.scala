@@ -19,6 +19,8 @@ trait GroupMetricsEntryComponent {
 
     def quotaExhaustionDetected = column[Timestamp]("QUOTA_EXHAUSTION_DETECTED")
 
+//    def baseProjection = (groupId, quotaExhaustionDetected)
+
     /*
        In Slick, adding '?' at end of column lifts it into an Option column. The reason the auto-incremented primary key
        in Slick is represented as Option[T], for example 'groupMetricsEntryId' in this case, is because when a row is
@@ -31,6 +33,11 @@ trait GroupMetricsEntryComponent {
                                                        groupMetricsEntryId.?
     ) <> ((GroupMetricsEntry.apply _).tupled, GroupMetricsEntry.unapply)
 
+//    def forUpdate = baseProjection.shaped <> (
+//      tuple => GroupMetricsEntry.tupled(tuple :+ None),
+//      GroupMetricsEntry.unapply(_: GroupMetricsEntry).map(_.reverse.tail.reverse)
+//    )
+
     def ixGroupMetricsEntryGi = index("IX_GROUP_METRICS_ENTRY_GI", groupId, unique = false)
   }
 
@@ -38,4 +45,13 @@ trait GroupMetricsEntryComponent {
 
   val groupMetricsEntryIdsAutoInc = groupMetricsEntries returning groupMetricsEntries.map(_.groupMetricsEntryId)
 
+  val quotaExhaustionForGroupId = Compiled((groupId: Rep[String]) =>
+    for {
+      groupMetricsEntry <- groupMetricsEntries
+      if groupMetricsEntry.groupId === groupId
+    } yield groupMetricsEntry.quotaExhaustionDetected
+  )
 }
+
+// CompiledFunction[driver.api.Rep[String] => Query[Rep[String], String, Seq], driver.api.Rep[String], String, Query[Rep[String], String, Seq], Seq[String]]
+// CompiledFunction[driver.api.Rep[String] => Query[Rep[String], String, Seq], driver.api.Rep[String], String, Query[Rep[String], String, Seq], Seq[String]]

@@ -3,8 +3,6 @@ package wom.values
 import java.io.FileNotFoundException
 import java.nio.file.NoSuchFileException
 
-import cats.effect.IO
-import wom.expression.IoFunctionSet
 import wom.types._
 
 import scala.util.{Success, Try}
@@ -58,23 +56,6 @@ sealed trait WomFile extends WomValue {
   def mapWomFile(f: WomFile => String): WomFile
 
   /**
-    * Converts a file if defined at the partial function.
-    *
-    * A caller may need a modification to the file, for example:
-    *
-    * - Fill in the size of the file before the path is localized.
-    *
-    * WomFile such as WomMaybePopulatedFile and WomMaybeListedDirectory may contain references to other WomFile.
-    * mapPartial will traverse any referenced files, also converting the values within those files too.
-    *
-    * @param f The function to update the location.
-    * @return A new WomFile with the updated location.
-    * @see [[wom.values.WomValue.collectAsSeq]]
-    * @see [[wom.WomFileMapper.mapWomFiles]]
-    */
-  def collect(f: PartialFunction[WomFile, WomFile]): WomFile
-
-  /**
     * Returns the WomPrimitiveFile instances recursively referenced by this instance.
     *
     * WomMaybeListedDirectory instances return either just the directory as an WomUnlistedDirectory, or if there is a
@@ -87,16 +68,6 @@ sealed trait WomFile extends WomValue {
     this match {
       case womPrimitiveFile: WomPrimitiveFile => List(womPrimitiveFile)
     }
-
-  /**
-    * If relevant, load the size of the file.
-    */
-  def withSize(ioFunctionSet: IoFunctionSet): IO[WomFile] = IO.pure(this)
-
-  def sizeOption: Option[Long] = None
-
-  protected def recoverFileNotFound[A](fallback: A)(t: Throwable): IO[A] =
-    if (isFileNotFound(t)) IO.pure(fallback) else IO.raiseError(t)
 
   def isFileNotFound(t: Throwable): Boolean = t match {
     case _: NoSuchFileException | _: FileNotFoundException => true
@@ -145,9 +116,6 @@ final case class WomUnlistedDirectory(value: String) extends WomPrimitiveFile {
   override def mapFile(f: String => String): WomUnlistedDirectory =
     this.copy(value = f(value))
 
-  override def collect(f: PartialFunction[WomFile, WomFile]): WomFile =
-    f.applyOrElse[WomFile, WomFile](this, identity)
-
   override def mapWomFile(f: WomFile => String) = this.copy(value = f(this))
 }
 
@@ -179,9 +147,6 @@ final case class WomSingleFile(value: String) extends WomPrimitiveFile {
 
   override def mapWomFile(f: WomFile => String) =
     this.copy(value = f(this))
-
-  override def collect(f: PartialFunction[WomFile, WomFile]): WomFile =
-    f.applyOrElse[WomFile, WomFile](this, identity)
 }
 
 /**
@@ -215,7 +180,4 @@ final case class WomGlobFile(value: String) extends WomPrimitiveFile {
   override def mapFile(f: String => String): WomGlobFile = this.copy(value = f(value))
 
   override def mapWomFile(f: WomFile => String) = this.copy(value = f(this))
-
-  override def collect(f: PartialFunction[WomFile, WomFile]): WomFile =
-    f.applyOrElse[WomFile, WomFile](this, identity)
 }

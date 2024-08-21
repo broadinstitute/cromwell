@@ -14,7 +14,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.{ExecutionContext, Future}
 
-class GroupMetricsActorSpec extends AnyFlatSpec with Matchers  {
+class GroupMetricsActorSpec extends AnyFlatSpec with Matchers {
 
   implicit val system: ActorSystem = ActorSystem("GroupMetricsActorSpec")
 
@@ -24,7 +24,9 @@ class GroupMetricsActorSpec extends AnyFlatSpec with Matchers  {
 
   def databaseInterface(): EngineSlickDatabase =
     new EngineSlickDatabase(DatabaseConfig) {
-      override def recordGroupMetricsEntry(groupMetricsEntry: GroupMetricsEntry)(implicit ec: ExecutionContext): Future[Unit] = {
+      override def recordGroupMetricsEntry(groupMetricsEntry: GroupMetricsEntry)(implicit
+        ec: ExecutionContext
+      ): Future[Unit] = {
         recordMethodCallCount = recordMethodCallCount + 1
         Future.successful(())
       }

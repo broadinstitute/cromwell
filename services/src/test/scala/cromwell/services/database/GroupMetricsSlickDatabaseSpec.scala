@@ -21,7 +21,6 @@ class GroupMetricsSlickDatabaseSpec extends AnyFlatSpec with Matchers with Scala
   val testHogGroup2 = "rocket-raccoon-hog-group"
 
   DatabaseSystem.All foreach { databaseSystem =>
-
     behavior of s"GroupMetricsSlickDatabase on ${databaseSystem.name}"
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)

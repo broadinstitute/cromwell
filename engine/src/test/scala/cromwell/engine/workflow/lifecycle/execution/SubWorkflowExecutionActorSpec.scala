@@ -66,6 +66,7 @@ class SubWorkflowExecutionActorSpec
   private var parentProbe: TestProbe = _
   private val parentBackendDescriptor = mock[BackendWorkflowDescriptor]
   private val parentWorkflowId: WorkflowId = WorkflowId.randomId()
+  private var groupMetricsProbe: TestProbe = _
 
   parentBackendDescriptor.id returns parentWorkflowId
   private val parentWorkflowDescriptor = EngineWorkflowDescriptor(
@@ -97,6 +98,7 @@ class SubWorkflowExecutionActorSpec
     subWorkflowActor = TestProbe()
     deathWatch = TestProbe()
     parentProbe = TestProbe()
+    groupMetricsProbe = TestProbe()
   }
 
   private def buildSWEA(startState: StartableState = Submitted) =
@@ -124,7 +126,7 @@ class SubWorkflowExecutionActorSpec
           new AtomicInteger(),
           fileHashCacheActor = None,
           blacklistCache = None,
-          groupMetricsActor = system.actorOf(Props.empty, "TestGroupMetricsActor")
+          groupMetricsActor = groupMetricsProbe.ref
         ) {
           override def createSubWorkflowPreparationActor(subWorkflowId: WorkflowId): ActorRef = preparationActor.ref
           override def createSubWorkflowActor(createSubWorkflowActor: EngineWorkflowDescriptor): ActorRef =

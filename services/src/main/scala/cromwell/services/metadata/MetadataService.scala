@@ -184,8 +184,12 @@ object MetadataService {
   final case class LogsResponse(id: WorkflowId, logs: Seq[MetadataEvent]) extends MetadataServiceResponse
   final case class LogsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
-  final case class CostResponse(id: WorkflowId, status: WorkflowState, costMetadata: Seq[MetadataEvent])
-      extends MetadataServiceResponse
+  final case class CostResponse(id: WorkflowId,
+                                status: WorkflowState,
+                                costMetadata: Seq[MetadataEvent],
+                                includeTaskBreakdown: Boolean,
+                                includeSubworkflowBreakdown: Boolean
+  ) extends MetadataServiceResponse
   final case class CostFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   final case class MetadataWriteSuccess(events: Iterable[MetadataEvent]) extends MetadataServiceResponse

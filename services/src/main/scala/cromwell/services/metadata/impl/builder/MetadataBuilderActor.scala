@@ -275,15 +275,27 @@ object MetadataBuilderActor {
     workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false, Map.empty)
   }
 
-  def processCostResponse(id: WorkflowId, status: WorkflowState, eventsList: Seq[MetadataEvent]): JsObject =
+  def processCostResponse(id: WorkflowId,
+                          status: WorkflowState,
+                          eventsList: Seq[MetadataEvent],
+                          includeTaskBreakdown: Boolean,
+                          includeSubworkflowBreakdown: Boolean
+  ): JsObject = {
+    // !! add logic to compute read cost here !!
+    val taskMap = if (includeTaskBreakdown) Map("taskBreakdown" -> JsObject(Map("foo.bar" -> JsNumber(3.5)))) else Map()
+    val subworkflowMap =
+      if (includeSubworkflowBreakdown) Map("subworkflowBreakdown" -> JsObject(Map("foo.baz" -> JsNumber(3.5))))
+      else Map()
+
     JsObject(
       Map(
         WorkflowMetadataKeys.Id -> JsString(id.toString),
         WorkflowMetadataKeys.Status -> JsString(status.toString),
         "currency" -> JsString("USD"),
         "cost" -> JsNumber(3.5)
-      )
+      ) ++ taskMap ++ subworkflowMap
     )
+  }
 
   def workflowMetadataResponse(workflowId: WorkflowId,
                                eventsList: Seq[MetadataEvent],
@@ -335,8 +347,8 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
                                               workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty)
       )
       allDone()
-    case Event(CostResponse(w, s, m), HasWorkData(target, originalRequest)) =>
-      target ! SuccessfulMetadataJsonResponse(originalRequest, processCostResponse(w, s, m))
+    case Event(CostResponse(w, s, m, t, b), HasWorkData(target, originalRequest)) =>
+      target ! SuccessfulMetadataJsonResponse(originalRequest, processCostResponse(w, s, m, t, b))
       allDone()
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)

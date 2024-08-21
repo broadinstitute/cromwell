@@ -269,8 +269,8 @@ trait MetadataDatabaseAccess {
       metadataToMetadataEvents(id)
   }
 
-  def queryCost(id: WorkflowId, includeTaskBreakdown: Boolean, includeSubworkflowBreakdown: Boolean, timeout: Duration)(
-    implicit ec: ExecutionContext
+  def queryCost(id: WorkflowId, timeout: Duration)(implicit
+    ec: ExecutionContext
   ): Future[Seq[MetadataEvent]] = {
     val keys = List("taskStartTime", "taskEndTime", "vmCostPerHour")
     metadataDatabaseInterface

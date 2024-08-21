@@ -166,12 +166,13 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
   ): Future[MetadataServiceResponse] = {
     val results = for {
       status <- getWorkflowStatus(id)
-      costEvents <- queryCost(id, includeTaskBreakdown, includeSubworkflowBreakdown, metadataReadTimeout)
+      costEvents <- queryCost(id, metadataReadTimeout)
     } yield (status, costEvents)
 
     results.map { case (s, m) =>
       (s, m) match {
-        case (Some(wfState), metadataEvents) => CostResponse(id, wfState, metadataEvents)
+        case (Some(wfState), metadataEvents) =>
+          CostResponse(id, wfState, metadataEvents, includeTaskBreakdown, includeSubworkflowBreakdown)
         // TODO should this be a failure?
         case (None, _) => CostFailure(id, new Exception("Couldn't find workflow status"))
       }

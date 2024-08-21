@@ -646,7 +646,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                             disks: Seq[GcpBatchAttachedDisk]
   ): (Path, GcpBatchAttachedDisk) = {
     val absolutePath = DefaultPathBuilder.get(path) match {
-      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPoint.resolve(p)
+      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPointPath.resolve(p)
       case p => p
     }
 
@@ -705,9 +705,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
 
   private val DockerMonitoringLogPath: Path =
-    GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringLogFilename)
+    GcpBatchWorkingDisk.MountPointPath.resolve(gcpBatchCallPaths.batchMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path =
-    GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
+    GcpBatchWorkingDisk.MountPointPath.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
 
   // noinspection ActorMutableStateInspection
   @scala.annotation.unused
@@ -815,7 +815,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
   }
 
-  override lazy val commandDirectory: Path = GcpBatchWorkingDisk.MountPoint
+  override lazy val commandDirectory: Path = GcpBatchWorkingDisk.MountPointPath
 
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
@@ -1110,8 +1110,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     womFile.mapFile { value =>
       (getPath(value), asAdHocFile(womFile)) match {
         case (Success(gcsPath: GcsPath), Some(adHocFile)) =>
-          // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
-          // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
+          // Ad hoc files will be placed directly at the root ("/mnt/disks/cromwell_root/ad_hoc_file.txt") unlike other input files
+          // for which the full path is being propagated ("/mnt/disks/cromwell_root/path/to/input_file.txt")
           workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
         case (Success(path @ (_: GcsPath | _: HttpPath)), _) =>
           workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
@@ -1156,9 +1156,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           /*
            * Strip the prefixes in RuntimeOutputMapping.prefixFilters from the path, one at a time.
            * For instance
-           * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
+           * file:///mnt/disks/cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
            *
-           * /cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+           * /mnt/disks/cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
            * bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
            * call-A/file.txt
            *

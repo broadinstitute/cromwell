@@ -275,6 +275,16 @@ object MetadataBuilderActor {
     workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false, Map.empty)
   }
 
+  def processCostResponse(id: WorkflowId, status: WorkflowState, eventsList: Seq[MetadataEvent]): JsObject =
+    JsObject(
+      Map(
+        WorkflowMetadataKeys.Id -> JsString(id.toString),
+        WorkflowMetadataKeys.Status -> JsString(status.toString),
+        "currency" -> JsString("USD"),
+        "cost" -> JsNumber(3.5)
+      )
+    )
+
   def workflowMetadataResponse(workflowId: WorkflowId,
                                eventsList: Seq[MetadataEvent],
                                includeCallsIfEmpty: Boolean,
@@ -324,6 +334,9 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       target ! SuccessfulMetadataJsonResponse(originalRequest,
                                               workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty)
       )
+      allDone()
+    case Event(CostResponse(w, s, m), HasWorkData(target, originalRequest)) =>
+      target ! SuccessfulMetadataJsonResponse(originalRequest, processCostResponse(w, s, m))
       allDone()
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)

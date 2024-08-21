@@ -163,11 +163,22 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
   private def queryCostAndRespond(id: WorkflowId,
                                   includeTaskBreakdown: Boolean,
                                   includeSubworkflowBreakdown: Boolean
-  ): Future[MetadataServiceResponse] =
-    queryCost(id, includeTaskBreakdown, includeSubworkflowBreakdown, metadataReadTimeout) map { s =>
-      CostResponse(id, s: Double)
+  ): Future[MetadataServiceResponse] = {
+    val results = for {
+      status <- getWorkflowStatus(id)
+      costEvents <- queryCost(id, includeTaskBreakdown, includeSubworkflowBreakdown, metadataReadTimeout)
+    } yield (status, costEvents)
+
+    results.map { case (s, m) =>
+      (s, m) match {
+        case (Some(wfState), metadataEvents) => CostResponse(id, wfState, metadataEvents)
+        // TODO should this be a failure?
+        case (None, _) => CostFailure(id, new Exception("Couldn't find workflow status"))
+      }
+    // TODO does this `recover` apply to the right place?
     } recover { case t =>
       CostFailure(id, t)
     }
+  }
 
 }

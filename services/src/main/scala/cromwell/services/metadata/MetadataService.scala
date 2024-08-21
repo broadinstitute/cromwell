@@ -128,12 +128,6 @@ object MetadataService {
   final case class GetLogs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonWithOverridableSourceAction
   case object RefreshSummary extends MetadataServiceAction
   case object SendMetadataTableSizeMetrics extends MetadataServiceAction
-  trait ValidationCallback {
-    def onMalformed(possibleWorkflowId: String): Unit
-    def onRecognized(workflowId: WorkflowId): Unit
-    def onUnrecognized(possibleWorkflowId: String): Unit
-    def onFailure(possibleWorkflowId: String, throwable: Throwable): Unit
-  }
 
   final case class ValidateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
   final case class ValidateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId) extends MetadataServiceAction
@@ -214,12 +208,6 @@ object MetadataService {
     }
   }
 
-  private def toPrimitiveEvent(metadataKey: MetadataKey, valueName: String)(value: Option[Any]) = value match {
-    case Some(v) => MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue(v))
-    case None =>
-      MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:$valueName"), MetadataValue("", MetadataNull))
-  }
-
   def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue): Iterable[MetadataEvent] = womValue match {
     case WomArray(_, valueSeq) => valueSeq.toEvents(metadataKey)
     case WomMap(_, valueMap) =>
@@ -243,27 +231,6 @@ object MetadataService {
     case WomPair(left, right) =>
       womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":left"), left) ++
         womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right)
-    case populated: WomMaybePopulatedFile =>
-      import mouse.all._
-      val secondaryFiles =
-        populated.secondaryFiles.toEvents(metadataKey.copy(key = s"${metadataKey.key}:secondaryFiles"))
-
-      List(
-        MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:class"), MetadataValue("File")),
-        populated.valueOption |> toPrimitiveEvent(metadataKey, "location"),
-        populated.checksumOption |> toPrimitiveEvent(metadataKey, "checksum"),
-        populated.sizeOption |> toPrimitiveEvent(metadataKey, "size"),
-        populated.formatOption |> toPrimitiveEvent(metadataKey, "format"),
-        populated.contentsOption |> toPrimitiveEvent(metadataKey, "contents")
-      ) ++ secondaryFiles
-    case listedDirectory: WomMaybeListedDirectory =>
-      import mouse.all._
-      val listing =
-        listedDirectory.listingOption.toList.flatten.toEvents(metadataKey.copy(key = s"${metadataKey.key}:listing"))
-      List(
-        MetadataEvent(metadataKey.copy(key = s"${metadataKey.key}:class"), MetadataValue("Directory")),
-        listedDirectory.valueOption |> toPrimitiveEvent(metadataKey, "location")
-      ) ++ listing
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }

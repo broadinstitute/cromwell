@@ -56,7 +56,6 @@ object WomFileMapper {
             o map Option.apply recover { case _: FileNotFoundException => None } map buildWomOptionalValue
           case None => Success(buildWomOptionalValue(None))
         }
-      case coproduct: WomCoproductValue => mapWomFiles(mapper)(coproduct.womValue)
       case other => Success(other)
     }
 }

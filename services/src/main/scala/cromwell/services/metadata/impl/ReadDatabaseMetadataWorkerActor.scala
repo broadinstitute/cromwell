@@ -175,7 +175,6 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
         // TODO should this be a failure?
         case (None, _) => CostFailure(id, new Exception("Couldn't find workflow status"))
       }
-    // TODO does this `recover` apply to the right place?
     } recover { case t =>
       CostFailure(id, t)
     }

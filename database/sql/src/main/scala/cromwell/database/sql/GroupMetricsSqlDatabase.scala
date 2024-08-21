@@ -13,4 +13,9 @@ trait GroupMetricsSqlDatabase {
    *
    */
   def recordGroupMetricsEntry(groupMetricsEntry: GroupMetricsEntry)(implicit ec: ExecutionContext): Future[Unit]
+
+  /**
+   * Returns number of entries associated with given group
+   */
+  def countGroupMetricsEntries(groupId: String)(implicit ec: ExecutionContext): Future[Int]
 }

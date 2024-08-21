@@ -44,4 +44,12 @@ trait GroupMetricsEntryComponent {
       if groupMetricsEntry.groupId === groupId
     } yield groupMetricsEntry.quotaExhaustionDetected
   )
+
+  val countGroupMetricsEntriesForGroupId = Compiled((groupId: Rep[String]) => {
+    for {
+      groupMetricsEntry <- groupMetricsEntries
+      if groupMetricsEntry.groupId === groupId
+    } yield groupMetricsEntry
+  }.size
+  )
 }

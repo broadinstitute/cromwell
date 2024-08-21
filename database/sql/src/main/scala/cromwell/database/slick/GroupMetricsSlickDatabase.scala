@@ -24,4 +24,9 @@ trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase {
     } yield ()
     runTransaction(action)
   }
+
+  override def countGroupMetricsEntries(groupId: String)(implicit ec: ExecutionContext): Future[Int] = {
+    val action = dataAccess.countGroupMetricsEntriesForGroupId(groupId).result
+    runTransaction(action)
+  }
 }

@@ -2,7 +2,6 @@ package cromwell.backend.google.pipelines.common
 
 import java.nio.file.Paths
 import java.util.UUID
-
 import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
@@ -11,32 +10,18 @@ import cats.data.NonEmptyList
 import com.google.api.client.http.HttpRequest
 import com.google.cloud.NoCredentials
 import common.collections.EnhancedCollections._
-import cromwell.backend.BackendJobExecutionActor.{
-  BackendJobExecutionResponse,
-  JobFailedNonRetryableResponse,
-  JobFailedRetryableResponse
-}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobFailedNonRetryableResponse, JobFailedRetryableResponse}
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
-import cromwell.backend.async.{
-  AbortedExecutionHandle,
-  ExecutionHandle,
-  FailedNonRetryableExecutionHandle,
-  FailedRetryableExecutionHandle
-}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor.JesPendingExecutionHandle
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, RunStatus}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{
-  DefaultStandardAsyncExecutionActorParams,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob,
-  StandardExpressionFunctionsParams,
-  StartAndEndTimes
-}
+import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
+import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams, StartAndEndTimes}
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
@@ -86,6 +71,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   import MockGcsPathBuilder._
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor), "kvService")
+  val mockGroupMetricsActor: TestProbe = TestProbe()
 
   private def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
 
@@ -185,7 +171,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
           backendSingletonActorOption = Option(jesSingletonActor),
           completionPromise = promise,
           minimumRuntimeSettings = MinimumRuntimeSettings(),
-          groupMetricsActor = emptyActor // TODO: Saloni - can this be non-empty actor and be tested?
+          groupMetricsActor = mockGroupMetricsActor.ref
         ),
         functions
       )
@@ -1912,6 +1898,20 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     taskSummary.endTime should not be empty
     taskSummary.jobSeconds should be(0)
     taskSummary.cpuSeconds should be(None)
+  }
+
+  it should "call GroupMetricsActor when job runs into cloud quota delay" in {
+    val papiBackend = setupBackend
+    papiBackend.checkAndRecordQuotaExhaustion(RunStatus.AwaitingCloudQuota)
+
+    mockGroupMetricsActor.expectMsgType[RecordGroupQuotaExhaustion]
+  }
+
+  it should "not call GroupMetricsActor when job hasn't run into quota delay" in {
+    val papiBackend = setupBackend
+    papiBackend.checkAndRecordQuotaExhaustion(RunStatus.Running)
+
+    mockGroupMetricsActor.expectNoMessage()
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

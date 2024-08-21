@@ -27,23 +27,4 @@ class EngineIoFunctions(val pathBuilders: List[PathBuilder],
         (newTemporaryDirectory() / path).write(content).pathAsString
     WomSingleFile(string)
   }
-
-  override def copyFile(pathFrom: String, targetName: String): Future[WomSingleFile] =
-    Future.failed(new Exception("Cromwell does not support copying files from a workflow context"))
-
-  override def listAllFilesUnderDirectory(dirPath: String): Nothing =
-    throw new UnsupportedOperationException(s"listAllFilesUnderDirectory not implemented yet")
-
-  override def listDirectory(path: String)(visited: Vector[String]) = throw new UnsupportedOperationException(
-    s"listDirectory not implemented yet"
-  )
-
-  override def isDirectory(path: String) = Future.successful(buildPath(path).isDirectory)
-
-  // TODO: This is not suited for multi backend / multi filesystem use. Keep local for now to not break local CWL conf tests
-  override def createTemporaryDirectory(name: Option[String]) = Future.successful {
-    name map {
-      newTemporaryDirectory().createChild(_, asDirectory = true).pathAsString
-    } getOrElse newTemporaryDirectory().pathAsString
-  }
 }

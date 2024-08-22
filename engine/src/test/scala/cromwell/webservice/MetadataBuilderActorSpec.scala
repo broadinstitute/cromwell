@@ -182,11 +182,9 @@ class MetadataBuilderActorSpec
   }
 
   it should "build workflow cost response" in {
-    // Note that this is testing dummy behavior and should be updated when we add real logic
-    def makeEvent(workflow: WorkflowId, key: Option[MetadataJobKey]) =
-      MetadataEvent(MetadataKey(workflow, key, "NOT_CHECKED"), MetadataValue("NOT_CHECKED"))
-
+    // Note that this is testing dummy behavior and should be updated and expanded when we add real logic
     val workflowId = WorkflowId.randomId()
+    val workflowState = WorkflowSucceeded
     val events = Seq(
       MetadataEvent(MetadataKey(workflowId, Option(MetadataJobKey("callA", None, 1)), "NOT_CHECKED"),
                     MetadataValue("NOT_CHECKED")
@@ -199,12 +197,26 @@ class MetadataBuilderActorSpec
          |"cost": 3.5,
          |"currency": "USD",
          |"id": "${workflowId}",
-         |"status": "Succeeded"
+         |"status": "${workflowState.toString}"
          |}""".stripMargin
 
     val action = GetCost(workflowId, false, false)
 
+    val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
+    def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
+    val mba = system.actorOf(
+      props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
+      name = "mba-cost-builder"
+    )
+
+    val response = mba.ask(action).mapTo[MetadataJsonResponse]
+    mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
+    mockReadMetadataWorkerActor.reply(
+      CostResponse(workflowId, workflowState, events, false, false)
+    )
+    response map { r => r shouldBe a[SuccessfulMetadataJsonResponse] }
+    response.mapTo[SuccessfulMetadataJsonResponse] map { b => b.responseJson shouldBe expectedRes.parseJson }
   }
 
   it should "build the call list for failed tasks when prompted" in {

@@ -1,12 +1,12 @@
 package cromwell.services.metadata
 
 import java.time.OffsetDateTime
-
 import akka.actor.ActorRef
 import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
 import common.exception.{MessageAggregation, ThrowableAggregation}
+import cromwell.core.path.Path
 import cromwell.database.sql.tables.MetadataEntry
 import slick.basic.DatabasePublisher
 import wom.core._
@@ -198,24 +198,24 @@ object MetadataService {
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataQueryResponse
 
   implicit private class EnhancedWomTraversable(val womValues: Iterable[WomValue]) extends AnyVal {
-    def toEvents(metadataKey: MetadataKey): List[MetadataEvent] = if (womValues.isEmpty) {
+    def toEvents(metadataKey: MetadataKey, fileMap: Map[Path, Path]): List[MetadataEvent] = if (womValues.isEmpty) {
       List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
     } else {
       womValues.toList.zipWithIndex
         .flatMap { case (value, index) =>
-          womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value)
+          womValueToMetadataEvents(metadataKey.copy(key = s"${metadataKey.key}[$index]"), value, fileMap)
         }
     }
   }
 
-  def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue): Iterable[MetadataEvent] = womValue match {
-    case WomArray(_, valueSeq) => valueSeq.toEvents(metadataKey)
+  def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue, fileMap: Map[Path, Path] = Map.empty): Iterable[MetadataEvent] = womValue match {
+    case WomArray(_, valueSeq) => valueSeq.toEvents(metadataKey, fileMap)
     case WomMap(_, valueMap) =>
       if (valueMap.isEmpty) {
         List(MetadataEvent.empty(metadataKey))
       } else {
         valueMap.toList flatMap { case (key, value) =>
-          womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value)
+          womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":${key.valueString}"), value, fileMap)
         }
       }
     case objectLike: WomObjectLike =>
@@ -223,14 +223,27 @@ object MetadataService {
         List(MetadataEvent.empty(metadataKey))
       } else {
         objectLike.values.toList flatMap { case (key, value) =>
-          womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":$key"), value)
+          womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + s":$key"), value, fileMap)
         }
       }
     case WomOptionalValue(_, Some(value)) =>
-      womValueToMetadataEvents(metadataKey, value)
+      womValueToMetadataEvents(metadataKey, value, fileMap)
     case WomPair(left, right) =>
-      womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":left"), left) ++
-        womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right)
+      womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":left"), left, fileMap) ++
+        womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right, fileMap)
+    case file: WomSingleFile =>
+      // Our lookup key is a string; to avoid exceptions, stringify paths instead of pathifying the string
+      val stringifiedMap: Map[String, String] = fileMap map {
+        case (src: Path, dst: Path) => src.pathAsString -> dst.pathAsString
+      }
+      // Why? When we copy/move final outputs, we need to map the original file to the destination file.
+      val mappedFile: WomSingleFile = stringifiedMap.get(file.valueString) match {
+        case Some(dst) =>
+          WomSingleFile(dst)
+        case None =>
+          file
+      }
+      List(MetadataEvent(metadataKey, MetadataValue(mappedFile)))
     case value =>
       List(MetadataEvent(metadataKey, MetadataValue(value)))
   }

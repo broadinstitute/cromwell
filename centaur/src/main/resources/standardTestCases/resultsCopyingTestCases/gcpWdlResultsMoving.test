@@ -19,7 +19,7 @@ metadata {
   "outputs.simpleWorkflow.outGlob.2": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-"~~
 
   # TODO: Centaur's JSON flattening does not support nested arrays (`centaur.json.JsonUtils`)
-  # Consider a `files.metadata` key that simply supplies metadata JSON expectations as JSON.
+  # Consider using JsonPath (XPath for JSON) to traverse the tree, or check in a JSON file to use as expectation.
   # "outputs.simpleWorkflow.nested_array.0.0": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest1.txt"
   # "outputs.simpleWorkflow.nested_array.0.1": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest2.txt"
   # "outputs.simpleWorkflow.nested_array.1.0": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest3.txt"

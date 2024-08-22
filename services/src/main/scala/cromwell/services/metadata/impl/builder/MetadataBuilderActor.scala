@@ -281,7 +281,7 @@ object MetadataBuilderActor {
                           includeTaskBreakdown: Boolean,
                           includeSubworkflowBreakdown: Boolean
   ): JsObject = {
-    // !! add logic to compute read cost here !!
+    // !! add logic to compute real cost here !!
     val taskMap = if (includeTaskBreakdown) Map("taskBreakdown" -> JsObject(Map("foo.bar" -> JsNumber(3.5)))) else Map()
     val subworkflowMap =
       if (includeSubworkflowBreakdown) Map("subworkflowBreakdown" -> JsObject(Map("foo.baz" -> JsNumber(3.5))))

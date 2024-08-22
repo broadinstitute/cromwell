@@ -7,10 +7,8 @@ import cromwell.core.TestKitSuite
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-
 import java.time.Duration
 import java.io.{FileInputStream, ObjectInputStream}
-
 
 object CostCatalogServiceSpec {
   val Config = ConfigFactory.parseString("control-frequency = 1 second")
@@ -24,9 +22,9 @@ class CostCatalogServiceSpec
     with ImplicitSender {
   behavior of "CostCatalogService"
 
-  val mockTestDataFilePath = "services/src/test/scala/cromwell/services/cost/serializedSkuList.testData"
-  val minimumExpectedSkus = 10
-  lazy val testActorRef = TestActorRef(
+  private val mockTestDataFilePath = "services/src/test/scala/cromwell/services/cost/serializedSkuList.testData"
+  private val minimumExpectedSkus = 10
+  private lazy val testActorRef = TestActorRef(
     new CostCatalogService(CostCatalogServiceSpec.Config,
                            CostCatalogServiceSpec.Config,
                            TestProbe().ref,
@@ -44,8 +42,7 @@ class CostCatalogServiceSpec
     sanityCheckFile.exists() shouldBe true
   }
    */
-
-  def loadMockTestDataFromFile(): List[Sku] = {
+  private def loadMockTestDataFromFile(): List[Sku] = {
     val fis = new FileInputStream(mockTestDataFilePath)
     val ois = new ObjectInputStream(fis)
     ois.readObject().asInstanceOf[List[Sku]]
@@ -77,10 +74,10 @@ class CostCatalogServiceSpec
     mockActorWithCustomExpiration.getCatalogAge.getNano shouldBe >(0)
     mockActorWithCustomExpiration.getCatalogAge.getNano shouldBe <(shortDuration.getNano)
 
-    // Simulate the cached catalog living past its lifetime
+    // Simulate the cached catalog living longer than its lifetime
     Thread.sleep(shortDuration.toMillis)
 
-    // Check that the catalog is too old
+    // Confirm that the catalog is old
     mockActorWithCustomExpiration.getCatalogAge.getNano shouldBe >(shortDuration.getNano)
 
     // Check that doing a lookup causes the catalog to be refreshed

@@ -2,6 +2,9 @@ package cromwell.services.cost
 
 import com.google.cloud.billing.v1.Sku
 
+/*
+ * These types reflect hardcoded strings found in a google cost catalog.
+ */
 sealed trait MachineType { def machineTypeName: String }
 case object N1 extends MachineType { override val machineTypeName = "N1" }
 case object N2 extends MachineType { override val machineTypeName = "N2" }
@@ -24,11 +27,13 @@ case class CostCatalogKey(machineType: Option[MachineType],
                           usageType: Option[UsageType],
                           machineCustomization: Option[MachineCustomization],
                           resourceGroup: Option[ResourceGroup]
-                         )
+)
 
 case class CostCatalogValue(catalogObject: Sku)
 
-
+/**
+ * Utils for converting google Sku objects into a smaller more searchable format
+ */
 object CostCatalogUtils {
   def convertSkuToKeyValuePair(sku: Sku): (CostCatalogKey, CostCatalogValue) =
     CostCatalogKey(

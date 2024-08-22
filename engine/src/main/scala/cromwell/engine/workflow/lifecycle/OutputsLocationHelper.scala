@@ -1,6 +1,11 @@
 package cromwell.engine.workflow.lifecycle
 
-import cromwell.backend.{AllBackendInitializationData, BackendConfigurationDescriptor, BackendInitializationData, BackendLifecycleActorFactory}
+import cromwell.backend.{
+  AllBackendInitializationData,
+  BackendConfigurationDescriptor,
+  BackendInitializationData,
+  BackendLifecycleActorFactory
+}
 import cromwell.core.WorkflowOptions.UseRelativeOutputPaths
 import cromwell.core.path.{Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor

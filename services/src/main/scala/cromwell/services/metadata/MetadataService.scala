@@ -208,7 +208,10 @@ object MetadataService {
     }
   }
 
-  def womValueToMetadataEvents(metadataKey: MetadataKey, womValue: WomValue, fileMap: Map[Path, Path] = Map.empty): Iterable[MetadataEvent] = womValue match {
+  def womValueToMetadataEvents(metadataKey: MetadataKey,
+                               womValue: WomValue,
+                               fileMap: Map[Path, Path] = Map.empty
+  ): Iterable[MetadataEvent] = womValue match {
     case WomArray(_, valueSeq) => valueSeq.toEvents(metadataKey, fileMap)
     case WomMap(_, valueMap) =>
       if (valueMap.isEmpty) {
@@ -233,8 +236,8 @@ object MetadataService {
         womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right, fileMap)
     case file: WomSingleFile =>
       // Our lookup key is a string; to avoid exceptions, stringify paths instead of pathifying the string
-      val stringifiedMap: Map[String, String] = fileMap map {
-        case (src: Path, dst: Path) => src.pathAsString -> dst.pathAsString
+      val stringifiedMap: Map[String, String] = fileMap map { case (src: Path, dst: Path) =>
+        src.pathAsString -> dst.pathAsString
       }
       // Why? When we copy/move final outputs, we need to map the original file to the destination file.
       val mappedFile: WomSingleFile = stringifiedMap.get(file.valueString) match {

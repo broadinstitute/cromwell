@@ -320,9 +320,10 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap): State = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
-    serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id,
-                                     Option(jobDescriptor.key),
-                                     startMetadataKeyValues
+    serviceRegistryActor.putMetadata(
+      workflowId = jobDescriptor.workflowDescriptor.id,
+      jobKey = Option(jobDescriptor.key),
+      keyValue = cachedMetadataKeyValues
     )
     context.parent ! JobSucceededResponse(jobDescriptor.key,
                                           returnCode,

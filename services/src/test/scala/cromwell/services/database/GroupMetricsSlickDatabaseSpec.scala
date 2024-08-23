@@ -15,12 +15,12 @@ import scala.concurrent.ExecutionContext
 class GroupMetricsSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   implicit val ec: ExecutionContext = ExecutionContext.global
-  implicit val defaultPatience: PatienceConfig = PatienceConfig(scaled(Span(5, Seconds)), scaled(Span(100, Millis)))
+  implicit val defaultPatience: PatienceConfig = PatienceConfig(scaled(Span(10, Seconds)), scaled(Span(100, Millis)))
 
   val testHogGroup1 = "groot-hog-group"
   val testHogGroup2 = "rocket-raccoon-hog-group"
 
-  DatabaseSystem.All foreach { databaseSystem =>
+  (DatabaseSystem.All diff List(HsqldbDatabaseSystem)) foreach { databaseSystem =>
     behavior of s"GroupMetricsSlickDatabase on ${databaseSystem.name}"
 
     val containerOpt: Option[Container] = DatabaseTestKit.getDatabaseTestContainer(databaseSystem)

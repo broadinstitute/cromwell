@@ -1,38 +1,33 @@
 package cromwell.services.cost
 
 import akka.actor.{Actor, ActorRef}
-import com.google.cloud.billing.v1._
+import com.google.cloud.billing.v1.{CloudCatalogClient, _}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.util.StringUtil.EnhancedToStringable
-import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
-import java.io.{FileOutputStream, ObjectOutputStream}
-import java.time.{Duration, LocalDateTime}
+import java.time.{Duration, Instant}
 import scala.jdk.CollectionConverters.IterableHasAsScala
-import java.time.temporal.ChronoUnit.HOURS
-case class CostCatalogMessage() extends ServiceRegistryMessage {
-  override val serviceName = "CostCatalogService"
-}
+import java.time.temporal.ChronoUnit.SECONDS
 
-case class ExpiringCostCatalog(catalog: Map[CostCatalogKey, CostCatalogValue], fetchTime: LocalDateTime)
+case class ExpiringGcpCostCatalog(catalog: Map[CostCatalogKey, CostCatalogValue], fetchTime: Instant)
 
 /**
  * This actor handles the fetching and caching of the public Google Cost Catalog.
  * This enables us to look up the SKUs necessary for cost calculations.
  */
-class CostCatalogService(serviceConfig: Config,
-                         globalConfig: Config,
-                         serviceRegistry: ActorRef,
-                         mockTestData: Option[List[Sku]] = Option.empty,
-                         maxCatalogLifetime: Duration = Duration.of(24, HOURS)
-) extends Actor
+class CostCatalogService(serviceConfig: Config, globalConfig: Config, serviceRegistry: ActorRef)
+    extends Actor
     with LazyLogging {
 
+  private val maxCatalogLifetime: Duration =
+    Duration.of(CostCatalogConfig(serviceConfig).catalogExpirySeconds.longValue, SECONDS)
+
+  private lazy val googleClient: CloudCatalogClient = CloudCatalogClient.create
+
   // Cached catalog. Refreshed lazily when older than maxCatalogLifetime.
-  private var costCatalog: ExpiringCostCatalog =
-    ExpiringCostCatalog(CostCatalogService.processCostCatalog(fetchNewCatalog), java.time.LocalDateTime.now())
+  private var costCatalog: Option[ExpiringGcpCostCatalog] = Option.empty
 
   /**
    * Returns the SKU for a given key, if it exists
@@ -41,25 +36,27 @@ class CostCatalogService(serviceConfig: Config,
 
   def serviceRegistryActor: ActorRef = serviceRegistry
   override def receive: Receive = {
-    case ShutdownCommand => context stop self
+    case ShutdownCommand =>
+      googleClient.shutdownNow()
+      context stop self
     case other =>
       logger.error(
         s"Programmer Error: Unexpected message ${other.toPrettyElidedString(1000)} received by ${this.self.path.name}."
       )
   }
 
-  private def fetchNewCatalog: Iterable[Sku] =
-    mockTestData.getOrElse(CostCatalogService.makeInitialWebRequest().iterateAll().asScala)
-
-  def getCatalogAge: Duration = Duration.between(costCatalog.fetchTime, java.time.LocalDateTime.now())
+  protected def fetchNewCatalog: Iterable[Sku] =
+    CostCatalogService.makeInitialWebRequest(googleClient).iterateAll().asScala
+  def getCatalogAge: Duration =
+    Duration.between(costCatalog.map(c => c.fetchTime).getOrElse(Instant.ofEpochMilli(0)), Instant.now())
   private def isCurrentCatalogExpired: Boolean = getCatalogAge.toNanos > maxCatalogLifetime.toNanos
 
   private def getOrFetchCachedCatalog(): Map[CostCatalogKey, CostCatalogValue] = {
-    if (isCurrentCatalogExpired) {
-      costCatalog =
-        ExpiringCostCatalog(CostCatalogService.processCostCatalog(fetchNewCatalog), java.time.LocalDateTime.now())
+    if (costCatalog.isEmpty || isCurrentCatalogExpired) {
+      logger.info("Fetching a new GCP public cost catalog.")
+      costCatalog = Some(ExpiringGcpCostCatalog(CostCatalogService.processCostCatalog(fetchNewCatalog), Instant.now()))
     }
-    costCatalog.catalog
+    costCatalog.map(expiringCatalog => expiringCatalog.catalog).getOrElse(Map.empty)
   }
 }
 
@@ -69,8 +66,6 @@ object CostCatalogService {
 
   // ISO 4217 https://developers.google.com/adsense/management/appendix/currencies
   private val DEFAULT_CURRENCY_CODE = "USD"
-
-  private lazy val googleClient = CloudCatalogClient.create
 
   /**
    * Organizes the response from google (a flat list of Sku objects) into a map that we can use for efficient lookups.
@@ -88,23 +83,12 @@ object CostCatalogService {
    * Makes a web request to google that lists all SKUs. The request is paginated, so the response will only include
    * the first page. In order to get to all SKUs via iterateAll(), additional web requests will be made.
    */
-  private def makeInitialWebRequest(): CloudCatalogClient.ListSkusPagedResponse = {
+  private def makeInitialWebRequest(googleClient: CloudCatalogClient): CloudCatalogClient.ListSkusPagedResponse = {
     val request = ListSkusRequest
       .newBuilder()
       .setParent(COMPUTE_ENGINE_SERVICE_NAME)
       .setCurrencyCode(DEFAULT_CURRENCY_CODE)
       .build()
     googleClient.listSkus(request)
-  }
-
-  /**
-   * Helper function to save mock testing data.
-   */
-  def saveResponseToFileForTesting(filepath: String): Unit = {
-    val dataToSave: List[Sku] = makeInitialWebRequest().iterateAll().asScala.toList
-    val fileOutputStream = new FileOutputStream(filepath)
-    val objectOutputStream = new ObjectOutputStream(fileOutputStream)
-    objectOutputStream.writeObject(dataToSave)
-    objectOutputStream.flush()
   }
 }

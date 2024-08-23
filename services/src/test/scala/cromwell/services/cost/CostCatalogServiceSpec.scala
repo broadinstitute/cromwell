@@ -1,17 +1,31 @@
 package cromwell.services.cost
 
+import akka.actor.ActorRef
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.google.cloud.billing.v1.Sku
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
 import java.time.Duration
 import java.io.{FileInputStream, ObjectInputStream}
 
 object CostCatalogServiceSpec {
-  val Config = ConfigFactory.parseString("control-frequency = 1 second")
+  val catalogExpirySeconds: Long = 1 // Short so we can do a cache expiry test
+  val config = ConfigFactory.parseString(s"catalogExpirySeconds = $catalogExpirySeconds")
+  val mockTestDataFilePath = "services/src/test/scala/cromwell/services/cost/serializedSkuList.testData"
+  def loadMockDataFromFile: Iterable[Sku] = {
+    val fis = new FileInputStream(CostCatalogServiceSpec.mockTestDataFilePath)
+    val ois = new ObjectInputStream(fis)
+    ois.readObject().asInstanceOf[List[Sku]]
+  }
+}
+
+class CostCatalogServiceTestActor(serviceConfig: Config, globalConfig: Config, serviceRegistry: ActorRef)
+    extends CostCatalogService(serviceConfig, globalConfig, serviceRegistry) {
+  override def fetchNewCatalog: Iterable[Sku] = CostCatalogServiceSpec.loadMockDataFromFile
 }
 
 class CostCatalogServiceSpec
@@ -22,46 +36,18 @@ class CostCatalogServiceSpec
     with ImplicitSender {
   behavior of "CostCatalogService"
 
-  private val mockTestDataFilePath = "services/src/test/scala/cromwell/services/cost/serializedSkuList.testData"
+  def constructTestActor: CostCatalogService =
+    TestActorRef(
+      new CostCatalogService(CostCatalogServiceSpec.config, CostCatalogServiceSpec.config, TestProbe().ref)
+    ).underlyingActor
+  private val testActorRef = constructTestActor
   private val minimumExpectedSkus = 10
-  private lazy val testActorRef = TestActorRef(
-    new CostCatalogService(CostCatalogServiceSpec.Config,
-                           CostCatalogServiceSpec.Config,
-                           TestProbe().ref,
-                           Some(loadMockTestDataFromFile())
-    )
-  ).underlyingActor
 
-  /*
-   * This test will download a real cost catalog and save it to disk so we can use it for mocking.
-   * Only necessary to rerun if Google changes the catalog structure.
-  it should "download fresh test data" in {
-    val costCatalogActor = TestActorRef(new CostCatalogService(CostCatalogServiceSpec.Config, CostCatalogServiceSpec.Config, TestProbe().ref))
-    costCatalogActor.underlyingActor.saveResponseToFileForTesting(mockTestDataFilePath)
-    val sanityCheckFile = new File(mockTestDataFilePath)
-    sanityCheckFile.exists() shouldBe true
-  }
-   */
-  private def loadMockTestDataFromFile(): List[Sku] = {
-    val fis = new FileInputStream(mockTestDataFilePath)
-    val ois = new ObjectInputStream(fis)
-    ois.readObject().asInstanceOf[List[Sku]]
-  }
-
-  it should "properly load mock test data" in {
-    loadMockTestDataFromFile().length shouldBe >(minimumExpectedSkus)
+  it should "properly load mock test data file" in {
+    CostCatalogServiceSpec.loadMockDataFromFile.toList.length shouldBe >(minimumExpectedSkus)
   }
 
   it should "cache catalogs properly" in {
-    val shortDuration = Duration.ofMillis(10)
-    val mockActorWithCustomExpiration = TestActorRef(
-      new CostCatalogService(CostCatalogServiceSpec.Config,
-                             CostCatalogServiceSpec.Config,
-                             TestProbe().ref,
-                             Some(loadMockTestDataFromFile()),
-                             shortDuration
-      )
-    ).underlyingActor
     val testLookupKey = CostCatalogKey(
       machineType = Some(N2),
       usageType = Some(Preemptible),
@@ -69,21 +55,24 @@ class CostCatalogServiceSpec
       resourceGroup = Some(Cpu)
     )
 
+    val freshActor = constructTestActor
+    val shortDuration: Duration = Duration.ofSeconds(CostCatalogServiceSpec.catalogExpirySeconds)
+
     // Sanity check that the catalog has been initially fetched with a new timestamp
-    mockActorWithCustomExpiration.getSku(testLookupKey) // do a lookup to trigger any lazy loading
-    mockActorWithCustomExpiration.getCatalogAge.getNano shouldBe >(0)
-    mockActorWithCustomExpiration.getCatalogAge.getNano shouldBe <(shortDuration.getNano)
+    freshActor.getSku(testLookupKey) // do a lookup to trigger any lazy loading
+    freshActor.getCatalogAge.toNanos should (be > 0.toLong)
+    freshActor.getCatalogAge.toNanos should (be < shortDuration.toNanos)
 
     // Simulate the cached catalog living longer than its lifetime
     Thread.sleep(shortDuration.toMillis)
 
     // Confirm that the catalog is old
-    mockActorWithCustomExpiration.getCatalogAge.getNano shouldBe >(shortDuration.getNano)
+    freshActor.getCatalogAge.toNanos should (be > shortDuration.toNanos)
 
     // Check that doing a lookup causes the catalog to be refreshed
-    mockActorWithCustomExpiration.getSku(testLookupKey)
-    mockActorWithCustomExpiration.getCatalogAge.getNano shouldBe >(0)
-    mockActorWithCustomExpiration.getCatalogAge.getNano shouldBe <(shortDuration.getNano)
+    freshActor.getSku(testLookupKey)
+    freshActor.getCatalogAge.toNanos should (be > 0.toLong)
+    freshActor.getCatalogAge.toNanos should (be < shortDuration.toNanos)
   }
 
   it should "contain an expected SKU" in {

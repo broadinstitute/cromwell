@@ -38,4 +38,19 @@ trait GroupMetricsEntryComponent {
 
   val groupMetricsEntryIdsAutoInc = groupMetricsEntries returning groupMetricsEntries.map(_.groupMetricsEntryId)
 
+  val quotaExhaustionForGroupId = Compiled((groupId: Rep[String]) =>
+    for {
+      groupMetricsEntry <- groupMetricsEntries
+      if groupMetricsEntry.groupId === groupId
+    } yield groupMetricsEntry.quotaExhaustionDetected
+  )
+
+  val countGroupMetricsEntriesForGroupId = Compiled((groupId: Rep[String]) =>
+    {
+      for {
+        groupMetricsEntry <- groupMetricsEntries
+        if groupMetricsEntry.groupId === groupId
+      } yield groupMetricsEntry
+    }.size
+  )
 }

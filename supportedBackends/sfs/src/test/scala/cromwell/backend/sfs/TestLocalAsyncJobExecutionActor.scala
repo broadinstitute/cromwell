@@ -61,6 +61,7 @@ object TestLocalAsyncJobExecutionActor {
       backendInitializationDataOption = Option(initializationData),
       backendSingletonActorOption = None,
       asyncJobExecutionActorClass = asyncClass,
+      groupMetricsActor = system.actorOf(Props.empty, "TestGroupMetricsActor"),
       MinimumRuntimeSettings()
     )
 

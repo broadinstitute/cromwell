@@ -1,6 +1,6 @@
 name: gpu_on_papi_valid
 testFormat: workflowsuccess
-backends: [Papi]
+backends: [Papi, GCPBATCH]
 ignore: true
 
 files {

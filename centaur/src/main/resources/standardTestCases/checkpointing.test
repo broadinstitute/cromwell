@@ -1,6 +1,6 @@
 name: checkpointing
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: checkpointing/checkpointing.wdl

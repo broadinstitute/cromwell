@@ -364,9 +364,6 @@ object CallCacheHashingJobActor {
           s"Optional(${o.memberType.toHashKeyString})"
         case p: WomPairType =>
           s"Pair(${p.leftType.toHashKeyString},${p.rightType.toHashKeyString})"
-        case c: WomCoproductType =>
-          val hashStrings = c.types.toList.map(_.toHashKeyString).mkString(",")
-          s"Coproduct($hashStrings)"
         case o => o.stableName
       }
   }

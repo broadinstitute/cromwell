@@ -208,6 +208,13 @@ object MetadataService {
     }
   }
 
+  /**
+    * @param metadataKey Coordinates uniquely identifying what this event describes, such as `outputs:my_workflow.file_array[5]`.
+    * @param womValue The value to be serialized into event(s). Complex types are flattened into multiple individual events.
+    * @param fileMap Files that copy/move after the workflow completes need to have their new location in metadata.
+    *                When creating events for files only, check the map for a possible new location, or empty map for no-op.
+    * @return Flat list of metadata events ready to be written to the database.
+    */
   def womValueToMetadataEvents(metadataKey: MetadataKey,
                                womValue: WomValue,
                                fileMap: Map[Path, Path] = Map.empty

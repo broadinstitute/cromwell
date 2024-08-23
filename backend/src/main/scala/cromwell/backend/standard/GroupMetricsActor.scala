@@ -18,7 +18,6 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase) extends Actor with
 
   override def receive: Receive = {
     case RecordGroupQuotaExhaustion(group) =>
-      log.info(s"Recording quota exhaustion for group '$group'.")
       val groupMetricsEntry = GroupMetricsEntry(group, OffsetDateTime.now.toSystemTimestamp)
       engineDbInterface.recordGroupMetricsEntry(groupMetricsEntry)
       ()

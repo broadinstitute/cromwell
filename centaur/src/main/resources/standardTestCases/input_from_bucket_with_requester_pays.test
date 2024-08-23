@@ -1,6 +1,6 @@
 name: input_from_bucket_with_requester_pays
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 ignore: true
 workflowType: WDL
 workflowTypeVersion: 1.0

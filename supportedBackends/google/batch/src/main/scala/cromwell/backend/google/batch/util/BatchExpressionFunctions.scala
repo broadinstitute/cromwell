@@ -11,13 +11,7 @@ import cromwell.filesystems.gcs.GcsPathBuilder.{InvalidGcsPath, PossiblyValidRel
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 
 class BatchPathFunctions(pathBuilders: PathBuilders, callContext: CallContext)
-    extends CallCorePathFunctionSet(pathBuilders, callContext) {
-  override def relativeToHostCallRoot(path: String) =
-    GcsPathBuilder.validateGcsPath(path) match {
-      case _: ValidFullGcsPath => path
-      case _ => callContext.root.resolve(path.stripPrefix("file://").stripPrefix("/")).pathAsString
-    }
-}
+    extends CallCorePathFunctionSet(pathBuilders, callContext)
 
 class BatchExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
     extends StandardExpressionFunctions(standardParams) {

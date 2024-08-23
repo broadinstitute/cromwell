@@ -159,6 +159,41 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       }
   }
 
+  behavior of "REST API /cost endpoint"
+  it should "return 200 with basic cost info" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/cost") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+
+        val costResponse = responseAs[JsObject]
+        costResponse.fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
+        costResponse.fields("currency") should be(JsString("USD"))
+        costResponse.fields("cost") should be(JsNumber(3.5))
+        costResponse.fields("status") should be(JsString("Succeeded"))
+        costResponse.fields.keys should not contain "taskBreakdown"
+        costResponse.fields.keys should not contain "subworkflowBreakdown"
+      }
+  }
+
+  it should "return 200 with basic cost info with task and subworkflow breakdowns" in {
+    Get(
+      s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/cost?includeTaskBreakdown=true&includeSubworkflowBreakdown=true"
+    ) ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+
+        val costResponse = responseAs[JsObject]
+        costResponse.fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
+        costResponse.fields("currency") should be(JsString("USD"))
+        costResponse.fields("cost") should be(JsNumber(3.5))
+        costResponse.fields("status") should be(JsString("Succeeded"))
+        costResponse.fields("taskBreakdown") should be(JsObject(Map("foo.bar" -> JsNumber(3.5))))
+        costResponse.fields("subworkflowBreakdown") should be(JsObject(Map("foo.baz" -> JsNumber(3.5))))
+      }
+  }
+
   behavior of "REST API /logs endpoint"
   it should "return 200 with paths to stdout/stderr/backend log" in {
     Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/logs") ~>

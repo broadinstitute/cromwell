@@ -123,6 +123,22 @@ trait MetadataRouteSupport extends HttpInstrumentation {
         }
       )
     },
+    path("workflows" / Segment / Segment / "cost") { (_, possibleWorkflowId) =>
+      get {
+        parameters(
+          (Symbol("includeTaskBreakdown").as[Boolean].?, Symbol("includeSubworkflowBreakdown").as[Boolean].?)
+        ) { (includeTaskBreakdownOption, includeSubworkflowBreakdownOption) =>
+          val includeTaskBreakdown = includeTaskBreakdownOption.getOrElse(false)
+          val includeSubworkflowBreakdown = includeSubworkflowBreakdownOption.getOrElse(false)
+
+          metadataLookup(
+            possibleWorkflowId,
+            (w: WorkflowId) => GetCost(w, includeTaskBreakdown, includeSubworkflowBreakdown),
+            serviceRegistryActor
+          )
+        }
+      }
+    },
     path("workflows" / Segment / "query") { _ =>
       get {
         instrumentRequest {

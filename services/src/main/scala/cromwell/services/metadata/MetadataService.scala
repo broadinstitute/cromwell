@@ -126,6 +126,8 @@ object MetadataService {
       extends BuildMetadataJsonAction
   final case class WorkflowOutputs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonWithOverridableSourceAction
   final case class GetLogs(workflowId: WorkflowId) extends BuildWorkflowMetadataJsonWithOverridableSourceAction
+  final case class GetCost(workflowId: WorkflowId, includeTaskBreakdown: Boolean, includeSubworkflowBreakdown: Boolean)
+      extends BuildWorkflowMetadataJsonWithOverridableSourceAction
   case object RefreshSummary extends MetadataServiceAction
   case object SendMetadataTableSizeMetrics extends MetadataServiceAction
 
@@ -175,6 +177,14 @@ object MetadataService {
 
   final case class LogsResponse(id: WorkflowId, logs: Seq[MetadataEvent]) extends MetadataServiceResponse
   final case class LogsFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
+
+  final case class CostResponse(id: WorkflowId,
+                                status: WorkflowState,
+                                costMetadata: Seq[MetadataEvent],
+                                includeTaskBreakdown: Boolean,
+                                includeSubworkflowBreakdown: Boolean
+  ) extends MetadataServiceResponse
+  final case class CostFailure(id: WorkflowId, reason: Throwable) extends MetadataServiceFailure
 
   final case class MetadataWriteSuccess(events: Iterable[MetadataEvent]) extends MetadataServiceResponse
   final case class MetadataWriteFailure(reason: Throwable, events: Iterable[MetadataEvent])

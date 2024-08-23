@@ -38,7 +38,7 @@ class GcpCostCatalogServiceSpec
 
   def constructTestActor: GcpCostCatalogService =
     TestActorRef(
-      new GcpCostCatalogService(GcpCostCatalogServiceSpec.config, GcpCostCatalogServiceSpec.config, TestProbe().ref)
+      new GcpCostCatalogServiceTestActor(GcpCostCatalogServiceSpec.config, GcpCostCatalogServiceSpec.config, TestProbe().ref)
     ).underlyingActor
   private val testActorRef = constructTestActor
   private val minimumExpectedSkus = 10
@@ -82,7 +82,6 @@ class GcpCostCatalogServiceSpec
       machineCustomization = None,
       resourceGroup = Some(Ram)
     )
-
     val foundValue = testActorRef.getSku(expectedKey)
     foundValue.get.catalogObject.getDescription shouldBe "Spot Preemptible N2D AMD Instance Ram running in Johannesburg"
   }

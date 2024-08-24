@@ -7,6 +7,7 @@ import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
 import akka.stream.ActorMaterializer
 import com.typesafe.config.Config
+import cromwell.backend.standard.GroupMetricsActor
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core._
 import cromwell.core.actor.StreamActorHelper.ActorRestartException
@@ -224,6 +225,9 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
     "JobExecutionTokenDispenser"
   )
 
+  lazy val groupMetricsActor: ActorRef =
+    context.actorOf(GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface))
+
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(
       config = config,
@@ -243,7 +247,8 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
       jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
-      workflowHeartbeatConfig = workflowHeartbeatConfig
+      workflowHeartbeatConfig = workflowHeartbeatConfig,
+      groupMetricsActor = groupMetricsActor
     ),
     "WorkflowManagerActor"
   )

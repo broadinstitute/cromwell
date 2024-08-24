@@ -126,7 +126,8 @@ class WorkflowExecutionActorSpec
         rootConfig,
         new AtomicInteger(),
         fileHashCacheActor = None,
-        blacklistCache = None
+        blacklistCache = None,
+        groupMetricsActor = TestProbe().ref
       ),
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref

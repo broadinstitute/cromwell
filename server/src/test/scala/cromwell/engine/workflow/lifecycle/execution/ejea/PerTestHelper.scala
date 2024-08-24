@@ -93,6 +93,7 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem)
   val jobRestartCheckTokenDispenserProbe: TestProbe = TestProbe()
   val jobExecutionTokenDispenserProbe: TestProbe = TestProbe()
   val ejhaProbe: TestProbe = TestProbe()
+  val groupMetricsProbe: TestProbe = TestProbe()
 
   def buildFactory(backendConfigurationDescriptor: BackendConfigurationDescriptor): BackendLifecycleActorFactory =
     new BackendLifecycleActorFactory {
@@ -105,7 +106,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem)
                                           initializationData: Option[BackendInitializationData],
                                           serviceRegistryActor: ActorRef,
                                           ioActor: ActorRef,
-                                          backendSingletonActor: Option[ActorRef]
+                                          backendSingletonActor: Option[ActorRef],
+                                          groupMetricsActor: ActorRef
       ): Props = bjeaProps
 
       override def cacheHitCopyingActorProps: Option[
@@ -192,7 +194,8 @@ private[ejea] class PerTestHelper(implicit val system: ActorSystem)
           dockerHashActor = dockerHashActorProbe.ref,
           jobRestartCheckTokenDispenserActor = jobRestartCheckTokenDispenserProbe.ref,
           jobExecutionTokenDispenserActor = jobExecutionTokenDispenserProbe.ref,
-          callCachingParameters = callCachingParameters
+          callCachingParameters = callCachingParameters,
+          groupMetricsActor = groupMetricsProbe.ref
         )
       ),
       parentProbe.ref,
@@ -218,7 +221,8 @@ private[ejea] class MockEjea(helper: PerTestHelper,
                              dockerHashActor: ActorRef,
                              jobRestartCheckTokenDispenserActor: ActorRef,
                              jobExecutionTokenDispenserActor: ActorRef,
-                             callCachingParameters: EngineJobExecutionActor.CallCachingParameters
+                             callCachingParameters: EngineJobExecutionActor.CallCachingParameters,
+                             groupMetricsActor: ActorRef
 ) extends EngineJobExecutionActor(
       replyTo = replyTo,
       jobDescriptorKey = jobDescriptorKey,
@@ -234,7 +238,8 @@ private[ejea] class MockEjea(helper: PerTestHelper,
       jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonActor = None,
       command = if (restarting) RecoverJobCommand else ExecuteJobCommand,
-      callCachingParameters = callCachingParameters
+      callCachingParameters = callCachingParameters,
+      groupMetricsActor = groupMetricsActor
     ) {
 
   implicit val system: ActorSystem = context.system

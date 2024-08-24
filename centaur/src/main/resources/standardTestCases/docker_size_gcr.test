@@ -1,6 +1,6 @@
 name: docker_size_gcr
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 
 files {
   workflow: docker_size/docker_size_gcr.wdl

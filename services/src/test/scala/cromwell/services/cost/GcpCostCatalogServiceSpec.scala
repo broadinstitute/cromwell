@@ -10,22 +10,38 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import java.time.Duration
-import java.io.{FileInputStream, ObjectInputStream}
+import java.io.{File, FileInputStream, FileOutputStream}
+import scala.collection.mutable.ListBuffer
 
 object GcpCostCatalogServiceSpec {
   val catalogExpirySeconds: Long = 1 // Short duration so we can do a cache expiry test
   val config: Config = ConfigFactory.parseString(s"catalogExpirySeconds = $catalogExpirySeconds")
   val mockTestDataFilePath: String = "services/src/test/scala/cromwell/services/cost/serializedSkuList.testData"
-  def loadMockDataFromFile: Iterable[Sku] = {
-    val fis = new FileInputStream(GcpCostCatalogServiceSpec.mockTestDataFilePath)
-    val ois = new ObjectInputStream(fis)
-    ois.readObject().asInstanceOf[List[Sku]]
-  }
 }
-
 class GcpCostCatalogServiceTestActor(serviceConfig: Config, globalConfig: Config, serviceRegistry: ActorRef)
     extends GcpCostCatalogService(serviceConfig, globalConfig, serviceRegistry) {
-  override def fetchNewCatalog: Iterable[Sku] = GcpCostCatalogServiceSpec.loadMockDataFromFile
+  def loadMockData: Iterable[Sku] = {
+    val fis = new FileInputStream(new File(GcpCostCatalogServiceSpec.mockTestDataFilePath))
+    val skuList = ListBuffer[Sku]()
+    try {
+      var sku: Sku = null
+      do {
+        sku = Sku.parseDelimitedFrom(fis)
+        if (sku != null) skuList += sku
+      } while (sku != null)
+    } finally
+      fis.close()
+    skuList.toSeq
+  }
+  def saveMockData(): Unit = {
+    val fetchedData = super.fetchNewCatalog
+    val fos = new FileOutputStream(new File(GcpCostCatalogServiceSpec.mockTestDataFilePath))
+    fetchedData.foreach { sku =>
+      sku.writeDelimitedTo(fos)
+    }
+    fos.close()
+  }
+  override def fetchNewCatalog: Iterable[Sku] = loadMockData
 }
 
 class GcpCostCatalogServiceSpec
@@ -36,15 +52,18 @@ class GcpCostCatalogServiceSpec
     with ImplicitSender {
   behavior of "CostCatalogService"
 
-  def constructTestActor: GcpCostCatalogService =
+  def constructTestActor: GcpCostCatalogServiceTestActor =
     TestActorRef(
-      new GcpCostCatalogServiceTestActor(GcpCostCatalogServiceSpec.config, GcpCostCatalogServiceSpec.config, TestProbe().ref)
+      new GcpCostCatalogServiceTestActor(GcpCostCatalogServiceSpec.config,
+                                         GcpCostCatalogServiceSpec.config,
+                                         TestProbe().ref
+      )
     ).underlyingActor
   private val testActorRef = constructTestActor
   private val minimumExpectedSkus = 10
 
   it should "properly load mock test data file" in {
-    GcpCostCatalogServiceSpec.loadMockDataFromFile.toList.length shouldBe >(minimumExpectedSkus)
+    testActorRef.loadMockData.toList.length shouldBe >(minimumExpectedSkus)
   }
 
   it should "cache catalogs properly" in {

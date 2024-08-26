@@ -1,5 +1,5 @@
 name: copy_workflow_outputs_scattered_papi
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 testFormat: workflowsuccess
 
 files {

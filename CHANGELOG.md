@@ -32,7 +32,13 @@ Users reported cases where Life Sciences jobs failed due to insufficient quota, 
 quota is available (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
 such as "PAPI error code 9", "no available zones", and/or "quota too low".
 
-### Database migration
+### Database
+
+#### New table 'GROUP_METRICS_ENTRY'
+
+A new table called `GROUP_METRICS_ENTRY` has been added. The purpose of this table is to track when a group or billing project last ran into Cloud Quota exhaustion.
+
+#### Index removal
 
 The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 

@@ -1,6 +1,6 @@
 name: google_labels_good
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 
 files {
   workflow: google_labels/google_labels.wdl

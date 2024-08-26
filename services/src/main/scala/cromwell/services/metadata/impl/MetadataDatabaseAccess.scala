@@ -1,7 +1,6 @@
 package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
-
 import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
@@ -268,6 +267,15 @@ trait MetadataDatabaseAccess {
                                                                    timeout
     ) map
       metadataToMetadataEvents(id)
+  }
+
+  def queryCost(id: WorkflowId, timeout: Duration)(implicit
+    ec: ExecutionContext
+  ): Future[Seq[MetadataEvent]] = {
+    val keys = List("taskStartTime", "taskEndTime", "vmCostPerHour")
+    metadataDatabaseInterface
+      .queryMetadataEntryWithKeyConstraints(id.toString, keys, List.empty, CallOrWorkflowQuery, timeout)
+      .map(metadataToMetadataEvents(id))
   }
 
   def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] =

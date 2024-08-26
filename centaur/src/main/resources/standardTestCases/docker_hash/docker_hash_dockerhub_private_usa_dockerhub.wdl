@@ -4,6 +4,7 @@ task dockerhub {
     }
     runtime {
         docker: "broadinstitute/cloud-cromwell:dev"
+        backend: "Papiv2USADockerhub"
     }
 }
 

@@ -1,7 +1,7 @@
 name: directory_type_output_papi
 testFormat: workflowsuccess
 tags: ["wdl_cascades"]
-backends: [Papi, GCPBATCH]
+backends: [Papi]
 
 files {
   workflow: wdl_cascades/directory_type_output/directory_type_output.wdl

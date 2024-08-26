@@ -2,7 +2,7 @@
 
 name: no_task_no_output_delete
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 
 files {
   workflow: delete_intermediates/no_task_no_output_delete.wdl

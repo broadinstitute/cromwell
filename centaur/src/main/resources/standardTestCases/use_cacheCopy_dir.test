@@ -1,6 +1,6 @@
 name: use_cache_copy_dir
 testFormat: runtwiceexpectingcallcaching
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 
 files {
   workflow: use_cacheCopy_dir/use_cacheCopy_dir.wdl

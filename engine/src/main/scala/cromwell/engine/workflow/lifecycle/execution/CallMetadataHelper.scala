@@ -6,6 +6,7 @@ import akka.actor.ActorRef
 import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
+import cromwell.engine.workflow.lifecycle.OutputsLocationHelper.FileRelocationMap
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import wdl.draft2.model._
@@ -65,14 +66,15 @@ trait CallMetadataHelper {
     }
   }
 
-  def pushWorkflowOutputMetadata(outputs: Map[LocallyQualifiedName, WomValue]) = {
+  def pushWorkflowOutputMetadata(outputs: Map[LocallyQualifiedName, WomValue], fileMap: FileRelocationMap) = {
     val events = if (outputs.isEmpty) {
       List(MetadataEvent.empty(MetadataKey(workflowIdForCallMetadata, None, WorkflowMetadataKeys.Outputs)))
     } else {
       outputs flatMap { case (outputName, outputValue) =>
         womValueToMetadataEvents(
           MetadataKey(workflowIdForCallMetadata, None, s"${WorkflowMetadataKeys.Outputs}:$outputName"),
-          outputValue
+          outputValue,
+          fileMap
         )
       }
     }

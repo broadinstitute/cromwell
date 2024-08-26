@@ -38,6 +38,10 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) =>
       evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
     case GetLogs(workflowId) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
+    case GetCost(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown) =>
+      evaluateRespondAndStop(sender(),
+                             queryCostAndRespond(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown)
+      )
     case QueryForWorkflowsMatchingParameters(parameters) =>
       evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(parameters))
     case WorkflowOutputs(id) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
@@ -155,5 +159,26 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     } recover { case t =>
       LogsFailure(id, t)
     }
+
+  private def queryCostAndRespond(id: WorkflowId,
+                                  includeTaskBreakdown: Boolean,
+                                  includeSubworkflowBreakdown: Boolean
+  ): Future[MetadataServiceResponse] = {
+    val results = for {
+      status <- getWorkflowStatus(id)
+      costEvents <- queryCost(id, metadataReadTimeout)
+    } yield (status, costEvents)
+
+    results.map { case (s, m) =>
+      (s, m) match {
+        case (Some(wfState), metadataEvents) =>
+          CostResponse(id, wfState, metadataEvents, includeTaskBreakdown, includeSubworkflowBreakdown)
+        // TODO should this be a failure?
+        case (None, _) => CostFailure(id, new Exception("Couldn't find workflow status"))
+      }
+    } recover { case t =>
+      CostFailure(id, t)
+    }
+  }
 
 }

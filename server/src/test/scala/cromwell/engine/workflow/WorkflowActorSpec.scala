@@ -91,6 +91,7 @@ class WorkflowActorSpec
   val initialJobCtByRootWf = new AtomicInteger()
   val callCachingEnabled = true
   val invalidateBadCacheResults = true
+  val groupMetricsProbe: TestProbe = TestProbe("groupMetricsProbe")
 
   before {
     currentWorkflowId = WorkflowId.randomId()
@@ -137,7 +138,8 @@ class WorkflowActorSpec
         initializationMaxRetries = initializationMaxRetries,
         initializationInterval = initializationInterval,
         workflowInitializationActorProbe = initializationProbe,
-        workflowExecutionActorProbe = executionProbe
+        workflowExecutionActorProbe = executionProbe,
+        groupMetricsActor = groupMetricsProbe.ref
       ),
       supervisor = supervisorProbe.ref,
       name = s"workflowActor-$currentWorkflowId"
@@ -451,7 +453,8 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
                                   initializationMaxRetries: Int,
                                   initializationInterval: FiniteDuration,
                                   workflowInitializationActorProbe: TestProbe,
-                                  workflowExecutionActorProbe: TestProbe
+                                  workflowExecutionActorProbe: TestProbe,
+                                  groupMetricsActor: ActorRef
 ) extends WorkflowActor(
       workflowToStart = WorkflowToStart(id = workflowId,
                                         submissionTime = OffsetDateTime.now,
@@ -479,7 +482,8 @@ class WorkflowActorWithTestAddons(val finalizationProbe: TestProbe,
       workflowHeartbeatConfig = workflowHeartbeatConfig,
       totalJobsByRootWf = totalJobsByRootWf,
       fileHashCacheActorProps = None,
-      blacklistCache = None
+      blacklistCache = None,
+      groupMetricsActor = groupMetricsActor
     ) {
 
   override def createInitializationActor(workflowDescriptor: EngineWorkflowDescriptor, name: String): ActorRef =

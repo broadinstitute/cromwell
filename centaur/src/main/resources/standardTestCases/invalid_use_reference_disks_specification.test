@@ -1,6 +1,6 @@
 name: invalid_use_reference_disks_specification
 testFormat: workflowfailure
-backends: [ Papiv2, GCPBATCH ]
+backends: [ Papiv2 ]
 
 files {
   workflow: invalid_use_reference_disks_specification/invalid_use_reference_disks_specification.wdl

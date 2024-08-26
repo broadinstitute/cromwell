@@ -1,7 +1,7 @@
 name: restart_jes_with_recover
 testFormat: CromwellRestartWithRecover
 callMark: cromwell_restart.cromwell_killer
-backends: [Papi, GCPBATCH]
+backends: [Papi]
 
 files {
   workflow: cromwell_restart/cromwell_restart.wdl

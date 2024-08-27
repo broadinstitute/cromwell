@@ -235,7 +235,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     )
     val instancePolicy = createInstancePolicy(cpuPlatform, spotModel, accelerators, allDisks, machineType)
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
-
     val allocationPolicy =
       createAllocationPolicy(data, locationPolicy, instancePolicy.build, networkPolicy, gcpSa, accelerators)
     val job = Job.newBuilder

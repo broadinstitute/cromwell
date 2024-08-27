@@ -1,5 +1,6 @@
 name: local_gcs
 testFormat: workflowsuccess
+backendsMode: all
 backends: [Papi, Local]
 
 files {

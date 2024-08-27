@@ -1,14 +1,9 @@
 package cromwell.backend.google.batch.util
 
-import cromwell.backend.google.batch.models.{
-  GcpBatchRuntimeAttributes,
-  N1CustomMachineType,
-  N2CustomMachineType,
-  N2DCustomMachineType
-}
+import cromwell.backend.google.batch.models.{GcpBatchRuntimeAttributes, N1CustomMachineType, N2CustomMachineType, N2DCustomMachineType}
+import cromwell.core.logging.JobLogger
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import org.slf4j.Logger
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 
@@ -17,7 +12,7 @@ object GcpBatchMachineConstraints {
                   cpu: Int Refined Positive,
                   cpuPlatformOption: Option[String],
                   googleLegacyMachineSelection: Boolean,
-                  jobLogger: Logger
+                  jobLogger: JobLogger
   ): String =
     if (googleLegacyMachineSelection) {
       s"predefined-$cpu-${memory.to(MemoryUnit.MB).amount.intValue()}"

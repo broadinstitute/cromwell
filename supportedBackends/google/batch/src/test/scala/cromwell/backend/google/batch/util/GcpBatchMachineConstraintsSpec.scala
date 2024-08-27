@@ -1,14 +1,15 @@
 package cromwell.backend.google.batch.util
 
 import common.assertion.CromwellTimeoutSpec
+import common.mock.MockSugar.mock
 import cromwell.backend.google.batch.models.GcpBatchRuntimeAttributes
+import cromwell.core.logging.JobLogger
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
-import org.slf4j.helpers.NOPLogger
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 
@@ -83,7 +84,7 @@ class GcpBatchMachineConstraintsSpec extends AnyFlatSpec with CromwellTimeoutSpe
         cpu = cpu,
         cpuPlatformOption = cpuPlatformOption,
         googleLegacyMachineSelection = googleLegacyMachineSelection,
-        jobLogger = NOPLogger.NOP_LOGGER
+        jobLogger = mock[JobLogger]
       ) shouldBe expected
     }
   }

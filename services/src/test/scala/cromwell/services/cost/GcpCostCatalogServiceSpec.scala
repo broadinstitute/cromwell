@@ -42,9 +42,8 @@ class GcpCostCatalogServiceTestActor(serviceConfig: Config, globalConfig: Config
     }
     fos.close()
   }
-  override def receive: Receive = {
-    case ShutdownCommand =>
-      context stop self
+  override def receive: Receive = { case ShutdownCommand =>
+    context stop self
   }
   override def fetchNewCatalog: Iterable[Sku] = loadMockData
 }

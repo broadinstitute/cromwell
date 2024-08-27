@@ -5,6 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.google.cloud.billing.v1.Sku
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
+import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -40,6 +41,10 @@ class GcpCostCatalogServiceTestActor(serviceConfig: Config, globalConfig: Config
       sku.writeDelimitedTo(fos)
     }
     fos.close()
+  }
+  override def receive: Receive = {
+    case ShutdownCommand =>
+      context stop self
   }
   override def fetchNewCatalog: Iterable[Sku] = loadMockData
 }

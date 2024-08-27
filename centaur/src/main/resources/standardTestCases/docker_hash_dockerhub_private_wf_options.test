@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 backends: [Papiv2NoDockerHubConfig]
 
 files {
-  workflow: docker_hash/docker_hash_dockerhub_private.wdl
+  workflow: docker_hash/docker_hash_dockerhub_private_no_dockerhub_config.wdl
   # Updated the options to read_from_cache: false for
   # https://github.com/broadinstitute/cromwell/issues/3998
   options-dir: "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"

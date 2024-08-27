@@ -2,7 +2,21 @@ package cromwell.backend.google.batch.api
 
 import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.LogsPolicy.Destination
-import com.google.cloud.batch.v1.{AllocationPolicy, ComputeResource, CreateJobRequest, DeleteJobRequest, GetJobRequest, Job, JobName, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
+import com.google.cloud.batch.v1.{
+  AllocationPolicy,
+  ComputeResource,
+  CreateJobRequest,
+  DeleteJobRequest,
+  GetJobRequest,
+  Job,
+  JobName,
+  LogsPolicy,
+  Runnable,
+  ServiceAccount,
+  TaskGroup,
+  TaskSpec,
+  Volume
+}
 import com.google.protobuf.Duration
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
@@ -58,7 +72,12 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setBootDiskMib(bootDiskSizeMb)
       .build
 
-  private def createInstancePolicy(cpuPlatform: String, spotModel: ProvisioningModel, accelerators: Option[Accelerator.Builder], attachedDisks: List[AttachedDisk], machineType: String): InstancePolicy.Builder = {
+  private def createInstancePolicy(cpuPlatform: String,
+                                   spotModel: ProvisioningModel,
+                                   accelerators: Option[Accelerator.Builder],
+                                   attachedDisks: List[AttachedDisk],
+                                   machineType: String
+  ): InstancePolicy.Builder = {
 
     // set GPU count to 0 if not included in workflow
     val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType("")) // TODO: Driver version
@@ -109,7 +128,13 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setTaskSpec(task)
       .build
 
-  private def createAllocationPolicy(data: GcpBatchRequest, locationPolicy: LocationPolicy, instancePolicy: InstancePolicy, networkPolicy: NetworkPolicy, serviceAccount: ServiceAccount, accelerators: Option[Accelerator.Builder]) = {
+  private def createAllocationPolicy(data: GcpBatchRequest,
+                                     locationPolicy: LocationPolicy,
+                                     instancePolicy: InstancePolicy,
+                                     networkPolicy: NetworkPolicy,
+                                     serviceAccount: ServiceAccount,
+                                     accelerators: Option[Accelerator.Builder]
+  ) = {
 
     val allocationPolicy = AllocationPolicy.newBuilder
       .setLocation(locationPolicy)
@@ -202,12 +227,12 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
     val taskSpec = createTaskSpec(sortedRunnables, computeResource, retryCount, durationInSeconds, allVolumes)
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-    val machineType = GcpBatchMachineConstraints.machineType(
-      runtimeAttributes.memory,
-      runtimeAttributes.cpu,
-      cpuPlatformOption = runtimeAttributes.cpuPlatform,
-      googleLegacyMachineSelection = false,
-      jobLogger = jobLogger)
+    val machineType = GcpBatchMachineConstraints.machineType(runtimeAttributes.memory,
+                                                             runtimeAttributes.cpu,
+                                                             cpuPlatformOption = runtimeAttributes.cpuPlatform,
+                                                             googleLegacyMachineSelection = false,
+                                                             jobLogger = jobLogger
+    )
     val instancePolicy = createInstancePolicy(cpuPlatform, spotModel, accelerators, allDisks, machineType)
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
 

@@ -1,6 +1,11 @@
 package cromwell.backend.google.batch.util
 
-import cromwell.backend.google.batch.models.{GcpBatchRuntimeAttributes, N1CustomMachineType, N2CustomMachineType, N2DCustomMachineType}
+import cromwell.backend.google.batch.models.{
+  GcpBatchRuntimeAttributes,
+  N1CustomMachineType,
+  N2CustomMachineType,
+  N2DCustomMachineType
+}
 import cromwell.core.logging.JobLogger
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive

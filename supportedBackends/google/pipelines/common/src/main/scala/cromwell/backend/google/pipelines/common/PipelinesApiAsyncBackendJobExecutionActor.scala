@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.common
 
-import java.net.SocketTimeoutException
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
@@ -23,7 +22,7 @@ import cromwell.backend.async.{
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsTransferLibraryName
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
-import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
+import cromwell.backend.google.pipelines.common.api.RunStatus.{AwaitingCloudQuota, TerminalRunStatus}
 import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.pipelines.common.api.clients.{
@@ -36,14 +35,8 @@ import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.pipelines.common.io._
 import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.io.DirectoryFunctions
-import cromwell.backend.standard.{
-  ScriptPreambleData,
-  StandardAdHocValue,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob,
-  StartAndEndTimes
-}
+import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
+import cromwell.backend.standard._
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -58,14 +51,15 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import shapeless.Coproduct
+import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
-import wom.callable.AdHocValue
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
+import java.net.SocketTimeoutException
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -535,7 +529,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           commandScriptContainerPath = cmdInput.containerPath,
           logGcsPath = jesLogPath,
           inputOutputParameters = inputOutputParameters,
-          projectId = googleProject(jobDescriptor.workflowDescriptor),
+          projectId = googleProject(
+            jobDescriptor.workflowDescriptor
+          ),
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
           googleLabels = backendLabels ++ customLabels,
           preemptible = preemptible,
@@ -776,6 +772,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] =
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
+
+  override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit =
+    if (runStatus == AwaitingCloudQuota) {
+      standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
+    }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (_: JesPendingExecutionHandle @unchecked, JobAbortedException) =>

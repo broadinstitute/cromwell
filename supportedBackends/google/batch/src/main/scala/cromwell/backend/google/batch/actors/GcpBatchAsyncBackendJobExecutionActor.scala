@@ -194,8 +194,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                            localPathArray: Seq[WomFile]
   ): Iterable[GcpBatchInput] =
     (remotePathArray zip localPathArray) flatMap {
-      case (remotePath: WomMaybeListedDirectory, localPath) =>
-        maybeListedDirectoryToBatchParameters(inputName, remotePath, localPath.valueString)
       case (remotePath: WomUnlistedDirectory, localPath) =>
         Seq(
           GcpBatchDirectoryInput(inputName,
@@ -204,8 +202,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                  workingDisk
           )
         )
-      case (remotePath: WomMaybePopulatedFile, localPath) =>
-        maybePopulatedFileToBatchParameters(inputName, remotePath, localPath.valueString)
       case (remotePath, localPath) =>
         Seq(
           GcpBatchFileInput(inputName,
@@ -215,26 +211,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           )
         )
     }
-
-  private def maybePopulatedFileToBatchParameters(inputName: String,
-                                                  maybePopulatedFile: WomMaybePopulatedFile,
-                                                  localPath: String
-  ) = {
-    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap { secondaryFile =>
-      gcpBatchInputsFromWomFiles(secondaryFile.valueString,
-                                 List(secondaryFile),
-                                 List(relativeLocalizationPath(secondaryFile))
-      )
-    }
-
-    Seq(
-      GcpBatchFileInput(inputName,
-                        getPath(maybePopulatedFile.valueString).get,
-                        DefaultPathBuilder.get(localPath),
-                        workingDisk
-      )
-    ) ++ secondaryFiles
-  }
 
   /**
    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
@@ -670,7 +646,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                             disks: Seq[GcpBatchAttachedDisk]
   ): (Path, GcpBatchAttachedDisk) = {
     val absolutePath = DefaultPathBuilder.get(path) match {
-      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPoint.resolve(p)
+      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPointPath.resolve(p)
       case p => p
     }
 
@@ -729,9 +705,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
 
   private val DockerMonitoringLogPath: Path =
-    GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringLogFilename)
+    GcpBatchWorkingDisk.MountPointPath.resolve(gcpBatchCallPaths.batchMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path =
-    GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
+    GcpBatchWorkingDisk.MountPointPath.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
 
   // noinspection ActorMutableStateInspection
   @scala.annotation.unused
@@ -775,28 +751,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                                   fileEvaluation.secondary
     )
     List(directoryOutput)
-  }
-
-  private def maybeListedDirectoryToBatchParameters(inputName: String,
-                                                    womMaybeListedDirectory: WomMaybeListedDirectory,
-                                                    localPath: String
-  ) = womMaybeListedDirectory match {
-    // If there is a path, simply localize as a directory
-    case WomMaybeListedDirectory(Some(path), _, _, _) =>
-      List(GcpBatchDirectoryInput(inputName, getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
-
-    // If there is a listing, recurse and call gcpBatchInputsFromWomFiles on all the listed files
-    case WomMaybeListedDirectory(_, Some(listing), _, _) if listing.nonEmpty =>
-      listing.flatMap {
-        case womFile: WomFile if isAdHocFile(womFile) =>
-          gcpBatchInputsFromWomFiles(makeSafeReferenceName(womFile.valueString), List(womFile), List(fileName(womFile)))
-        case womFile: WomFile =>
-          gcpBatchInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
-                                     List(womFile),
-                                     List(relativeLocalizationPath(womFile))
-          )
-      }
-    case _ => List.empty
   }
 
   def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[GcpBatchFileOutput] = {
@@ -861,7 +815,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
   }
 
-  override lazy val commandDirectory: Path = GcpBatchWorkingDisk.MountPoint
+  override lazy val commandDirectory: Path = GcpBatchWorkingDisk.MountPointPath
 
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
@@ -1006,6 +960,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   val futureKvJobKey: KvJobKey =
     KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
+
+  override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId)
 
   override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] =
     reconnectToExistingJob(jobId)
@@ -1169,8 +1125,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     womFile.mapFile { value =>
       (getPath(value), asAdHocFile(womFile)) match {
         case (Success(gcsPath: GcsPath), Some(adHocFile)) =>
-          // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
-          // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
+          // Ad hoc files will be placed directly at the root ("/mnt/disks/cromwell_root/ad_hoc_file.txt") unlike other input files
+          // for which the full path is being propagated ("/mnt/disks/cromwell_root/path/to/input_file.txt")
           workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
         case (Success(path @ (_: GcsPath | _: HttpPath)), _) =>
           workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
@@ -1215,9 +1171,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           /*
            * Strip the prefixes in RuntimeOutputMapping.prefixFilters from the path, one at a time.
            * For instance
-           * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
+           * file:///mnt/disks/cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
            *
-           * /cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+           * /mnt/disks/cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
            * bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
            * call-A/file.txt
            *

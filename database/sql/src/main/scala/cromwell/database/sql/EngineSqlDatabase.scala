@@ -8,3 +8,4 @@ trait EngineSqlDatabase
     with WorkflowStoreSqlDatabase
     with SubWorkflowStoreSqlDatabase
     with DockerHashStoreSqlDatabase
+    with GroupMetricsSqlDatabase

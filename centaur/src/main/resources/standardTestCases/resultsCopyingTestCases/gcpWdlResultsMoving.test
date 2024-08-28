@@ -17,16 +17,42 @@ metadata {
   "outputs.simpleWorkflow.outGlob.0": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-"~~
   "outputs.simpleWorkflow.outGlob.1": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-"~~
   "outputs.simpleWorkflow.outGlob.2": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-"~~
+
+  # TODO: Centaur's JSON flattening does not support nested arrays (`centaur.json.JsonUtils`)
+  # Consider using JsonPath (XPath for JSON) to traverse the tree, or check in a JSON file to use as expectation.
+  # "outputs.simpleWorkflow.nested_array.0.0": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest1.txt"
+  # "outputs.simpleWorkflow.nested_array.0.1": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest2.txt"
+  # "outputs.simpleWorkflow.nested_array.1.0": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest3.txt"
+
+  "outputs.simpleWorkflow.myFoo.complex.right.t": "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/object_out.txt"
 }
 
 # The `centaur-ci-us-east1` bucket is in a different region than the workflow runs
 fileSystemCheck: "gcs"
 outputExpectations: {
+    ### Destination
+
     "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
+
     # We don't currently have a way to check for glob contents, so do the next best thing by asserting the expected count
-    "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/": 4
+    "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/": 8
     # "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-3860fac5129fd76b802f49dcd7f9a9f6/foo.zardoz": 1
     # "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-3860fac5129fd76b802f49dcd7f9a9f6/bar.zardoz": 1
     # "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/glob-3860fac5129fd76b802f49dcd7f9a9f6/baz.zardoz": 1
+
+    "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest1.txt": 1
+    "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest2.txt": 1
+    "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest3.txt": 1
+
+    "gs://centaur-ci-us-east1/move_destination/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/object_out.txt": 1
+
+    ### Source
+
     "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 0
+
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest1.txt": 0
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest2.txt": 0
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow<<UUID>>/call-simpleStdoutTask/arraytest3.txt": 0
+
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/object_out.txt": 0
 }

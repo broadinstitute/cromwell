@@ -46,9 +46,9 @@ import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
+import java.io.IOException
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
-import java.io.IOException
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -68,6 +68,7 @@ case class DefaultStandardAsyncExecutionActorParams(
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val backendSingletonActorOption: Option[ActorRef],
   override val completionPromise: Promise[BackendJobExecutionResponse],
+  override val groupMetricsActor: ActorRef,
   override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardAsyncExecutionActorParams
 
@@ -1058,6 +1059,12 @@ trait StandardAsyncExecutionActor
   def retryEvaluateOutputs(exception: Exception): Boolean = false
 
   /**
+   * Checks if the job has run into any cloud quota exhaustion and records it to GroupMetrics table
+   * @param runStatus The run status
+   */
+  def checkAndRecordQuotaExhaustion(runStatus: StandardAsyncRunState): Unit = ()
+
+  /**
     * Process a successful run, as defined by `isSuccess`.
     *
     * @param runStatus  The run status.
@@ -1328,6 +1335,9 @@ trait StandardAsyncExecutionActor
       jobLogger.info(s"Status change from $prevStatusName to $state")
       tellMetadata(Map(CallMetadataKeys.BackendStatus -> state))
     }
+
+    // record if group has run into cloud quota exhaustion
+    checkAndRecordQuotaExhaustion(state)
 
     state match {
       case _ if isTerminal(state) =>

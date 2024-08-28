@@ -237,6 +237,7 @@ lazy val googlePipelinesV2Beta = (project in backendRoot / "google" / "pipelines
 
 lazy val googleBatch = (project in backendRoot / "google" / "batch")
   .withLibrarySettings("cromwell-google-batch-backend")
+  .dependsOn(core)
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(drsFileSystem)

@@ -2,7 +2,7 @@
 
 name: exhaustive_delete
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: delete_intermediates/exhaustive_delete.wdl

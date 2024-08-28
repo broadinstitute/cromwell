@@ -1,6 +1,6 @@
 name: error_10_preemptible
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: error_10_preemptible/error_10_preemptible.wdl

@@ -2,7 +2,7 @@
 # Each run has different "jes_gcs_root"s so they should not see each other's cache entries.
 name: call_cache_hit_prefixes_two_roots_empty_hint_cache_miss_papi
 testFormat: runtwiceexpectingnocallcaching
-backends: [Papi]
+backends: [Papi, GCPBATCH]
 
 files {
   workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl

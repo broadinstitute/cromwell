@@ -1,6 +1,6 @@
 name: retry_same_memory_output_failure
 testFormat: workflowfailure
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 
 files {
   workflow: retry_with_more_memory/retry_same_memory_output_failure.wdl

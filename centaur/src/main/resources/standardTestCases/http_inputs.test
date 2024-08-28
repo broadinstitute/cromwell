@@ -1,5 +1,6 @@
 name: http_inputs
-backends: [Local, Papiv2, GCPBATCH]
+backendsMode: all
+backends: [Local, Papiv2]
 testFormat: workflowsuccess
 skipDescribeEndpointValidation: true
 

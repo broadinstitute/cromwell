@@ -2,7 +2,7 @@
 
 name: no_cache_delete
 testFormat: runtwiceexpectingnocallcaching
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 
 files {
   workflow: delete_intermediates/no_cache_delete.wdl

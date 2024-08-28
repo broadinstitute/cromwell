@@ -20,6 +20,7 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 - The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
 - Fixes a bug with not being able to recover jobs on Cromwell restart.
+- Fixes machine type selection to match the Google Cloud Life Sciences backend, including default n1 non shared-core machine types and correct handling of `cpuPlatform` to select n2 or n2d machine types as appropriate.
 - Fixes the preemption error handling, now, the correct error message is printed, this also handles the other potential exit codes.
 - Fixes error message reporting for failed jobs.
 - Fixes the "retry with more memory" feature.
@@ -32,7 +33,13 @@ Users reported cases where Life Sciences jobs failed due to insufficient quota, 
 quota is available (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
 such as "PAPI error code 9", "no available zones", and/or "quota too low".
 
-### Database migration
+### Database
+
+#### New table 'GROUP_METRICS_ENTRY'
+
+A new table called `GROUP_METRICS_ENTRY` has been added. The purpose of this table is to track when a group or billing project last ran into Cloud Quota exhaustion.
+
+#### Index removal
 
 The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 

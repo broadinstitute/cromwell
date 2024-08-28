@@ -1,6 +1,9 @@
 name: docker_size_gcr
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+# Not testing this for GCP Batch since Batch seems to give us a 30 GiB boot volume even when we ask for 10 GiB.
+# Honestly that's fine, 30 GiB should be big enough to keep us out of trouble with large Docker images without being
+# noticeably more expensive.
+backends: [Papiv2]
 
 files {
   workflow: docker_size/docker_size_gcr.wdl

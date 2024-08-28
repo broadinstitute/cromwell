@@ -1,6 +1,6 @@
 name: gpu_cuda_image
 testFormat: workflowsuccess
-backends: [Papi, GCPBATCH]
+backends: [Papi]
 ignore: true
 
 files {

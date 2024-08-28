@@ -51,7 +51,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                           initializationData: Option[BackendInitializationData],
                           val serviceRegistryActor: ActorRef,
                           ioActor: ActorRef,
-                          backendSingletonActor: Option[ActorRef]
+                          backendSingletonActor: Option[ActorRef],
+                          groupMetricsActor: ActorRef
 ) extends FSM[JobPreparationActorState, JobPreparationActorData]
     with WorkflowLogging
     with CallMetadataHelper {
@@ -271,12 +272,14 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
                                              initializationData: Option[BackendInitializationData],
                                              serviceRegistryActor: ActorRef,
                                              ioActor: ActorRef,
-                                             backendSingletonActor: Option[ActorRef]
+                                             backendSingletonActor: Option[ActorRef],
+                                             groupMetricsActor: ActorRef
   ) = factory.jobExecutionActorProps(jobDescriptor,
                                      initializationData,
                                      serviceRegistryActor,
                                      ioActor,
-                                     backendSingletonActor
+                                     backendSingletonActor,
+                                     groupMetricsActor
   )
 
   private[preparation] def prepareBackendDescriptor(inputEvaluation: WomEvaluatedCallInputs,
@@ -312,7 +315,13 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     )
     BackendJobPreparationSucceeded(
       jobDescriptor,
-      jobExecutionProps(jobDescriptor, initializationData, serviceRegistryActor, ioActor, backendSingletonActor)
+      jobExecutionProps(jobDescriptor,
+                        initializationData,
+                        serviceRegistryActor,
+                        ioActor,
+                        backendSingletonActor,
+                        groupMetricsActor
+      )
     )
   }
 
@@ -358,7 +367,8 @@ object JobPreparationActor {
             initializationData: Option[BackendInitializationData],
             serviceRegistryActor: ActorRef,
             ioActor: ActorRef,
-            backendSingletonActor: Option[ActorRef]
+            backendSingletonActor: Option[ActorRef],
+            groupMetricsActor: ActorRef
   ) =
     // Note that JobPreparationActor doesn't run on the engine dispatcher as it mostly executes backend-side code
     // (WDL expression evaluation using Backend's expressionLanguageFunctions)
@@ -371,7 +381,8 @@ object JobPreparationActor {
         initializationData,
         serviceRegistryActor = serviceRegistryActor,
         ioActor = ioActor,
-        backendSingletonActor = backendSingletonActor
+        backendSingletonActor = backendSingletonActor,
+        groupMetricsActor = groupMetricsActor
       )
     ).withDispatcher(EngineDispatcher)
 }

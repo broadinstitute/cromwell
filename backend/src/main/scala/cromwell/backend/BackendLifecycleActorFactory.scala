@@ -56,7 +56,8 @@ trait BackendLifecycleActorFactory extends PlatformSpecific {
                              initializationData: Option[BackendInitializationData],
                              serviceRegistryActor: ActorRef,
                              ioActor: ActorRef,
-                             backendSingletonActor: Option[ActorRef]
+                             backendSingletonActor: Option[ActorRef],
+                             groupMetricsActor: ActorRef
   ): Props
 
   lazy val jobExecutionTokenType: JobTokenType = {

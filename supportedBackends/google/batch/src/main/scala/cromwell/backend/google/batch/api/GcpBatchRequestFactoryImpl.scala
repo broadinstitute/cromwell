@@ -22,7 +22,8 @@ import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.{GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
 import cromwell.backend.google.batch.runnable._
-import cromwell.backend.google.batch.util.BatchUtilityConversions
+import cromwell.backend.google.batch.util.{BatchUtilityConversions, GcpBatchMachineConstraints}
+import cromwell.core.logging.JobLogger
 
 import scala.jdk.CollectionConverters._
 
@@ -74,7 +75,8 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
   private def createInstancePolicy(cpuPlatform: String,
                                    spotModel: ProvisioningModel,
                                    accelerators: Option[Accelerator.Builder],
-                                   attachedDisks: List[AttachedDisk]
+                                   attachedDisks: List[AttachedDisk],
+                                   machineType: String
   ): InstancePolicy.Builder = {
 
     // set GPU count to 0 if not included in workflow
@@ -82,6 +84,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     val instancePolicy = InstancePolicy.newBuilder
       .setProvisioningModel(spotModel)
+      .setMachineType(machineType)
       .addAllDisks(attachedDisks.asJava)
       .setMinCpuPlatform(cpuPlatform)
       .buildPartial()
@@ -154,7 +157,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     }
   }
 
-  override def submitRequest(data: GcpBatchRequest): CreateJobRequest = {
+  override def submitRequest(data: GcpBatchRequest, jobLogger: JobLogger): CreateJobRequest = {
 
     val runtimeAttributes = data.gcpBatchParameters.runtimeAttributes
     val createParameters = data.createParameters
@@ -224,7 +227,14 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
     val taskSpec = createTaskSpec(sortedRunnables, computeResource, retryCount, durationInSeconds, allVolumes)
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-    val instancePolicy = createInstancePolicy(cpuPlatform, spotModel, accelerators, allDisks)
+    val machineType = GcpBatchMachineConstraints.machineType(runtimeAttributes.memory,
+                                                             runtimeAttributes.cpu,
+                                                             cpuPlatformOption = runtimeAttributes.cpuPlatform,
+                                                             googleLegacyMachineSelection = false,
+                                                             jobLogger = jobLogger
+    )
+    val instancePolicy =
+      createInstancePolicy(cpuPlatform = cpuPlatform, spotModel, accelerators, allDisks, machineType = machineType)
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
     val allocationPolicy =
       createAllocationPolicy(data, locationPolicy, instancePolicy.build, networkPolicy, gcpSa, accelerators)

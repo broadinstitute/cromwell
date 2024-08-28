@@ -1,6 +1,20 @@
 name: custom_mount_point
 testFormat: workflowsuccess
-backends: [Papi, GCPBATCH]
+
+# Error returned to Centaur:
+#
+# Task custom_mount_point.t:NA:1 failed: Job state is set from RUNNING to FAILED for job projects/blah/locations/us-central1/jobs/job-blah-blah.Job failed due to task failure. Specifically, task with index 0 failed due to the following task event: \"Task state is updated from RUNNING to FAILED on zones/us-central1-b/instances/blah with exit code 125.
+#
+# Exit code 125 appears to be a Docker invocation error. Seeing the following in the logs which seems to suggest the mount point could not be created:
+# docker: Error response from daemon: error while creating mount source path '/some/mnt': mkdir /some: read-only file system.
+#
+# The /some/mnt volume appears to be mounted read-write:
+#              "volumes": [
+#                "/mnt/disks/cromwell_root:/mnt/disks/cromwell_root:rw",
+#                "/some/mnt:/some/mnt:rw"
+#              ]
+
+backends: [Papi, GCPBATCH_FAIL]
 
 files {
   workflow: custom_mount_point/custom_mount_point.wdl

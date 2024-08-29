@@ -1,7 +1,7 @@
 package cromwell.backend.google.batch.actors
 
-import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory;
-import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes;
+import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
+import cromwell.backend.google.batch.models.{GcpBatchConfigurationAttributes, GcpBatchLogsPolicy}
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -35,7 +35,8 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
       dockerImageToCacheDiskImageMappingOpt = None,
-      checkpointingInterval = 1 second
+      checkpointingInterval = 1 second,
+      logsPolicy = GcpBatchLogsPolicy.CloudLogging
     )
 
     GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(() => attributes) shouldBe attributes

@@ -20,7 +20,7 @@ import com.google.cloud.batch.v1.{
 import com.google.protobuf.Duration
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.batch.models.{GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
+import cromwell.backend.google.batch.models.{GcpBatchLogsPolicy, GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
 import cromwell.backend.google.batch.runnable._
 import cromwell.backend.google.batch.util.{BatchUtilityConversions, GcpBatchMachineConstraints}
 import cromwell.core.logging.JobLogger
@@ -238,6 +238,16 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
     val allocationPolicy =
       createAllocationPolicy(data, locationPolicy, instancePolicy.build, networkPolicy, gcpSa, accelerators)
+    val logsPolicy = data.gcpBatchParameters.batchAttributes.logsPolicy match {
+      case GcpBatchLogsPolicy.CloudLogging =>
+        LogsPolicy.newBuilder.setDestination(Destination.CLOUD_LOGGING).build
+      case GcpBatchLogsPolicy.Path =>
+        LogsPolicy.newBuilder
+          .setDestination(Destination.PATH)
+          .setLogsPath(data.gcpBatchParameters.logfile.toString)
+          .build
+    }
+
     val job = Job.newBuilder
       .addTaskGroups(taskGroup)
       .setAllocationPolicy(allocationPolicy.build())
@@ -246,11 +256,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       ) // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
       .putLabels("goog-batch-worker", "true")
       .putAllLabels(data.createParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
-      .setLogsPolicy(
-        LogsPolicy.newBuilder
-          .setDestination(Destination.CLOUD_LOGGING)
-          .build
-      )
+      .setLogsPolicy(logsPolicy)
 
     CreateJobRequest.newBuilder
       .setParent(parent)

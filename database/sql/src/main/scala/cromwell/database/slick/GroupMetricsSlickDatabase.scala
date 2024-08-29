@@ -3,6 +3,7 @@ package cromwell.database.slick
 import cromwell.database.sql.GroupMetricsSqlDatabase
 import cromwell.database.sql.tables.GroupMetricsEntry
 
+import java.sql.Timestamp
 import scala.concurrent.{ExecutionContext, Future}
 
 trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase {
@@ -27,6 +28,11 @@ trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase {
 
   override def countGroupMetricsEntries(groupId: String)(implicit ec: ExecutionContext): Future[Int] = {
     val action = dataAccess.countGroupMetricsEntriesForGroupId(groupId).result
+    runTransaction(action)
+  }
+
+  override def getQuotaExhaustedGroups(thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+    val action = dataAccess.groupsExperiencingQuotaExhaustion(thresholdTimestamp).result
     runTransaction(action)
   }
 }

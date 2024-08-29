@@ -117,9 +117,9 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
   /**
     * Returns true if there's at least on element that can be dequeued, false otherwise.
     */
-  def available: Boolean =
+  def available(quotaExhaustedGroups: List[String]): Boolean =
     queues.keys.exists { hg =>
-      pool.available(hg) match {
+      (pool.available(hg) match {
         case TokensAvailable => true
         case TokenTypeExhausted =>
           eventLogger.outOfTokens(tokenType.backend)
@@ -127,7 +127,7 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
         case HogLimitExceeded =>
           eventLogger.flagTokenHog(hg)
           false
-      }
+      }) && !quotaExhaustedGroups.contains(hg)
     }
 
   def tokenQueueState = {

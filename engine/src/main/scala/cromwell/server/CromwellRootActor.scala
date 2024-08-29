@@ -206,12 +206,16 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val executionTokenLogInterval: Option[FiniteDuration] =
     systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
 
+  lazy val groupMetricsActor: ActorRef =
+    context.actorOf(GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface))
+
   lazy val jobRestartCheckTokenDispenserActor: ActorRef = context.actorOf(
     JobTokenDispenserActor.props(serviceRegistryActor,
                                  jobRestartCheckRate,
                                  restartCheckTokenLogInterval,
                                  "restart checking",
-                                 "CheckingRestart"
+                                 "CheckingRestart",
+      groupMetricsActor
     ),
     "JobRestartCheckTokenDispenser"
   )
@@ -220,13 +224,11 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
                                  jobExecutionRate,
                                  executionTokenLogInterval,
                                  "execution",
-                                 ExecutionStatus.Running.toString
+                                 ExecutionStatus.Running.toString,
+      groupMetricsActor
     ),
     "JobExecutionTokenDispenser"
   )
-
-  lazy val groupMetricsActor: ActorRef =
-    context.actorOf(GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface))
 
   lazy val workflowManagerActor = context.actorOf(
     WorkflowManagerActor.props(

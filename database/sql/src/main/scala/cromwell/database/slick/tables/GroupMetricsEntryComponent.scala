@@ -53,4 +53,11 @@ trait GroupMetricsEntryComponent {
       } yield groupMetricsEntry
     }.size
   )
+
+  val groupsExperiencingQuotaExhaustion = Compiled((thresholdTimestamp: Rep[Timestamp]) =>
+      for {
+        groupMetricsEntry <- groupMetricsEntries
+        if groupMetricsEntry.quotaExhaustionDetected > thresholdTimestamp
+      } yield groupMetricsEntry.groupId
+  )
 }

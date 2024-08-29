@@ -7,7 +7,7 @@ import cromwell.engine.workflow.tokens.TokenQueue.{DequeueResult, LeasedActor}
   * It will keep rotating the list until it finds a queue with an element that can be dequeued.
   * If no queue can be dequeued, the iterator is empty.
   */
-final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initialPointer: Int)
+final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initialPointer: Int, quotaExhaustedGroups: List[String])
     extends Iterator[LeasedActor] {
   // Assumes the number of queues won't change during iteration (it really shouldn't !)
   private val numberOfQueues = initialTokenQueue.size
@@ -29,7 +29,9 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
     */
   def updatedPointer = pointer
 
-  def hasNext = tokenQueues.exists(_.available)
+  // check if there is a request whose hog group has tokens available and is not experiencing quota exhaustion
+  def hasNext = tokenQueues.exists(_.available(quotaExhaustedGroups))
+
   def next() = findFirst.getOrElse(unexpectedlyEmpty)
 
   def unexpectedlyEmpty: LeasedActor =
@@ -44,10 +46,11 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
     // For instance, if we have 5 queues and pointer is 2, we want to try indices (2, 3, 4, 0, 1)
 
     val indexStream = ((pointer until numberOfQueues) ++ (0 until pointer)).to(LazyList)
-    val dequeuedTokenStream = indexStream.map(index => tokenQueues(index).dequeue -> index)
+    val dequeuedTokenStream: Seq[(DequeueResult, Int)] = indexStream.map(index => tokenQueues(index).dequeue -> index)
 
+    // TODO: Saloni - should the quotaExhaustedGroups be used in above dequeue() as well??
     val firstLeasedActor = dequeuedTokenStream.collectFirst {
-      case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) =>
+      case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) if !quotaExhaustedGroups.contains(dequeuedActor.queuePlaceholder.hogGroup) =>
         // Update the tokenQueues with the new queue
         tokenQueues = tokenQueues.updated(index, newTokenQueue)
         // Update the index. Add 1 to force trying all the queues as we call next, even if the first one is available

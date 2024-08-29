@@ -39,7 +39,7 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
   private val maxCatalogLifetime: Duration =
     Duration.of(CostCatalogConfig(serviceConfig).catalogExpirySeconds.longValue, SECONDS)
 
-  private lazy val googleClient: CloudCatalogClient = CloudCatalogClient.create
+  private var googleClient: Option[CloudCatalogClient] = Option.empty
 
   // Cached catalog. Refreshed lazily when older than maxCatalogLifetime.
   private var costCatalog: Option[ExpiringGcpCostCatalog] = Option.empty
@@ -49,8 +49,14 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
    */
   def getSku(key: CostCatalogKey): Option[CostCatalogValue] = getOrFetchCachedCatalog().get(key)
 
-  protected def fetchNewCatalog: Iterable[Sku] =
-    makeInitialWebRequest(googleClient).iterateAll().asScala
+  protected def fetchNewCatalog: Iterable[Sku] = {
+    if (googleClient.isEmpty) {
+      // We use option rather than lazy here so that the client isn't created when it is told to shutdown (see receive override)
+      googleClient = Some(CloudCatalogClient.create)
+    }
+    makeInitialWebRequest(googleClient.get).iterateAll().asScala
+  }
+
   def getCatalogAge: Duration =
     Duration.between(costCatalog.map(c => c.fetchTime).getOrElse(Instant.ofEpochMilli(0)), Instant.now())
   private def isCurrentCatalogExpired: Boolean = getCatalogAge.toNanos > maxCatalogLifetime.toNanos
@@ -98,7 +104,7 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
   def serviceRegistryActor: ActorRef = serviceRegistry
   override def receive: Receive = {
     case ShutdownCommand =>
-      googleClient.shutdownNow()
+      googleClient.foreach(client => client.shutdownNow())
       context stop self
     case other =>
       logger.error(

@@ -215,7 +215,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
                                  restartCheckTokenLogInterval,
                                  "restart checking",
                                  "CheckingRestart",
-      groupMetricsActor
+                                 groupMetricsActor
     ),
     "JobRestartCheckTokenDispenser"
   )
@@ -225,7 +225,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
                                  executionTokenLogInterval,
                                  "execution",
                                  ExecutionStatus.Running.toString,
-      groupMetricsActor
+                                 groupMetricsActor
     ),
     "JobExecutionTokenDispenser"
   )

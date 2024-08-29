@@ -7,8 +7,10 @@ import cromwell.engine.workflow.tokens.TokenQueue.{DequeueResult, LeasedActor}
   * It will keep rotating the list until it finds a queue with an element that can be dequeued.
   * If no queue can be dequeued, the iterator is empty.
   */
-final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initialPointer: Int, quotaExhaustedGroups: List[String])
-    extends Iterator[LeasedActor] {
+final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue],
+                                    initialPointer: Int,
+                                    quotaExhaustedGroups: List[String]
+) extends Iterator[LeasedActor] {
   // Assumes the number of queues won't change during iteration (it really shouldn't !)
   private val numberOfQueues = initialTokenQueue.size
   // Indicate the index of next queue to try to dequeue from.
@@ -50,7 +52,8 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
 
     // TODO: Saloni - should the quotaExhaustedGroups be used in above dequeue() as well??
     val firstLeasedActor = dequeuedTokenStream.collectFirst {
-      case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) if !quotaExhaustedGroups.contains(dequeuedActor.queuePlaceholder.hogGroup) =>
+      case (DequeueResult(Some(dequeuedActor), newTokenQueue), index)
+          if !quotaExhaustedGroups.contains(dequeuedActor.queuePlaceholder.hogGroup) =>
         // Update the tokenQueues with the new queue
         tokenQueues = tokenQueues.updated(index, newTokenQueue)
         // Update the index. Add 1 to force trying all the queues as we call next, even if the first one is available

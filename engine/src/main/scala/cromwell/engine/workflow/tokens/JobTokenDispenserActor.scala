@@ -1,10 +1,15 @@
 package cromwell.engine.workflow.tokens
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
-import akka.pattern.{AskTimeoutException, ask}
+import akka.pattern.{ask, AskTimeoutException}
 import akka.util.Timeout
 import cats.data.NonEmptyList
-import cromwell.backend.standard.GroupMetricsActor.{GetQuotaExhaustedGroups, GetQuotaExhaustedGroupsFailure, GetQuotaExhaustedGroupsResponse, GetQuotaExhaustedGroupsSuccess}
+import cromwell.backend.standard.GroupMetricsActor.{
+  GetQuotaExhaustedGroups,
+  GetQuotaExhaustedGroupsFailure,
+  GetQuotaExhaustedGroupsResponse,
+  GetQuotaExhaustedGroupsSuccess
+}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.JobToken._
 import cromwell.core.instrumentation.InstrumentationPrefixes.ServicesPrefix
@@ -152,13 +157,16 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
         case GetQuotaExhaustedGroupsFailure(error) =>
           log.error(s"Failed to fetch quota exhausted groups. Error: $error")
           Future.successful(List.empty)
-      }.recoverWith {
+      }
+      .recoverWith {
         case _: AskTimeoutException =>
           log.error("Unable to get quota exhausted groups within allowed time.")
           Future.successful(List.empty[String])
         case e: Throwable =>
           // This "should" never happen. If it does, let's make it obvious and trigger our alerting:
-          log.error(s"Programmer error: Unexpected failure while fetching quota exhausted groups. Error: ${e.getMessage}")
+          log.error(
+            s"Programmer error: Unexpected failure while fetching quota exhausted groups. Error: ${e.getMessage}"
+          )
           Future.successful(List.empty[String])
       }
 
@@ -167,14 +175,17 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
   private def dispense(n: Int) = if (tokenQueues.nonEmpty) {
 
-    // don't check if a hog group is in cloud quota exhausted state for jobs that are restarting. For jobs that are
-    // "restarting" they will be allocated restart tokens based on the token pool
-    val quotaExhaustedGroups = if(dispenserType == "execution") getQuotaExhaustedGroups(context.dispatcher) else List.empty[String]
+    // don't check if a hog group is in cloud quota exhausted state for jobs that are restarting
+    val quotaExhaustedGroups =
+      if (dispenserType == "execution") getQuotaExhaustedGroups(context.dispatcher) else List.empty[String]
 
     // Sort by backend name to avoid re-ordering across iterations. The RoundRobinQueueIterator will only fetch job
     // requests from a hog group that is not experiencing cloud quota exhaustion.
     val iterator =
-      new RoundRobinQueueIterator(tokenQueues.toList.sortBy(_._1.backend).map(_._2), currentTokenQueuePointer, quotaExhaustedGroups)
+      new RoundRobinQueueIterator(tokenQueues.toList.sortBy(_._1.backend).map(_._2),
+                                  currentTokenQueuePointer,
+                                  quotaExhaustedGroups
+      )
 
     // In rare cases, an abort might empty an inner queue between "available" and "dequeue", which could cause an
     // exception.
@@ -293,7 +304,15 @@ object JobTokenDispenserActor {
             tokenAllocatedDescription: String,
             groupMetricsActor: ActorRef
   ): Props =
-    Props(new JobTokenDispenserActor(serviceRegistryActor, rate, logInterval, dispenserType, tokenAllocatedDescription, groupMetricsActor))
+    Props(
+      new JobTokenDispenserActor(serviceRegistryActor,
+                                 rate,
+                                 logInterval,
+                                 dispenserType,
+                                 tokenAllocatedDescription,
+                                 groupMetricsActor
+      )
+    )
       .withDispatcher(EngineDispatcher)
 
   case class JobTokenRequest(hogGroup: HogGroup, jobTokenType: JobTokenType)

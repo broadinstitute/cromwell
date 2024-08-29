@@ -31,7 +31,9 @@ trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase {
     runTransaction(action)
   }
 
-  override def getQuotaExhaustedGroups(thresholdTimestamp: Timestamp)(implicit ec: ExecutionContext): Future[Seq[String]] = {
+  override def getQuotaExhaustedGroups(
+    thresholdTimestamp: Timestamp
+  )(implicit ec: ExecutionContext): Future[Seq[String]] = {
     val action = dataAccess.groupsExperiencingQuotaExhaustion(thresholdTimestamp).result
     runTransaction(action)
   }

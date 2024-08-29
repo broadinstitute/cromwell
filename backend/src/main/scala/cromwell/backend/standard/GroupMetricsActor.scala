@@ -17,7 +17,7 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase) extends Actor with
 
   implicit val ec: MessageDispatcher = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
 
-  private final val QUOTA_EXHAUSTION_THRESHOLD = 15 * 60 // 15 minutes
+  final private val QUOTA_EXHAUSTION_THRESHOLD = 15 * 60 // 15 minutes
 
   override def receive: Receive = {
     case RecordGroupQuotaExhaustion(group) =>
@@ -49,8 +49,8 @@ object GroupMetricsActor {
   case object GetQuotaExhaustedGroups extends GroupMetricsActorMessage
 
   sealed trait GetQuotaExhaustedGroupsResponse
-  case class GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups: List[String]) extends  GetQuotaExhaustedGroupsResponse
-  case class GetQuotaExhaustedGroupsFailure(errorMsg: String) extends  GetQuotaExhaustedGroupsResponse
+  case class GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups: List[String]) extends GetQuotaExhaustedGroupsResponse
+  case class GetQuotaExhaustedGroupsFailure(errorMsg: String) extends GetQuotaExhaustedGroupsResponse
 
   def props(engineDbInterface: EngineSqlDatabase): Props =
     Props(new GroupMetricsActor(engineDbInterface)).withDispatcher(EngineDispatcher)

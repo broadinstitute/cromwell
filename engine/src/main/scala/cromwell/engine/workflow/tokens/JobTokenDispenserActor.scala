@@ -47,6 +47,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     with DynamicRateLimiter
     with CromwellInstrumentation {
 
+  implicit val ec: ExecutionContext = context.dispatcher
+
   // Metrics paths are based on the dispenser type
   private val tokenDispenserMetricsBasePath: NonEmptyList[String] = NonEmptyList.of("token_dispenser", dispenserType)
 
@@ -177,7 +179,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     // don't check if a hog group is in cloud quota exhausted state for jobs that are restarting
     val quotaExhaustedGroups =
-      if (dispenserType == "execution") getQuotaExhaustedGroups(context.dispatcher) else List.empty[String]
+      if (dispenserType == "execution") getQuotaExhaustedGroups else List.empty[String]
 
     // Sort by backend name to avoid re-ordering across iterations. The RoundRobinQueueIterator will only fetch job
     // requests from a hog group that is not experiencing cloud quota exhaustion.
@@ -201,6 +203,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       val hogGroupCounts =
         nextTokens.groupBy(t => t.queuePlaceholder.hogGroup).map { case (hogGroup, list) => s"$hogGroup: ${list.size}" }
       log.info(s"Assigned new job $dispenserType tokens to the following groups: ${hogGroupCounts.mkString(", ")}")
+//      System.out.println(s"##### FIND ME $dispenserType tokens for actors:  ${nextTokens.map(t => t.queuePlaceholder.actor.path).mkString(",")}")
     }
 
     nextTokens.foreach {

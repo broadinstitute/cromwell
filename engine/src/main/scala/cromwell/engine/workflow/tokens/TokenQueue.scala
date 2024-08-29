@@ -45,28 +45,30 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
     }
 
   /**
-    * Returns a dequeue'd actor if one exists and there's a token available for it
+    * Returns a dequeue'd actor
+    *   - if one exists and there's a token available for it and
+   *    - its hog group is not experiencing any quota exhaustion
     * Returns an updated token queue based on this request (successful queuees get removed, hogs get sent to the back)
     */
-  def dequeue: DequeueResult = {
+  def dequeue(quotaExhaustedGroups: List[String]): DequeueResult = {
     val guaranteedNonEmptyQueues = queues.filterNot { case (hogGroup, q: Queue[_]) =>
       val empty = q.isEmpty
       if (empty) logger.warn(s"Programmer error: Empty token queue value still present in TokenQueue: $hogGroup")
       empty
     }
-    recursingDequeue(guaranteedNonEmptyQueues, Vector.empty, queueOrder)
+    recursingDequeue(guaranteedNonEmptyQueues, Vector.empty, queueOrder, quotaExhaustedGroups)
   }
 
   private def recursingDequeue(queues: Map[String, Queue[TokenQueuePlaceholder]],
                                queuesTried: Vector[String],
-                               queuesRemaining: Vector[String]
+                               queuesRemaining: Vector[String],
+                               quotaExhaustedGroups: List[String]
   ): DequeueResult =
     if (queuesRemaining.isEmpty) {
       DequeueResult(None, this)
     } else {
       val hogGroup = queuesRemaining.head
       val remainingHogGroups = queuesRemaining.tail
-      val leaseTry = pool.tryAcquire(hogGroup)
 
       val oldQueue = queues(hogGroup)
 
@@ -75,8 +77,13 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
         logger.warn(
           s"Programmer error: Empty token queue value still present in TokenQueue: $hogGroup *and* made it through into recursiveDequeue(!): $hogGroup"
         )
-        recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups)
+        recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups, quotaExhaustedGroups)
+      } else if (quotaExhaustedGroups.contains(hogGroup)) {
+        // if the hog group is experiencing quota exhaustion don't dequeue from its queue
+        recursingDequeue(queues, queuesTried :+ hogGroup, queuesRemaining, quotaExhaustedGroups)
       } else {
+        val leaseTry = pool.tryAcquire(hogGroup)
+
         leaseTry match {
           case thl: TokenHoggingLease =>
             val (placeholder, newQueue) = oldQueue.dequeue
@@ -94,7 +101,7 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
             DequeueResult(None, this)
           case HogLimitExceeded =>
             eventLogger.flagTokenHog(hogGroup)
-            recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups)
+            recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups, quotaExhaustedGroups)
         }
       }
     }

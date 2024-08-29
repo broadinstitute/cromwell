@@ -48,9 +48,9 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue],
     // For instance, if we have 5 queues and pointer is 2, we want to try indices (2, 3, 4, 0, 1)
 
     val indexStream = ((pointer until numberOfQueues) ++ (0 until pointer)).to(LazyList)
-    val dequeuedTokenStream: Seq[(DequeueResult, Int)] = indexStream.map(index => tokenQueues(index).dequeue -> index)
+    val dequeuedTokenStream: Seq[(DequeueResult, Int)] =
+      indexStream.map(index => tokenQueues(index).dequeue(quotaExhaustedGroups) -> index)
 
-    // TODO: Saloni - should the quotaExhaustedGroups be used in above dequeue() as well??
     val firstLeasedActor = dequeuedTokenStream.collectFirst {
       case (DequeueResult(Some(dequeuedActor), newTokenQueue), index)
           if !quotaExhaustedGroups.contains(dequeuedActor.queuePlaceholder.hogGroup) =>

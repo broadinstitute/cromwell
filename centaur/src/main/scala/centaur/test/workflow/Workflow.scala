@@ -65,7 +65,7 @@ object Workflow {
       case Result.Success(n) =>
         // If backend is provided, Centaur will only run this test if that backend is available on Cromwell
         val backendsRequirement = BackendsRequirement.fromConfig(
-          conf.get[String]("backendsMode").map(_.toLowerCase).valueOrElse("all"),
+          conf.get[String]("backendsMode").map(_.toLowerCase).valueOrElse("any"),
           conf.get[List[String]]("backends").valueOrElse(List.empty[String]).map(_.toLowerCase)
         )
         // If basePath is provided it'll be used as basis for finding other files, otherwise use the dir the config was in

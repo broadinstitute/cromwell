@@ -4,6 +4,7 @@ tags: ["wdl_biscayne"]
 
 # This test should only run in the Local suite, on its default `Local` backend. Unfortunately the `Local` backend
 # leaks into other suites, so require an irrelevant `LocalNoDocker` backend that is only found in Local suite.
+backendsMode: all
 backends: [Local, LocalNoDocker]
 
 files {

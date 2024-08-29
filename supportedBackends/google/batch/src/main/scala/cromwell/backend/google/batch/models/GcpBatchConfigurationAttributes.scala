@@ -62,7 +62,8 @@ case class GcpBatchConfigurationAttributes(
   batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
   referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]],
   dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
-  checkpointingInterval: FiniteDuration
+  checkpointingInterval: FiniteDuration,
+  logsPolicy: GcpBatchLogsPolicy
 )
 
 object GcpBatchConfigurationAttributes
@@ -110,6 +111,7 @@ object GcpBatchConfigurationAttributes
     "batch-queries-per-100-seconds",
     "batch.localization-attempts",
     "batch.parallel-composite-upload-threshold",
+    "batch.logs-policy",
     "filesystems",
     "filesystems.drs.auth",
     "filesystems.gcs.auth",
@@ -222,6 +224,16 @@ object GcpBatchConfigurationAttributes
     val batchEnableFuse: ErrorOr[Boolean] = validate {
       backendConfig.as[Option[Boolean]]("batch.enable-fuse").getOrElse(false)
     }
+    val logsPolicy: ErrorOr[GcpBatchLogsPolicy] = validate {
+      backendConfig.as[Option[String]]("batch.logs-policy").getOrElse("CLOUD_LOGGING") match {
+        case "CLOUD_LOGGING" => GcpBatchLogsPolicy.CloudLogging
+        case "PATH" => GcpBatchLogsPolicy.Path
+        case other =>
+          throw new IllegalArgumentException(
+            s"Unrecognized logs policy entry: $other. Supported strategies are CLOUD_LOGGING and PATH."
+          )
+      }
+    }
 
     val dockerhubToken: ErrorOr[String] = validate {
       backendConfig.as[Option[String]]("dockerhub.token").getOrElse("")
@@ -320,7 +332,8 @@ object GcpBatchConfigurationAttributes
       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
-      dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]
+      dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath],
+      logsPolicy: GcpBatchLogsPolicy
     ): ErrorOr[GcpBatchConfigurationAttributes] =
       (googleConfig.auth(batchName), googleConfig.auth(gcsName)) mapN { (batchAuth, gcsAuth) =>
         val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
@@ -349,7 +362,8 @@ object GcpBatchConfigurationAttributes
           batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
           referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
           dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
-          checkpointingInterval = checkpointingInterval
+          checkpointingInterval = checkpointingInterval,
+          logsPolicy = logsPolicy
         )
       }
 
@@ -368,7 +382,8 @@ object GcpBatchConfigurationAttributes
      virtualPrivateCloudConfiguration,
      batchRequestTimeoutConfigurationValidation,
      referenceDiskLocalizationManifestFiles,
-     dockerImageCacheManifestFile
+     dockerImageCacheManifestFile,
+     logsPolicy
     ) flatMapN authGoogleConfigForBatchConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>

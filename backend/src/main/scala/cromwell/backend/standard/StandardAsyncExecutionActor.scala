@@ -1366,8 +1366,11 @@ trait StandardAsyncExecutionActor
   }
 
   case class InitialCostMetadata(vmStartTime: OffsetDateTime, vmCostPerHour: String)
-  var emittedInitialCostMetadataYet: Boolean = false
-  def getInitialCostMetadata(state: StandardAsyncRunState): Option[InitialCostMetadata]
+
+  // Assuming a subclass has implemented this, the first time it returns a value that value will be added to Cromwell Metadata.
+  // Used to populate cost metadata as soon as it is available, but not add the same metadata repeatedly.
+  protected def getInitialCostMetadata(state: StandardAsyncRunState): Option[InitialCostMetadata]
+  private var emittedInitialCostMetadataYet: Boolean = false
 
   /**
     * Process a poll failure.

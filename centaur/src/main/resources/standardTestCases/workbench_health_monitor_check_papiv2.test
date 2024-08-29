@@ -1,6 +1,6 @@
 name: workbench_health_monitor_check_papiv2
 testFormat: workflowsuccess
-# needs alt, backends in expected value are specific to PAPI v2
+# needs alt, expectations are specific to PAPI v2
 backends: [Papiv2, GCPBATCH_NEEDS_ALT]
 
 files {

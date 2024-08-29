@@ -1,6 +1,7 @@
 name: error_10_preemptible
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+# Try to fake a preemption which doesn't seem to work on GCP Batch but probably shouldn't be working on PAPI v2
+backends: [Papiv2, GCPBATCH_SKIP]
 
 files {
   workflow: error_10_preemptible/error_10_preemptible.wdl

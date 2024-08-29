@@ -1,6 +1,7 @@
 name: hello_google_legacy_machine_selection
 testFormat: workflowsuccess
-backends: [ Papiv2, GCPBATCH ]
+# Explicitly turned this off in my machine contraint wiring-in PR. Do we still care about this?
+backends: [ Papiv2, GCPBATCH_FAIL ]
 
 files {
   workflow: wdl_draft3/hello/hello.wdl

@@ -107,7 +107,6 @@ trait GetRequestHandler { this: RequestHandler =>
           val preemptible = preemptibleOption.exists(_.booleanValue)
           val instanceName = workerEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
           val zone = workerEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
-
           // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
           Option(operation.getError) match {
             case Some(error) =>
@@ -127,7 +126,12 @@ trait GetRequestHandler { this: RequestHandler =>
         } else if (isQuotaDelayed(events)) {
           AwaitingCloudQuota
         } else if (operation.hasStarted) {
-          Running
+          val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
+          val vmStartTime: Option[OffsetDateTime] =
+            events.collectFirst {
+              case event if (event.getWorkerAssigned != null && event.getTimestamp != null) => OffsetDateTime.parse(event.getTimestamp)
+            }
+          Running(vmStartTime)
         } else {
           Initializing
         }

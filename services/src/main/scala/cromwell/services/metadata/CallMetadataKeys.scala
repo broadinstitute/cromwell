@@ -27,6 +27,8 @@ object CallMetadataKeys {
   val Labels = "labels"
   val CommandLine = "commandLine"
   val VmCostUsd = "vmCostUsd"
+  val VmStartTime = "vmStartTime"
+  val VmEndTime = "vmEndTime"
   val TaskStartTime = "taskStartTime"
   val TaskEndTime = "taskEndTime"
 

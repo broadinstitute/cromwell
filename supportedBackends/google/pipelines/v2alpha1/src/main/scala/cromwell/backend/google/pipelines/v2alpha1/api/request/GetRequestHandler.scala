@@ -76,6 +76,7 @@ trait GetRequestHandler { this: RequestHandler =>
             .flatten
           val workerEvent: Option[WorkerAssignedEvent] =
             findEvent[WorkerAssignedEvent](events).flatMap(_(pollingRequest.workflowId -> operation))
+
           val executionEvents = getEventList(metadata, events, actions)
           val virtualMachineOption = for {
             pipelineValue <- pipeline
@@ -116,7 +117,7 @@ trait GetRequestHandler { this: RequestHandler =>
             case None => Success(executionEvents, machineType, zone, instanceName)
           }
         } else if (operation.hasStarted) {
-          Running
+          Running(Option.empty)
         } else {
           Initializing
         }

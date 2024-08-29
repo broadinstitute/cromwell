@@ -1339,6 +1339,19 @@ trait StandardAsyncExecutionActor
     // record if group has run into cloud quota exhaustion
     checkAndRecordQuotaExhaustion(state)
 
+    // Every successful poll, try to emit initial cost metadata if we haven't yet.
+    if(!emittedInitialCostMetadataYet) {
+      getInitialCostMetadata(state).foreach(costMetadata => {
+        emittedInitialCostMetadataYet = true
+        val metadataMap = (
+          (CallMetadataKeys.VmCostUsd -> costMetadata.vmCostPerHour),
+          (CallMetadataKeys.VmStartTime -> costMetadata.vmStartTime.toString),
+        )
+        tellMetadata(metadataMap)
+      }
+      )
+    }
+
     state match {
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
@@ -1351,6 +1364,10 @@ trait StandardAsyncExecutionActor
         ) // Copy the current handle with updated previous status.
     }
   }
+
+  case class InitialCostMetadata(vmStartTime: OffsetDateTime, vmCostPerHour: String)
+  var emittedInitialCostMetadataYet: Boolean = false
+  def getInitialCostMetadata(state: StandardAsyncRunState): Option[InitialCostMetadata]
 
   /**
     * Process a poll failure.

@@ -4,6 +4,7 @@ import _root_.io.grpc.Status
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
 import cromwell.core.ExecutionEvent
 
+import java.time.OffsetDateTime
 import scala.util.Try
 
 sealed trait RunStatus
@@ -11,7 +12,7 @@ sealed trait RunStatus
 object RunStatus {
   case object Initializing extends RunStatus
   case object AwaitingCloudQuota extends RunStatus
-  case object Running extends RunStatus
+  case class Running(vmStartTime: Option[OffsetDateTime]) extends RunStatus
 
   sealed trait TerminalRunStatus extends RunStatus {
     def eventList: Seq[ExecutionEvent]

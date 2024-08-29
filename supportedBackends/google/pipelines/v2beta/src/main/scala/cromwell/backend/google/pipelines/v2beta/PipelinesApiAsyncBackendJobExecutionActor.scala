@@ -8,6 +8,8 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
+import cromwell.backend.google.pipelines.common.api.RunStatus
+import cromwell.backend.google.pipelines.common.api.RunStatus.Running
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesApiAsyncBackendJobExecutionActor._
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
@@ -15,6 +17,7 @@ import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
+import cromwell.services.metadata.CallMetadataKeys
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import org.apache.commons.io.output.ByteArrayOutputStream
@@ -23,8 +26,8 @@ import wom.expression.FileEvaluation
 import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomSingleFile, WomUnlistedDirectory}
 
 import java.nio.charset.Charset
-
 import java.io.{FileNotFoundException, OutputStreamWriter}
+import java.time.OffsetDateTime
 import scala.concurrent.Future
 import scala.io.Source
 import scala.language.postfixOps
@@ -420,6 +423,17 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
                                                fileEvaluation.secondary
     )
     List(jesFileOutput)
+  }
+
+  override def getInitialCostMetadata(state: RunStatus): Option[InitialCostMetadata] = {
+    state match{
+      case runningStatus: Running => {
+        val vmStart: Option[OffsetDateTime] = runningStatus.vmStartTime
+        val vmCostPerHour = "3.50" // TODO: implement calculation using standardParams.jobDescriptor.runtimeAttributes
+        vmStart.map(start => InitialCostMetadata(start, vmCostPerHour))
+      }
+      case _ => Option.empty
+    }
   }
 }
 

@@ -6,19 +6,14 @@ import com.google.api.services.lifesciences.v2beta.model._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
-import cromwell.backend.google.pipelines.common.api.RunStatus.{
-  Cancelled,
-  Failed,
-  Preempted,
-  QuotaFailed,
-  UnsuccessfulRunStatus
-}
+import cromwell.backend.google.pipelines.common.api.RunStatus.{Cancelled, Failed, Preempted, QuotaFailed, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.common.errors.isQuotaMessage
 import cromwell.backend.google.pipelines.v2beta.api.request.RequestHandler.logger
 import cromwell.core.{ExecutionEvent, WorkflowId}
 import io.grpc.{Status => GStatus}
 import mouse.all._
 
+import java.time.OffsetDateTime
 import scala.jdk.CollectionConverters._
 
 object ErrorReporter {
@@ -85,8 +80,11 @@ class ErrorReporter(machineType: Option[String],
     val failed: Option[String] = summaryFailure(events)
     // Reverse the list because the first failure (likely the most relevant, will appear last otherwise)
     val unexpectedExitEvents: List[String] = unexpectedExitStatusErrorStrings(events, actions).reverse
-
-    builder(status, None, failed.toList ++ unexpectedExitEvents, executionEvents, machineType, zone, instanceName)
+    val vmEndTime: Option[OffsetDateTime] =
+      events.collectFirst {
+        case event if event.getWorkerReleased != null => OffsetDateTime.parse(event.getTimestamp)
+      }
+    builder(status, None, failed.toList ++ unexpectedExitEvents, executionEvents, machineType, zone, instanceName, vmEndTime)
   }
 
   // There's maybe one FailedEvent per operation with a summary error message

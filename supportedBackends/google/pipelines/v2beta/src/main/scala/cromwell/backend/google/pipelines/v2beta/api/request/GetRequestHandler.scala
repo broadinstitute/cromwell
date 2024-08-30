@@ -66,7 +66,7 @@ trait GetRequestHandler { this: RequestHandler =>
       // It is possible to receive a null via an HTTP 200 with no response. If that happens, handle it and don't crash.
       // https://github.com/googleapis/google-http-java-client/blob/v1.28.0/google-http-client/src/main/java/com/google/api/client/http/HttpResponse.java#L456-L458
       val errorMessage = "Operation returned as empty"
-      UnsuccessfulRunStatus(Status.UNKNOWN, Option(errorMessage), Nil, None, None, None, wasPreemptible = false)
+      UnsuccessfulRunStatus(Status.UNKNOWN, Option(errorMessage), Nil, None, None, None, wasPreemptible = false, vmEndTime = None)
     } else {
       try {
         val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
@@ -81,10 +81,16 @@ trait GetRequestHandler { this: RequestHandler =>
             .map(_.asScala)
             .toList
             .flatten
-          val workerEvent: Option[WorkerAssignedEvent] =
+          val workerAssignedEvent: Option[WorkerAssignedEvent] = {
             events.collectFirst {
               case event if event.getWorkerAssigned != null => event.getWorkerAssigned
             }
+          }
+          val vmEndTime: Option[OffsetDateTime] = {
+            events.collectFirst {
+              case event if event.getWorkerReleased != null => OffsetDateTime.parse(event.getTimestamp)
+            }
+          }
           val executionEvents = getEventList(metadata, events, actions)
           val virtualMachineOption = for {
             pipelineValue <- pipeline
@@ -105,8 +111,8 @@ trait GetRequestHandler { this: RequestHandler =>
             preemptible <- Option(virtualMachine.getPreemptible)
           } yield preemptible
           val preemptible = preemptibleOption.exists(_.booleanValue)
-          val instanceName = workerEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
-          val zone = workerEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
+          val instanceName = workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
+          val zone = workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
           // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
           Option(operation.getError) match {
             case Some(error) =>
@@ -121,7 +127,7 @@ trait GetRequestHandler { this: RequestHandler =>
                 pollingRequest.workflowId
               )
               errorReporter.toUnsuccessfulRunStatus(error, events)
-            case None => Success(executionEvents, machineType, zone, instanceName)
+            case None => Success(executionEvents, machineType, zone, instanceName, vmEndTime)
           }
         } else if (isQuotaDelayed(events)) {
           AwaitingCloudQuota

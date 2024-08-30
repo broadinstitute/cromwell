@@ -79,8 +79,7 @@ class ErrorReporter(machineType: Option[String],
     val failed: Option[String] = summaryFailure(events)
     // Reverse the list because the first failure (likely the most relevant, will appear last otherwise)
     val unexpectedExitEvents: List[String] = unexpectedExitStatusErrorStrings(events, actions).reverse
-
-    builder(status, None, failed.toList ++ unexpectedExitEvents, executionEvents, machineType, zone, instanceName)
+    builder(status, None, failed.toList ++ unexpectedExitEvents, executionEvents, machineType, zone, instanceName, Option.empty)
   }
 
   // There's maybe one FailedEvent per operation with a summary error message

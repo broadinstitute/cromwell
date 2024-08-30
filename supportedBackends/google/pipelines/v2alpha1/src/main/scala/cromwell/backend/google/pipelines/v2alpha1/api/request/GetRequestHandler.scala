@@ -59,7 +59,7 @@ trait GetRequestHandler { this: RequestHandler =>
       // It is possible to receive a null via an HTTP 200 with no response. If that happens, handle it and don't crash.
       // https://github.com/googleapis/google-http-java-client/blob/v1.28.0/google-http-client/src/main/java/com/google/api/client/http/HttpResponse.java#L456-L458
       val errorMessage = "Operation returned as empty"
-      UnsuccessfulRunStatus(Status.UNKNOWN, Option(errorMessage), Nil, None, None, None, wasPreemptible = false)
+      UnsuccessfulRunStatus(Status.UNKNOWN, Option(errorMessage), Nil, None, None, None, wasPreemptible = false, Option.empty)
     } else {
       try
         if (operation.getDone) {
@@ -114,7 +114,7 @@ trait GetRequestHandler { this: RequestHandler =>
                 pollingRequest.workflowId
               )
               errorReporter.toUnsuccessfulRunStatus(error, events)
-            case None => Success(executionEvents, machineType, zone, instanceName)
+            case None => Success(executionEvents, machineType, zone, instanceName, Option.empty)
           }
         } else if (operation.hasStarted) {
           Running(Option.empty)

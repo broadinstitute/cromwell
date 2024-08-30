@@ -23,6 +23,7 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
+import cromwell.backend.standard.costestimation.CostPollingHelper
 import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.validation._
 import cromwell.core._
@@ -1339,18 +1340,8 @@ trait StandardAsyncExecutionActor
     // record if group has run into cloud quota exhaustion
     checkAndRecordQuotaExhaustion(state)
 
-    // Every successful poll, try to emit initial cost metadata if we haven't yet.
-    if(!emittedInitialCostMetadataYet) {
-      getInitialCostMetadata(state).foreach(costMetadata => {
-        emittedInitialCostMetadataYet = true
-        val metadataMap = (
-          (CallMetadataKeys.VmCostUsd -> costMetadata.vmCostPerHour),
-          (CallMetadataKeys.VmStartTime -> costMetadata.vmStartTime.toString),
-        )
-        tellMetadata(metadataMap)
-      }
-      )
-    }
+    // present the poll result to the cost helper. It might emit some metadata.
+    costHelper.foreach(helper => helper.processPollResult(state))
 
     state match {
       case _ if isTerminal(state) =>
@@ -1365,12 +1356,8 @@ trait StandardAsyncExecutionActor
     }
   }
 
-  case class InitialCostMetadata(vmStartTime: OffsetDateTime, vmCostPerHour: String)
-
-  // Assuming a subclass has implemented this, the first time it returns a value that value will be added to Cromwell Metadata.
-  // Used to populate cost metadata as soon as it is available, but not add the same metadata repeatedly.
-  protected def getInitialCostMetadata(state: StandardAsyncRunState): Option[InitialCostMetadata]
-  private var emittedInitialCostMetadataYet: Boolean = false
+  // Subclasses that implement this will have their cost data added to cromwell metadata as this class polls the backend and processes the results.
+  protected val costHelper: Option[CostPollingHelper[StandardAsyncRunState]] = Option.empty
 
   /**
     * Process a poll failure.

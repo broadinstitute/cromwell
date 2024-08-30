@@ -19,6 +19,7 @@ object RunStatus {
     def machineType: Option[String]
     def zone: Option[String]
     def instanceName: Option[String]
+    def vmEndTime: Option[OffsetDateTime]
   }
 
   sealed trait UnsuccessfulRunStatus extends TerminalRunStatus {
@@ -35,7 +36,8 @@ object RunStatus {
   case class Success(eventList: Seq[ExecutionEvent],
                      machineType: Option[String],
                      zone: Option[String],
-                     instanceName: Option[String]
+                     instanceName: Option[String],
+                     vmEndTime: Option[OffsetDateTime]
   ) extends TerminalRunStatus {
     override def toString = "Success"
   }
@@ -57,7 +59,8 @@ object RunStatus {
               machineType: Option[String],
               zone: Option[String],
               instanceName: Option[String],
-              wasPreemptible: Boolean
+              wasPreemptible: Boolean,
+              vmEndTime: Option[OffsetDateTime]
     ): UnsuccessfulRunStatus = {
       val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
 
@@ -85,7 +88,8 @@ object RunStatus {
                                       eventList,
                                       machineType,
                                       zone,
-                                      instanceName
+                                      instanceName,
+                                      vmEndTime
       )
     }
   }
@@ -96,7 +100,8 @@ object RunStatus {
                           eventList: Seq[ExecutionEvent],
                           machineType: Option[String],
                           zone: Option[String],
-                          instanceName: Option[String]
+                          instanceName: Option[String],
+                          vmEndTime: Option[OffsetDateTime]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
   }
@@ -110,7 +115,8 @@ object RunStatus {
                              eventList: Seq[ExecutionEvent],
                              machineType: Option[String],
                              zone: Option[String],
-                             instanceName: Option[String]
+                             instanceName: Option[String],
+                             vmEndTime: Option[OffsetDateTime]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Cancelled"
   }
@@ -121,7 +127,8 @@ object RunStatus {
                              eventList: Seq[ExecutionEvent],
                              machineType: Option[String],
                              zone: Option[String],
-                             instanceName: Option[String]
+                             instanceName: Option[String],
+                             vmEndTime: Option[OffsetDateTime]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Preempted"
   }
@@ -136,7 +143,8 @@ object RunStatus {
                                eventList: Seq[ExecutionEvent],
                                machineType: Option[String],
                                zone: Option[String],
-                               instanceName: Option[String]
+                               instanceName: Option[String],
+                               vmEndTime: Option[OffsetDateTime]
   ) extends UnsuccessfulRunStatus {
     override def toString = "QuotaFailed"
   }

@@ -52,8 +52,7 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue],
       indexStream.map(index => tokenQueues(index).dequeue(quotaExhaustedGroups) -> index)
 
     val firstLeasedActor = dequeuedTokenStream.collectFirst {
-      case (DequeueResult(Some(dequeuedActor), newTokenQueue), index)
-          if !quotaExhaustedGroups.contains(dequeuedActor.queuePlaceholder.hogGroup) =>
+      case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) =>
         // Update the tokenQueues with the new queue
         tokenQueues = tokenQueues.updated(index, newTokenQueue)
         // Update the index. Add 1 to force trying all the queues as we call next, even if the first one is available

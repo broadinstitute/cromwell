@@ -43,11 +43,12 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase) extends Actor with
 
 object GroupMetricsActor {
 
+  // Requests
   sealed trait GroupMetricsActorMessage
-
   case class RecordGroupQuotaExhaustion(group: String) extends GroupMetricsActorMessage
   case object GetQuotaExhaustedGroups extends GroupMetricsActorMessage
 
+  // Responses
   sealed trait GetQuotaExhaustedGroupsResponse
   case class GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups: List[String]) extends GetQuotaExhaustedGroupsResponse
   case class GetQuotaExhaustedGroupsFailure(errorMsg: String) extends GetQuotaExhaustedGroupsResponse

@@ -1,5 +1,5 @@
 # 'Hello world' for a public image in Docker v1 manifest format.
-name: hello_docker_v1_manifest
+name: hello_docker_image_format_v1
 testFormat: workflowsuccess
 backends: [Papiv2, GCPBATCH]
 
@@ -17,7 +17,7 @@ backends: [Papiv2, GCPBATCH]
 # ERROR   Status: failed to get image ubuntu:utopic-20150319: failed to pull image ubuntu:utopic-20150319: unsupported MediaType: "application/vnd.docker.distribution.manifest.v1+prettyjws", see https://github.com/google/go-containerregistry/issues/377, Code: 1
 
 files {
-  workflow: hello_docker_v1_manifest/hello_docker_v1_manifest.wdl
+  workflow: hello_docker_image_format_v1/hello_docker_image_format_v1.wdl
   inputs: hello/hello.inputs
 }
 

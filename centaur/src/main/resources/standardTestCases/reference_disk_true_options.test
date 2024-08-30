@@ -1,6 +1,7 @@
 name: reference_disk_test_true_option
 testFormat: workflowsuccess
-backends: [Papiv2-Reference-Disk-Localization]
+# see https://github.com/broadinstitute/cromwell/pull/7502
+backends: [Papiv2-Reference-Disk-Localization, GCPBATCH_FAIL]
 
 files {
   workflow: reference_disk/reference_disk_test.wdl

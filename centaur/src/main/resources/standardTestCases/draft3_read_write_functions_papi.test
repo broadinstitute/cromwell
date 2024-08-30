@@ -1,7 +1,7 @@
 name: draft3_read_write_functions_papi
 testFormat: workflowsuccess
 tags: ["wdl_1.0"]
-backends: [Papi]
+backends: [Papi, GCPBATCH]
 tags: ["wdl_1.0"]
 
 files {

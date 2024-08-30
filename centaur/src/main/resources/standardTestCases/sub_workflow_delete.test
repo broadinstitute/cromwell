@@ -2,7 +2,9 @@
 
 name: sub_workflow_delete
 testFormat: workflowsuccess
-backends: [Papiv2]
+# Not sure why failing
+# centaur.test.CentaurTestException: Expected to find 48 item(s) at gs://blah/ci/sub_workflow_delete/2d6ed4e0-ec40-45db-8684-6139f024df62/call-sub_call/sub_workflow_delete_import/ but got 8
+backends: [Papiv2, GCPBATCH_FAIL]
 
 files {
   workflow: delete_intermediates/sub_workflow_delete.wdl

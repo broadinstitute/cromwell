@@ -1,6 +1,6 @@
 name: papi_v2_plain_detritus
 testFormat: workflowsuccess
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: papi_v2_plain_detritus/papi_v2_plain_detritus.wdl

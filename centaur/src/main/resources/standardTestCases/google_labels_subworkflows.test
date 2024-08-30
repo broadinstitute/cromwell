@@ -1,6 +1,7 @@
 name: google_labels_sub
 testFormat: workflowsuccess
-backends: [Papiv2]
+# see doc 2.13
+backends: [Papiv2, GCPBATCH_FAIL]
 
 files {
   workflow: google_labels/wrapper.wdl

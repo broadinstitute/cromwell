@@ -1,10 +1,10 @@
-name: google_labels_good
+name: gcpbatch_google_labels_good
 testFormat: workflowsuccess
 # Unlike PAPI v2, GCPBATCH is *not* converting dashes in values to underscores. See doc 2.13
-backends: [Papiv2, GCPBATCH_ALT]
+backends: [GCPBATCH]
 
 files {
-  workflow: google_labels/google_labels.wdl
+  workflow: google_labels/gcpbatch_google_labels.wdl
   options: google_labels/good_options.json
 }
 

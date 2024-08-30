@@ -17,7 +17,7 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase) extends Actor with
 
   implicit val ec: MessageDispatcher = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
 
-  final private val QUOTA_EXHAUSTION_THRESHOLD = 15 * 60 // 15 minutes
+  final private val QUOTA_EXHAUSTION_THRESHOLD_IN_SECS = 15 * 60 // 15 minutes
 
   override def receive: Receive = {
     case RecordGroupQuotaExhaustion(group) =>
@@ -29,7 +29,7 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase) extends Actor with
 
       // for a group in the GROUP_METRICS_ENTRY table, if the 'quota_exhaustion_detected' timestamp hasn't
       // been updated in last 15 minutes it is no longer experiencing cloud quota exhaustion
-      val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(QUOTA_EXHAUSTION_THRESHOLD)
+      val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(QUOTA_EXHAUSTION_THRESHOLD_IN_SECS)
       engineDbInterface.getQuotaExhaustedGroups(currentTimestampMinusDelay.toSystemTimestamp) onComplete {
         case Success(quotaExhaustedGroups) => respondTo ! GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups.toList)
         case Failure(exception) => respondTo ! GetQuotaExhaustedGroupsFailure(exception.getMessage)

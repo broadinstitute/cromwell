@@ -1,7 +1,7 @@
 package cromwell.engine.workflow.tokens
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
-import akka.pattern.{ask, AskTimeoutException}
+import akka.pattern.ask
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cromwell.backend.standard.GroupMetricsActor.{
@@ -29,8 +29,8 @@ import io.circe.syntax._
 import io.github.andrebeat.pool.Lease
 
 import java.time.OffsetDateTime
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
@@ -113,7 +113,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     case JobTokenReturn => release(sender())
     case TokensAvailable(n) =>
       emitHeartbeatMetrics()
-      dispense(n)
+      checkAndDispenseTokens(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
     case FetchLimitedGroups => sender() ! tokenExhaustedGroups
@@ -138,49 +138,27 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       ()
     }
 
-  private def getQuotaExhaustedGroups(implicit ec: ExecutionContext): List[String] = {
-//    val future = groupMetricsActor.ask(GetQuotaExhaustedGroups)(groupMetricsTimeout) onComplete {
-//      case Success(GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups)) => quotaExhaustedGroups
-//      case Success(GroupMetricsActorResponseFailure(error)) =>
-//        log.error(s"Failed to fetch quota exhausted groups. Error: $error")
-//        List.empty[String]
-//      case Failure(exception) =>
-//        log.error(s"Failed to fetch quota exhausted groups. Error: ${exception.getMessage}")
-//        List.empty[String]
-//    }
-
-    // TODO: Saloni - maybe this can be put when actor receives `TokensAvailable` msg block and then use onComplete no longer need Await.result(..) ??
-
-    val groupMetricsFuture: Future[List[String]] = groupMetricsActor
-      .ask(GetQuotaExhaustedGroups)(groupMetricsTimeout)
-      .mapTo[GetQuotaExhaustedGroupsResponse]
-      .flatMap {
-        case GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups) => Future.successful(quotaExhaustedGroups)
-        case GetQuotaExhaustedGroupsFailure(error) =>
-          log.error(s"Failed to fetch quota exhausted groups. Error: $error")
-          Future.successful(List.empty)
+  private def checkAndDispenseTokens(n: Int): Unit =
+    if (tokenQueues.nonEmpty) {
+      // don't fetch cloud quota exhausted groups for token dispenser allocating 'restart' tokens
+      if (dispenserType == "execution") {
+        groupMetricsActor
+          .ask(GetQuotaExhaustedGroups)(groupMetricsTimeout)
+          .mapTo[GetQuotaExhaustedGroupsResponse] onComplete {
+          case Success(GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups)) => dispense(n, quotaExhaustedGroups)
+          case Success(GetQuotaExhaustedGroupsFailure(errorMsg)) =>
+            log.error(s"Failed to fetch quota exhausted groups. Error: $errorMsg")
+            dispense(n, List.empty)
+          case Failure(exception) =>
+            log.error(s"Unexpected failure while fetching quota exhausted groups. Error: ${exception.getMessage}")
+            dispense(n, List.empty)
+        }
+      } else {
+        dispense(n, List.empty)
       }
-      .recoverWith {
-        case _: AskTimeoutException =>
-          log.error("Unable to get quota exhausted groups within allowed time.")
-          Future.successful(List.empty[String])
-        case e: Throwable =>
-          // This "should" never happen. If it does, let's make it obvious and trigger our alerting:
-          log.error(
-            s"Programmer error: Unexpected failure while fetching quota exhausted groups. Error: ${e.getMessage}"
-          )
-          Future.successful(List.empty[String])
-      }
+    }
 
-    Await.result(groupMetricsFuture, groupMetricsTimeout.duration)
-  }
-
-  private def dispense(n: Int) = if (tokenQueues.nonEmpty) {
-
-    // don't check if a hog group is in cloud quota exhausted state for jobs that are restarting
-    val quotaExhaustedGroups =
-      if (dispenserType == "execution") getQuotaExhaustedGroups else List.empty[String]
-
+  private def dispense(n: Int, quotaExhaustedGroups: List[String]): Unit = {
     // Sort by backend name to avoid re-ordering across iterations. The RoundRobinQueueIterator will only fetch job
     // requests from a hog group that is not experiencing cloud quota exhaustion.
     val iterator =

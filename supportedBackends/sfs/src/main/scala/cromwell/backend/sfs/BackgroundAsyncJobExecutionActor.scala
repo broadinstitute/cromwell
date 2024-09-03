@@ -17,7 +17,7 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
   private def writeBackgroundScriptContents(): Either[ExecutionHandle, Unit] = {
     val backgroundCommand = redirectOutputs(processArgs.argv.mkString("'", "' '", "'"))
     // $! contains the previous background command's process id (PID)
-    backgroundScript.write(s"""|#!/bin/bash
+    backgroundScript.write(s"""|#!/usr/bin/env bash
                                |BACKGROUND_COMMAND &
                                |echo $$!
                                |""".stripMargin.replace("BACKGROUND_COMMAND", backgroundCommand))
@@ -49,7 +49,7 @@ trait BackgroundAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecution
     /*
     Use pgrep to find the children of a process, and recursively kill the children before killing the parent.
      */
-    killScript.write(s"""|#!/bin/bash
+    killScript.write(s"""|#!/usr/bin/env bash
                          |kill_tree() {
                          |  local pid
                          |  local cpid

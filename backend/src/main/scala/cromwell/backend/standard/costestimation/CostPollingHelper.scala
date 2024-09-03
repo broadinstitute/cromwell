@@ -1,10 +1,6 @@
 package cromwell.backend.standard.costestimation
-
 import cromwell.services.metadata.CallMetadataKeys
-
 import java.time.OffsetDateTime
-
-
 
 trait CostPollingHelper[A] {
   def extractStartTimeFromRunState(pollStatus: A): Option[OffsetDateTime]
@@ -12,23 +8,22 @@ trait CostPollingHelper[A] {
   def calculateVmCostPerHour: BigDecimal
   def tellMetadata(metadata: Map[String, Any]): Unit
 
-  var emittedStartTimeYet = false
-  var emittedEndTimeYet = false
+  var vmStartTime: Option[OffsetDateTime] = Option.empty
+  var vmEndTime: Option[OffsetDateTime] = Option.empty
   def processPollResult(pollStatus: A): Unit = {
-    if (!emittedStartTimeYet) {
+    if (vmStartTime.isEmpty) {
       extractStartTimeFromRunState(pollStatus).foreach { start =>
-        emittedStartTimeYet = true
+        vmStartTime = Some(start)
         // NB: VM cost per hour will be emitted along with the start time.
         tellMetadata(Map(CallMetadataKeys.VmCostUsd -> calculateVmCostPerHour))
         tellMetadata(Map(CallMetadataKeys.VmStartTime -> start))
       }
     }
-    if (!emittedEndTimeYet) {
+    if (vmEndTime.isEmpty) {
       extractEndTimeFromRunState(pollStatus).foreach { end =>
-        emittedEndTimeYet = true
+        vmEndTime = Some(end)
         tellMetadata(Map(CallMetadataKeys.VmEndTime -> end))
       }
     }
   }
 }
-

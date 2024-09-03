@@ -13,7 +13,6 @@ import cromwell.core.{ExecutionEvent, WorkflowId}
 import io.grpc.{Status => GStatus}
 import mouse.all._
 
-import java.time.OffsetDateTime
 import scala.jdk.CollectionConverters._
 
 object ErrorReporter {
@@ -80,11 +79,7 @@ class ErrorReporter(machineType: Option[String],
     val failed: Option[String] = summaryFailure(events)
     // Reverse the list because the first failure (likely the most relevant, will appear last otherwise)
     val unexpectedExitEvents: List[String] = unexpectedExitStatusErrorStrings(events, actions).reverse
-    val vmEndTime: Option[OffsetDateTime] =
-      events.collectFirst {
-        case event if event.getWorkerReleased != null => OffsetDateTime.parse(event.getTimestamp)
-      }
-    builder(status, None, failed.toList ++ unexpectedExitEvents, executionEvents, machineType, zone, instanceName, vmEndTime)
+    builder(status, None, failed.toList ++ unexpectedExitEvents, executionEvents, machineType, zone, instanceName)
   }
 
   // There's maybe one FailedEvent per operation with a summary error message

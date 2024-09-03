@@ -4,22 +4,21 @@ import _root_.io.grpc.Status
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
 import cromwell.core.ExecutionEvent
 
-import java.time.OffsetDateTime
 import scala.util.Try
 
-sealed trait RunStatus
+sealed trait RunStatus {
+  def eventList: Seq[ExecutionEvent]
+}
 
 object RunStatus {
-  case object Initializing extends RunStatus
-  case object AwaitingCloudQuota extends RunStatus
-  case class Running(vmStartTime: Option[OffsetDateTime]) extends RunStatus
+  case class Initializing(eventList: Seq[ExecutionEvent]) extends RunStatus
+  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent]) extends RunStatus
+  case class Running(eventList: Seq[ExecutionEvent]) extends RunStatus
 
   sealed trait TerminalRunStatus extends RunStatus {
-    def eventList: Seq[ExecutionEvent]
     def machineType: Option[String]
     def zone: Option[String]
     def instanceName: Option[String]
-    def vmEndTime: Option[OffsetDateTime]
   }
 
   sealed trait UnsuccessfulRunStatus extends TerminalRunStatus {
@@ -36,8 +35,7 @@ object RunStatus {
   case class Success(eventList: Seq[ExecutionEvent],
                      machineType: Option[String],
                      zone: Option[String],
-                     instanceName: Option[String],
-                     vmEndTime: Option[OffsetDateTime]
+                     instanceName: Option[String]
   ) extends TerminalRunStatus {
     override def toString = "Success"
   }
@@ -59,8 +57,7 @@ object RunStatus {
               machineType: Option[String],
               zone: Option[String],
               instanceName: Option[String],
-              wasPreemptible: Boolean,
-              vmEndTime: Option[OffsetDateTime]
+              wasPreemptible: Boolean
     ): UnsuccessfulRunStatus = {
       val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
 
@@ -88,8 +85,7 @@ object RunStatus {
                                       eventList,
                                       machineType,
                                       zone,
-                                      instanceName,
-                                      vmEndTime
+                                      instanceName
       )
     }
   }
@@ -100,8 +96,7 @@ object RunStatus {
                           eventList: Seq[ExecutionEvent],
                           machineType: Option[String],
                           zone: Option[String],
-                          instanceName: Option[String],
-                          vmEndTime: Option[OffsetDateTime]
+                          instanceName: Option[String]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
   }
@@ -115,8 +110,7 @@ object RunStatus {
                              eventList: Seq[ExecutionEvent],
                              machineType: Option[String],
                              zone: Option[String],
-                             instanceName: Option[String],
-                             vmEndTime: Option[OffsetDateTime]
+                             instanceName: Option[String]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Cancelled"
   }
@@ -127,8 +121,7 @@ object RunStatus {
                              eventList: Seq[ExecutionEvent],
                              machineType: Option[String],
                              zone: Option[String],
-                             instanceName: Option[String],
-                             vmEndTime: Option[OffsetDateTime]
+                             instanceName: Option[String]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Preempted"
   }
@@ -143,8 +136,7 @@ object RunStatus {
                                eventList: Seq[ExecutionEvent],
                                machineType: Option[String],
                                zone: Option[String],
-                               instanceName: Option[String],
-                               vmEndTime: Option[OffsetDateTime]
+                               instanceName: Option[String]
   ) extends UnsuccessfulRunStatus {
     override def toString = "QuotaFailed"
   }

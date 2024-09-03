@@ -773,10 +773,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] =
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
 
-  override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit =
-    if (runStatus == AwaitingCloudQuota) {
-      standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
-    }
+  override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit = runStatus match {
+    case AwaitingCloudQuota(_) =>       standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
+    case _ =>
+  }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (_: JesPendingExecutionHandle @unchecked, JobAbortedException) =>

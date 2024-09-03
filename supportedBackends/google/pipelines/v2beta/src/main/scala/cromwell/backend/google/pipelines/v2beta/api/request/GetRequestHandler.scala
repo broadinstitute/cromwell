@@ -66,32 +66,27 @@ trait GetRequestHandler { this: RequestHandler =>
       // It is possible to receive a null via an HTTP 200 with no response. If that happens, handle it and don't crash.
       // https://github.com/googleapis/google-http-java-client/blob/v1.28.0/google-http-client/src/main/java/com/google/api/client/http/HttpResponse.java#L456-L458
       val errorMessage = "Operation returned as empty"
-      UnsuccessfulRunStatus(Status.UNKNOWN, Option(errorMessage), Nil, None, None, None, wasPreemptible = false, vmEndTime = None)
+      UnsuccessfulRunStatus(Status.UNKNOWN, Option(errorMessage), Nil, None, None, None, wasPreemptible = false)
     } else {
       try {
         val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
+        val metadata = Try(operation.getMetadata.asScala.toMap).getOrElse(Map[String, AnyRef]())
+        // Deserialize the response
+        val pipeline: Option[Pipeline] = operation.pipeline.flatMap(
+          _.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
+        )
+        val actions: List[Action] = pipeline
+          .flatMap(pipelineValue => Option(pipelineValue.getActions))
+          .map(_.asScala)
+          .toList
+          .flatten
+        val executionEvents = getEventList(metadata, events, actions)
+
         if (operation.getDone) {
-          val metadata = Try(operation.getMetadata.asScala.toMap).getOrElse(Map[String, AnyRef]())
-          // Deserialize the response
-          val pipeline: Option[Pipeline] = operation.pipeline.flatMap(
-            _.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
-          )
-          val actions: List[Action] = pipeline
-            .flatMap(pipelineValue => Option(pipelineValue.getActions))
-            .map(_.asScala)
-            .toList
-            .flatten
-          val workerAssignedEvent: Option[WorkerAssignedEvent] = {
+          val workerAssignedEvent: Option[WorkerAssignedEvent] =
             events.collectFirst {
               case event if event.getWorkerAssigned != null => event.getWorkerAssigned
             }
-          }
-          val vmEndTime: Option[OffsetDateTime] = {
-            events.collectFirst {
-              case event if event.getWorkerReleased != null => OffsetDateTime.parse(event.getTimestamp)
-            }
-          }
-          val executionEvents = getEventList(metadata, events, actions)
           val virtualMachineOption = for {
             pipelineValue <- pipeline
             resources <- Option(pipelineValue.getResources)
@@ -111,7 +106,8 @@ trait GetRequestHandler { this: RequestHandler =>
             preemptible <- Option(virtualMachine.getPreemptible)
           } yield preemptible
           val preemptible = preemptibleOption.exists(_.booleanValue)
-          val instanceName = workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
+          val instanceName =
+            workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
           val zone = workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
           // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
           Option(operation.getError) match {
@@ -127,19 +123,14 @@ trait GetRequestHandler { this: RequestHandler =>
                 pollingRequest.workflowId
               )
               errorReporter.toUnsuccessfulRunStatus(error, events)
-            case None => Success(executionEvents, machineType, zone, instanceName, vmEndTime)
+            case None => Success(executionEvents, machineType, zone, instanceName)
           }
         } else if (isQuotaDelayed(events)) {
-          AwaitingCloudQuota
+          AwaitingCloudQuota(executionEvents)
         } else if (operation.hasStarted) {
-          val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
-          val vmStartTime: Option[OffsetDateTime] =
-            events.collectFirst {
-              case event if (event.getWorkerAssigned != null && event.getTimestamp != null) => OffsetDateTime.parse(event.getTimestamp)
-            }
-          Running(vmStartTime)
+          Running(executionEvents)
         } else {
-          Initializing
+          Initializing(executionEvents)
         }
       } catch {
         case nullPointerException: NullPointerException =>
@@ -165,6 +156,16 @@ trait GetRequestHandler { this: RequestHandler =>
       metadata.get("endTime") map { time =>
         ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse(time.toString))
       }
+
+    val vmStartedEvent: Option[ExecutionEvent] = events.collectFirst {
+      case event if event.getWorkerAssigned != null =>
+        ExecutionEvent("vmStart", OffsetDateTime.parse(event.getTimestamp), Option.empty)
+    }
+
+    val vmEndedEvent: Option[ExecutionEvent] = events.collectFirst {
+      case event if event.getWorkerReleased != null =>
+        ExecutionEvent("vmEnd", OffsetDateTime.parse(event.getTimestamp), Option.empty)
+    }
 
     // Map action indexes to event types. Action indexes are 1-based for some reason.
     // BA-6455: since v2beta version of Life Sciences API, `a.getLabels` would return `null` for empty labels, unlike
@@ -197,7 +198,7 @@ trait GetRequestHandler { this: RequestHandler =>
         }
     }
 
-    starterEvent.toList ++ filteredExecutionEvents ++ completionEvent
+    starterEvent.toList ++ filteredExecutionEvents ++ completionEvent ++ vmStartedEvent.toList ++ vmEndedEvent.toList
   }
 
   // Future enhancement: parse as `com.google.api.services.lifesciences.v2beta.model.DelayedEvent` instead of

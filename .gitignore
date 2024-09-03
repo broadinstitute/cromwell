@@ -65,3 +65,6 @@ gha-creds-*.json
 
 # jenv
 .java-version
+
+#metals
+.metals/

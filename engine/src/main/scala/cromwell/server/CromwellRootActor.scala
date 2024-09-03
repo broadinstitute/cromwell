@@ -206,10 +206,13 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val executionTokenLogInterval: Option[FiniteDuration] =
     systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
 
-  private lazy val quotaExhaustionThresholdInMins: Long = systemConfig.as[Option[Long]]("quota-exhaustion-threshold-minutes").getOrElse(15)
+  private lazy val quotaExhaustionThresholdInMins: Long =
+    systemConfig.as[Option[Long]]("quota-exhaustion-threshold-minutes").getOrElse(15)
 
   lazy val groupMetricsActor: ActorRef =
-    context.actorOf(GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface, quotaExhaustionThresholdInMins))
+    context.actorOf(
+      GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface, quotaExhaustionThresholdInMins)
+    )
 
   lazy val jobRestartCheckTokenDispenserActor: ActorRef = context.actorOf(
     JobTokenDispenserActor.props(serviceRegistryActor,

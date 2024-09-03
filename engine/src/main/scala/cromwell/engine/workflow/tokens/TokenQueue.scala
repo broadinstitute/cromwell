@@ -80,7 +80,7 @@ final case class TokenQueue(queues: Map[String, Queue[TokenQueuePlaceholder]],
         recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups, quotaExhaustedGroups)
       } else if (quotaExhaustedGroups.contains(hogGroup)) {
         // if the hog group is experiencing quota exhaustion don't dequeue from its queue
-        recursingDequeue(queues, queuesTried :+ hogGroup, queuesRemaining, quotaExhaustedGroups)
+        recursingDequeue(queues, queuesTried :+ hogGroup, remainingHogGroups, quotaExhaustedGroups)
       } else {
         val leaseTry = pool.tryAcquire(hogGroup)
 

@@ -13,7 +13,9 @@ import cromwell.database.sql.tables.GroupMetricsEntry
 import java.time.OffsetDateTime
 import scala.util.{Failure, Success}
 
-class GroupMetricsActor(engineDbInterface: EngineSqlDatabase, quotaExhaustionThresholdInMins: Long) extends Actor with ActorLogging {
+class GroupMetricsActor(engineDbInterface: EngineSqlDatabase, quotaExhaustionThresholdInMins: Long)
+    extends Actor
+    with ActorLogging {
 
   implicit val ec: MessageDispatcher = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
 

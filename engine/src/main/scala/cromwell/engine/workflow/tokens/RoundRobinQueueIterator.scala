@@ -9,7 +9,7 @@ import cromwell.engine.workflow.tokens.TokenQueue.{DequeueResult, LeasedActor}
   */
 final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue],
                                     initialPointer: Int,
-                                    quotaExhaustedGroups: List[String]
+                                    excludedGroups: List[String]
 ) extends Iterator[LeasedActor] {
   // Assumes the number of queues won't change during iteration (it really shouldn't !)
   private val numberOfQueues = initialTokenQueue.size
@@ -31,8 +31,8 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue],
     */
   def updatedPointer = pointer
 
-  // check if there is a request whose hog group has tokens available and is not experiencing quota exhaustion
-  def hasNext = tokenQueues.exists(_.available(quotaExhaustedGroups))
+  // check if there is a request whose hog group has tokens available and is not in excluded groups list
+  def hasNext = tokenQueues.exists(_.available(excludedGroups))
 
   def next() = findFirst.getOrElse(unexpectedlyEmpty)
 
@@ -49,7 +49,7 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue],
 
     val indexStream = ((pointer until numberOfQueues) ++ (0 until pointer)).to(LazyList)
     val dequeuedTokenStream: Seq[(DequeueResult, Int)] =
-      indexStream.map(index => tokenQueues(index).dequeue(quotaExhaustedGroups) -> index)
+      indexStream.map(index => tokenQueues(index).dequeue(excludedGroups) -> index)
 
     val firstLeasedActor = dequeuedTokenStream.collectFirst {
       case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) =>

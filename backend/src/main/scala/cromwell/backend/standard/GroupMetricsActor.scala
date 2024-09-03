@@ -13,11 +13,9 @@ import cromwell.database.sql.tables.GroupMetricsEntry
 import java.time.OffsetDateTime
 import scala.util.{Failure, Success}
 
-class GroupMetricsActor(engineDbInterface: EngineSqlDatabase) extends Actor with ActorLogging {
+class GroupMetricsActor(engineDbInterface: EngineSqlDatabase, quotaExhaustionThresholdInMins: Long) extends Actor with ActorLogging {
 
   implicit val ec: MessageDispatcher = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
-
-  final private val QUOTA_EXHAUSTION_THRESHOLD_IN_SECS = 15 * 60 // 15 minutes
 
   override def receive: Receive = {
     case RecordGroupQuotaExhaustion(group) =>
@@ -28,8 +26,8 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase) extends Actor with
       val respondTo: ActorRef = sender()
 
       // for a group in the GROUP_METRICS_ENTRY table, if the 'quota_exhaustion_detected' timestamp hasn't
-      // been updated in last 15 minutes it is no longer experiencing cloud quota exhaustion
-      val currentTimestampMinusDelay = OffsetDateTime.now().minusSeconds(QUOTA_EXHAUSTION_THRESHOLD_IN_SECS)
+      // been updated in last X minutes it is no longer experiencing cloud quota exhaustion
+      val currentTimestampMinusDelay = OffsetDateTime.now().minusMinutes(quotaExhaustionThresholdInMins)
       engineDbInterface.getQuotaExhaustedGroups(currentTimestampMinusDelay.toSystemTimestamp) onComplete {
         case Success(quotaExhaustedGroups) => respondTo ! GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups.toList)
         case Failure(exception) => respondTo ! GetQuotaExhaustedGroupsFailure(exception.getMessage)
@@ -53,6 +51,6 @@ object GroupMetricsActor {
   case class GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups: List[String]) extends GetQuotaExhaustedGroupsResponse
   case class GetQuotaExhaustedGroupsFailure(errorMsg: String) extends GetQuotaExhaustedGroupsResponse
 
-  def props(engineDbInterface: EngineSqlDatabase): Props =
-    Props(new GroupMetricsActor(engineDbInterface)).withDispatcher(EngineDispatcher)
+  def props(engineDbInterface: EngineSqlDatabase, quotaExhaustionThresholdInMins: Long): Props =
+    Props(new GroupMetricsActor(engineDbInterface, quotaExhaustionThresholdInMins)).withDispatcher(EngineDispatcher)
 }

@@ -73,10 +73,10 @@ trait GetRequestHandler { this: RequestHandler =>
           .map(_.asScala)
           .toList
           .flatten
-        val workerEvent: Option[WorkerAssignedEvent] =
-          findEvent[WorkerAssignedEvent](events).flatMap(_(pollingRequest.workflowId -> operation))
         val executionEvents = getEventList(metadata, events, actions)
         if (operation.getDone) {
+          val workerEvent: Option[WorkerAssignedEvent] =
+            findEvent[WorkerAssignedEvent](events).flatMap(_(pollingRequest.workflowId -> operation))
           val virtualMachineOption = for {
             pipelineValue <- pipeline
             resources <- Option(pipelineValue.getResources)

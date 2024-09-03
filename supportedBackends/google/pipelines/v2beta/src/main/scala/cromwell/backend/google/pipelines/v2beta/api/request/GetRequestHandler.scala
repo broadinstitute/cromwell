@@ -81,7 +81,6 @@ trait GetRequestHandler { this: RequestHandler =>
           .toList
           .flatten
         val executionEvents = getEventList(metadata, events, actions)
-
         if (operation.getDone) {
           val workerAssignedEvent: Option[WorkerAssignedEvent] =
             events.collectFirst {

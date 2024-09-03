@@ -1,5 +1,6 @@
 name: input_expressions
 testFormat: workflowsuccess
+backendsMode: all
 backends: [Papi, Local, GCPBATCH]
 
 files {

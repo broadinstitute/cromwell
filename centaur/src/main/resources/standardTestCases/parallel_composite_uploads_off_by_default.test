@@ -3,7 +3,8 @@
 
 name: parallel_composite_uploads_off_by_default
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+# needs alt, hardcodes backend in library WDL
+backends: [Papiv2, GCPBATCH_NEEDS_ALT]
 
 files {
   workflow: parallel_composite_uploads/parallel_composite_uploads_off.wdl

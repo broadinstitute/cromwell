@@ -1,0 +1,14 @@
+name: gcpbatch_gpu_on_papi_invalid
+testFormat: workflowfailure
+backends: [GCPBATCH]
+
+files {
+  workflow: gpu_on_papi/gpu_on_papi.wdl
+  inputs: gpu_on_papi/invalid.inputs.json
+}
+
+metadata {
+  status: Failed
+
+  "calls.gpu_on_papi.task_with_gpu.failures.0.message": "Unable to complete Batch request due to a problem with the request (io.grpc.StatusRuntimeException: INVALID_ARGUMENT: Accelerator field is invalid. Accelerator with type nonsense value is not supported for Batch now. Please make sure that the type is lowercase formatted as name field in command `gcloud compute accelerator-types list` shows if it exists in the list.). "
+}

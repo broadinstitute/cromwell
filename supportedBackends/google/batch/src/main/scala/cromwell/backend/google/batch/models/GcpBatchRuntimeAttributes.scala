@@ -77,6 +77,7 @@ object GcpBatchRuntimeAttributes {
   private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
   // via `gcloud compute zones describe us-central1-a`
   val CpuPlatformIntelCascadeLakeValue = "Intel Cascade Lake"
+  val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
 
   val UseDockerImageCacheKey = "useDockerImageCache"

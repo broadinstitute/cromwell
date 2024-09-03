@@ -1,6 +1,7 @@
 name: docker_hash_dockerhub_private
 testFormat: workflowsuccess
-backends: [Papi, GCPBATCH]
+# see https://github.com/broadinstitute/cromwell/pull/7515
+backends: [Papi, GCPBATCH_FAIL]
 
 files {
   workflow: docker_hash/docker_hash_dockerhub_private.wdl

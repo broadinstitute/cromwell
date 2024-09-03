@@ -20,11 +20,13 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 - The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
 - Fixes a bug with not being able to recover jobs on Cromwell restart.
+- Fixes machine type selection to match the Google Cloud Life Sciences backend, including default n1 non shared-core machine types and correct handling of `cpuPlatform` to select n2 or n2d machine types as appropriate.
 - Fixes the preemption error handling, now, the correct error message is printed, this also handles the other potential exit codes.
 - Fixes error message reporting for failed jobs.
 - Fixes the "retry with more memory" feature.
 - Fixes pulling Docker image metadata from private GCR repositories.
 - Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
+- Added a way to use a custom LogsPolicy for the job execution, setting `backend.providers.batch.config.batch.logs-policy` to "CLOUD_LOGGING" (default) keeps the current behavior, or, set it to "PATH" to save the logs into the the mounted disk, at the end, this log file gets copied to the google cloud storage bucket with "task.log" as the name.
 
 ### Improved handling of Life Sciences API quota errors
 

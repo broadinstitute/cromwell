@@ -60,6 +60,7 @@ import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
 import java.net.SocketTimeoutException
+import java.time.OffsetDateTime
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -774,7 +775,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
 
   override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit = runStatus match {
-    case AwaitingCloudQuota(_) =>       standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
+    case AwaitingCloudQuota(_) =>
+      standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
     case _ =>
   }
 
@@ -827,16 +829,26 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
 
-  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
-    runStatus match {
-      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.nonEmpty =>
-        val offsetDateTimes = terminalRunStatus.eventList.map(_.offsetDateTime)
-        val cpuStart = terminalRunStatus.eventList.find(event =>
-          event.name.matches("""^Worker[\s\"\\]+google-pipelines-worker-[a-zA-Z0-9\s\"\\]+assigned in.*""")
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = {
+    val minEventTime: Option[OffsetDateTime] =
+      runStatus.eventList.headOption.map(_ => runStatus.eventList.map(_.offsetDateTime).min)
+    val maxEventTime: Option[OffsetDateTime] =
+      runStatus.eventList.headOption.map(_ => runStatus.eventList.map(_.offsetDateTime).max)
+    costHelper match {
+      case Some(helper) =>
+        val vmStart: Option[OffsetDateTime] = helper.vmStartTime.orElse(minEventTime)
+        val vmEnd: Option[OffsetDateTime] = helper.vmEndTime.orElse(maxEventTime)
+        (vmStart, vmEnd) match {
+          case (Some(start), Some(end)) => Some(StartAndEndTimes(start, vmStart, end))
+          case _ => None
+        }
+      case None =>
+        jobLogger.error(
+          "Programmer error: expected costHelper object to be present in PipelinesApiBackendJobExecutionActor"
         )
-        Some(StartAndEndTimes(offsetDateTimes.min, cpuStart.map(_.offsetDateTime), offsetDateTimes.max))
-      case _ => None
+        None
     }
+  }
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =
     exception match {

@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.v2beta.api.request
 
 import java.time.OffsetDateTime
-
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
@@ -10,26 +9,21 @@ import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus
-import cromwell.backend.google.pipelines.common.api.RunStatus.{
-  AwaitingCloudQuota,
-  Initializing,
-  Running,
-  Success,
-  UnsuccessfulRunStatus
-}
+import cromwell.backend.google.pipelines.common.api.RunStatus.{AwaitingCloudQuota, Initializing, Running, Success, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.common.errors.isQuotaMessage
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import cromwell.backend.google.pipelines.v2beta.api.request.ErrorReporter._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.ExecutionEvent
+import cromwell.services.metadata.CallMetadataKeys
 import io.grpc.Status
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success => TrySuccess, Try}
+import scala.util.{Failure, Try, Success => TrySuccess}
 
 trait GetRequestHandler { this: RequestHandler =>
   // the Genomics batch endpoint doesn't seem to be able to handle get requests on V2 operations at the moment
@@ -159,12 +153,12 @@ trait GetRequestHandler { this: RequestHandler =>
 
     val vmStartedEvent: Option[ExecutionEvent] = events.collectFirst {
       case event if event.getWorkerAssigned != null =>
-        ExecutionEvent("vmStart", OffsetDateTime.parse(event.getTimestamp), Option.empty)
+        ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.parse(event.getTimestamp), Option.empty)
     }
 
     val vmEndedEvent: Option[ExecutionEvent] = events.collectFirst {
       case event if event.getWorkerReleased != null =>
-        ExecutionEvent("vmEnd", OffsetDateTime.parse(event.getTimestamp), Option.empty)
+        ExecutionEvent(CallMetadataKeys.VmEndTime, OffsetDateTime.parse(event.getTimestamp), Option.empty)
     }
 
     // Map action indexes to event types. Action indexes are 1-based for some reason.

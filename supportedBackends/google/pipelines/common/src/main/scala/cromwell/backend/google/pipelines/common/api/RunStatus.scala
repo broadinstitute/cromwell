@@ -8,12 +8,13 @@ import scala.util.Try
 
 sealed trait RunStatus {
   def eventList: Seq[ExecutionEvent]
+  def toString: String
 }
 
 object RunStatus {
-  case class Initializing(eventList: Seq[ExecutionEvent]) extends RunStatus
-  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent]) extends RunStatus
-  case class Running(eventList: Seq[ExecutionEvent]) extends RunStatus
+  case class Initializing(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Initializing" }
+  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent]) extends RunStatus  { override def toString = "AwaitingCloudQuota" }
+  case class Running(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Running" }
 
   sealed trait TerminalRunStatus extends RunStatus {
     def machineType: Option[String]

@@ -1,7 +1,5 @@
 name: 'Azure e2e - Run Workflow'
 on:
-  schedule:
-    - cron: '0 16 * * *' # UTC 4pm, EST 11am, EDT 12pm
   workflow_dispatch:
 
 env:

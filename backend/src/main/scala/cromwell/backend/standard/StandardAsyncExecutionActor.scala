@@ -1340,7 +1340,7 @@ trait StandardAsyncExecutionActor
     // record if group has run into cloud quota exhaustion
     checkAndRecordQuotaExhaustion(state)
 
-    // present the poll result to the cost helper. It might emit some metadata.
+    // present the poll result to the cost helper. It will keep track of vm start/stop times and may emit some metadata.
     costHelper.foreach(helper => helper.processPollResult(state))
 
     state match {
@@ -1356,7 +1356,7 @@ trait StandardAsyncExecutionActor
     }
   }
 
-  // Subclasses that implement this will have their cost data added to cromwell metadata as this class polls the backend and processes the results.
+  // Subclasses that supply this will have their cost data added to cromwell metadata as this class polls the backend and processes the results.
   protected val costHelper: Option[CostPollingHelper[StandardAsyncRunState]] = Option.empty
 
   /**

@@ -6,7 +6,13 @@ import com.google.api.services.lifesciences.v2beta.model._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
-import cromwell.backend.google.pipelines.common.api.RunStatus.{Cancelled, Failed, Preempted, QuotaFailed, UnsuccessfulRunStatus}
+import cromwell.backend.google.pipelines.common.api.RunStatus.{
+  Cancelled,
+  Failed,
+  Preempted,
+  QuotaFailed,
+  UnsuccessfulRunStatus
+}
 import cromwell.backend.google.pipelines.common.errors.isQuotaMessage
 import cromwell.backend.google.pipelines.v2beta.api.request.RequestHandler.logger
 import cromwell.core.{ExecutionEvent, WorkflowId}

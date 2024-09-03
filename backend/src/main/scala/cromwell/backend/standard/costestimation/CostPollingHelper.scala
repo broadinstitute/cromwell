@@ -14,8 +14,7 @@ trait CostPollingHelper[A] {
     if (vmStartTime.isEmpty) {
       extractStartTimeFromRunState(pollStatus).foreach { start =>
         vmStartTime = Some(start)
-        println(s"vmStartTime: $vmStartTime")
-        // NB: VM cost per hour will be emitted along with the start time.
+        // NB: Emitting cost/hr alongside start time here. It's convenient.
         tellMetadata(Map(CallMetadataKeys.VmCostUsd -> calculateVmCostPerHour))
         tellMetadata(Map(CallMetadataKeys.VmStartTime -> start))
       }
@@ -23,7 +22,6 @@ trait CostPollingHelper[A] {
     if (vmEndTime.isEmpty) {
       extractEndTimeFromRunState(pollStatus).foreach { end =>
         vmEndTime = Some(end)
-        println(s"vmEndTime: $vmEndTime")
         tellMetadata(Map(CallMetadataKeys.VmEndTime -> end))
       }
     }

@@ -61,23 +61,22 @@ trait GetRequestHandler { this: RequestHandler =>
       val errorMessage = "Operation returned as empty"
       UnsuccessfulRunStatus(Status.UNKNOWN, Option(errorMessage), Nil, None, None, None, wasPreemptible = false)
     } else {
-      try
+      try {
+        val metadata = operation.metadata
+        // Deserialize the response
+        val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
+        val pipeline: Option[Pipeline] = operation.pipeline.flatMap(
+          _.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
+        )
+        val actions: List[Action] = pipeline
+          .flatMap(pipelineValue => Option(pipelineValue.getActions))
+          .map(_.asScala)
+          .toList
+          .flatten
+        val workerEvent: Option[WorkerAssignedEvent] =
+          findEvent[WorkerAssignedEvent](events).flatMap(_(pollingRequest.workflowId -> operation))
+        val executionEvents = getEventList(metadata, events, actions)
         if (operation.getDone) {
-          val metadata = operation.metadata
-          // Deserialize the response
-          val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
-          val pipeline: Option[Pipeline] = operation.pipeline.flatMap(
-            _.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
-          )
-          val actions: List[Action] = pipeline
-            .flatMap(pipelineValue => Option(pipelineValue.getActions))
-            .map(_.asScala)
-            .toList
-            .flatten
-          val workerEvent: Option[WorkerAssignedEvent] =
-            findEvent[WorkerAssignedEvent](events).flatMap(_(pollingRequest.workflowId -> operation))
-
-          val executionEvents = getEventList(metadata, events, actions)
           val virtualMachineOption = for {
             pipelineValue <- pipeline
             resources <- Option(pipelineValue.getResources)
@@ -117,11 +116,11 @@ trait GetRequestHandler { this: RequestHandler =>
             case None => Success(executionEvents, machineType, zone, instanceName)
           }
         } else if (operation.hasStarted) {
-          Running(List())
+          Running(executionEvents)
         } else {
-          Initializing(List())
+          Initializing(executionEvents)
         }
-      catch {
+      } catch {
         case nullPointerException: NullPointerException =>
           throw new RuntimeException(
             s"Caught NPE while interpreting operation ${operation.getName}: " +

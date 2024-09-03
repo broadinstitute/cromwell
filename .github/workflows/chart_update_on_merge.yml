@@ -107,6 +107,7 @@ jobs:
         cd terra-helmfile
         sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" charts/workflows-app/values.yaml
         cd -
+        
     - name: Update cromwell-runner-app in terra-helmfile
       if: false
       run: |

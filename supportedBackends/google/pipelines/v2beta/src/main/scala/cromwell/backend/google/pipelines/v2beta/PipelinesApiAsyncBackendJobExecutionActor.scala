@@ -23,7 +23,6 @@ import org.apache.commons.io.output.ByteArrayOutputStream
 import wom.core.FullyQualifiedName
 import wom.expression.FileEvaluation
 import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomSingleFile, WomUnlistedDirectory}
-import cromwell.backend.google.pipelines.v2beta.api.PapiCostPollingHelper
 import java.nio.charset.Charset
 import java.io.{FileNotFoundException, OutputStreamWriter}
 import scala.concurrent.Future

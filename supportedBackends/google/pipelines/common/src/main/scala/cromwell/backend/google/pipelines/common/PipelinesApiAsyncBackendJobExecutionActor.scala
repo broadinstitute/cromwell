@@ -37,6 +37,8 @@ import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfigu
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
 import cromwell.backend.standard._
+import cromwell.backend.standard.costestimation.CostPollingHelper
+
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -132,6 +134,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override type StandardAsyncRunState = RunStatus
 
+  override val costHelper: Option[CostPollingHelper[RunStatus]] = Some(new PapiCostPollingHelper(tellMetadata))
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
@@ -830,18 +833,19 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
 
   override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = {
-    val minEventTime: Option[OffsetDateTime] =
+    // Intuition:
+    // "job start" is the earliest event time across all events.
+    // "cpuStart" is whatever time that the cost helper thinks it is.
+    // "jobEnd" is whatever the cost helper thinks it is, falling back to the last event time, falling back to now.
+    val jobStart: Option[OffsetDateTime] =
       runStatus.eventList.headOption.map(_ => runStatus.eventList.map(_.offsetDateTime).min)
     val maxEventTime: Option[OffsetDateTime] =
       runStatus.eventList.headOption.map(_ => runStatus.eventList.map(_.offsetDateTime).max)
     costHelper match {
       case Some(helper) =>
-        val vmStart: Option[OffsetDateTime] = helper.vmStartTime.orElse(minEventTime)
-        val vmEnd: Option[OffsetDateTime] = helper.vmEndTime.orElse(maxEventTime)
-        (vmStart, vmEnd) match {
-          case (Some(start), Some(end)) => Some(StartAndEndTimes(start, vmStart, end))
-          case _ => None
-        }
+        val cpuStart: Option[OffsetDateTime] = helper.vmStartTime
+        val jobEnd: OffsetDateTime = helper.vmEndTime.orElse(maxEventTime).getOrElse(OffsetDateTime.now())
+        jobStart.flatMap(start => Option(StartAndEndTimes(start, cpuStart, jobEnd)))
       case None =>
         jobLogger.error(
           "Programmer error: expected costHelper object to be present in PipelinesApiBackendJobExecutionActor"

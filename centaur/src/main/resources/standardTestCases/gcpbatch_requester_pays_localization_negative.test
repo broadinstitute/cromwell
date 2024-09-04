@@ -1,6 +1,6 @@
 name: gcpbatch_requester_pays_localization_negative
 testFormat: workflowfailure
-# Papiv2 backend configured SA does not have permission to bill the project, so this workflow should fail
+# GCPBATCH backend configured SA does not have permission to bill the project, so this workflow should fail
 backends: [GCPBATCH]
 workflowType: WDL
 workflowTypeVersion: 1.0

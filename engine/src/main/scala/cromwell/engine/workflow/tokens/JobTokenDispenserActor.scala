@@ -181,7 +181,6 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       val hogGroupCounts =
         nextTokens.groupBy(t => t.queuePlaceholder.hogGroup).map { case (hogGroup, list) => s"$hogGroup: ${list.size}" }
       log.info(s"Assigned new job $dispenserType tokens to the following groups: ${hogGroupCounts.mkString(", ")}")
-//      System.out.println(s"##### FIND ME $dispenserType tokens for actors:  ${nextTokens.map(t => t.queuePlaceholder.actor.path).mkString(",")}")
     }
 
     nextTokens.foreach {

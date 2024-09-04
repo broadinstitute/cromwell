@@ -44,7 +44,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyToTest + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 TestProbe().ref
       ),
       "tokenDispenserUnderTest1"
     )
@@ -103,7 +104,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyExpected + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 TestProbe().ref
       ),
       "tokenDispenserUnderTest2"
     )
@@ -162,7 +164,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyOverall + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 TestProbe().ref
       ),
       "tokenDispenserUnderTest3"
     )
@@ -221,7 +224,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyOverall + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 TestProbe().ref
       ),
       "tokenDispenserUnderTest4"
     )
@@ -274,7 +278,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyOverall + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 TestProbe().ref
       ),
       "tokenDispenserUnderTest5"
     )

@@ -1,0 +1,18 @@
+name: gcpbatch_requester_pays_localization_negative
+testFormat: workflowfailure
+# Papiv2 backend configured SA does not have permission to bill the project, so this workflow should fail
+backends: [GCPBATCH]
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: requester_pays_gcs/localization.wdl
+}
+
+metadata {
+  workflowName: requester_pays_localization
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": ~~"Job failed due to task failure. Specifically, task with index 0 failed due to the following task event: \"Task state is updated from RUNNING to FAILED"
+}

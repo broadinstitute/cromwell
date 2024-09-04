@@ -16,7 +16,7 @@ import cromwell.core.{ExecutionEvent, WorkflowId}
 import io.grpc.Status
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.prop.TableDrivenPropertyChecks
+import org.scalatest.prop.{TableDrivenPropertyChecks, TableFor3}
 
 class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TableDrivenPropertyChecks {
 
@@ -35,7 +35,7 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   private val jobId = StandardAsyncJob("test_job")
   private val pollingRequest = PAPIStatusPollRequest(workflowId, actorRef, httpRequest, jobId)
 
-  private val interpretedStatus = Table(
+  private val interpretedStatus: TableFor3[String, String, Object] = Table(
     ("description", "json", "status"),
     ("parse null operation json",
      null,
@@ -312,7 +312,7 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
         Option(json).map(GoogleAuthMode.jsonFactory.createJsonParser).map(_.parse(classOf[Operation])).orNull
       val runStatus = requestHandler.interpretOperationStatus(operation, pollingRequest)
 
-      runStatus should be(expectedStatus)
+      runStatus.toString should be(expectedStatus.toString)
 
     }
   }

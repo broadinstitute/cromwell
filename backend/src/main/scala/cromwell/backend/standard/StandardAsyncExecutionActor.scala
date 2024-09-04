@@ -1356,7 +1356,8 @@ trait StandardAsyncExecutionActor
     }
   }
 
-  // Subclasses that supply this will have their cost data added to cromwell metadata as this class polls the backend and processes the results.
+  // If present, polling results will be presented to this helper.
+  // Subclasses can use this to emit proper metadata based on polling responses.
   protected val costHelper: Option[CostPollingHelper[StandardAsyncRunState]] = Option.empty
 
   /**

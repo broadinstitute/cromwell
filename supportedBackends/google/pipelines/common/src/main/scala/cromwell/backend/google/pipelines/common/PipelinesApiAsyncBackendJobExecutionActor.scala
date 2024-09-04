@@ -835,8 +835,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = {
     // Intuition:
     // "job start" is the earliest event time across all events.
-    // "cpuStart" is whatever time that the cost helper thinks it is.
-    // "jobEnd" is whatever the cost helper thinks it is, falling back to the last event time, falling back to now.
+    // "cpuStart" is obtained from the cost helper. It should be the event time where the user VM started spending money.
+    // "jobEnd" is obtained from the cost helper, falling back to the last event time, falling back to now.
+    // We allow fallbacks for end times to account for in progress runs, but generally the end time is only known once we've reached a terminal status.
     val jobStart: Option[OffsetDateTime] =
       runStatus.eventList.headOption.map(_ => runStatus.eventList.map(_.offsetDateTime).min)
     val maxEventTime: Option[OffsetDateTime] =

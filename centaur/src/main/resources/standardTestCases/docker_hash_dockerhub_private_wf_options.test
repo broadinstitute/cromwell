@@ -1,6 +1,7 @@
 name: docker_hash_dockerhub_private_wf_options
 testFormat: workflowsuccess
-backends: [Papiv2NoDockerHubConfig]
+# see https://github.com/broadinstitute/cromwell/pull/7515
+backends: [Papiv2NoDockerHubConfig, GCPBATCH_FAIL]
 
 files {
   workflow: docker_hash/docker_hash_dockerhub_private_no_dockerhub_config.wdl

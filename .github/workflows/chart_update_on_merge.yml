@@ -7,7 +7,7 @@ on:
 
 jobs:
   chart-update:
-    name: Cromwhelm Chart Auto Updater
+    name: Cromwell Version Auto Updater
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
@@ -24,7 +24,9 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '17'
-    - name: Clone Cromwhelm
+    - name: (DISABLED) Clone Cromwhelm
+      # WX-1837 disabling CI for this chart, used by AoU RWB only
+      if: false
       uses: actions/checkout@v2
       with:
         repository: broadinstitute/cromwhelm
@@ -73,7 +75,9 @@ jobs:
         repository: broadinstitute/terra-helmfile
         event-type: update-service
         client-payload: '{"service": "cromiam", "version": "${{ env.CROMWELL_VERSION }}", "dev_only": false}'
-    - name: Edit & push cromwhelm chart
+    - name: (DISABLED) Edit & push cromwhelm chart
+      # WX-1837 disabling CI for this chart, used by AoU RWB only
+      if: false
       env:
         BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       run: |
@@ -90,29 +94,34 @@ jobs:
         git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main
         cd -
 
-    - name: Clone terra-helmfile
+### WX-1836 Steps below here are disabled Azure CI
+
+    - name: (DISABLED) Clone terra-helmfile
       uses: actions/checkout@v3
+      if: false
       with:
         repository: broadinstitute/terra-helmfile
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: terra-helmfile
 
-    - name: Update workflows-app in terra-helmfile
+    - name: (DISABLED) Update workflows-app in terra-helmfile
+      if: false
       run: |
         set -e
         cd terra-helmfile
         sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" charts/workflows-app/values.yaml
         cd -
-
-    - name: Update cromwell-runner-app in terra-helmfile
+        
+    - name: (DISABLED) Update cromwell-runner-app in terra-helmfile
+      if: false
       run: |
         set -e
         cd terra-helmfile
         sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" charts/cromwell-runner-app/values.yaml
         cd -
-        
 
-    - name: Make PR in terra-helmfile
+    - name: (DISABLED) Make PR in terra-helmfile
+      if: false
       env:
         BROADBOT_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
         GH_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}

@@ -1,6 +1,6 @@
 name: attempt_to_call_size_function_on_bucket
 testFormat: workflowfailure
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: attempt_to_call_size_function_on_bucket/attempt_to_call_size_function_on_bucket.wdl

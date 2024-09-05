@@ -1,6 +1,6 @@
 name: large_final_workflow_outputs_dir
 testFormat: workflowsuccess
-backends: [Papi]
+backends: [Papi, GCPBATCH]
 
 files {
   workflow: large_final_workflow_outputs_dir/large_final_workflow_outputs_dir.wdl

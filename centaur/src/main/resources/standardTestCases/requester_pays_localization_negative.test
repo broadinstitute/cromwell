@@ -1,7 +1,8 @@
 name: requester_pays_localization_negative
 testFormat: workflowfailure
 # Papiv2 backend configured SA does not have permission to bill the project, so this workflow should fail
-backends: [Papiv2]
+# not sure
+backends: [Papiv2, GCPBATCH_FAIL]
 workflowType: WDL
 workflowTypeVersion: 1.0
 tags: ["wdl_1.0"]

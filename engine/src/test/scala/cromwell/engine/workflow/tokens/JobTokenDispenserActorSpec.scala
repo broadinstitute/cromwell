@@ -37,7 +37,7 @@ class JobTokenDispenserActorSpec
 
   val hogGroupA: HogGroup = HogGroup("hogGroupA")
   val hogGroupB: HogGroup = HogGroup("hogGroupB")
-  val mockGroupMetricsActor: TestActorRef[GroupMetricsActor] = TestActorRef(Props(new TestGroupMetricsActor))
+  val mockGroupMetricsActor: TestActorRef[GroupMetricsActor] = TestActorRef(Props(new TestGroupMetricsActorForJTDA))
 
   private def getActorRefUnderTest(serviceRegistryActorName: String,
                                    jobExecutionTokenDispenserActorName: String
@@ -529,7 +529,7 @@ object JobTokenDispenserActorSpec {
   val LimitedTo5Tokens: JobTokenType = limitedTokenType(5)
 }
 
-class TestGroupMetricsActor extends GroupMetricsActor(engineDatabaseInterface, 15) {
+class TestGroupMetricsActorForJTDA extends GroupMetricsActor(engineDatabaseInterface, 15) {
   override def receive: Receive = { case GetQuotaExhaustedGroups =>
     sender() ! GetQuotaExhaustedGroupsSuccess(List(quotaExhaustedHogGroup.value))
   }

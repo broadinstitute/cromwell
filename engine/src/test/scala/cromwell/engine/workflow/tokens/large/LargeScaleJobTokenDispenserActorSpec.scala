@@ -1,12 +1,12 @@
 package cromwell.engine.workflow.tokens.large
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
+import cromwell.backend.standard.GroupMetricsActor
 import cromwell.core.JobToken.JobTokenType
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
 import cromwell.engine.workflow.tokens.JobTokenDispenserActor
+import cromwell.engine.workflow.tokens.TokenDispenserUtils.TestGroupMetricsActor
 import cromwell.engine.workflow.tokens.large.LargeScaleJobTokenDispenserActorSpec.RunningJobCounter
 import cromwell.engine.workflow.tokens.large.MultipleTokenUsingActor.TokenUsingActorCompletion
 import cromwell.engine.workflow.tokens.large.PatientTokenNeedingActor.Begin
@@ -15,6 +15,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 
 class LargeScaleJobTokenDispenserActorSpec
@@ -31,6 +32,8 @@ class LargeScaleJobTokenDispenserActorSpec
 
   val backendName = "PAPI"
 
+  val mockGroupMetricsActor: TestActorRef[GroupMetricsActor] = TestActorRef(Props(new TestGroupMetricsActor))
+
   behavior of "JobTokenDispenserActor with concurrent demands"
 
   it should "limit two workflows to a max concurrency of 10 with no hog factor" in {
@@ -45,7 +48,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 TestProbe().ref
+                                 mockGroupMetricsActor
       ),
       "tokenDispenserUnderTest1"
     )
@@ -105,7 +108,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 TestProbe().ref
+                                 mockGroupMetricsActor
       ),
       "tokenDispenserUnderTest2"
     )
@@ -165,7 +168,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 TestProbe().ref
+                                 mockGroupMetricsActor
       ),
       "tokenDispenserUnderTest3"
     )
@@ -225,7 +228,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 TestProbe().ref
+                                 mockGroupMetricsActor
       ),
       "tokenDispenserUnderTest4"
     )
@@ -279,7 +282,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 TestProbe().ref
+                                 mockGroupMetricsActor
       ),
       "tokenDispenserUnderTest5"
     )

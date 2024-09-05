@@ -2,27 +2,14 @@ package cromwell.backend.google.batch.api
 
 import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.LogsPolicy.Destination
-import com.google.cloud.batch.v1.{
-  AllocationPolicy,
-  ComputeResource,
-  CreateJobRequest,
-  DeleteJobRequest,
-  GetJobRequest,
-  Job,
-  JobName,
-  LogsPolicy,
-  Runnable,
-  ServiceAccount,
-  TaskGroup,
-  TaskSpec,
-  Volume
-}
+import com.google.cloud.batch.v1.{AllocationPolicy, ComputeResource, CreateJobRequest, DeleteJobRequest, GetJobRequest, Job, JobName, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
 import com.google.protobuf.Duration
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.{GcpBatchLogsPolicy, GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
 import cromwell.backend.google.batch.runnable._
 import cromwell.backend.google.batch.util.{BatchUtilityConversions, GcpBatchMachineConstraints}
+import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.JobLogger
 
 import scala.jdk.CollectionConverters._
@@ -248,14 +235,42 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
           .build
     }
 
+    val googleLabels = data.createParameters.googleLabels.map(l => Label(l.key, l.value))
+
+    val jobDescriptor = data.createParameters.jobDescriptor
+    val backendJobDescriptorKey = jobDescriptor.key
+
+    val workflow = jobDescriptor.workflowDescriptor
+    val call = jobDescriptor.taskCall
+    val subWorkflow = workflow.callable
+    val subWorkflowLabels =
+      if (!subWorkflow.equals(workflow.rootWorkflow))
+        Labels("cromwell-sub-workflow-name" -> subWorkflow.name)
+      else
+        Labels.empty
+
+    val alias = call.localName
+    val aliasLabels =
+      if (!alias.equals(call.callable.name))
+        Labels("wdl-call-alias" -> alias)
+      else
+        Labels.empty
+
+    val shardLabels = Labels(
+      backendJobDescriptorKey.index.map(l => Label("wdl-shard-index", l.toString)).toVector)
+
+    val allLabels = Labels(
+      "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
+      "cromwell-root-workflow-id" -> data.createParameters.jobDescriptor.workflowDescriptor.rootWorkflowId.toString,
+      "wdl-task-name" -> call.callable.name,
+      "goog-batch-worker" -> "true",
+      "submitter" -> "cromwell",
+    ) ++ shardLabels ++ subWorkflowLabels ++ aliasLabels ++ Labels(googleLabels.toVector)
+
     val job = Job.newBuilder
       .addTaskGroups(taskGroup)
       .setAllocationPolicy(allocationPolicy.build())
-      .putLabels("submitter",
-                 "cromwell"
-      ) // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
-      .putLabels("goog-batch-worker", "true")
-      .putAllLabels(data.createParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
+      .putAllLabels(allLabels.asJavaMap)
       .setLogsPolicy(logsPolicy)
 
     CreateJobRequest.newBuilder

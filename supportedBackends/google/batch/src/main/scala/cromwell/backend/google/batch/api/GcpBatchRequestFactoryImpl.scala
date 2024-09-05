@@ -274,8 +274,9 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     val allLabels = Labels(
       "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
-      "cromwell-root-workflow-id" -> data.createParameters.jobDescriptor.workflowDescriptor.rootWorkflowId.toString,
+      "cromwell-root-workflow-id" -> jobDescriptor.workflowDescriptor.rootWorkflowId.toString,
       "wdl-task-name" -> call.callable.name,
+      "wdl-attempt" -> backendJobDescriptorKey.attempt.toString,
       "goog-batch-worker" -> "true",
       "submitter" -> "cromwell"
     ) ++ shardLabels ++ subWorkflowLabels ++ aliasLabels ++ Labels(googleLabels.toVector)

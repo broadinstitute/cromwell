@@ -7,6 +7,7 @@ import com.google.cloud.batch.v1.{
   ComputeResource,
   CreateJobRequest,
   DeleteJobRequest,
+  GCS,
   GetJobRequest,
   Job,
   JobName,
@@ -20,7 +21,7 @@ import com.google.cloud.batch.v1.{
 import com.google.protobuf.Duration
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.batch.models.{GcpBatchLogsPolicy, GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
+import cromwell.backend.google.batch.models.{GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
 import cromwell.backend.google.batch.runnable._
 import cromwell.backend.google.batch.util.{BatchUtilityConversions, GcpBatchMachineConstraints}
 import cromwell.core.logging.JobLogger
@@ -197,7 +198,12 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val networkInterface = createNetwork(data = data)
     val networkPolicy = createNetworkPolicy(networkInterface.build())
     val allDisks = toDisks(allDisksToBeMounted)
-    val allVolumes = toVolumes(allDisksToBeMounted)
+    val allVolumes = toVolumes(allDisksToBeMounted) ::: createParameters.targetLogFile.map { targetLogFile =>
+      Volume.newBuilder
+        .setGcs(GCS.newBuilder().setRemotePath(targetLogFile.gcsBucket))
+        .setMountPath(targetLogFile.mountPath)
+        .build()
+    }.toList
 
     val containerSetup: List[Runnable] = containerSetupRunnables(allVolumes)
     val localization: List[Runnable] = localizeRunnables(createParameters, allVolumes)
@@ -238,13 +244,14 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
     val allocationPolicy =
       createAllocationPolicy(data, locationPolicy, instancePolicy.build, networkPolicy, gcpSa, accelerators)
-    val logsPolicy = data.gcpBatchParameters.batchAttributes.logsPolicy match {
-      case GcpBatchLogsPolicy.CloudLogging =>
-        LogsPolicy.newBuilder.setDestination(Destination.CLOUD_LOGGING).build
-      case GcpBatchLogsPolicy.Path =>
+
+    val logsPolicy = data.createParameters.targetLogFile match {
+      case None => LogsPolicy.newBuilder.setDestination(Destination.CLOUD_LOGGING).build
+
+      case Some(targetLogFile) =>
         LogsPolicy.newBuilder
           .setDestination(Destination.PATH)
-          .setLogsPath(data.gcpBatchParameters.logfile.toString)
+          .setLogsPath(targetLogFile.diskPath.pathAsString)
           .build
     }
 

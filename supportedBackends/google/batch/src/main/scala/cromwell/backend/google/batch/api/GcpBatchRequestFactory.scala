@@ -41,11 +41,9 @@ object GcpBatchRequestFactory {
   case class DetritusOutputParameters(
     monitoringScriptOutputParameter: Option[GcpBatchFileOutput],
     rcFileOutputParameter: GcpBatchFileOutput,
-    memoryRetryRCFileOutputParameter: GcpBatchFileOutput,
-    logFileOutputParameter: GcpBatchFileOutput
+    memoryRetryRCFileOutputParameter: GcpBatchFileOutput
   ) {
     def all: List[GcpBatchFileOutput] = memoryRetryRCFileOutputParameter ::
-      logFileOutputParameter ::
       rcFileOutputParameter ::
       monitoringScriptOutputParameter.toList
   }
@@ -68,13 +66,21 @@ object GcpBatchRequestFactory {
 
   case class CreateBatchDockerKeyAndToken(key: String, encryptedToken: String)
 
+  /**
+   * Defines the values used for streaming the job logs to GCS.
+   * 
+   * @param gcsBucket the Cloud Storage bucket where the log file should be streamed to.
+   * @param mountPath the path where the Cloud Storage bucket will be mounted to.
+   * @param diskPath  the path in the mounted disk where the log file should be written to.
+   */
+  case class GcpBatchLogFile(gcsBucket: String, mountPath: String, diskPath: Path)
+
   case class CreateBatchJobParameters(jobDescriptor: BackendJobDescriptor,
                                       runtimeAttributes: GcpBatchRuntimeAttributes,
                                       dockerImage: String,
                                       cloudWorkflowRoot: Path,
                                       cloudCallRoot: Path,
                                       commandScriptContainerPath: Path,
-                                      logGcsPath: Path,
                                       inputOutputParameters: InputOutputParameters,
                                       projectId: String,
                                       computeServiceAccount: String,
@@ -92,7 +98,8 @@ object GcpBatchRequestFactory {
                                       checkpointingConfiguration: CheckpointingConfiguration,
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
-                                      dockerhubCredentials: (String, String)
+                                      dockerhubCredentials: (String, String),
+                                      targetLogFile: Option[GcpBatchLogFile]
   ) {
     def literalInputs = inputOutputParameters.literalInputParameters
 

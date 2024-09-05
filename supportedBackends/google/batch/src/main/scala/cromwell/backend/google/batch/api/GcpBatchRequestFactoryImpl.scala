@@ -2,7 +2,21 @@ package cromwell.backend.google.batch.api
 
 import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.LogsPolicy.Destination
-import com.google.cloud.batch.v1.{AllocationPolicy, ComputeResource, CreateJobRequest, DeleteJobRequest, GetJobRequest, Job, JobName, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
+import com.google.cloud.batch.v1.{
+  AllocationPolicy,
+  ComputeResource,
+  CreateJobRequest,
+  DeleteJobRequest,
+  GetJobRequest,
+  Job,
+  JobName,
+  LogsPolicy,
+  Runnable,
+  ServiceAccount,
+  TaskGroup,
+  TaskSpec,
+  Volume
+}
 import com.google.protobuf.Duration
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
@@ -256,15 +270,14 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       else
         Labels.empty
 
-    val shardLabels = Labels(
-      backendJobDescriptorKey.index.map(l => Label("wdl-shard-index", l.toString)).toVector)
+    val shardLabels = Labels(backendJobDescriptorKey.index.map(l => Label("wdl-shard-index", l.toString)).toVector)
 
     val allLabels = Labels(
       "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
       "cromwell-root-workflow-id" -> data.createParameters.jobDescriptor.workflowDescriptor.rootWorkflowId.toString,
       "wdl-task-name" -> call.callable.name,
       "goog-batch-worker" -> "true",
-      "submitter" -> "cromwell",
+      "submitter" -> "cromwell"
     ) ++ shardLabels ++ subWorkflowLabels ++ aliasLabels ++ Labels(googleLabels.toVector)
 
     val job = Job.newBuilder

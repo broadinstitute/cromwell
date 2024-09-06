@@ -72,8 +72,6 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config,
 
   private def checkPapi(papiConfiguration: PapiConfiguration): Future[SubsystemStatus] = {
     val papiConfig = papiConfiguration.papiConfig
-    val papiProviderConfig = papiConfiguration.papiProviderConfig
-
     val endpointUrl = new URL(papiConfig.as[String]("genomics.endpoint-url"))
     val papiProjectId = papiConfig.as[String]("project")
     val location = papiConfig.as[String]("genomics.location")

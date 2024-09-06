@@ -52,8 +52,9 @@ case class CentaurTestCase(workflow: Workflow,
         // Test will run on servers that support all of the test's backends (or more) (default)
         testBackends forall supportedBackends.contains
       case AnyBackendRequired(testBackends) =>
-        // Test will run on servers that support at least one of the test's backends (or more)
-        testBackends exists supportedBackends.contains
+        // Test will run on servers that support at least one of the test's backends (or more),
+        // or if no test backends are specified at all.
+        testBackends.isEmpty || (testBackends exists supportedBackends.contains)
       case OnlyBackendsAllowed(testBackends) =>
         // Test will run on servers that only support backends the test specifies (or fewer)
         supportedBackends forall testBackends.contains

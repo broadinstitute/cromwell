@@ -26,11 +26,10 @@ object CallMetadataKeys {
   val BackendLabels = "backendLabels"
   val Labels = "labels"
   val CommandLine = "commandLine"
-  val VmCostUsd = "vmCostUsd"
-  val VmStartTime = "vmStartTime"
-  val VmEndTime = "vmEndTime"
-  val TaskStartTime = "taskStartTime"
-  val TaskEndTime = "taskEndTime"
+  val VmCostPerHour =
+    "vmCostPerHour" // for a given task attempt, how much does it cost per hour. Currently assumed to be USD.
+  val VmStartTime = "vmStartTime" // time that the user VM starts spending money in a given task attempt.
+  val VmEndTime = "vmEndTime" // time that the user VM stops spending money in a given task attempt.
 
   object CallCachingKeys {
     val EffectiveModeKey = CallCaching + MetadataKey.KeySeparator + "effectiveCallCachingMode"

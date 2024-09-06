@@ -1,12 +1,10 @@
 package cromwell.engine.workflow.tokens.large
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
-import cromwell.backend.standard.GroupMetricsActor
 import cromwell.core.JobToken.JobTokenType
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
 import cromwell.engine.workflow.tokens.JobTokenDispenserActor
-import cromwell.engine.workflow.tokens.TokenDispenserUtils.TestGroupMetricsActor
 import cromwell.engine.workflow.tokens.large.LargeScaleJobTokenDispenserActorSpec.RunningJobCounter
 import cromwell.engine.workflow.tokens.large.MultipleTokenUsingActor.TokenUsingActorCompletion
 import cromwell.engine.workflow.tokens.large.PatientTokenNeedingActor.Begin
@@ -32,8 +30,6 @@ class LargeScaleJobTokenDispenserActorSpec
 
   val backendName = "PAPI"
 
-  val mockGroupMetricsActor: TestActorRef[GroupMetricsActor] = TestActorRef(Props(new TestGroupMetricsActor))
-
   behavior of "JobTokenDispenserActor with concurrent demands"
 
   it should "limit two workflows to a max concurrency of 10 with no hog factor" in {
@@ -48,7 +44,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 mockGroupMetricsActor
+        None
       ),
       "tokenDispenserUnderTest1"
     )
@@ -108,7 +104,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 mockGroupMetricsActor
+        None
       ),
       "tokenDispenserUnderTest2"
     )
@@ -168,7 +164,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 mockGroupMetricsActor
+        None
       ),
       "tokenDispenserUnderTest3"
     )
@@ -228,7 +224,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 mockGroupMetricsActor
+        None
       ),
       "tokenDispenserUnderTest4"
     )
@@ -282,7 +278,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-                                 mockGroupMetricsActor
+        None
       ),
       "tokenDispenserUnderTest5"
     )

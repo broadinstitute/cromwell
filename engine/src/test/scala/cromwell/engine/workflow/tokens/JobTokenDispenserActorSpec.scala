@@ -33,7 +33,7 @@ class JobTokenDispenserActorSpec
   val MaxWaitTime: FiniteDuration = 10.seconds
   implicit val pc: PatienceConfig = PatienceConfig(MaxWaitTime)
 
-  behavior of "JobTokenDispenserActor"
+  behavior of "JobTokenDispenserActor with GroupMetricsActor"
 
   val hogGroupA: HogGroup = HogGroup("hogGroupA")
   val hogGroupB: HogGroup = HogGroup("hogGroupB")
@@ -49,7 +49,7 @@ class JobTokenDispenserActorSpec
         logInterval = None,
         dispenserType = "execution",
         tokenAllocatedDescription = "Running",
-        mockGroupMetricsActor
+        Option(mockGroupMetricsActor)
       ),
       name = jobExecutionTokenDispenserActorName
     )
@@ -142,7 +142,7 @@ class JobTokenDispenserActorSpec
         logInterval = None,
         dispenserType = "execution",
         tokenAllocatedDescription = "Running",
-        mockGroupMetricsActor
+        Option(mockGroupMetricsActor)
       ),
       name = "dispense-correct-amount"
     )
@@ -340,7 +340,7 @@ class JobTokenDispenserActorSpec
             None,
             dispenserType = "execution",
             tokenAllocatedDescription = "Running",
-            mockGroupMetricsActor
+            Option(mockGroupMetricsActor)
           ),
           s"lost-to-$name"
         )
@@ -511,6 +511,49 @@ class JobTokenDispenserActorSpec
       probe.ref ! PoisonPill
     }
 
+  }
+
+  behavior of "JobTokenDispenserActor with No GroupMetricsActor"
+
+  it should "dispense token to group experiencing quota exhaustion when quota exhaustion feature is disabled" in {
+    val requestProbe1 = TestProbe()
+    val requestProbe2 = TestProbe()
+    val actorRefUnderTest = TestActorRef(
+      factory = new JobTokenDispenserActor(
+        serviceRegistryActor = TestProbe("serviceRegistryActor-disabled-quota-exhaustion").ref,
+        dispensingRate = Rate(10, 100.millis),
+        logInterval = None,
+        dispenserType = "execution",
+        tokenAllocatedDescription = "Running",
+        None
+      ),
+      name = "dispense-disabled-quota-exhaustion"
+    )
+
+    requestProbe1.send(actorRefUnderTest, JobTokenRequest(quotaExhaustedHogGroup, TestInfiniteTokenType))
+    requestProbe2.send(actorRefUnderTest, JobTokenRequest(hogGroupA, LimitedTo5Tokens))
+
+    // request from exhausted group should be dispensed token since it is first in the queue
+    requestProbe1.expectMsg(max = MaxWaitTime, JobTokenDispensed)
+    actorRefUnderTest.underlyingActor.tokenAssignments.contains(requestProbe1.ref) shouldBe true
+    actorRefUnderTest.underlyingActor
+      .tokenAssignments(requestProbe1.ref)
+      .tokenLease
+      .get()
+      .jobTokenType shouldBe TestInfiniteTokenType
+
+    // request from other group should also be dispensed token as their is capacity
+    requestProbe2.expectMsg(max = MaxWaitTime, JobTokenDispensed)
+    actorRefUnderTest.underlyingActor.tokenAssignments.contains(requestProbe2.ref) shouldBe true
+    actorRefUnderTest.underlyingActor
+      .tokenAssignments(requestProbe2.ref)
+      .tokenLease
+      .get()
+      .jobTokenType shouldBe LimitedTo5Tokens
+
+    // queue should have no requests remaining
+    actorRefUnderTest.underlyingActor.tokenQueues(TestInfiniteTokenType).queues.size shouldBe 0
+    actorRefUnderTest.underlyingActor.tokenQueues(LimitedTo5Tokens).queues.size shouldBe 0
   }
 }
 

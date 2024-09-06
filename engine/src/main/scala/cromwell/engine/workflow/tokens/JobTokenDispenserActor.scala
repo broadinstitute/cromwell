@@ -38,7 +38,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
                              logInterval: Option[FiniteDuration],
                              dispenserType: String,
                              tokenAllocatedDescription: String,
-                             groupMetricsActor: ActorRef
+                             groupMetricsActor: Option[ActorRef]
 ) extends Actor
     with ActorLogging
     with JobInstrumentation
@@ -141,8 +141,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   private def checkAndDispenseTokens(n: Int): Unit =
     if (tokenQueues.nonEmpty) {
       // don't fetch cloud quota exhausted groups for token dispenser allocating 'restart' tokens
-      if (dispenserType == "execution") {
-        groupMetricsActor
+      if (dispenserType == "execution" && groupMetricsActor.nonEmpty) {
+        groupMetricsActor.get
           .ask(GetQuotaExhaustedGroups)(groupMetricsTimeout)
           .mapTo[GetQuotaExhaustedGroupsResponse] onComplete {
           case Success(GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups)) => dispense(n, quotaExhaustedGroups)
@@ -282,7 +282,7 @@ object JobTokenDispenserActor {
             logInterval: Option[FiniteDuration],
             dispenserType: String,
             tokenAllocatedDescription: String,
-            groupMetricsActor: ActorRef
+            groupMetricsActor: Option[ActorRef]
   ): Props =
     Props(
       new JobTokenDispenserActor(serviceRegistryActor,

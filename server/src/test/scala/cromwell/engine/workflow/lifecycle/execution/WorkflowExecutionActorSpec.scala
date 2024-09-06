@@ -1,22 +1,16 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.{Actor, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell._
 import cromwell.backend.AllBackendInitializationData
-import cromwell.backend.standard.GroupMetricsActor
 import cromwell.core.{SimpleIoActor, WorkflowId}
 import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilderForSpecs
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{
-  ExecuteWorkflowCommand,
-  WorkflowExecutionFailedResponse
-}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionFailedResponse}
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
 import cromwell.engine.workflow.tokens.JobTokenDispenserActor
-import cromwell.engine.workflow.tokens.TokenDispenserUtils.TestGroupMetricsActor
 import cromwell.engine.workflow.workflowstore.Submitted
 import cromwell.services.ServiceRegistryActor
 import cromwell.services.metadata.MetadataService
@@ -25,6 +19,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -58,8 +53,6 @@ class WorkflowExecutionActorSpec
       | backend: "Mock"
       |}
     """.stripMargin
-
-  val mockGroupMetricsActor: TestActorRef[GroupMetricsActor] = TestActorRef(Props(new TestGroupMetricsActor))
 
   behavior of "WorkflowExecutionActor"
 
@@ -97,7 +90,7 @@ class WorkflowExecutionActorSpec
                                      None,
                                      "execution",
                                      "Running",
-                                     mockGroupMetricsActor
+          None
         )
       )
     val jobExecutionTokenDispenserActor =
@@ -107,7 +100,7 @@ class WorkflowExecutionActorSpec
                                      None,
                                      "execution",
                                      "Running",
-                                     mockGroupMetricsActor
+          None
         )
       )
     val MockBackendConfigEntry = BackendConfigurationEntry(

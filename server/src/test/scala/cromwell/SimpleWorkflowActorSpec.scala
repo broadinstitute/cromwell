@@ -1,14 +1,10 @@
 package cromwell
 
-import java.time.OffsetDateTime
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 import akka.actor.Props
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
 import cromwell.MetadataWatchActor.{FailureMatcher, Matcher}
 import cromwell.SimpleWorkflowActorSpec._
-import cromwell.backend.standard.GroupMetricsActor
 import cromwell.core._
 import cromwell.engine.backend.BackendSingletonCollection
 import cromwell.engine.workflow.WorkflowActor
@@ -16,12 +12,14 @@ import cromwell.engine.workflow.WorkflowActor._
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowActorWorkComplete
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
 import cromwell.engine.workflow.tokens.JobTokenDispenserActor
-import cromwell.engine.workflow.tokens.TokenDispenserUtils.TestGroupMetricsActor
 import cromwell.engine.workflow.workflowstore.{Submitted, WorkflowHeartbeatConfig, WorkflowToStart}
 import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 import org.scalatest.BeforeAndAfter
 
+import java.time.OffsetDateTime
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -36,7 +34,6 @@ object SimpleWorkflowActorSpec {
 
 class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfter {
   val serviceRegistry = TestProbe().ref
-  val mockGroupMetricsActor: TestActorRef[GroupMetricsActor] = TestActorRef(Props(new TestGroupMetricsActor))
 
   private def buildWorkflowActor(sampleWdl: SampleWdl,
                                  rawInputsOverride: String,
@@ -87,7 +84,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
                                        None,
                                        "execution",
                                        "Running",
-                                       mockGroupMetricsActor
+            None
           )
         ),
         jobExecutionTokenDispenserActor = system.actorOf(
@@ -96,7 +93,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
                                        None,
                                        "execution",
                                        "Running",
-                                       mockGroupMetricsActor
+            None
           )
         ),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),

@@ -10,7 +10,7 @@ import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
 import com.azure.storage.blob.BlobContainerClient
-import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
+import com.google.api.services.lifesciences.v2beta.{CloudLifeSciences, CloudLifeSciencesScopes}
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
@@ -108,12 +108,13 @@ object Operations extends StrictLogging {
   lazy val configuration: GoogleConfiguration = GoogleConfiguration(CentaurConfig.conf)
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
-  lazy val genomicsEndpointUrl: String = googleConf.getString("genomics.endpoint-url")
-  lazy val genomicsAndStorageScopes = List(StorageScopes.CLOUD_PLATFORM_READ_ONLY, GenomicsScopes.GENOMICS)
+  lazy val endpointUrl: String = googleConf.getString("genomics.endpoint-url")
+  lazy val lifeSciencesAndStorageScopes =
+    List(StorageScopes.CLOUD_PLATFORM_READ_ONLY, CloudLifeSciencesScopes.CLOUD_PLATFORM)
   lazy val credentials: Credentials = configuration
     .auth(authName)
     .unsafe
-    .credentials(genomicsAndStorageScopes)
+    .credentials(lifeSciencesAndStorageScopes)
   lazy val credentialsProjectOption: Option[String] =
     Option(credentials) collect { case serviceAccountCredentials: ServiceAccountCredentials =>
       serviceAccountCredentials.getProjectId
@@ -122,15 +123,15 @@ object Operations extends StrictLogging {
   // The project from the config or from the credentials. By default the project is read from the system environment.
   lazy val projectOption: Option[String] = confProjectOption orElse credentialsProjectOption
 
-  lazy val genomics: Genomics = {
-    val builder = new Genomics.Builder(
+  lazy val cloudLifeSciences: CloudLifeSciences = {
+    val builder = new CloudLifeSciences.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
       new HttpCredentialsAdapter(credentials)
     )
     builder
       .setApplicationName(configuration.applicationName)
-      .setRootUrl(genomicsEndpointUrl)
+      .setRootUrl(endpointUrl)
       .build()
   }
 
@@ -408,7 +409,7 @@ object Operations extends StrictLogging {
     new Test[Unit] {
       def checkPAPIAborted(): IO[Unit] =
         for {
-          operation <- IO(genomics.projects().operations().get(jobId).execute())
+          operation <- IO(cloudLifeSciences.projects().locations().operations().get(jobId).execute())
           done = operation.getDone
           operationError = Option(operation.getError)
           aborted = operationError.exists(_.getCode == 1) && operationError.exists(
@@ -426,6 +427,7 @@ object Operations extends StrictLogging {
 
       override def run: IO[Unit] = if (jobId.startsWith("operations/")) {
         checkPAPIAborted()
+
       } else IO.unit
     }
 

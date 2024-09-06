@@ -53,8 +53,6 @@ object Dependencies {
   private val googleCloudNioV = "0.127.18"
   private val googleCloudStorageV = "2.17.2"
   private val googleGaxGrpcV = "2.48.0"
-  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
-  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.42.3"
   private val googleCloudBatchV1 = "0.18.0"
@@ -367,11 +365,6 @@ object Dependencies {
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
-  private val googleGenomicsV2Alpha1Dependency = List(
-    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2Alpha1ApiV
-      exclude("com.google.guava", "guava-jdk5")
-  )
-
   private val googleLifeSciencesV2BetaDependency = List(
     "com.google.apis" % "google-api-services-lifesciences" % googleLifeSciencesServicesV2BetaApiV
       exclude("com.google.guava", "guava-jdk5")
@@ -383,7 +376,7 @@ object Dependencies {
     "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
   )
 
-  private val googlePapiBatchDependencies = googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
+  private val googlePapiBatchDependencies =  googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
 
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`

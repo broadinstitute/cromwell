@@ -4,11 +4,9 @@
 
 ### New feature: Prevent Job start during Cloud Quota exhaustion
 
-This optional feature prevents Cromwell from starting new jobs in a billing project that is currently experiencing 
-cloud quota exhaustion. Jobs will be started once the project's quota becomes available. To enable this feature, 
+This optional feature prevents Cromwell from starting new jobs in a group that is currently experiencing 
+cloud quota exhaustion. Jobs will be started once the group's quota becomes available. To enable this feature, 
 set `quota-exhaustion-job-start-control.enabled` to true.
-
-Note: Jobs that are being restarted will not be affected by this feature, even if it is enabled.
 
 ### Java 17
 

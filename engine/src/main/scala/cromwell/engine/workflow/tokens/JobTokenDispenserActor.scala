@@ -141,20 +141,20 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   private def checkAndDispenseTokens(n: Int): Unit =
     if (tokenQueues.nonEmpty) {
       // don't fetch cloud quota exhausted groups for token dispenser allocating 'restart' tokens
-      if (dispenserType == "execution" && groupMetricsActor.nonEmpty) {
-        groupMetricsActor.get
-          .ask(GetQuotaExhaustedGroups)(groupMetricsTimeout)
-          .mapTo[GetQuotaExhaustedGroupsResponse] onComplete {
-          case Success(GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups)) => dispense(n, quotaExhaustedGroups)
-          case Success(GetQuotaExhaustedGroupsFailure(errorMsg)) =>
-            log.error(s"Failed to fetch quota exhausted groups. Error: $errorMsg")
-            dispense(n, List.empty)
-          case Failure(exception) =>
-            log.error(s"Unexpected failure while fetching quota exhausted groups. Error: ${exception.getMessage}")
-            dispense(n, List.empty)
-        }
-      } else {
-        dispense(n, List.empty)
+      (dispenserType, groupMetricsActor) match {
+        case ("execution", Some(gmActor)) =>
+          gmActor
+            .ask(GetQuotaExhaustedGroups)(groupMetricsTimeout)
+            .mapTo[GetQuotaExhaustedGroupsResponse] onComplete {
+            case Success(GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups)) => dispense(n, quotaExhaustedGroups)
+            case Success(GetQuotaExhaustedGroupsFailure(errorMsg)) =>
+              log.error(s"Failed to fetch quota exhausted groups. Error: $errorMsg")
+              dispense(n, List.empty)
+            case Failure(exception) =>
+              log.error(s"Unexpected failure while fetching quota exhausted groups. Error: ${exception.getMessage}")
+              dispense(n, List.empty)
+          }
+        case _ => dispense(n, List.empty)
       }
     }
 

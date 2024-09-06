@@ -302,8 +302,8 @@ object TesAsyncBackendJobExecutionActor {
         tesVmCostData match {
           case Some(v) =>
             val state = t.state
-            v.startTime.foreach(s => tellMetadataFn(Map(CallMetadataKeys.TaskStartTime -> s)))
-            v.vmCost.foreach(v => tellMetadataFn(Map(CallMetadataKeys.VmCostUsd -> v)))
+            v.startTime.foreach(s => tellMetadataFn(Map(CallMetadataKeys.VmStartTime -> s)))
+            v.vmCost.foreach(v => tellMetadataFn(Map(CallMetadataKeys.VmCostPerHour -> v)))
             getTesStatusFn(state, tesVmCostData, handle.pendingJob.jobId)
           case None =>
             getTesStatusFn(t.state, tesVmCostData, handle.pendingJob.jobId)
@@ -345,7 +345,7 @@ object TesAsyncBackendJobExecutionActor {
 
     taskEndTime.onComplete {
       case Success(result) =>
-        result.foreach(r => tellMetadataFn(Map(CallMetadataKeys.TaskEndTime -> r)))
+        result.foreach(r => tellMetadataFn(Map(CallMetadataKeys.VmEndTime -> r)))
         val newCostData = runStatus.costData.map(_.copy(endTime = result))
         runStatus match {
           case _: Complete => tellBardFn(Complete(newCostData))

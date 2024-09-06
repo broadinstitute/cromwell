@@ -79,26 +79,13 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config,
     val location = papiConfig.as[String]("genomics.location")
     val check = for {
       credentials <- Future(googleAuth.credentials(List(CloudLifeSciencesScopes.CLOUD_PLATFORM)))
-      actorFactoryName = papiProviderConfig.as[String]("actor-factory")
-      genomicsChecker =
-        if (actorFactoryName.contains("v2beta")) {
-
-          GenomicsCheckerV2Beta(googleConfig.applicationName,
-                                googleAuth,
-                                endpointUrl,
-                                location,
-                                credentials,
-                                papiProjectId
-          )
-        } else {
-          GenomicsCheckerV2Beta(googleConfig.applicationName,
-                                googleAuth,
-                                endpointUrl,
-                                location,
-                                credentials,
-                                papiProjectId
-          )
-        }
+      genomicsChecker = GenomicsCheckerV2Beta(googleConfig.applicationName,
+                                              googleAuth,
+                                              endpointUrl,
+                                              location,
+                                              credentials,
+                                              papiProjectId
+      )
       checked <- genomicsChecker.check
     } yield checked
 

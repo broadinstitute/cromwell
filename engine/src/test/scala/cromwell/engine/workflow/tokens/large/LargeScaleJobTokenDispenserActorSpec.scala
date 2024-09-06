@@ -44,7 +44,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-        None
+                                 None
       ),
       "tokenDispenserUnderTest1"
     )
@@ -104,7 +104,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-        None
+                                 None
       ),
       "tokenDispenserUnderTest2"
     )
@@ -164,7 +164,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-        None
+                                 None
       ),
       "tokenDispenserUnderTest3"
     )
@@ -224,7 +224,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-        None
+                                 None
       ),
       "tokenDispenserUnderTest4"
     )
@@ -278,7 +278,7 @@ class LargeScaleJobTokenDispenserActorSpec
                                  None,
                                  dispenserType = "execution",
                                  tokenAllocatedDescription = "Running",
-        None
+                                 None
       ),
       "tokenDispenserUnderTest5"
     )

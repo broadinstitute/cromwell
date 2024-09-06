@@ -206,14 +206,16 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
   lazy val executionTokenLogInterval: Option[FiniteDuration] =
     systemConfig.as[Option[Int]]("hog-safety.token-log-interval-seconds").map(_.seconds)
 
-  private lazy val quotaExhaustionJobControlEnabled: Boolean = systemConfig.as[Option[Boolean]]("quota-exhaustion-job-start-control.enabled").getOrElse(false)
+  private lazy val quotaExhaustionJobControlEnabled: Boolean =
+    systemConfig.as[Option[Boolean]]("quota-exhaustion-job-start-control.enabled").getOrElse(false)
   private lazy val quotaExhaustionThresholdInMins: Long =
     systemConfig.as[Option[Long]]("quota-exhaustion-job-start-control.threshold-minutes").getOrElse(15)
   private lazy val groupMetricsActor: ActorRef =
     context.actorOf(
       GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface, quotaExhaustionThresholdInMins)
     )
-  private lazy val groupMetricsActorForJTDA: Option[ActorRef] = if (quotaExhaustionJobControlEnabled) Option(groupMetricsActor) else None
+  private lazy val groupMetricsActorForJTDA: Option[ActorRef] =
+    if (quotaExhaustionJobControlEnabled) Option(groupMetricsActor) else None
 
   lazy val jobRestartCheckTokenDispenserActor: ActorRef = context.actorOf(
     JobTokenDispenserActor.props(serviceRegistryActor,
@@ -221,7 +223,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
                                  restartCheckTokenLogInterval,
                                  "restart checking",
                                  "CheckingRestart",
-      groupMetricsActorForJTDA
+                                 groupMetricsActorForJTDA
     ),
     "JobRestartCheckTokenDispenser"
   )
@@ -231,7 +233,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
                                  executionTokenLogInterval,
                                  "execution",
                                  ExecutionStatus.Running.toString,
-      groupMetricsActorForJTDA
+                                 groupMetricsActorForJTDA
     ),
     "JobExecutionTokenDispenser"
   )

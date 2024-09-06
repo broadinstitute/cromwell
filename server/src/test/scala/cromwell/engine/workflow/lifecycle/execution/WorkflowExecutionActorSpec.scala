@@ -8,7 +8,10 @@ import cromwell.backend.AllBackendInitializationData
 import cromwell.core.{SimpleIoActor, WorkflowId}
 import cromwell.engine.backend.{BackendConfigurationEntry, BackendSingletonCollection, CromwellBackends}
 import cromwell.engine.workflow.WorkflowDescriptorBuilderForSpecs
-import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{ExecuteWorkflowCommand, WorkflowExecutionFailedResponse}
+import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor.{
+  ExecuteWorkflowCommand,
+  WorkflowExecutionFailedResponse
+}
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.Rate
 import cromwell.engine.workflow.tokens.JobTokenDispenserActor
 import cromwell.engine.workflow.workflowstore.Submitted
@@ -85,23 +88,11 @@ class WorkflowExecutionActorSpec
     val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
     val jobRestartCheckTokenDispenserActor =
       system.actorOf(
-        JobTokenDispenserActor.props(serviceRegistry,
-                                     Rate(100, 1.second),
-                                     None,
-                                     "execution",
-                                     "Running",
-          None
-        )
+        JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running", None)
       )
     val jobExecutionTokenDispenserActor =
       system.actorOf(
-        JobTokenDispenserActor.props(serviceRegistry,
-                                     Rate(100, 1.second),
-                                     None,
-                                     "execution",
-                                     "Running",
-          None
-        )
+        JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running", None)
       )
     val MockBackendConfigEntry = BackendConfigurationEntry(
       name = "Mock",

@@ -134,7 +134,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override type StandardAsyncRunState = RunStatus
 
-  override val costHelper: Option[CostPollingHelper[RunStatus]] = Some(new PapiCostPollingHelper(tellMetadata))
+  override val costHelper: Option[CostPollingHelper[RunStatus]] = Option(new PapiCostPollingHelper(tellMetadata))
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
@@ -838,10 +838,10 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     // "cpuStart" is obtained from the cost helper. It should be the event time where the user VM started spending money.
     // "jobEnd" is obtained from the cost helper, falling back to the last event time, falling back to now.
     // We allow fallbacks for end times to account for in progress runs, but generally the end time is only known once we've reached a terminal status.
-    val jobStart: Option[OffsetDateTime] =
-      runStatus.eventList.headOption.map(_ => runStatus.eventList.map(_.offsetDateTime).min)
+    val jobStart: Option[OffsetDateTime] = runStatus.eventList.minByOption(_.offsetDateTime).map(e => e.offsetDateTime)
     val maxEventTime: Option[OffsetDateTime] =
-      runStatus.eventList.headOption.map(_ => runStatus.eventList.map(_.offsetDateTime).max)
+      runStatus.eventList.maxByOption(_.offsetDateTime).map(e => e.offsetDateTime)
+
     costHelper match {
       case Some(helper) =>
         val cpuStart: Option[OffsetDateTime] = helper.vmStartTime

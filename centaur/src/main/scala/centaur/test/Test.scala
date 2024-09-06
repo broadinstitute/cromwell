@@ -21,7 +21,18 @@ import com.typesafe.scalalogging.StrictLogging
 import common.validation.Validation._
 import configs.syntax._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
-import cromwell.api.model.{CallCacheDiff, Failed, HashDifference, SubmittedWorkflow, Succeeded, TerminalStatus, WaasDescription, WorkflowId, WorkflowMetadata, WorkflowStatus}
+import cromwell.api.model.{
+  CallCacheDiff,
+  Failed,
+  HashDifference,
+  SubmittedWorkflow,
+  Succeeded,
+  TerminalStatus,
+  WaasDescription,
+  WorkflowId,
+  WorkflowMetadata,
+  WorkflowStatus
+}
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.azure.AzureUtils
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -98,7 +109,8 @@ object Operations extends StrictLogging {
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
   lazy val genomicsEndpointUrl: String = googleConf.getString("genomics.endpoint-url")
-  lazy val genomicsAndStorageScopes = List(StorageScopes.CLOUD_PLATFORM_READ_ONLY, CloudLifeSciencesScopes.CLOUD_PLATFORM)
+  lazy val genomicsAndStorageScopes =
+    List(StorageScopes.CLOUD_PLATFORM_READ_ONLY, CloudLifeSciencesScopes.CLOUD_PLATFORM)
   lazy val credentials: Credentials = configuration
     .auth(authName)
     .unsafe

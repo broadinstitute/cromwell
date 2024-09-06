@@ -8,7 +8,6 @@ import cats.syntax.functor._
 import cats.instances.future._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
 import com.google.api.gax.retrying.RetrySettings
-import com.google.api.services.genomics.v2alpha1.Genomics
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciences
 import com.google.api.services.storage.StorageScopes
@@ -151,14 +150,17 @@ object WorkbenchHealthMonitorServiceActor {
   )(implicit val ec: ExecutionContext)
       extends GenomicsChecker {
     val genomics =
-      new Genomics.Builder(GoogleAuthMode.httpTransport, GoogleAuthMode.jsonFactory, httpInitializer(credentials))
+      new CloudLifeSciences.Builder(GoogleAuthMode.httpTransport,
+                                    GoogleAuthMode.jsonFactory,
+                                    httpInitializer(credentials)
+      )
         .setApplicationName(applicationName)
         .setRootUrl(endpointUrl.toString)
         .build
 
     override def check = Future {
       // https://cloud.google.com/genomics/reference/rest/#rest-resource-v2alpha1projectsoperations
-      genomics.projects().operations().list(s"projects/$papiProjectId/operations").setPageSize(1).execute()
+      genomics.projects().locations().operations().list(s"projects/$papiProjectId/operations").setPageSize(1).execute()
       ()
     }
   }

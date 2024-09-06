@@ -76,7 +76,7 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
   private lazy val batchCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.batch
     .retryCredentials(workflowOptions,
                       List(
-                        CloudLifeSciencesScopes.CLOUD_PLATFORM,
+                        CloudLifeSciencesScopes.CLOUD_PLATFORM
                       )
     )
 

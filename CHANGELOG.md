@@ -2,9 +2,9 @@
 
 ## 88 Release Notes
 
-### Removal of PAPI v2Alpha1 Backend
-Code relating to the Google PAPI v2Alpha1 backend has been removed since Google has entirely disabled that API.
-PAPI v2Beta (deprecated) and Google Batch (recommended) remain the two viable GCP backends. 
+### Removal of Google Genomics Backend
+Code relating to the Google Genomics API has been removed since Google has entirely disabled that service.
+Cloud Life Sciences (deprecated) and Google Batch (recommended) remain the two viable GCP backends. 
 
 ### Java 17
 

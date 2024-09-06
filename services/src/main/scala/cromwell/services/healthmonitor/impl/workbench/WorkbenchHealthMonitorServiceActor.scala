@@ -76,13 +76,13 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config,
 
     val endpointUrl = new URL(papiConfig.as[String]("genomics.endpoint-url"))
     val papiProjectId = papiConfig.as[String]("project")
-
+    val location = papiConfig.as[String]("genomics.location")
     val check = for {
       credentials <- Future(googleAuth.credentials(List(CloudLifeSciencesScopes.CLOUD_PLATFORM)))
       actorFactoryName = papiProviderConfig.as[String]("actor-factory")
       genomicsChecker =
         if (actorFactoryName.contains("v2beta")) {
-          val location = papiConfig.as[String]("genomics.location")
+
           GenomicsCheckerV2Beta(googleConfig.applicationName,
                                 googleAuth,
                                 endpointUrl,
@@ -91,7 +91,13 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config,
                                 papiProjectId
           )
         } else {
-          GenomicsCheckerV2Alpha1(googleConfig.applicationName, googleAuth, endpointUrl, credentials, papiProjectId)
+          GenomicsCheckerV2Beta(googleConfig.applicationName,
+                                googleAuth,
+                                endpointUrl,
+                                location,
+                                credentials,
+                                papiProjectId
+          )
         }
       checked <- genomicsChecker.check
     } yield checked
@@ -138,29 +144,6 @@ object WorkbenchHealthMonitorServiceActor {
         .list(s"projects/$papiProjectId/locations/$location")
         .setPageSize(1)
         .execute()
-      ()
-    }
-  }
-
-  case class GenomicsCheckerV2Alpha1(applicationName: String,
-                                     authMode: GoogleAuthMode,
-                                     endpointUrl: URL,
-                                     credentials: Credentials,
-                                     papiProjectId: String
-  )(implicit val ec: ExecutionContext)
-      extends GenomicsChecker {
-    val genomics =
-      new CloudLifeSciences.Builder(GoogleAuthMode.httpTransport,
-                                    GoogleAuthMode.jsonFactory,
-                                    httpInitializer(credentials)
-      )
-        .setApplicationName(applicationName)
-        .setRootUrl(endpointUrl.toString)
-        .build
-
-    override def check = Future {
-      // https://cloud.google.com/genomics/reference/rest/#rest-resource-v2alpha1projectsoperations
-      genomics.projects().locations().operations().list(s"projects/$papiProjectId/operations").setPageSize(1).execute()
       ()
     }
   }

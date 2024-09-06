@@ -2,10 +2,6 @@
 
 ## 88 Release Notes
 
-### Removal of Google Genomics Backend
-Code relating to the Google Genomics API has been removed since Google has entirely disabled that service.
-Cloud Life Sciences (deprecated) and Google Batch (recommended) remain the two viable GCP backends. 
-
 ### Java 17
 
 As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
@@ -73,6 +69,10 @@ Cromwell's healthcheck requests to Docker Hub were not authenticated, and thus b
 The config key `services.HealthMonitor.config.check-dockerhub` is therefore obsolete.
 
 There is no change to any other usage of Docker Hub.
+
+#### Removed Genomics Backend code
+Code relating to the Google Genomics API (aka `v1Alpha`) has been removed since Google has entirely disabled that service.
+Cloud Life Sciences (aka `v2Beta`, deprecated) and Google Batch (aka `batch`, recommended) remain the two viable GCP backends.
 
 ## 87 Release Notes
 

@@ -13,6 +13,7 @@ import cromwell.backend.google.pipelines.common.api.RunStatus._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.{ExecutionEvent, WorkflowId}
+import cromwell.services.metadata.CallMetadataKeys
 import io.grpc.Status
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -34,6 +35,262 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
   private val actorRef = ActorRef.noSender
   private val jobId = StandardAsyncJob("test_job")
   private val pollingRequest = PAPIStatusPollRequest(workflowId, actorRef, httpRequest, jobId)
+  private val workerAssignedStatus =
+    """{
+      |  "metadata": {
+      |    "@type": "type.googleapis.com/google.cloud.lifesciences.v2beta.Metadata",
+      |    "createTime": "2022-01-19T21:53:55.138960Z",
+      |    "events": [
+      |      {
+      |        "description": "Started pulling \"gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine\"",
+      |        "pullStarted": {
+      |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine"
+      |        },
+      |        "timestamp": "2022-01-19T22:09:55.410251187Z"
+      |      },
+      |      {
+      |        "description": "Worker \"google-pipelines-worker-e6c8bf8035860b2cd69488497bd602d8\" assigned in \"us-west3-c\" on a \"custom-1-2048\" machine",
+      |        "timestamp": "2022-01-19T22:09:20.363771714Z",
+      |        "workerAssigned": {
+      |          "instance": "google-pipelines-worker-e6c8bf8035860b2cd69488497bd602d8",
+      |          "machineType": "custom-1-2048",
+      |          "zone": "us-west3-c"
+      |        }
+      |      },
+      |      {
+      |        "delayed": {
+      |          "cause": "generic::resource_exhausted: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 1 CPUS (0/1 available) usage too high",
+      |          "metrics": [
+      |            "CPUS"
+      |          ]
+      |        },
+      |        "description": "A resource limit has delayed the operation: generic::resource_exhausted: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 1 CPUS (0/1 available) usage too high",
+      |        "timestamp": "2022-01-19T21:54:07.717679160Z"
+      |      }
+      |    ],
+      |    "labels": {
+      |      "cromwell-workflow-id": "cromwell-ac888b4e-2e6b-4dcc-a537-3c6db7764037",
+      |      "wdl-task-name": "sleep"
+      |    },
+      |    "pipeline": {
+      |      "actions": [
+      |        {
+      |          "commands": [
+      |            "-c",
+      |            "printf '%s %s\\n' \"$(date -u '+%Y/%m/%d %H:%M:%S')\" Starting\\ container\\ setup."
+      |          ],
+      |          "entrypoint": "/bin/sh",
+      |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine",
+      |          "labels": {
+      |            "logging": "ContainerSetup"
+      |          },
+      |          "timeout": "300s"
+      |        }
+      |      ],
+      |      "environment": {
+      |        "MEM_SIZE": "2.0",
+      |        "MEM_UNIT": "GB"
+      |      },
+      |      "resources": {
+      |        "virtualMachine": {
+      |          "bootDiskSizeGb": 12,
+      |          "bootImage": "projects/cos-cloud/global/images/family/cos-stable",
+      |          "disks": [
+      |            {
+      |              "name": "local-disk",
+      |              "sizeGb": 10,
+      |              "type": "pd-ssd"
+      |            }
+      |          ],
+      |          "labels": {
+      |            "cromwell-workflow-id": "cromwell-ac888b4e-2e6b-4dcc-a537-3c6db7764037",
+      |            "goog-pipelines-worker": "true",
+      |            "wdl-task-name": "sleep"
+      |          },
+      |          "machineType": "custom-1-2048",
+      |          "network": {},
+      |          "nvidiaDriverVersion": "450.51.06",
+      |          "serviceAccount": {
+      |            "email": "centaur@broad-dsde-cromwell-dev.iam.gserviceaccount.com",
+      |            "scopes": [
+      |              "https://www.googleapis.com/auth/compute",
+      |              "https://www.googleapis.com/auth/devstorage.full_control",
+      |              "https://www.googleapis.com/auth/cloudkms",
+      |              "https://www.googleapis.com/auth/userinfo.email",
+      |              "https://www.googleapis.com/auth/userinfo.profile",
+      |              "https://www.googleapis.com/auth/monitoring.write",
+      |              "https://www.googleapis.com/auth/bigquery",
+      |              "https://www.googleapis.com/auth/cloud-platform"
+      |            ]
+      |          },
+      |          "volumes": [
+      |            {
+      |              "persistentDisk": {
+      |                "sizeGb": 10,
+      |                "type": "pd-ssd"
+      |              },
+      |              "volume": "local-disk"
+      |            }
+      |          ]
+      |        },
+      |        "zones": [
+      |          "us-west3-a",
+      |          "us-west3-b",
+      |          "us-west3-c"
+      |        ]
+      |      },
+      |      "timeout": "604800s"
+      |    },
+      |    "startTime": "2022-01-19T22:09:20.363771714Z"
+      |  },
+      |  "name": "projects/1005074806481/locations/us-central1/operations/3874882033889365536"
+      |}
+      |
+      |
+      |""".stripMargin
+
+  private val workerReleasedStatus =
+    """{
+      |  "done": true,
+      |  "metadata": {
+      |    "@type": "type.googleapis.com/google.cloud.lifesciences.v2beta.Metadata",
+      |    "createTime": "2022-01-19T19:17:13.175579Z",
+      |    "endTime": "2022-01-19T19:37:22.764120036Z",
+      |    "events": [
+      |      {
+      |        "description": "Worker released",
+      |        "timestamp": "2022-01-19T19:37:22.764120036Z",
+      |        "workerReleased": {
+      |          "instance": "google-pipelines-worker-8eff543e6858c204c8f67520aee75432",
+      |          "zone": "us-west3-c"
+      |        }
+      |      },
+      |      {
+      |        "containerStopped": {
+      |          "actionId": 19
+      |        },
+      |        "description": "Stopped running shortened for test",
+      |        "timestamp": "2022-01-19T19:37:19.822873814Z"
+      |      },
+      |      {
+      |        "description": "Started pulling \"gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine\"",
+      |        "pullStarted": {
+      |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine"
+      |        },
+      |        "timestamp": "2022-01-19T19:32:55.709674372Z"
+      |      },
+      |      {
+      |        "description": "Worker \"google-pipelines-worker-8eff543e6858c204c8f67520aee75432\" assigned in \"us-west3-c\" on a \"custom-1-2048\" machine",
+      |        "timestamp": "2022-01-19T19:32:19.204055448Z",
+      |        "workerAssigned": {
+      |          "instance": "google-pipelines-worker-8eff543e6858c204c8f67520aee75432",
+      |          "machineType": "custom-1-2048",
+      |          "zone": "us-west3-c"
+      |        }
+      |      },
+      |      {
+      |        "delayed": {
+      |          "cause": "generic::resource_exhausted: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 1 CPUS (0/1 available) usage too high",
+      |          "metrics": [
+      |            "CPUS"
+      |          ]
+      |        },
+      |        "description": "A resource limit has delayed the operation: generic::resource_exhausted: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 1 CPUS (0/1 available) usage too high",
+      |        "timestamp": "2022-01-19T19:17:14.948193837Z"
+      |      }
+      |    ],
+      |    "labels": {
+      |      "cromwell-workflow-id": "cromwell-058bff35-4a55-4c0f-9113-0885f4119cd9",
+      |      "wdl-task-name": "sleep"
+      |    },
+      |    "pipeline": {
+      |      "actions": [
+      |        {
+      |          "commands": [
+      |            "-c",
+      |            "printf '%s %s\\n' \"$(date -u '+%Y/%m/%d %H:%M:%S')\" Starting\\ container\\ setup."
+      |          ],
+      |          "entrypoint": "/bin/sh",
+      |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine",
+      |          "labels": {
+      |            "logging": "ContainerSetup"
+      |          },
+      |          "timeout": "300s"
+      |        },
+      |        {
+      |          "alwaysRun": true,
+      |          "commands": [
+      |            "-c",
+      |            "python3 -c 'import base64; shortened for test"
+      |          ],
+      |          "entrypoint": "/bin/sh",
+      |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine",
+      |          "labels": {
+      |            "tag": "Delocalization"
+      |          }
+      |        }
+      |      ],
+      |      "environment": {
+      |        "MEM_SIZE": "2.0",
+      |        "MEM_UNIT": "GB"
+      |      },
+      |      "resources": {
+      |        "virtualMachine": {
+      |          "bootDiskSizeGb": 12,
+      |          "bootImage": "projects/cos-cloud/global/images/family/cos-stable",
+      |          "disks": [
+      |            {
+      |              "name": "local-disk",
+      |              "sizeGb": 10,
+      |              "type": "pd-ssd"
+      |            }
+      |          ],
+      |          "labels": {
+      |            "cromwell-workflow-id": "cromwell-058bff35-4a55-4c0f-9113-0885f4119cd9",
+      |            "goog-pipelines-worker": "true",
+      |            "wdl-task-name": "sleep"
+      |          },
+      |          "machineType": "custom-1-2048",
+      |          "network": {},
+      |          "nvidiaDriverVersion": "450.51.06",
+      |          "serviceAccount": {
+      |            "email": "centaur@broad-dsde-cromwell-dev.iam.gserviceaccount.com",
+      |            "scopes": [
+      |              "https://www.googleapis.com/auth/compute",
+      |              "https://www.googleapis.com/auth/devstorage.full_control",
+      |              "https://www.googleapis.com/auth/cloudkms",
+      |              "https://www.googleapis.com/auth/userinfo.email",
+      |              "https://www.googleapis.com/auth/userinfo.profile",
+      |              "https://www.googleapis.com/auth/monitoring.write",
+      |              "https://www.googleapis.com/auth/bigquery",
+      |              "https://www.googleapis.com/auth/cloud-platform"
+      |            ]
+      |          },
+      |          "volumes": [
+      |            {
+      |              "persistentDisk": {
+      |                "sizeGb": 10,
+      |                "type": "pd-ssd"
+      |              },
+      |              "volume": "local-disk"
+      |            }
+      |          ]
+      |        },
+      |        "zones": [
+      |          "us-west3-a",
+      |          "us-west3-b",
+      |          "us-west3-c"
+      |        ]
+      |      },
+      |      "timeout": "604800s"
+      |    },
+      |    "startTime": "2022-01-19T19:32:19.204055448Z"
+      |  },
+      |  "name": "projects/1005074806481/locations/us-central1/operations/5001350794958839237",
+      |  "response": {
+      |    "@type": "type.googleapis.com/cloud.lifesciences.pipelines.RunPipelineResponse"
+      |  }
+      |}""".stripMargin
 
   private val interpretedStatus: TableFor3[String, String, Object] = Table(
     ("description", "json", "status"),
@@ -410,266 +667,15 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
      AwaitingCloudQuota
     ),
     ("check that a job is Running and no longer AwaitingCloudQuota once a worker assigns",
-     """{
-       |  "metadata": {
-       |    "@type": "type.googleapis.com/google.cloud.lifesciences.v2beta.Metadata",
-       |    "createTime": "2022-01-19T21:53:55.138960Z",
-       |    "events": [
-       |      {
-       |        "description": "Started pulling \"gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine\"",
-       |        "pullStarted": {
-       |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine"
-       |        },
-       |        "timestamp": "2022-01-19T22:09:55.410251187Z"
-       |      },
-       |      {
-       |        "description": "Worker \"google-pipelines-worker-e6c8bf8035860b2cd69488497bd602d8\" assigned in \"us-west3-c\" on a \"custom-1-2048\" machine",
-       |        "timestamp": "2022-01-19T22:09:20.363771714Z",
-       |        "workerAssigned": {
-       |          "instance": "google-pipelines-worker-e6c8bf8035860b2cd69488497bd602d8",
-       |          "machineType": "custom-1-2048",
-       |          "zone": "us-west3-c"
-       |        }
-       |      },
-       |      {
-       |        "delayed": {
-       |          "cause": "generic::resource_exhausted: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 1 CPUS (0/1 available) usage too high",
-       |          "metrics": [
-       |            "CPUS"
-       |          ]
-       |        },
-       |        "description": "A resource limit has delayed the operation: generic::resource_exhausted: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 1 CPUS (0/1 available) usage too high",
-       |        "timestamp": "2022-01-19T21:54:07.717679160Z"
-       |      }
-       |    ],
-       |    "labels": {
-       |      "cromwell-workflow-id": "cromwell-ac888b4e-2e6b-4dcc-a537-3c6db7764037",
-       |      "wdl-task-name": "sleep"
-       |    },
-       |    "pipeline": {
-       |      "actions": [
-       |        {
-       |          "commands": [
-       |            "-c",
-       |            "printf '%s %s\\n' \"$(date -u '+%Y/%m/%d %H:%M:%S')\" Starting\\ container\\ setup."
-       |          ],
-       |          "entrypoint": "/bin/sh",
-       |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine",
-       |          "labels": {
-       |            "logging": "ContainerSetup"
-       |          },
-       |          "timeout": "300s"
-       |        }
-       |      ],
-       |      "environment": {
-       |        "MEM_SIZE": "2.0",
-       |        "MEM_UNIT": "GB"
-       |      },
-       |      "resources": {
-       |        "virtualMachine": {
-       |          "bootDiskSizeGb": 12,
-       |          "bootImage": "projects/cos-cloud/global/images/family/cos-stable",
-       |          "disks": [
-       |            {
-       |              "name": "local-disk",
-       |              "sizeGb": 10,
-       |              "type": "pd-ssd"
-       |            }
-       |          ],
-       |          "labels": {
-       |            "cromwell-workflow-id": "cromwell-ac888b4e-2e6b-4dcc-a537-3c6db7764037",
-       |            "goog-pipelines-worker": "true",
-       |            "wdl-task-name": "sleep"
-       |          },
-       |          "machineType": "custom-1-2048",
-       |          "network": {},
-       |          "nvidiaDriverVersion": "450.51.06",
-       |          "serviceAccount": {
-       |            "email": "centaur@broad-dsde-cromwell-dev.iam.gserviceaccount.com",
-       |            "scopes": [
-       |              "https://www.googleapis.com/auth/compute",
-       |              "https://www.googleapis.com/auth/devstorage.full_control",
-       |              "https://www.googleapis.com/auth/cloudkms",
-       |              "https://www.googleapis.com/auth/userinfo.email",
-       |              "https://www.googleapis.com/auth/userinfo.profile",
-       |              "https://www.googleapis.com/auth/monitoring.write",
-       |              "https://www.googleapis.com/auth/bigquery",
-       |              "https://www.googleapis.com/auth/cloud-platform"
-       |            ]
-       |          },
-       |          "volumes": [
-       |            {
-       |              "persistentDisk": {
-       |                "sizeGb": 10,
-       |                "type": "pd-ssd"
-       |              },
-       |              "volume": "local-disk"
-       |            }
-       |          ]
-       |        },
-       |        "zones": [
-       |          "us-west3-a",
-       |          "us-west3-b",
-       |          "us-west3-c"
-       |        ]
-       |      },
-       |      "timeout": "604800s"
-       |    },
-       |    "startTime": "2022-01-19T22:09:20.363771714Z"
-       |  },
-       |  "name": "projects/1005074806481/locations/us-central1/operations/3874882033889365536"
-       |}
-       |
-       |
-       |""".stripMargin,
+     workerAssignedStatus,
      Running
     ),
     ("check that a job is no longer AwaitingCloudQuota once it finishes",
-     """{
-       |  "done": true,
-       |  "metadata": {
-       |    "@type": "type.googleapis.com/google.cloud.lifesciences.v2beta.Metadata",
-       |    "createTime": "2022-01-19T19:17:13.175579Z",
-       |    "endTime": "2022-01-19T19:37:22.764120036Z",
-       |    "events": [
-       |      {
-       |        "description": "Worker released",
-       |        "timestamp": "2022-01-19T19:37:22.764120036Z",
-       |        "workerReleased": {
-       |          "instance": "google-pipelines-worker-8eff543e6858c204c8f67520aee75432",
-       |          "zone": "us-west3-c"
-       |        }
-       |      },
-       |      {
-       |        "containerStopped": {
-       |          "actionId": 19
-       |        },
-       |        "description": "Stopped running shortened for test",
-       |        "timestamp": "2022-01-19T19:37:19.822873814Z"
-       |      },
-       |      {
-       |        "description": "Started pulling \"gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine\"",
-       |        "pullStarted": {
-       |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine"
-       |        },
-       |        "timestamp": "2022-01-19T19:32:55.709674372Z"
-       |      },
-       |      {
-       |        "description": "Worker \"google-pipelines-worker-8eff543e6858c204c8f67520aee75432\" assigned in \"us-west3-c\" on a \"custom-1-2048\" machine",
-       |        "timestamp": "2022-01-19T19:32:19.204055448Z",
-       |        "workerAssigned": {
-       |          "instance": "google-pipelines-worker-8eff543e6858c204c8f67520aee75432",
-       |          "machineType": "custom-1-2048",
-       |          "zone": "us-west3-c"
-       |        }
-       |      },
-       |      {
-       |        "delayed": {
-       |          "cause": "generic::resource_exhausted: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 1 CPUS (0/1 available) usage too high",
-       |          "metrics": [
-       |            "CPUS"
-       |          ]
-       |        },
-       |        "description": "A resource limit has delayed the operation: generic::resource_exhausted: allocating: selecting resources: selecting region and zone: no available zones: us-west3: 1 CPUS (0/1 available) usage too high",
-       |        "timestamp": "2022-01-19T19:17:14.948193837Z"
-       |      }
-       |    ],
-       |    "labels": {
-       |      "cromwell-workflow-id": "cromwell-058bff35-4a55-4c0f-9113-0885f4119cd9",
-       |      "wdl-task-name": "sleep"
-       |    },
-       |    "pipeline": {
-       |      "actions": [
-       |        {
-       |          "commands": [
-       |            "-c",
-       |            "printf '%s %s\\n' \"$(date -u '+%Y/%m/%d %H:%M:%S')\" Starting\\ container\\ setup."
-       |          ],
-       |          "entrypoint": "/bin/sh",
-       |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine",
-       |          "labels": {
-       |            "logging": "ContainerSetup"
-       |          },
-       |          "timeout": "300s"
-       |        },
-       |        {
-       |          "alwaysRun": true,
-       |          "commands": [
-       |            "-c",
-       |            "python3 -c 'import base64; shortened for test"
-       |          ],
-       |          "entrypoint": "/bin/sh",
-       |          "imageUri": "gcr.io/google.com/cloudsdktool/cloud-sdk:354.0.0-alpine",
-       |          "labels": {
-       |            "tag": "Delocalization"
-       |          }
-       |        }
-       |      ],
-       |      "environment": {
-       |        "MEM_SIZE": "2.0",
-       |        "MEM_UNIT": "GB"
-       |      },
-       |      "resources": {
-       |        "virtualMachine": {
-       |          "bootDiskSizeGb": 12,
-       |          "bootImage": "projects/cos-cloud/global/images/family/cos-stable",
-       |          "disks": [
-       |            {
-       |              "name": "local-disk",
-       |              "sizeGb": 10,
-       |              "type": "pd-ssd"
-       |            }
-       |          ],
-       |          "labels": {
-       |            "cromwell-workflow-id": "cromwell-058bff35-4a55-4c0f-9113-0885f4119cd9",
-       |            "goog-pipelines-worker": "true",
-       |            "wdl-task-name": "sleep"
-       |          },
-       |          "machineType": "custom-1-2048",
-       |          "network": {},
-       |          "nvidiaDriverVersion": "450.51.06",
-       |          "serviceAccount": {
-       |            "email": "centaur@broad-dsde-cromwell-dev.iam.gserviceaccount.com",
-       |            "scopes": [
-       |              "https://www.googleapis.com/auth/compute",
-       |              "https://www.googleapis.com/auth/devstorage.full_control",
-       |              "https://www.googleapis.com/auth/cloudkms",
-       |              "https://www.googleapis.com/auth/userinfo.email",
-       |              "https://www.googleapis.com/auth/userinfo.profile",
-       |              "https://www.googleapis.com/auth/monitoring.write",
-       |              "https://www.googleapis.com/auth/bigquery",
-       |              "https://www.googleapis.com/auth/cloud-platform"
-       |            ]
-       |          },
-       |          "volumes": [
-       |            {
-       |              "persistentDisk": {
-       |                "sizeGb": 10,
-       |                "type": "pd-ssd"
-       |              },
-       |              "volume": "local-disk"
-       |            }
-       |          ]
-       |        },
-       |        "zones": [
-       |          "us-west3-a",
-       |          "us-west3-b",
-       |          "us-west3-c"
-       |        ]
-       |      },
-       |      "timeout": "604800s"
-       |    },
-       |    "startTime": "2022-01-19T19:32:19.204055448Z"
-       |  },
-       |  "name": "projects/1005074806481/locations/us-central1/operations/5001350794958839237",
-       |  "response": {
-       |    "@type": "type.googleapis.com/cloud.lifesciences.pipelines.RunPipelineResponse"
-       |  }
-       |}""".stripMargin,
+     workerReleasedStatus,
      Success(
        List(
          new ExecutionEvent("waiting for quota", OffsetDateTime.parse("2022-01-19T19:17:13.175579Z"), None),
-         new ExecutionEvent("Worker released", OffsetDateTime.parse("2022-01-19T19:37:22.764120036Z"), None),
+         new ExecutionEvent("vmEndTime", OffsetDateTime.parse("2022-01-19T19:37:22.764120036Z"), None),
          new ExecutionEvent("Stopped running shortened for test",
                             OffsetDateTime.parse("2022-01-19T19:37:19.822873814Z"),
                             None
@@ -708,10 +714,29 @@ class GetRequestHandlerSpec extends AnyFlatSpec with CromwellTimeoutSpec with Ma
       val operation =
         Option(json).map(GoogleAuthMode.jsonFactory.createJsonParser).map(_.parse(classOf[Operation])).orNull
       val runStatus = requestHandler.interpretOperationStatus(operation, pollingRequest)
-
       runStatus.toString should be(expectedStatus.toString)
-
     }
   }
 
+  it should "properly extract start and end execution events from google events" in {
+    val assignOperation =
+      Option(workerAssignedStatus)
+        .map(GoogleAuthMode.jsonFactory.createJsonParser)
+        .map(_.parse(classOf[Operation]))
+        .orNull
+    val assignedRunStatus = requestHandler.interpretOperationStatus(assignOperation, pollingRequest)
+    assignedRunStatus.eventList should contain(
+      new ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.parse("2022-01-19T22:09:20.363771714Z"), None)
+    )
+
+    val releaseOperation =
+      Option(workerReleasedStatus)
+        .map(GoogleAuthMode.jsonFactory.createJsonParser)
+        .map(_.parse(classOf[Operation]))
+        .orNull
+    val releasedRunStatus = requestHandler.interpretOperationStatus(releaseOperation, pollingRequest)
+    releasedRunStatus.eventList should contain(
+      new ExecutionEvent(CallMetadataKeys.VmEndTime, OffsetDateTime.parse("2022-01-19T19:37:22.764120036Z"), None)
+    )
+  }
 }

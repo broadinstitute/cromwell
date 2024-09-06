@@ -1,3 +1,0 @@
-package cromwell.backend.google.pipelines.v2alpha1
-
-object PipelinesConversions extends PipelinesParameterConversions with PipelinesUtilityConversions

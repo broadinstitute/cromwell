@@ -70,6 +70,10 @@ The config key `services.HealthMonitor.config.check-dockerhub` is therefore obso
 
 There is no change to any other usage of Docker Hub.
 
+#### Removed Genomics Backend code
+Code relating to the Google Genomics API (aka `v1Alpha`) has been removed since Google has entirely disabled that service.
+Cloud Life Sciences (aka `v2Beta`, deprecated) and Google Batch (aka `batch`, recommended) remain the two viable GCP backends.
+
 ## 87 Release Notes
 
 ### GCP Batch

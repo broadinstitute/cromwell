@@ -8,7 +8,6 @@ import com.google.api.client.http.{HttpRequest, HttpResponse}
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
 import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
 import com.google.api.services.cloudresourcemanager.{CloudResourceManager, CloudResourceManagerScopes}
-import com.google.api.services.genomics.v2alpha1.GenomicsScopes
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
@@ -78,7 +77,6 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
     .retryCredentials(workflowOptions,
                       List(
                         CloudLifeSciencesScopes.CLOUD_PLATFORM,
-                        GenomicsScopes.GENOMICS
                       )
     )
 

@@ -3,7 +3,7 @@
 
 name: parallel_composite_uploads_on_in_config
 testFormat: workflowsuccess
-backends: [Papiv2ParallelCompositeUploads]
+backends: [Papiv2ParallelCompositeUploads, GCPBATCH_NEEDS_ALT]
 
 files {
   workflow: parallel_composite_uploads/parallel_composite_uploads_on.wdl

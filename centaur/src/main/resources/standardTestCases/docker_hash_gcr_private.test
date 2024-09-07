@@ -1,6 +1,6 @@
 name: docker_hash_gcr_private
 testFormat: workflowsuccess
-backends: [Papi]
+backends: [Papi, GCPBATCH]
 
 files {
   workflow: docker_hash/docker_hash_gcr_private.wdl

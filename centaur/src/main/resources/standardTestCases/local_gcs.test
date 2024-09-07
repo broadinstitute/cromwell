@@ -1,7 +1,7 @@
 name: local_gcs
 testFormat: workflowsuccess
 backendsMode: all
-backends: [Papi, Local]
+backends: [Papi, Local, GCPBATCH]
 
 files {
   workflow: local_gcs/local_gcs.wdl

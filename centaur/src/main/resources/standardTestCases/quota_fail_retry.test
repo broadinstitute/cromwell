@@ -1,6 +1,7 @@
 name: quota_fail_retry
 testFormat: workflowfailure
-backends: [Papiv2]
+# as the comments below say this doesn't work on GCPBATCH, what are the implications?
+backends: [Papiv2, GCPBATCH_FAIL]
 
 files {
   workflow: quota_fail_retry/quota_fail_retry.wdl

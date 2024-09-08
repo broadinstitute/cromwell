@@ -1,0 +1,31 @@
+# 'Hello world' for a public image in Docker v1 manifest format.
+name: hello_docker_image_format_v1
+testFormat: workflowsuccess
+backends: [Papiv2, GCPBATCH]
+
+# Attempting to pull locally I get an exit code 1, no image pulled, and the following output:
+# % docker pull "ubuntu:utopic-20150319"
+#  utopic-20150319: Pulling from library/ubuntu
+#
+#  What's next:
+#      View a summary of image vulnerabilities and recommendations → docker scout quickview ubuntu:utopic-20150319
+#  [DEPRECATION NOTICE] Docker Image Format v1 and Docker Image manifest version 2, schema 1 support is disabled by default and will be removed in an upcoming release. Suggest the author of docker.io/library/ubuntu:utopic-20150319 to upgrade the image to the OCI Format or Docker Image manifest v2, schema 2. More information at https://docs.docker.com/go/deprecated-image-specs/
+#
+# Also:
+# % docker scout quickview ubuntu:utopic-20150319
+#     ✗ Pull failed
+# ERROR   Status: failed to get image ubuntu:utopic-20150319: failed to pull image ubuntu:utopic-20150319: unsupported MediaType: "application/vnd.docker.distribution.manifest.v1+prettyjws", see https://github.com/google/go-containerregistry/issues/377, Code: 1
+
+files {
+  workflow: hello_docker_image_format_v1/hello_docker_image_format_v1.wdl
+  inputs: hello/hello.inputs
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "calls.wf_hello.hello.executionStatus": Done
+  "calls.wf_hello.hello.runtimeAttributes.docker": "ubuntu:utopic-20150319"
+  "outputs.wf_hello.hello.salutation": "Hello m'Lord!"
+  "inputs.wf_hello.hello.addressee": "m'Lord"
+}

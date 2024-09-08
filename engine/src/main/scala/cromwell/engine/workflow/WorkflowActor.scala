@@ -222,7 +222,8 @@ object WorkflowActor {
             workflowHeartbeatConfig: WorkflowHeartbeatConfig,
             totalJobsByRootWf: AtomicInteger,
             fileHashCacheActorProps: Option[Props],
-            blacklistCache: Option[BlacklistCache]
+            blacklistCache: Option[BlacklistCache],
+            groupMetricsActor: ActorRef
   ): Props =
     Props(
       new WorkflowActor(
@@ -247,7 +248,8 @@ object WorkflowActor {
         workflowHeartbeatConfig = workflowHeartbeatConfig,
         totalJobsByRootWf = totalJobsByRootWf,
         fileHashCacheActorProps = fileHashCacheActorProps,
-        blacklistCache = blacklistCache
+        blacklistCache = blacklistCache,
+        groupMetricsActor = groupMetricsActor
       )
     ).withDispatcher(EngineDispatcher)
 }
@@ -279,7 +281,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
                     // child of this actor. The sbt subproject of `RootWorkflowFileHashCacheActor` is not visible from
                     // the subproject this class belongs to so the `Props` are passed in.
                     fileHashCacheActorProps: Option[Props],
-                    blacklistCache: Option[BlacklistCache]
+                    blacklistCache: Option[BlacklistCache],
+                    groupMetricsActor: ActorRef
 ) extends LoggingFSM[WorkflowActorState, WorkflowActorData]
     with WorkflowLogging
     with WorkflowMetadataHelper
@@ -450,7 +453,8 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
         rootConfig = conf,
         totalJobsByRootWf = totalJobsByRootWf,
         fileHashCacheActor = fileHashCacheActorProps map context.system.actorOf,
-        blacklistCache = blacklistCache
+        blacklistCache = blacklistCache,
+        groupMetricsActor = groupMetricsActor
       ),
       name = s"WorkflowExecutionActor-$workflowId"
     )

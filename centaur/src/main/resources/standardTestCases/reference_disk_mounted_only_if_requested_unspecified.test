@@ -1,6 +1,7 @@
 name: reference_disk_mounted_only_if_requested_unspecified
 testFormat: workflowsuccess
-backends: [Papiv2-Reference-Disk-Localization]
+# see https://github.com/broadinstitute/cromwell/pull/7502
+backends: [Papiv2-Reference-Disk-Localization, GCPBATCH_NEEDS_ALT, GCPBATCH_FAIL]
 
 files {
   workflow: reference_disk/reference_disk_mounted_only_if_requested.wdl

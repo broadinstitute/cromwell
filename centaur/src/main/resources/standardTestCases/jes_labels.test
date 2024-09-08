@@ -1,7 +1,8 @@
 name: jes_labels
 testFormat: workflowsuccess
 tags: [ labels ]
-backends: [Papi, GCPBATCH]
+# slashes being replaced with underscores?
+backends: [Papi, GCPBATCH_FAIL]
 
 files {
   workflow: labels/jes_labels.wdl

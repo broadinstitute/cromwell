@@ -91,7 +91,8 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         workflowHeartbeatConfig = WorkflowHeartbeatConfig(config),
         totalJobsByRootWf = new AtomicInteger(),
         fileHashCacheActorProps = None,
-        blacklistCache = None
+        blacklistCache = None,
+        groupMetricsActor = system.actorOf(Props.empty, s"group-metrics-actor-$workflowId-${UUID.randomUUID()}")
       ),
       supervisor = supervisor.ref,
       name = s"workflow-actor-$workflowId"

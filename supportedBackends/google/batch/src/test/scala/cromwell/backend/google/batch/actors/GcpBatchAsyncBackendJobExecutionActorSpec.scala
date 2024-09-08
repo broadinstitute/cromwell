@@ -132,7 +132,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val runtimeAttributesBuilder = GcpBatchRuntimeAttributes.runtimeAttributesBuilder(configuration)
 
     val requestFactory: GcpBatchRequestFactory = new GcpBatchRequestFactory {
-      override def submitRequest(data: GcpBatchRequest): CreateJobRequest = null
+      override def submitRequest(data: GcpBatchRequest, jobLogger: JobLogger): CreateJobRequest = null
 
       override def queryRequest(jobName: JobName): GetJobRequest = null
 
@@ -171,7 +171,8 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
           backendInitializationDataOption = Option(buildInitializationData(jobDescriptor, batchConfiguration)),
           backendSingletonActorOption = Option(batchSingletonActor),
           completionPromise = promise,
-          minimumRuntimeSettings = MinimumRuntimeSettings()
+          minimumRuntimeSettings = MinimumRuntimeSettings(),
+          groupMetricsActor = emptyActor
         ),
         functions
       )

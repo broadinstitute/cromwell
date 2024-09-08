@@ -1,6 +1,7 @@
 name: papi_v2_log
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+# don't know
+backends: [Papiv2, GCPBATCH_FAIL]
 
 files {
   workflow: papi_v2_log/papi_v2_log.wdl

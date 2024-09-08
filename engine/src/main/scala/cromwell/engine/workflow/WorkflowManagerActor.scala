@@ -69,7 +69,8 @@ object WorkflowManagerActor {
             jobExecutionTokenDispenserActor: ActorRef,
             backendSingletonCollection: BackendSingletonCollection,
             serverMode: Boolean,
-            workflowHeartbeatConfig: WorkflowHeartbeatConfig
+            workflowHeartbeatConfig: WorkflowHeartbeatConfig,
+            groupMetricsActor: ActorRef
   ): Props = {
     val params = WorkflowManagerActorParams(
       config = config,
@@ -89,7 +90,8 @@ object WorkflowManagerActor {
       jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
       backendSingletonCollection = backendSingletonCollection,
       serverMode = serverMode,
-      workflowHeartbeatConfig = workflowHeartbeatConfig
+      workflowHeartbeatConfig = workflowHeartbeatConfig,
+      groupMetricsActor = groupMetricsActor
     )
     Props(new WorkflowManagerActor(params)).withDispatcher(EngineDispatcher)
   }
@@ -139,7 +141,8 @@ case class WorkflowManagerActorParams(config: Config,
                                       jobExecutionTokenDispenserActor: ActorRef,
                                       backendSingletonCollection: BackendSingletonCollection,
                                       serverMode: Boolean,
-                                      workflowHeartbeatConfig: WorkflowHeartbeatConfig
+                                      workflowHeartbeatConfig: WorkflowHeartbeatConfig,
+                                      groupMetricsActor: ActorRef
 )
 
 class WorkflowManagerActor(params: WorkflowManagerActorParams)
@@ -351,7 +354,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       workflowHeartbeatConfig = params.workflowHeartbeatConfig,
       totalJobsByRootWf = new AtomicInteger(),
       fileHashCacheActorProps = fileHashCacheActorProps,
-      blacklistCache = callCachingBlacklistManager.blacklistCacheFor(workflow)
+      blacklistCache = callCachingBlacklistManager.blacklistCacheFor(workflow),
+      groupMetricsActor = params.groupMetricsActor
     )
     val wfActor = context.actorOf(wfProps, name = s"WorkflowActor-$workflowId")
 

@@ -23,6 +23,7 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
+import cromwell.backend.standard.costestimation.CostPollingHelper
 import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.validation._
 import cromwell.core._
@@ -1339,6 +1340,9 @@ trait StandardAsyncExecutionActor
     // record if group has run into cloud quota exhaustion
     checkAndRecordQuotaExhaustion(state)
 
+    // present the poll result to the cost helper. It will keep track of vm start/stop times and may emit some metadata.
+    costHelper.foreach(helper => helper.processPollResult(state))
+
     state match {
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
@@ -1351,6 +1355,10 @@ trait StandardAsyncExecutionActor
         ) // Copy the current handle with updated previous status.
     }
   }
+
+  // If present, polling results will be presented to this helper.
+  // Subclasses can use this to emit proper metadata based on polling responses.
+  protected val costHelper: Option[CostPollingHelper[StandardAsyncRunState]] = Option.empty
 
   /**
     * Process a poll failure.

@@ -2,6 +2,12 @@
 
 ## 88 Release Notes
 
+### New feature: Prevent Job start during Cloud Quota exhaustion
+
+This optional feature prevents Cromwell from starting new jobs in a group that is currently experiencing 
+cloud quota exhaustion. Jobs will be started once the group's quota becomes available. To enable this feature, 
+set `quota-exhaustion-job-start-control.enabled` to true.
+
 ### Java 17
 
 As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and

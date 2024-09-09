@@ -1,6 +1,5 @@
 name: gcpbatch_reference_disk_mounted_only_if_requested_false
 testFormat: workflowsuccess
-# failing alt PR here https://github.com/broadinstitute/cromwell/pull/7502
 backends: [GCPBATCH-Reference-Disk-Localization]
 
 files {

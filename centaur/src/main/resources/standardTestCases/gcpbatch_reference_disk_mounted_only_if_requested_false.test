@@ -1,0 +1,15 @@
+name: gcpbatch_reference_disk_mounted_only_if_requested_false
+testFormat: workflowsuccess
+# failing alt PR here https://github.com/broadinstitute/cromwell/pull/7502
+backends: [GCPBATCH-Reference-Disk-Localization]
+
+files {
+  workflow: reference_disk/gcpbatch_reference_disk_mounted_only_if_requested.wdl
+  options: reference_disk/reference_disk_test_false.options.json
+}
+
+metadata {
+  workflowName: ReferenceDiskMountedOnlyIfRequested
+  status: Succeeded
+  "outputs.ReferenceDiskMountedOnlyIfRequested.disk_mounted": false
+}

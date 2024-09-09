@@ -26,10 +26,11 @@ import cromwell.backend.async.{
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor.JesPendingExecutionHandle
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, RunStatus}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
-import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunStatus
+import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Running, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
+import cromwell.backend.standard.costestimation.CostPollingHelper
 import cromwell.backend.standard.{
   DefaultStandardAsyncExecutionActorParams,
   StandardAsyncExecutionActorParams,
@@ -47,6 +48,7 @@ import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
+import cromwell.services.metadata.CallMetadataKeys
 import cromwell.services.metrics.bard.BardEventing.BardEventRequest
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
@@ -201,7 +203,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
-
+    override val costHelper: Option[CostPollingHelper[RunStatus]] = Some(new PapiCostPollingHelper(tellMetadata))
     override lazy val backendEngineFunctions: PipelinesApiExpressionFunctions = functions
   }
 
@@ -1767,33 +1769,47 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     makeJesActorRef(SampleWdl.ArrayIO, Map.empty, "serialize", inputs, functions).underlyingActor
   }
 
-  it should "extract start and end times from terminal run statuses" in {
+  it should "extract start, cpu, and end times from terminal run statuses" in {
     val jesBackend = setupBackend
 
-    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
-    val middle = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(30, ChronoUnit.MINUTES), None)
-    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
-    val successStatus = RunStatus.Success(Seq(middle, end, start), None, None, None)
+    val earliestEvent =
+      ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val cpuStartEvent =
+      ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now().minus(30, ChronoUnit.MINUTES), None)
+    val cpuEndEvent =
+      ExecutionEvent(CallMetadataKeys.VmEndTime, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
+    val initialPollResult = Initializing(Seq(earliestEvent))
+    val cpuStartPollResult = Running(Seq(earliestEvent, cpuStartEvent))
+    val cpuEndPollResult = RunStatus.Success(Seq(earliestEvent, cpuStartEvent, cpuEndEvent), None, None, None)
 
-    jesBackend.getStartAndEndTimes(successStatus) shouldBe Some(
-      StartAndEndTimes(start.offsetDateTime, None, end.offsetDateTime)
+    jesBackend.costHelper.get.processPollResult(initialPollResult)
+    jesBackend.costHelper.get.processPollResult(cpuStartPollResult)
+    jesBackend.costHelper.get.processPollResult(cpuEndPollResult)
+
+    jesBackend.getStartAndEndTimes(cpuEndPollResult) shouldBe Some(
+      StartAndEndTimes(earliestEvent.offsetDateTime, Some(cpuStartEvent.offsetDateTime), cpuEndEvent.offsetDateTime)
     )
   }
 
-  it should "extract start, end, and cpu start times from terminal run statuses" in {
+  it should "not return a cpu start time if one was never recorded" in {
     val jesBackend = setupBackend
 
-    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
-    val middle = ExecutionEvent(
-      """Worker \"google-pipelines-worker-46b7b7d92d92f888d4a9596dad3c2007\" assigned in \"us-central1-c\" on a \"custom-2-8192\" machine""",
-      OffsetDateTime.now().minus(30, ChronoUnit.MINUTES),
-      None
-    )
-    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
-    val successStatus = RunStatus.Success(Seq(middle, end, start), None, None, None)
+    val earliestEvent =
+      ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
 
-    jesBackend.getStartAndEndTimes(successStatus) shouldBe Some(
-      StartAndEndTimes(start.offsetDateTime, Some(middle.offsetDateTime), end.offsetDateTime)
+    // Note how there is no VmStartTime execution event.
+    val cpuEndEvent =
+      ExecutionEvent(CallMetadataKeys.VmEndTime, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
+    val initialPollResult = Initializing(Seq(earliestEvent))
+    val cpuStartPollResult = Running(Seq(earliestEvent))
+    val cpuEndPollResult = RunStatus.Success(Seq(earliestEvent, cpuEndEvent), None, None, None)
+
+    jesBackend.costHelper.get.processPollResult(initialPollResult)
+    jesBackend.costHelper.get.processPollResult(cpuStartPollResult)
+    jesBackend.costHelper.get.processPollResult(cpuEndPollResult)
+
+    jesBackend.getStartAndEndTimes(cpuEndPollResult) shouldBe Some(
+      StartAndEndTimes(earliestEvent.offsetDateTime, None, cpuEndEvent.offsetDateTime)
     )
   }
 
@@ -1803,15 +1819,6 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     val successStatus = RunStatus.Success(Seq(), None, None, None)
 
     jesBackend.getStartAndEndTimes(successStatus) shouldBe None
-  }
-
-  it should "return None when getting start and end times from non-terminal statuses" in {
-    val jesBackend = setupBackend
-
-    val runningStatus = RunStatus.Running
-
-    jesBackend.getStartAndEndTimes(runningStatus) shouldBe None
-
   }
 
   it should "send bard metrics message on task success" in {
@@ -1917,14 +1924,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
 
   it should "call GroupMetricsActor when job runs into cloud quota delay" in {
     val papiBackend = setupBackend
-    papiBackend.checkAndRecordQuotaExhaustion(RunStatus.AwaitingCloudQuota)
+    papiBackend.checkAndRecordQuotaExhaustion(RunStatus.AwaitingCloudQuota(Seq.empty))
 
     mockGroupMetricsActor.expectMsgType[RecordGroupQuotaExhaustion]
   }
 
   it should "not call GroupMetricsActor when job hasn't run into quota delay" in {
     val papiBackend = setupBackend
-    papiBackend.checkAndRecordQuotaExhaustion(RunStatus.Running)
+    papiBackend.checkAndRecordQuotaExhaustion(RunStatus.Running(Seq.empty))
 
     mockGroupMetricsActor.expectNoMessage()
   }

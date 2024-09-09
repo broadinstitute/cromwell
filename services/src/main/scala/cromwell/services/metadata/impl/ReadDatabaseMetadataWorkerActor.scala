@@ -2,11 +2,12 @@ package cromwell.services.metadata.impl
 
 import java.sql.SQLTimeoutException
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
+import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{MetadataEvent, MetadataQuery, WorkflowQueryParameters}
+import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataQuery, WorkflowQueryParameters}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -164,15 +165,25 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
                                   includeTaskBreakdown: Boolean,
                                   includeSubworkflowBreakdown: Boolean
   ): Future[MetadataServiceResponse] = {
+
+    val keys = NonEmptyList.of(CallMetadataKeys.VmStartTime,
+                               CallMetadataKeys.VmEndTime,
+                               CallMetadataKeys.VmCostPerHour,
+                               CallMetadataKeys.SubWorkflowId
+    )
+    val metadataQuery = MetadataQuery(id, None, None, Option(keys), None, expandSubWorkflows = true)
+
     val results = for {
       status <- getWorkflowStatus(id)
-      costEvents <- queryCost(id, metadataReadTimeout)
+      costEvents <- queryMetadata(metadataQuery)
     } yield (status, costEvents)
 
     results.map { case (s, m) =>
       (s, m) match {
-        case (Some(wfState), metadataEvents) =>
-          CostResponse(id, wfState, metadataEvents, includeTaskBreakdown, includeSubworkflowBreakdown)
+        case (Some(wfState), resp: MetadataLookupResponse) =>
+          CostResponse(id, wfState, resp, includeTaskBreakdown, includeSubworkflowBreakdown)
+        // TODO better error handling for other metadata lookup results
+        case (Some(_), _) => CostFailure(id, new Exception("TODO"))
         // TODO should this be a failure?
         case (None, _) => CostFailure(id, new Exception("Couldn't find workflow status"))
       }

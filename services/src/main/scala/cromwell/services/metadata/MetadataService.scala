@@ -180,7 +180,7 @@ object MetadataService {
 
   final case class CostResponse(id: WorkflowId,
                                 status: WorkflowState,
-                                costMetadata: Seq[MetadataEvent],
+                                metadataResponse: MetadataLookupResponse,
                                 includeTaskBreakdown: Boolean,
                                 includeSubworkflowBreakdown: Boolean
   ) extends MetadataServiceResponse

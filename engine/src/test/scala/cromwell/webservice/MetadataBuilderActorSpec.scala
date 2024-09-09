@@ -191,6 +191,7 @@ class MetadataBuilderActorSpec
       ),
       MetadataEvent(MetadataKey(workflowId, None, "status"), MetadataValue("Succeeded"))
     )
+    val query = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
 
     val expectedRes =
       s"""{
@@ -213,7 +214,7 @@ class MetadataBuilderActorSpec
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
     mockReadMetadataWorkerActor.reply(
-      CostResponse(workflowId, workflowState, events, false, false)
+      CostResponse(workflowId, workflowState, MetadataLookupResponse(query, events), false, false)
     )
     response map { r => r shouldBe a[SuccessfulMetadataJsonResponse] }
     response.mapTo[SuccessfulMetadataJsonResponse] map { b => b.responseJson shouldBe expectedRes.parseJson }

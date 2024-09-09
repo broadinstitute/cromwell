@@ -2,7 +2,6 @@ package cromwell.services.metadata.impl.builder
 
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicLong
-
 import akka.actor.{ActorRef, LoggingFSM, PoisonPill, Props}
 import common.collections.EnhancedCollections._
 import cromwell.services.metadata.impl.builder.MetadataComponent._
@@ -16,6 +15,7 @@ import mouse.all._
 import org.slf4j.LoggerFactory
 import spray.json._
 
+import java.time.temporal.ChronoUnit
 import scala.language.postfixOps
 
 object MetadataBuilderActor {
@@ -23,6 +23,7 @@ object MetadataBuilderActor {
   case object Idle extends MetadataBuilderActorState
   case object WaitingForMetadataService extends MetadataBuilderActorState
   case object WaitingForSubWorkflows extends MetadataBuilderActorState
+  case object WaitingForSubWorkflowCost extends MetadataBuilderActorState
 
   sealed trait MetadataBuilderActorData
 
@@ -62,6 +63,17 @@ object MetadataBuilderActor {
     * Metadata objects of all attempts for one shard
     */
   private case class MetadataForIndex(index: Int, metadata: List[JsObject])
+
+  /**
+   * Extract the list of subworkflow ids from a list of metadata events
+   */
+  private def extractSubworkflowIds(events: Seq[MetadataEvent]): Seq[String] =
+    events
+      .collect {
+        case MetadataEvent(key, value, _) if key.key.endsWith(CallMetadataKeys.SubWorkflowId) => value map { _.value }
+      }
+      .flatten
+      .distinct
 
   private def eventsToAttemptMetadata(
     subWorkflowMetadata: Map[String, JsValue]
@@ -275,28 +287,6 @@ object MetadataBuilderActor {
     workflowMetadataResponse(id, updatedEvents, includeCallsIfEmpty = false, Map.empty)
   }
 
-  def processCostResponse(id: WorkflowId,
-                          status: WorkflowState,
-                          eventsList: Seq[MetadataEvent],
-                          includeTaskBreakdown: Boolean,
-                          includeSubworkflowBreakdown: Boolean
-  ): JsObject = {
-    // !! add logic to compute real cost here !!
-    val taskMap = if (includeTaskBreakdown) Map("taskBreakdown" -> JsObject(Map("foo.bar" -> JsNumber(3.5)))) else Map()
-    val subworkflowMap =
-      if (includeSubworkflowBreakdown) Map("subworkflowBreakdown" -> JsObject(Map("foo.baz" -> JsNumber(3.5))))
-      else Map()
-
-    JsObject(
-      Map(
-        WorkflowMetadataKeys.Id -> JsString(id.toString),
-        WorkflowMetadataKeys.Status -> JsString(status.toString),
-        "currency" -> JsString("USD"),
-        "cost" -> JsNumber(3.5)
-      ) ++ taskMap ++ subworkflowMap
-    )
-  }
-
   def workflowMetadataResponse(workflowId: WorkflowId,
                                eventsList: Seq[MetadataEvent],
                                includeCallsIfEmpty: Boolean,
@@ -348,8 +338,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       )
       allDone()
     case Event(CostResponse(w, s, m, t, b), HasWorkData(target, originalRequest)) =>
-      target ! SuccessfulMetadataJsonResponse(originalRequest, processCostResponse(w, s, m, t, b))
-      allDone()
+      processCostResponse(w, s, m, t, b, target, originalRequest)
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)
     case Event(FetchFailedJobsMetadataLookupResponse(metadata), HasWorkData(target, originalRequest)) =>
@@ -381,6 +370,14 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
   when(WaitingForSubWorkflows) {
     case Event(mbr: MetadataJsonResponse, data: HasReceivedEventsData) =>
       processSubWorkflowMetadata(mbr, data)
+    case Event(failure: MetadataServiceFailure, data: HasReceivedEventsData) =>
+      data.target ! FailedMetadataJsonResponse(data.originalRequest, failure.reason)
+      allDone()
+  }
+
+  when(WaitingForSubWorkflowCost) {
+    case Event(mbr: MetadataJsonResponse, data: HasReceivedEventsData) =>
+      processSubWorkflowCost(mbr, data)
     case Event(failure: MetadataServiceFailure, data: HasReceivedEventsData) =>
       data.target ! FailedMetadataJsonResponse(data.originalRequest, failure.reason)
       allDone()
@@ -429,6 +426,39 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
         failAndDie(new Exception(message), data.target, data.originalRequest)
     }
 
+  def processSubWorkflowCost(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) =
+    metadataResponse match {
+      case SuccessfulMetadataJsonResponse(GetCost(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown), js) =>
+        val subId: WorkflowId = workflowId
+        val newData = data.withSubWorkflow(subId.toString, js)
+
+        if (newData.isComplete) {
+          buildCostAndStop(
+            subId,
+            WorkflowSucceeded, // TODO
+            data.originalEvents,
+            newData.subWorkflowsMetadata,
+            includeTaskBreakdown,
+            includeSubworkflowBreakdown,
+            data.target,
+            data.originalRequest
+          )
+        } else {
+          stay() using newData
+        }
+      case FailedMetadataJsonResponse(originalRequest, e) =>
+        failAndDie(new RuntimeException(s"Failed to retrieve cost for a sub workflow ($originalRequest)", e),
+                   data.target,
+                   data.originalRequest
+        )
+
+      case other =>
+        val message =
+          s"Programmer Error: MetadataBuilderActor expected subworkflow metadata response type but got ${other.getClass.getSimpleName}"
+        log.error(message)
+        failAndDie(new Exception(message), data.target, data.originalRequest)
+    }
+
   def failAndDie(reason: Throwable, target: ActorRef, originalRequest: BuildMetadataJsonAction) = {
     target ! FailedMetadataJsonResponse(originalRequest, reason)
     context stop self
@@ -454,12 +484,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
   ) =
     if (query.expandSubWorkflows) {
       // Scan events for sub workflow ids
-      val subWorkflowIds = eventsList
-        .collect {
-          case MetadataEvent(key, value, _) if key.key.endsWith(CallMetadataKeys.SubWorkflowId) => value map { _.value }
-        }
-        .flatten
-        .distinct
+      val subWorkflowIds = extractSubworkflowIds(eventsList)
 
       // If none is found just proceed to build metadata
       if (subWorkflowIds.isEmpty) buildAndStop(query, eventsList, Map.empty, target, originalRequest)
@@ -487,6 +512,132 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
     } else {
       buildAndStop(query, eventsList, Map.empty, target, originalRequest)
     }
+
+  def processCostResponse(id: WorkflowId,
+                          status: WorkflowState,
+                          metadataResponse: MetadataLookupResponse,
+                          includeTaskBreakdown: Boolean,
+                          includeSubworkflowBreakdown: Boolean,
+                          target: ActorRef,
+                          originalRequest: BuildMetadataJsonAction
+  ): State = {
+
+    // Always expand subworkflows for cost
+    val subWorkflowIds = extractSubworkflowIds(metadataResponse.eventList)
+
+    if (subWorkflowIds.isEmpty)
+      // If no workflows found, just build cost data
+      buildCostAndStop(id,
+                       status,
+                       metadataResponse.eventList,
+                       Map.empty,
+                       includeTaskBreakdown,
+                       includeSubworkflowBreakdown,
+                       target,
+                       originalRequest
+      )
+    else {
+      // Otherwise spin up a metadata builder actor for each sub workflow
+      subWorkflowIds foreach { subId =>
+        val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker,
+                                                                            metadataReadRowNumberSafetyThreshold,
+                                                                            isForSubworkflows = true
+                                                 ),
+                                                 uniqueActorName(subId)
+        )
+        subMetadataBuilder ! GetCost(WorkflowId.fromString(subId), includeTaskBreakdown, includeSubworkflowBreakdown)
+      }
+      goto(WaitingForSubWorkflowCost) using HasReceivedEventsData(target,
+                                                                  originalRequest,
+                                                                  metadataResponse.query,
+                                                                  metadataResponse.eventList,
+                                                                  Map.empty,
+                                                                  subWorkflowIds.size
+      )
+    }
+  }
+
+  def buildCostAndStop(id: WorkflowId,
+                       status: WorkflowState,
+                       eventsList: Seq[MetadataEvent],
+                       expandedValues: Map[String, JsValue],
+                       includeTaskBreakdown: Boolean,
+                       includeSubworkflowBreakdown: Boolean,
+                       target: ActorRef,
+                       originalRequest: BuildMetadataJsonAction
+  ): State = {
+
+    val groupedEvents = groupEvents(eventsList)
+    val metadataEvents = MetadataBuilderActor.parse(groupedEvents, expandedValues)
+
+    // TODO it's really annoying and brittle that we need to parse the JSON here
+
+    def computeCost(jsCall: JsObject): Double = {
+      // TODO error handling, remove unprotected gets
+      val startTime = jsCall.fields.getOrElse(CallMetadataKeys.VmStartTime, JsString("")) match {
+        case start: JsString => OffsetDateTime.parse(start.value)
+        case _ => throw new RuntimeException("I'm so sad because I have no start time")
+      }
+      val endTime = jsCall.fields.getOrElse(CallMetadataKeys.VmEndTime, JsString("")) match {
+        case end: JsString => OffsetDateTime.parse(end.value)
+        case _ => throw new RuntimeException("I'm so sad because I have no end time")
+      }
+      val costPerHour = jsCall.fields.getOrElse(CallMetadataKeys.VmCostPerHour, JsNumber(0)) match {
+        case cost: JsNumber => cost.value.toDouble
+        case _ => throw new RuntimeException("I'm so sad because I have no cost, am I free???")
+      }
+
+      // TODO is millis the right thing to use here? Should it be seconds?
+      val vmRuntimeInMillis = startTime.until(endTime, ChronoUnit.MILLIS).toDouble
+      val c = costPerHour * (vmRuntimeInMillis / (1000 * 60 * 60))
+      c
+    }
+    val costFields = metadataEvents.fields.getOrElse(id.toString, JsObject.empty)
+    val wfFields: JsObject = costFields match {
+      case c: JsObject => c
+      case _ => JsObject.empty
+    }
+    val callsObject = wfFields.fields.getOrElse("calls", JsObject.empty)
+
+    val cost: Double = callsObject match {
+      case calls: JsObject =>
+        val callFields = calls.fields.values
+        val d: Iterable[Double] = callFields.map { multiCalls: JsValue =>
+          val dd: Vector[Double] = multiCalls match {
+            case a: JsArray =>
+              a.elements.map {
+                case o: JsObject => computeCost(o)
+                case _ => 0
+              }
+            case _ => Vector(0)
+          }
+          dd.sum
+        }
+        d.sum
+      case _ => 0
+    }
+
+    val subworkflowCost = expandedValues.values.map {
+      case o: JsObject =>
+        o.fields.getOrElse("cost", JsNumber(0)) match {
+          case n: JsNumber => n.value.toDouble
+          case _ => 0
+        }
+      case _ => 0
+    }.sum
+
+    val resp = JsObject(
+      Map(
+        WorkflowMetadataKeys.Id -> JsString(id.toString),
+        WorkflowMetadataKeys.Status -> JsString(status.toString),
+        "currency" -> JsString("USD"),
+        "cost" -> JsNumber(cost + subworkflowCost)
+      ) // ++ taskMap ++ subworkflowMap
+    )
+
+    target ! SuccessfulMetadataJsonResponse(originalRequest, resp)
+    allDone()
+  }
 
   def processFailedJobsMetadataResponse(eventsList: Seq[MetadataEvent],
                                         target: ActorRef,

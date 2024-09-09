@@ -37,6 +37,8 @@ import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfigu
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
 import cromwell.backend.standard._
+import cromwell.backend.standard.costestimation.CostPollingHelper
+
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -60,6 +62,7 @@ import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
 import java.net.SocketTimeoutException
+import java.time.OffsetDateTime
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -131,6 +134,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override type StandardAsyncRunState = RunStatus
 
+  override val costHelper: Option[CostPollingHelper[RunStatus]] = Option(new PapiCostPollingHelper(tellMetadata))
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
@@ -773,10 +777,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] =
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
 
-  override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit =
-    if (runStatus == AwaitingCloudQuota) {
+  override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit = runStatus match {
+    case AwaitingCloudQuota(_) =>
       standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
-    }
+    case _ =>
+  }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (_: JesPendingExecutionHandle @unchecked, JobAbortedException) =>
@@ -827,16 +832,28 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
 
-  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
-    runStatus match {
-      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.nonEmpty =>
-        val offsetDateTimes = terminalRunStatus.eventList.map(_.offsetDateTime)
-        val cpuStart = terminalRunStatus.eventList.find(event =>
-          event.name.matches("""^Worker[\s\"\\]+google-pipelines-worker-[a-zA-Z0-9\s\"\\]+assigned in.*""")
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = {
+    // Intuition:
+    // "job start" is the earliest event time across all events.
+    // "cpuStart" is obtained from the cost helper. It should be the event time where the user VM started spending money.
+    // "jobEnd" is obtained from the cost helper, falling back to the last event time, falling back to now.
+    // We allow fallbacks for end times to account for in progress runs, but generally the end time is only known once we've reached a terminal status.
+    val jobStart: Option[OffsetDateTime] = runStatus.eventList.minByOption(_.offsetDateTime).map(e => e.offsetDateTime)
+    val maxEventTime: Option[OffsetDateTime] =
+      runStatus.eventList.maxByOption(_.offsetDateTime).map(e => e.offsetDateTime)
+
+    costHelper match {
+      case Some(helper) =>
+        val cpuStart: Option[OffsetDateTime] = helper.vmStartTime
+        val jobEnd: OffsetDateTime = helper.vmEndTime.orElse(maxEventTime).getOrElse(OffsetDateTime.now())
+        jobStart.flatMap(start => Option(StartAndEndTimes(start, cpuStart, jobEnd)))
+      case None =>
+        jobLogger.error(
+          "Programmer error: expected costHelper object to be present in PipelinesApiBackendJobExecutionActor"
         )
-        Some(StartAndEndTimes(offsetDateTimes.min, cpuStart.map(_.offsetDateTime), offsetDateTimes.max))
-      case _ => None
+        None
     }
+  }
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =
     exception match {

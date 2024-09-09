@@ -39,10 +39,8 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) =>
       evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
     case GetLogs(workflowId) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
-    case GetCost(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown) =>
-      evaluateRespondAndStop(sender(),
-                             queryCostAndRespond(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown)
-      )
+    case GetCost(workflowId) =>
+      evaluateRespondAndStop(sender(), queryCostAndRespond(workflowId))
     case QueryForWorkflowsMatchingParameters(parameters) =>
       evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(parameters))
     case WorkflowOutputs(id) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
@@ -161,10 +159,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
       LogsFailure(id, t)
     }
 
-  private def queryCostAndRespond(id: WorkflowId,
-                                  includeTaskBreakdown: Boolean,
-                                  includeSubworkflowBreakdown: Boolean
-  ): Future[MetadataServiceResponse] = {
+  private def queryCostAndRespond(id: WorkflowId): Future[MetadataServiceResponse] = {
 
     val keys = NonEmptyList.of(CallMetadataKeys.VmStartTime,
                                CallMetadataKeys.VmEndTime,
@@ -181,7 +176,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     results.map { case (s, m) =>
       (s, m) match {
         case (Some(wfState), resp: MetadataLookupResponse) =>
-          CostResponse(id, wfState, resp, includeTaskBreakdown, includeSubworkflowBreakdown)
+          CostResponse(id, wfState, resp)
         // TODO better error handling for other metadata lookup results
         case (Some(_), _) => CostFailure(id, new Exception("TODO"))
         // TODO should this be a failure?

@@ -337,8 +337,8 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
                                               workflowMetadataResponse(w, l, includeCallsIfEmpty = false, Map.empty)
       )
       allDone()
-    case Event(CostResponse(w, s, m, t, b), HasWorkData(target, originalRequest)) =>
-      processCostResponse(w, s, m, t, b, target, originalRequest)
+    case Event(CostResponse(w, s, m), HasWorkData(target, originalRequest)) =>
+      processCostResponse(w, s, m, target, originalRequest)
     case Event(MetadataLookupResponse(query, metadata), HasWorkData(target, originalRequest)) =>
       processMetadataResponse(query, metadata, target, originalRequest)
     case Event(FetchFailedJobsMetadataLookupResponse(metadata), HasWorkData(target, originalRequest)) =>
@@ -428,7 +428,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
 
   def processSubWorkflowCost(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) =
     metadataResponse match {
-      case SuccessfulMetadataJsonResponse(GetCost(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown), js) =>
+      case SuccessfulMetadataJsonResponse(GetCost(workflowId), js) =>
         val subId: WorkflowId = workflowId
         val newData = data.withSubWorkflow(subId.toString, js)
 
@@ -438,8 +438,6 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
             WorkflowSucceeded, // TODO
             data.originalEvents,
             newData.subWorkflowsMetadata,
-            includeTaskBreakdown,
-            includeSubworkflowBreakdown,
             data.target,
             data.originalRequest
           )
@@ -516,8 +514,6 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
   def processCostResponse(id: WorkflowId,
                           status: WorkflowState,
                           metadataResponse: MetadataLookupResponse,
-                          includeTaskBreakdown: Boolean,
-                          includeSubworkflowBreakdown: Boolean,
                           target: ActorRef,
                           originalRequest: BuildMetadataJsonAction
   ): State = {
@@ -527,15 +523,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
 
     if (subWorkflowIds.isEmpty)
       // If no workflows found, just build cost data
-      buildCostAndStop(id,
-                       status,
-                       metadataResponse.eventList,
-                       Map.empty,
-                       includeTaskBreakdown,
-                       includeSubworkflowBreakdown,
-                       target,
-                       originalRequest
-      )
+      buildCostAndStop(id, status, metadataResponse.eventList, Map.empty, target, originalRequest)
     else {
       // Otherwise spin up a metadata builder actor for each sub workflow
       subWorkflowIds foreach { subId =>
@@ -545,7 +533,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
                                                  ),
                                                  uniqueActorName(subId)
         )
-        subMetadataBuilder ! GetCost(WorkflowId.fromString(subId), includeTaskBreakdown, includeSubworkflowBreakdown)
+        subMetadataBuilder ! GetCost(WorkflowId.fromString(subId))
       }
       goto(WaitingForSubWorkflowCost) using HasReceivedEventsData(target,
                                                                   originalRequest,
@@ -561,8 +549,6 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
                        status: WorkflowState,
                        eventsList: Seq[MetadataEvent],
                        expandedValues: Map[String, JsValue],
-                       includeTaskBreakdown: Boolean,
-                       includeSubworkflowBreakdown: Boolean,
                        target: ActorRef,
                        originalRequest: BuildMetadataJsonAction
   ): State = {

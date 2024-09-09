@@ -201,7 +201,7 @@ class MetadataBuilderActorSpec
          |"status": "${workflowState.toString}"
          |}""".stripMargin
 
-    val action = GetCost(workflowId, false, false)
+    val action = GetCost(workflowId)
 
     val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
@@ -214,7 +214,7 @@ class MetadataBuilderActorSpec
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
     mockReadMetadataWorkerActor.expectMsg(defaultTimeout, action)
     mockReadMetadataWorkerActor.reply(
-      CostResponse(workflowId, workflowState, MetadataLookupResponse(query, events), false, false)
+      CostResponse(workflowId, workflowState, MetadataLookupResponse(query, events))
     )
     response map { r => r shouldBe a[SuccessfulMetadataJsonResponse] }
     response.mapTo[SuccessfulMetadataJsonResponse] map { b => b.responseJson shouldBe expectedRes.parseJson }

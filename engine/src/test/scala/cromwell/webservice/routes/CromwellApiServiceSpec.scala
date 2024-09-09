@@ -725,19 +725,16 @@ object CromwellApiServiceSpec {
           )
         )
         sender() ! SuccessfulMetadataJsonResponse(request, MetadataBuilderActor.processOutputsResponse(id, event))
-      case request @ GetCost(id, includeTaskBreakdown, includeSubworkflowBreakdown) =>
+      case request @ GetCost(id) =>
         sender() ! SuccessfulMetadataJsonResponse(
           request,
-          MetadataBuilderActor.processCostResponse(
-            id,
-            WorkflowSucceeded,
-            Vector(
-              MetadataEvent(MetadataKey(id, None, "outputs:test.hello.salutation"),
-                            MetadataValue("Hello foo!", MetadataString)
-              )
-            ),
-            includeTaskBreakdown,
-            includeSubworkflowBreakdown
+          JsObject(
+            Map(
+              WorkflowMetadataKeys.Id -> JsString(id.toString),
+              WorkflowMetadataKeys.Status -> JsString(WorkflowSucceeded.toString),
+              "currency" -> JsString("USD"),
+              "cost" -> JsNumber(3.5)
+            )
           )
         )
       case request @ GetLogs(id) =>

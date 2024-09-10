@@ -260,7 +260,8 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val subWorkflowLabels =
       if (!subWorkflow.equals(workflow.rootWorkflow))
         Labels("cromwell-sub-workflow-name" -> subWorkflow.name,
-               "cromwell-sub-workflow-id" -> s"cromwell-sub-${jobDescriptor.workflowDescriptor.id.toString}")
+               "cromwell-sub-workflow-id" -> s"cromwell-sub-${jobDescriptor.workflowDescriptor.id.toString}"
+        )
       else
         Labels.empty
 

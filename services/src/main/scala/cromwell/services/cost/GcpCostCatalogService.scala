@@ -15,7 +15,8 @@ import java.time.temporal.ChronoUnit.SECONDS
 case class CostCatalogKey(machineType: Option[MachineType],
                           usageType: Option[UsageType],
                           machineCustomization: Option[MachineCustomization],
-                          resourceGroup: Option[ResourceGroup]
+                          resourceGroup: Option[ResourceGroup],
+                          region: String
 )
 case class CostCatalogValue(catalogObject: Sku)
 case class ExpiringGcpCostCatalog(catalog: Map[CostCatalogKey, CostCatalogValue], fetchTime: Instant)
@@ -88,18 +89,23 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
    * Ideally, we don't want to have an entire, unprocessed, cost catalog in memory at once since it's ~20MB.
    */
   private def processCostCatalog(skus: Iterable[Sku]): Map[CostCatalogKey, CostCatalogValue] =
-    // TODO: Account for key collisions (same key can be in multiple regions)
     // TODO: reduce memory footprint of returned map  (don't store entire SKU object)
     skus.foldLeft(Map.empty[CostCatalogKey, CostCatalogValue]) { case (acc, sku) =>
-      acc + convertSkuToKeyValuePair(sku)
+      acc ++ convertSkuToKeyValuePairs(sku)
     }
 
-  private def convertSkuToKeyValuePair(sku: Sku): (CostCatalogKey, CostCatalogValue) = CostCatalogKey(
-    machineType = MachineType.fromSku(sku),
-    usageType = UsageType.fromSku(sku),
-    machineCustomization = MachineCustomization.fromSku(sku),
-    resourceGroup = ResourceGroup.fromSku(sku)
-  ) -> CostCatalogValue(sku)
+  private def convertSkuToKeyValuePairs(sku: Sku): List[(CostCatalogKey, CostCatalogValue)] = {
+    val allAvailableRegions = sku.getServiceRegionsList.asScala.toList
+    allAvailableRegions.map(region =>
+      CostCatalogKey(
+        machineType = MachineType.fromSku(sku),
+        usageType = UsageType.fromSku(sku),
+        machineCustomization = MachineCustomization.fromSku(sku),
+        resourceGroup = ResourceGroup.fromSku(sku),
+        region = region
+      ) -> CostCatalogValue(sku)
+    )
+  }
 
   def serviceRegistryActor: ActorRef = serviceRegistry
   override def receive: Receive = {

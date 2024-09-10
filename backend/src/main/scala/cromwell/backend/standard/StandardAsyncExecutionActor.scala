@@ -23,6 +23,7 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
+import cromwell.backend.standard.costestimation.CostPollingHelper
 import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.validation._
 import cromwell.core._
@@ -46,9 +47,9 @@ import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
+import java.io.IOException
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
-import java.io.IOException
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -68,6 +69,7 @@ case class DefaultStandardAsyncExecutionActorParams(
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val backendSingletonActorOption: Option[ActorRef],
   override val completionPromise: Promise[BackendJobExecutionResponse],
+  override val groupMetricsActor: ActorRef,
   override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardAsyncExecutionActorParams
 
@@ -1058,6 +1060,12 @@ trait StandardAsyncExecutionActor
   def retryEvaluateOutputs(exception: Exception): Boolean = false
 
   /**
+   * Checks if the job has run into any cloud quota exhaustion and records it to GroupMetrics table
+   * @param runStatus The run status
+   */
+  def checkAndRecordQuotaExhaustion(runStatus: StandardAsyncRunState): Unit = ()
+
+  /**
     * Process a successful run, as defined by `isSuccess`.
     *
     * @param runStatus  The run status.
@@ -1329,6 +1337,12 @@ trait StandardAsyncExecutionActor
       tellMetadata(Map(CallMetadataKeys.BackendStatus -> state))
     }
 
+    // record if group has run into cloud quota exhaustion
+    checkAndRecordQuotaExhaustion(state)
+
+    // present the poll result to the cost helper. It will keep track of vm start/stop times and may emit some metadata.
+    costHelper.foreach(helper => helper.processPollResult(state))
+
     state match {
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
@@ -1341,6 +1355,10 @@ trait StandardAsyncExecutionActor
         ) // Copy the current handle with updated previous status.
     }
   }
+
+  // If present, polling results will be presented to this helper.
+  // Subclasses can use this to emit proper metadata based on polling responses.
+  protected val costHelper: Option[CostPollingHelper[StandardAsyncRunState]] = Option.empty
 
   /**
     * Process a poll failure.

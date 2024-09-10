@@ -1,6 +1,6 @@
 name: requester_pays_localization
 testFormat: workflowsuccess
-backends: [Papiv2RequesterPays]
+backends: [Papiv2RequesterPays, GCPBATCH_ALT]
 workflowType: WDL
 workflowTypeVersion: 1.0
 tags: ["wdl_1.0"]

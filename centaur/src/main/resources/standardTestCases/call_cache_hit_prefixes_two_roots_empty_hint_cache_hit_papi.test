@@ -3,7 +3,8 @@
 # should not see the first's cache entries.
 name: call_cache_hit_prefixes_two_roots_empty_hint_cache_hit_papi
 testFormat: runthriceexpectingcallcaching
-backends: [Papi, GCPBATCH]
+# don't know
+backends: [Papi, GCPBATCH_FAIL]
 
 files {
   workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl

@@ -2,6 +2,12 @@
 
 ## 88 Release Notes
 
+### New feature: Prevent Job start during Cloud Quota exhaustion
+
+This optional feature prevents Cromwell from starting new jobs in a group that is currently experiencing 
+cloud quota exhaustion. Jobs will be started once the group's quota becomes available. To enable this feature, 
+set `quota-exhaustion-job-start-control.enabled` to true.
+
 ### Java 17
 
 As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
@@ -20,11 +26,13 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 - The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
 - Fixes a bug with not being able to recover jobs on Cromwell restart.
+- Fixes machine type selection to match the Google Cloud Life Sciences backend, including default n1 non shared-core machine types and correct handling of `cpuPlatform` to select n2 or n2d machine types as appropriate.
 - Fixes the preemption error handling, now, the correct error message is printed, this also handles the other potential exit codes.
 - Fixes error message reporting for failed jobs.
 - Fixes the "retry with more memory" feature.
 - Fixes pulling Docker image metadata from private GCR repositories.
 - Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
+- Added a way to use a custom LogsPolicy for the job execution, setting `backend.providers.batch.config.batch.logs-policy` to "CLOUD_LOGGING" (default) keeps the current behavior, or, set it to "PATH" to save the logs into the the mounted disk, at the end, this log file gets copied to the google cloud storage bucket with "task.log" as the name.
 
 ### Improved handling of Life Sciences API quota errors
 
@@ -32,7 +40,13 @@ Users reported cases where Life Sciences jobs failed due to insufficient quota, 
 quota is available (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
 such as "PAPI error code 9", "no available zones", and/or "quota too low".
 
-### Database migration
+### Database
+
+#### New table 'GROUP_METRICS_ENTRY'
+
+A new table called `GROUP_METRICS_ENTRY` has been added. The purpose of this table is to track when a group or billing project last ran into Cloud Quota exhaustion.
+
+#### Index removal
 
 The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 
@@ -61,6 +75,16 @@ Cromwell's healthcheck requests to Docker Hub were not authenticated, and thus b
 The config key `services.HealthMonitor.config.check-dockerhub` is therefore obsolete.
 
 There is no change to any other usage of Docker Hub.
+
+#### Removed GCS health check
+
+Cromwell's health check of GCS has been removed. GCS does not have availability issues of note, and in typical configurations the check does not meaningfully test Cromwell's permissions.
+
+The config keys `services.HealthMonitor.config.check-gcs` and `.gcs-bucket-to-check` are therefore obsolete.
+
+#### Removed Genomics Backend code
+Code relating to the Google Genomics API (aka `v1Alpha`) has been removed since Google has entirely disabled that service.
+Cloud Life Sciences (aka `v2Beta`, deprecated) and Google Batch (aka `batch`, recommended) remain the two viable GCP backends.
 
 ## 87 Release Notes
 

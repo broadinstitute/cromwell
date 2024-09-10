@@ -1,6 +1,8 @@
 # NB: To request this test by name, make it lowercase, eg sbt "centaur/it:testOnly * -- -n fast_fail_noaddress"
 name: fast_fail_noAddress
-backends: [Papi,Papiv2]
+# GCPBATCH error message is different
+# Unable to complete Batch request due to a problem with the request (io.grpc.StatusRuntimeException: INVALID_ARGUMENT: no_external_ip_address field is invalid. both network and subnetwork have to be specified when no_external_ip_address is true).
+backends: [Papi, Papiv2, GCPBATCH_NEEDS_ALT]
 backendsMode: any
 testFormat: workflowfailure
 

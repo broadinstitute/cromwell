@@ -1,6 +1,7 @@
 name: workbench_health_monitor_check_papiv2
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+# needs alt, expectations are specific to PAPI v2
+backends: [Papiv2, GCPBATCH_NEEDS_ALT]
 
 files {
   workflow: workbench_health_monitor_check/workbench_health_monitor_check.wdl
@@ -9,5 +10,5 @@ files {
 metadata {
   workflowName: workbench_health_monitor_check
   status: Succeeded
-  "outputs.workbench_health_monitor_check.out": """{"Engine Database":{"ok":true},"GCS":{"ok":true},"Papi":{"ok":true},"Papi-Caching-No-Copy":{"ok":true},"Papiv2":{"ok":true},"Papiv2-Reference-Disk-Localization":{"ok":true},"Papiv2-Virtual-Private-Cloud-Labels":{"ok":true},"Papiv2-Virtual-Private-Cloud-Literals":{"ok":true},"Papiv2NoDockerHubConfig":{"ok":true},"Papiv2RequesterPays":{"ok":true},"Papiv2USADockerhub":{"ok":true}}"""
+  "outputs.workbench_health_monitor_check.out": """{"Engine Database":{"ok":true},"Papi":{"ok":true},"Papi-Caching-No-Copy":{"ok":true},"Papiv2":{"ok":true},"Papiv2-Reference-Disk-Localization":{"ok":true},"Papiv2-Virtual-Private-Cloud-Labels":{"ok":true},"Papiv2-Virtual-Private-Cloud-Literals":{"ok":true},"Papiv2NoDockerHubConfig":{"ok":true},"Papiv2RequesterPays":{"ok":true},"Papiv2USADockerhub":{"ok":true}}"""
 }

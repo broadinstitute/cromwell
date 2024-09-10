@@ -1,0 +1,16 @@
+name: gcpbatch_requester_pays_localization
+testFormat: workflowsuccess
+backends: [GCPBATCHRequesterPays]
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: requester_pays_gcs/localization.wdl
+  options: requester_pays_gcs/gcpbatch_localization.options
+}
+
+metadata {
+  workflowName: requester_pays_localization
+  status: Succeeded
+}

@@ -259,7 +259,8 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val subWorkflow = workflow.callable
     val subWorkflowLabels =
       if (!subWorkflow.equals(workflow.rootWorkflow))
-        Labels("cromwell-sub-workflow-name" -> subWorkflow.name)
+        Labels("cromwell-sub-workflow-name" -> subWorkflow.name,
+               "cromwell-sub-workflow-id" -> s"cromwell-sub-${jobDescriptor.workflowDescriptor.id.toString}")
       else
         Labels.empty
 
@@ -274,7 +275,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     val allLabels = Labels(
       "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
-      "cromwell-root-workflow-id" -> jobDescriptor.workflowDescriptor.rootWorkflowId.toString,
       "wdl-task-name" -> call.callable.name,
       "wdl-attempt" -> backendJobDescriptorKey.attempt.toString,
       "goog-batch-worker" -> "true",

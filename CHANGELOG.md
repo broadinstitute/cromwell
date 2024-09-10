@@ -2,6 +2,12 @@
 
 ## 88 Release Notes
 
+### New feature: Prevent Job start during Cloud Quota exhaustion
+
+This optional feature prevents Cromwell from starting new jobs in a group that is currently experiencing 
+cloud quota exhaustion. Jobs will be started once the group's quota becomes available. To enable this feature, 
+set `quota-exhaustion-job-start-control.enabled` to true.
+
 ### Java 17
 
 As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
@@ -70,6 +76,12 @@ Cromwell's healthcheck requests to Docker Hub were not authenticated, and thus b
 The config key `services.HealthMonitor.config.check-dockerhub` is therefore obsolete.
 
 There is no change to any other usage of Docker Hub.
+
+#### Removed GCS health check
+
+Cromwell's health check of GCS has been removed. GCS does not have availability issues of note, and in typical configurations the check does not meaningfully test Cromwell's permissions.
+
+The config keys `services.HealthMonitor.config.check-gcs` and `.gcs-bucket-to-check` are therefore obsolete.
 
 #### Removed Genomics Backend code
 Code relating to the Google Genomics API (aka `v1Alpha`) has been removed since Google has entirely disabled that service.

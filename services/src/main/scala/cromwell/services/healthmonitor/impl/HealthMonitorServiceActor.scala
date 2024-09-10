@@ -11,11 +11,9 @@ final class HealthMonitorServiceActor(serviceConfig: Config, globalConfig: Confi
   override lazy val subsystems: Set[ProtoHealthMonitorServiceActor.MonitoredSubsystem] = {
 
     val engineDatabaseSubsystemOption = if (serviceConfig.getBoolean("check-engine-database")) Some(EngineDb) else None
-    val gcsSubsystemOption = if (serviceConfig.getBoolean("check-gcs")) Some(Gcs) else None
 
     Set(
-      engineDatabaseSubsystemOption,
-      gcsSubsystemOption
+      engineDatabaseSubsystemOption
     ).flatten ++ PapiSubsystems
   }
 }

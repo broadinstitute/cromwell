@@ -432,10 +432,11 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       case SuccessfulMetadataJsonResponse(GetCost(workflowId), js) =>
         val subId: WorkflowId = workflowId
         val newData = data.withSubWorkflow(subId.toString, js)
+
         if (newData.isComplete) {
           buildCostAndStop(
             data.originalQuery.workflowId,
-            WorkflowSucceeded, // TODO
+            extractFromJsAs[JsString](js, "status").map(_.value).getOrElse(""), // should never be empty
             data.originalEvents,
             newData.subWorkflowsMetadata,
             data.target,
@@ -523,7 +524,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
 
     if (subWorkflowIds.isEmpty)
       // If no workflows found, just build cost data
-      buildCostAndStop(id, status, metadataResponse.eventList, Map.empty, target, originalRequest)
+      buildCostAndStop(id, status.toString, metadataResponse.eventList, Map.empty, target, originalRequest)
     else {
       // Otherwise spin up a metadata builder actor for each sub workflow
       subWorkflowIds foreach { subId =>
@@ -582,7 +583,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
     }
 
   def buildCostAndStop(id: WorkflowId,
-                       status: WorkflowState,
+                       status: String,
                        eventsList: Seq[MetadataEvent],
                        expandedValues: Map[String, JsValue],
                        target: ActorRef,
@@ -612,7 +613,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
     val resp = JsObject(
       Map(
         WorkflowMetadataKeys.Id -> JsString(id.toString),
-        WorkflowMetadataKeys.Status -> JsString(status.toString),
+        WorkflowMetadataKeys.Status -> JsString(status),
         "currency" -> JsString("USD"),
         "cost" -> JsNumber(totalCost)
       )

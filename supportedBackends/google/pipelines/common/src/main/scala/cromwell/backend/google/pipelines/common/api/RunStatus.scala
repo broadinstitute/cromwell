@@ -3,20 +3,22 @@ package cromwell.backend.google.pipelines.common.api
 import _root_.io.grpc.Status
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor
 import cromwell.core.ExecutionEvent
-
 import scala.util.Try
 
+case class InstantiatedVmInfo(zone: String, machineType: String)
 sealed trait RunStatus {
   def eventList: Seq[ExecutionEvent]
   def toString: String
+
+  val instantiatedVmInfo: Option[InstantiatedVmInfo]
 }
 
 object RunStatus {
-  case class Initializing(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Initializing" }
-  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent]) extends RunStatus {
+  case class Initializing(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty) extends RunStatus { override def toString = "Initializing" }
+  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty) extends RunStatus {
     override def toString = "AwaitingCloudQuota"
   }
-  case class Running(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Running" }
+  case class Running(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty) extends RunStatus { override def toString = "Running" }
 
   sealed trait TerminalRunStatus extends RunStatus {
     def machineType: Option[String]
@@ -38,7 +40,8 @@ object RunStatus {
   case class Success(eventList: Seq[ExecutionEvent],
                      machineType: Option[String],
                      zone: Option[String],
-                     instanceName: Option[String]
+                     instanceName: Option[String],
+                     instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
   ) extends TerminalRunStatus {
     override def toString = "Success"
   }
@@ -60,7 +63,8 @@ object RunStatus {
               machineType: Option[String],
               zone: Option[String],
               instanceName: Option[String],
-              wasPreemptible: Boolean
+              wasPreemptible: Boolean,
+              instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
     ): UnsuccessfulRunStatus = {
       val jesCode: Option[Int] = errorMessage flatMap { em => Try(em.substring(0, em.indexOf(':')).toInt).toOption }
 
@@ -88,7 +92,8 @@ object RunStatus {
                                       eventList,
                                       machineType,
                                       zone,
-                                      instanceName
+                                      instanceName,
+                                      instantiatedVmInfo
       )
     }
   }
@@ -99,7 +104,8 @@ object RunStatus {
                           eventList: Seq[ExecutionEvent],
                           machineType: Option[String],
                           zone: Option[String],
-                          instanceName: Option[String]
+                          instanceName: Option[String],
+                          instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
   ) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
   }
@@ -113,7 +119,8 @@ object RunStatus {
                              eventList: Seq[ExecutionEvent],
                              machineType: Option[String],
                              zone: Option[String],
-                             instanceName: Option[String]
+                             instanceName: Option[String],
+                             instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
   ) extends UnsuccessfulRunStatus {
     override def toString = "Cancelled"
   }
@@ -124,7 +131,8 @@ object RunStatus {
                              eventList: Seq[ExecutionEvent],
                              machineType: Option[String],
                              zone: Option[String],
-                             instanceName: Option[String]
+                             instanceName: Option[String],
+                             instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
   ) extends UnsuccessfulRunStatus {
     override def toString = "Preempted"
   }
@@ -139,7 +147,8 @@ object RunStatus {
                                eventList: Seq[ExecutionEvent],
                                machineType: Option[String],
                                zone: Option[String],
-                               instanceName: Option[String]
+                               instanceName: Option[String],
+                               instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
   ) extends UnsuccessfulRunStatus {
     override def toString = "QuotaFailed"
   }

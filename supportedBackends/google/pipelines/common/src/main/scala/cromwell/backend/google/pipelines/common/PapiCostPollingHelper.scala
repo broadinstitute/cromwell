@@ -18,5 +18,9 @@ class PapiCostPollingHelper(tellMetadataFn: Map[String, Any] => Unit) extends Co
       case event if event.name == CallMetadataKeys.VmEndTime => event.offsetDateTime
     }
 
+  def hi(pollStatus: RunStatus) = {
+    pollStatus.eventList
+  }
+
   override def tellMetadata(metadata: Map[String, Any]): Unit = tellMetadataFn(metadata)
 }

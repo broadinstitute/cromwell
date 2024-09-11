@@ -108,9 +108,14 @@ trait GetRequestHandler { this: RequestHandler =>
         val instanceName =
           workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
         val zone = workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
-        val instantiatedVmInfo: Option[InstantiatedVmInfo] = (zone, machineType) match {
-          case (Some(instantiatedZone), Some(instantiatedMachineType)) =>
-            Option(InstantiatedVmInfo(instantiatedZone, instantiatedMachineType))
+        val region = zone.map { zoneString =>
+          val lastDashIndex = zoneString.lastIndexOf("-")
+          if (lastDashIndex != -1) zoneString.substring(0, lastDashIndex) else zoneString
+        }
+
+        val instantiatedVmInfo: Option[InstantiatedVmInfo] = (region, machineType) match {
+          case (Some(instantiatedRegion), Some(instantiatedMachineType)) =>
+            Option(InstantiatedVmInfo(instantiatedRegion, instantiatedMachineType))
           case _ => Option.empty
         }
         if (operation.getDone) {

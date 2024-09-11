@@ -13,6 +13,18 @@ object MachineType {
     else if (tokenizedDescription.contains(N2d.machineTypeName)) Some(N2d)
     else Option.empty
   }
+
+  // expects a string that looks something like "n1-standard-1" or "custom-1-4096"
+  def fromGoogleMachineTypeString(machineTypeString: String): Option[MachineType] =
+    if (machineTypeString.startsWith("n1")) Some(N1)
+    else if (machineTypeString.startsWith("n2d")) Some(N2d)
+    else if (machineTypeString.startsWith("n2")) Some(N2)
+    else if (machineTypeString.startsWith("custom")) None // TODO: should this be n1? Make a 'custom' type? Combine with MachineCustomization?
+    else {
+      println(s"Error: Unrecognized machine type: $machineTypeString")
+      None
+    }
+
 }
 sealed trait MachineType { def machineTypeName: String }
 case object N1 extends MachineType { override val machineTypeName = "N1" }

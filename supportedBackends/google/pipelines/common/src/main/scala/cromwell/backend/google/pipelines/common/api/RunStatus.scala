@@ -5,7 +5,7 @@ import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecu
 import cromwell.core.ExecutionEvent
 import scala.util.Try
 
-case class InstantiatedVmInfo(zone: String, machineType: String)
+case class InstantiatedVmInfo(region: String, machineType: String)
 sealed trait RunStatus {
   def eventList: Seq[ExecutionEvent]
   def toString: String

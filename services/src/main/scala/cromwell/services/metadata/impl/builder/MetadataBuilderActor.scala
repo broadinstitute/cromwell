@@ -3,7 +3,11 @@ package cromwell.services.metadata.impl.builder
 import java.time.OffsetDateTime
 import java.util.concurrent.atomic.AtomicLong
 import akka.actor.{ActorRef, LoggingFSM, PoisonPill, Props}
+import cats.data.Validated.{Invalid, Valid}
+import cats.implicits.catsSyntaxValidatedId
 import common.collections.EnhancedCollections._
+import common.validation.ErrorOr
+import common.validation.ErrorOr._
 import cromwell.services.metadata.impl.builder.MetadataComponent._
 import cromwell.core.ExecutionIndex.ExecutionIndex
 import cromwell.core._
@@ -17,7 +21,6 @@ import spray.json._
 
 import java.time.temporal.ChronoUnit
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 
 object MetadataBuilderActor {
   sealed trait MetadataBuilderActorState
@@ -552,34 +555,39 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       case _ => None
     }
 
-  private def computeCost(jsVal: JsValue): Try[BigDecimal] =
+  private def computeCost(callName: String, jsVal: JsValue): ErrorOr[BigDecimal] =
     jsVal match {
       case jsCall: JsObject =>
         extractFromJsAs[JsString](jsCall, CallMetadataKeys.VmStartTime) map { startTimeVal =>
-          val startTimeTry = Try(OffsetDateTime.parse(startTimeVal.value))
+          val startTimeErrorOr = ErrorOr(OffsetDateTime.parse(startTimeVal.value))
 
-          val endTimeTry =
+          val endTimeErrorOr =
             extractFromJsAs[JsString](jsCall, CallMetadataKeys.VmEndTime)
-              .map(v => Try(OffsetDateTime.parse(v.value)))
-              .getOrElse(Success(OffsetDateTime.now()))
+              .map(v => ErrorOr(OffsetDateTime.parse(v.value)))
+              .getOrElse(OffsetDateTime.now().validNel)
 
           val rawCostPerHour = extractFromJsAs[JsNumber](jsCall, CallMetadataKeys.VmCostPerHour).map(_.value)
-          val costPerHourTry = rawCostPerHour match {
-            case Some(c: BigDecimal) if c >= 0 => Success(c)
+          val costPerHourErrorOr = rawCostPerHour match {
+            case Some(c: BigDecimal) if c >= 0 => c.validNel
             // A costPerHour < 0 indicates an error
-            case Some(_: BigDecimal) => Failure(new RuntimeException("cost error!!!!")) // TODO
-            case None => Success(BigDecimal(0))
+            case Some(_: BigDecimal) =>
+              val index =
+                extractFromJsAs[JsNumber](jsCall, "shardIndex").map(_.value.toString).getOrElse("-1")
+              val attempt =
+                extractFromJsAs[JsNumber](jsCall, "attempt").map(_.value.toString).getOrElse("1")
+              s"Couldn't find valid vmCostPerHour for ${List(callName, index, attempt).mkString(".")}".invalidNel
+            case None => BigDecimal(0).validNel
           }
 
           for {
-            start <- startTimeTry
-            end <- endTimeTry
-            costPerHour <- costPerHourTry
+            start <- startTimeErrorOr
+            end <- endTimeErrorOr
+            costPerHour <- costPerHourErrorOr
             vmRuntimeInMillis = start.until(end, ChronoUnit.MILLIS).toDouble
           } yield (vmRuntimeInMillis / (1000 * 60 * 60)) * costPerHour
-        } getOrElse (Success(0))
+        } getOrElse (BigDecimal(0).validNel)
       // TODO is millis the right thing to use here? Should it be seconds?
-      case _ => Success(0)
+      case _ => BigDecimal(0).validNel
     }
 
   def buildCostAndStop(id: WorkflowId,
@@ -592,15 +600,22 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
 
     val metadataEvents = MetadataBuilderActor.parse(groupEvents(eventsList), expandedValues)
 
-    // Walk the structured metadata to compute cost for each call in this workflow
-    val callCosts = for {
+    // Walk the structured metadata to attempt to compute cost for each call in this workflow
+    val callCostsWithErrors: List[ErrorOr[BigDecimal]] = for {
       wfObj <- extractFromJsAs[JsObject](metadataEvents, id.toString).toList
       callsObj <- extractFromJsAs[JsObject](wfObj, "calls").toList
       singleCallName <- callsObj.fields.keys.toList
       singleCallAttemptList <- extractFromJsAs[JsArray](callsObj, singleCallName).toList
       singleCallAttempt <- singleCallAttemptList.elements.toList
-      singleCallAttemptCost = computeCost(singleCallAttempt).get // TODO
+      singleCallAttemptCost = computeCost(singleCallName, singleCallAttempt)
     } yield singleCallAttemptCost
+
+    val callCost: BigDecimal = callCostsWithErrors.collect { case (Valid(b)) => b }.sum
+    val costErrors: Vector[JsString] =
+      callCostsWithErrors
+        .collect { case (Invalid(e)) => e.toList.mkString(", ") }
+        .map(JsString(_))
+        .toVector
 
     val subworkflowCost = expandedValues.values.map {
       case o: JsObject =>
@@ -608,14 +623,19 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       case _ => BigDecimal(0)
     }.sum
 
-    val totalCost = callCosts.sum + subworkflowCost
+    val subworkflowErrors = expandedValues.values.flatMap {
+      case o: JsObject =>
+        extractFromJsAs[JsArray](o, "errors").getOrElse(JsArray.empty).elements
+      case _ => JsArray.empty.elements
+    }
 
     val resp = JsObject(
       Map(
         WorkflowMetadataKeys.Id -> JsString(id.toString),
         WorkflowMetadataKeys.Status -> JsString(status),
         "currency" -> JsString("USD"),
-        "cost" -> JsNumber(totalCost)
+        "cost" -> JsNumber(callCost + subworkflowCost),
+        "errors" -> JsArray(costErrors ++ subworkflowErrors)
       )
     )
 

@@ -17,6 +17,7 @@ import spray.json._
 
 import java.time.temporal.ChronoUnit
 import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 object MetadataBuilderActor {
   sealed trait MetadataBuilderActorState
@@ -431,10 +432,9 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       case SuccessfulMetadataJsonResponse(GetCost(workflowId), js) =>
         val subId: WorkflowId = workflowId
         val newData = data.withSubWorkflow(subId.toString, js)
-
         if (newData.isComplete) {
           buildCostAndStop(
-            subId,
+            data.originalQuery.workflowId,
             WorkflowSucceeded, // TODO
             data.originalEvents,
             newData.subWorkflowsMetadata,
@@ -545,6 +545,42 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
     }
   }
 
+  private def extractFromJsAs[A: Manifest](js: JsObject, fieldName: String): Option[A] =
+    js.fields.get(fieldName) match {
+      case Some(a: A) => Some(a)
+      case _ => None
+    }
+
+  private def computeCost(jsVal: JsValue): Try[BigDecimal] =
+    jsVal match {
+      case jsCall: JsObject =>
+        extractFromJsAs[JsString](jsCall, CallMetadataKeys.VmStartTime) map { startTimeVal =>
+          val startTimeTry = Try(OffsetDateTime.parse(startTimeVal.value))
+
+          val endTimeTry =
+            extractFromJsAs[JsString](jsCall, CallMetadataKeys.VmEndTime)
+              .map(v => Try(OffsetDateTime.parse(v.value)))
+              .getOrElse(Success(OffsetDateTime.now()))
+
+          val rawCostPerHour = extractFromJsAs[JsNumber](jsCall, CallMetadataKeys.VmCostPerHour).map(_.value)
+          val costPerHourTry = rawCostPerHour match {
+            case Some(c: BigDecimal) if c >= 0 => Success(c)
+            // A costPerHour < 0 indicates an error
+            case Some(_: BigDecimal) => Failure(new RuntimeException("cost error!!!!")) // TODO
+            case None => Success(BigDecimal(0))
+          }
+
+          for {
+            start <- startTimeTry
+            end <- endTimeTry
+            costPerHour <- costPerHourTry
+            vmRuntimeInMillis = start.until(end, ChronoUnit.MILLIS).toDouble
+          } yield (vmRuntimeInMillis / (1000 * 60 * 60)) * costPerHour
+        } getOrElse (Success(0))
+      // TODO is millis the right thing to use here? Should it be seconds?
+      case _ => Success(0)
+    }
+
   def buildCostAndStop(id: WorkflowId,
                        status: WorkflowState,
                        eventsList: Seq[MetadataEvent],
@@ -553,72 +589,33 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
                        originalRequest: BuildMetadataJsonAction
   ): State = {
 
-    val groupedEvents = groupEvents(eventsList)
-    val metadataEvents = MetadataBuilderActor.parse(groupedEvents, expandedValues)
+    val metadataEvents = MetadataBuilderActor.parse(groupEvents(eventsList), expandedValues)
 
-    // TODO it's really annoying and brittle that we need to parse the JSON here
-
-    def computeCost(jsCall: JsObject): Double = {
-      // TODO error handling, remove unprotected gets
-      val startTime = jsCall.fields.getOrElse(CallMetadataKeys.VmStartTime, JsString("")) match {
-        case start: JsString => OffsetDateTime.parse(start.value)
-        case _ => throw new RuntimeException("I'm so sad because I have no start time")
-      }
-      val endTime = jsCall.fields.getOrElse(CallMetadataKeys.VmEndTime, JsString("")) match {
-        case end: JsString => OffsetDateTime.parse(end.value)
-        case _ => throw new RuntimeException("I'm so sad because I have no end time")
-      }
-      val costPerHour = jsCall.fields.getOrElse(CallMetadataKeys.VmCostPerHour, JsNumber(0)) match {
-        case cost: JsNumber => cost.value.toDouble
-        case _ => throw new RuntimeException("I'm so sad because I have no cost, am I free???")
-      }
-
-      // TODO is millis the right thing to use here? Should it be seconds?
-      val vmRuntimeInMillis = startTime.until(endTime, ChronoUnit.MILLIS).toDouble
-      val c = costPerHour * (vmRuntimeInMillis / (1000 * 60 * 60))
-      c
-    }
-    val costFields = metadataEvents.fields.getOrElse(id.toString, JsObject.empty)
-    val wfFields: JsObject = costFields match {
-      case c: JsObject => c
-      case _ => JsObject.empty
-    }
-    val callsObject = wfFields.fields.getOrElse("calls", JsObject.empty)
-
-    val cost: Double = callsObject match {
-      case calls: JsObject =>
-        val callFields = calls.fields.values
-        val d: Iterable[Double] = callFields.map { multiCalls: JsValue =>
-          val dd: Vector[Double] = multiCalls match {
-            case a: JsArray =>
-              a.elements.map {
-                case o: JsObject => computeCost(o)
-                case _ => 0
-              }
-            case _ => Vector(0)
-          }
-          dd.sum
-        }
-        d.sum
-      case _ => 0
-    }
+    // Walk the structured metadata to compute cost for each call in this workflow
+    val callCosts = for {
+      wfObj <- extractFromJsAs[JsObject](metadataEvents, id.toString).toList
+      callsObj <- extractFromJsAs[JsObject](wfObj, "calls").toList
+      singleCallName <- callsObj.fields.keys.toList
+      singleCallAttemptList <- extractFromJsAs[JsArray](callsObj, singleCallName).toList
+      singleCallAttempt <- singleCallAttemptList.elements.toList
+      singleCallAttemptCost = computeCost(singleCallAttempt).get // TODO
+    } yield singleCallAttemptCost
 
     val subworkflowCost = expandedValues.values.map {
       case o: JsObject =>
-        o.fields.getOrElse("cost", JsNumber(0)) match {
-          case n: JsNumber => n.value.toDouble
-          case _ => 0
-        }
-      case _ => 0
+        extractFromJsAs[JsNumber](o, "cost").map(_.value).getOrElse(BigDecimal(0))
+      case _ => BigDecimal(0)
     }.sum
+
+    val totalCost = callCosts.sum + subworkflowCost
 
     val resp = JsObject(
       Map(
         WorkflowMetadataKeys.Id -> JsString(id.toString),
         WorkflowMetadataKeys.Status -> JsString(status.toString),
         "currency" -> JsString("USD"),
-        "cost" -> JsNumber(cost + subworkflowCost)
-      ) // ++ taskMap ++ subworkflowMap
+        "cost" -> JsNumber(totalCost)
+      )
     )
 
     target ! SuccessfulMetadataJsonResponse(originalRequest, resp)

@@ -26,7 +26,8 @@ class PapiCostPollingHelper(tellMetadataFn: Map[String, Any] => Unit) extends Co
       val machineCustomization = Custom //TODO, also account for predefined
       val resourceGroup = Cpu //TODO, also do RAM. For some reason N1Standard is also a resource group. How to account for that?
       val region = vmInfo.region
-      //TODO: Use cost catalog service here. It should take ^ and calculate CPU + RAM cost/hr
+      // TODO: Use cost catalog service here. It should take ^ and calculate CPU + RAM cost/hr
+      // Failure here is fatal. We have learned all we can from Google, so subsequent attempts wont fair any better.
       3.50
     }
 

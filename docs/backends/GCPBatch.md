@@ -183,6 +183,18 @@ The current default label set automatically applied is:
 
 Any custom labels provided as '`google_labels`' in the [workflow options](../wf_options/Google) are also applied to Google resources by GCP Batch.
 
+### Custom Mount Points
+
+Cromwell's GCP Batch backend supports custom mount points as documented [here](../RuntimeAttributes.md#disks), with the caveat that all custom mount points must be specified under `/mnt/disks`.
+
+e.g. a GCP Batch custom mount point specification should look like:
+
+```
+runtime {
+    disks: "/mnt/disks/my_mnt 30 SSD, /mnt/disks/my_mnt2 500 HDD"
+}
+```
+
 ### Virtual Private Network
 
 Cromwell can arrange for jobs to run in specific GCP private networks via the `config.virtual-private-cloud` stanza of a Batch backend.

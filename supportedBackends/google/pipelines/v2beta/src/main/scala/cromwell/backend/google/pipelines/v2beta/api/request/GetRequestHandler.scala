@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.v2beta.api.request
 
 import java.time.OffsetDateTime
-
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
@@ -23,6 +22,7 @@ import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import cromwell.backend.google.pipelines.v2beta.api.request.ErrorReporter._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.ExecutionEvent
+import cromwell.services.metadata.CallMetadataKeys
 import io.grpc.Status
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -70,22 +70,22 @@ trait GetRequestHandler { this: RequestHandler =>
     } else {
       try {
         val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
+        val metadata = Try(operation.getMetadata.asScala.toMap).getOrElse(Map[String, AnyRef]())
+        // Deserialize the response
+        val pipeline: Option[Pipeline] = operation.pipeline.flatMap(
+          _.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
+        )
+        val actions: List[Action] = pipeline
+          .flatMap(pipelineValue => Option(pipelineValue.getActions))
+          .map(_.asScala)
+          .toList
+          .flatten
+        val executionEvents = getEventList(metadata, events, actions)
         if (operation.getDone) {
-          val metadata = Try(operation.getMetadata.asScala.toMap).getOrElse(Map[String, AnyRef]())
-          // Deserialize the response
-          val pipeline: Option[Pipeline] = operation.pipeline.flatMap(
-            _.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
-          )
-          val actions: List[Action] = pipeline
-            .flatMap(pipelineValue => Option(pipelineValue.getActions))
-            .map(_.asScala)
-            .toList
-            .flatten
-          val workerEvent: Option[WorkerAssignedEvent] =
+          val workerAssignedEvent: Option[WorkerAssignedEvent] =
             events.collectFirst {
               case event if event.getWorkerAssigned != null => event.getWorkerAssigned
             }
-          val executionEvents = getEventList(metadata, events, actions)
           val virtualMachineOption = for {
             pipelineValue <- pipeline
             resources <- Option(pipelineValue.getResources)
@@ -105,9 +105,9 @@ trait GetRequestHandler { this: RequestHandler =>
             preemptible <- Option(virtualMachine.getPreemptible)
           } yield preemptible
           val preemptible = preemptibleOption.exists(_.booleanValue)
-          val instanceName = workerEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
-          val zone = workerEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
-
+          val instanceName =
+            workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
+          val zone = workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
           // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
           Option(operation.getError) match {
             case Some(error) =>
@@ -125,11 +125,11 @@ trait GetRequestHandler { this: RequestHandler =>
             case None => Success(executionEvents, machineType, zone, instanceName)
           }
         } else if (isQuotaDelayed(events)) {
-          AwaitingCloudQuota
+          AwaitingCloudQuota(executionEvents)
         } else if (operation.hasStarted) {
-          Running
+          Running(executionEvents)
         } else {
-          Initializing
+          Initializing(executionEvents)
         }
       } catch {
         case nullPointerException: NullPointerException =>
@@ -155,6 +155,16 @@ trait GetRequestHandler { this: RequestHandler =>
       metadata.get("endTime") map { time =>
         ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse(time.toString))
       }
+
+    val vmStartedEvent: Option[ExecutionEvent] = events.collectFirst {
+      case event if event.getWorkerAssigned != null =>
+        ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.parse(event.getTimestamp), Option.empty)
+    }
+
+    val vmEndedEvent: Option[ExecutionEvent] = events.collectFirst {
+      case event if event.getWorkerReleased != null =>
+        ExecutionEvent(CallMetadataKeys.VmEndTime, OffsetDateTime.parse(event.getTimestamp), Option.empty)
+    }
 
     // Map action indexes to event types. Action indexes are 1-based for some reason.
     // BA-6455: since v2beta version of Life Sciences API, `a.getLabels` would return `null` for empty labels, unlike
@@ -187,7 +197,7 @@ trait GetRequestHandler { this: RequestHandler =>
         }
     }
 
-    starterEvent.toList ++ filteredExecutionEvents ++ completionEvent
+    starterEvent.toList ++ filteredExecutionEvents ++ completionEvent ++ vmStartedEvent.toList ++ vmEndedEvent.toList
   }
 
   // Future enhancement: parse as `com.google.api.services.lifesciences.v2beta.model.DelayedEvent` instead of

@@ -89,7 +89,7 @@ case class GcpBatchWorkingDisk(diskType: DiskType, sizeGb: Int) extends GcpBatch
 }
 
 case class GcpBatchReferenceFilesDisk(image: String, sizeGb: Int) extends GcpBatchAttachedDisk {
-  val mountPoint: Path = DefaultPathBuilder.get(s"/mnt/${image.md5Sum}")
+  val mountPoint: Path = DefaultPathBuilder.get(s"/mnt/disks/${image.md5Sum}")
   val name: String = s"d-${mountPoint.pathAsString.md5Sum}"
   val diskType: DiskType = DiskType.HDD
 }

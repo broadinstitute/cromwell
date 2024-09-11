@@ -1,7 +1,6 @@
 name: draft3_custom_mount_point
 testFormat: workflowsuccess
-# probably failing similarly to custom_mount_point
-backends: [Papi, GCPBATCH_FAIL]
+backends: [Papi, GCPBATCH_ALT]
 
 files {
   workflow: wdl_draft3/custom_mount_point/custom_mount_point.wdl

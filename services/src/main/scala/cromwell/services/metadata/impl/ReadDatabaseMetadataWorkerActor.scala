@@ -177,10 +177,10 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
       (s, m) match {
         case (Some(wfState), resp: MetadataLookupResponse) =>
           CostResponse(id, wfState, resp)
-        // TODO better error handling for other metadata lookup results
-        case (Some(_), _) => CostFailure(id, new Exception("TODO"))
-        // TODO should this be a failure?
-        case (None, _) => CostFailure(id, new Exception("Couldn't find workflow status"))
+        case (None, resp: MetadataLookupResponse) =>
+          // See note in getStatus above - if we can't find status, it's Submitted
+          CostResponse(id, WorkflowSubmitted, resp)
+        case (_, errorMetadataResponse) => errorMetadataResponse
       }
     } recover { case t =>
       CostFailure(id, t)

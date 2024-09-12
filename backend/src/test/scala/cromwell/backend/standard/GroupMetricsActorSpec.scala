@@ -3,11 +3,7 @@ package cromwell.backend.standard
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.standard.GroupMetricsActor.{
-  GetQuotaExhaustedGroups,
-  GetQuotaExhaustedGroupsSuccess,
-  RecordGroupQuotaExhaustion
-}
+import cromwell.backend.standard.GroupMetricsActor.{GetQuotaExhaustedGroups, GetQuotaExhaustedGroupsSuccess, LogQuotaExhaustedGroups, RecordGroupQuotaExhaustion}
 import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.GroupMetricsEntry
 import cromwell.services.EngineServicesStore
@@ -47,7 +43,7 @@ class GroupMetricsActorSpec extends AnyFlatSpec with Matchers {
 
   it should "receive new quota exhaustion message and call database function" in {
     val db = databaseInterface()
-    val mockGroupMetricsActor = TestActorRef(GroupMetricsActor.props(db, 15))
+    val mockGroupMetricsActor = TestActorRef(GroupMetricsActor.props(db, 15, 5.minutes))
 
     mockGroupMetricsActor.tell(RecordGroupQuotaExhaustion(testHogGroup), TestProbe().ref)
 
@@ -58,7 +54,7 @@ class GroupMetricsActorSpec extends AnyFlatSpec with Matchers {
 
   it should "respond with groups in quota exhaustion" in {
     val db = databaseInterface()
-    val mockGroupMetricsActor = TestActorRef(GroupMetricsActor.props(db, 15))
+    val mockGroupMetricsActor = TestActorRef(GroupMetricsActor.props(db, 15, 5.minutes))
     val requestActor = TestProbe()
 
     mockGroupMetricsActor.tell(GetQuotaExhaustedGroups, requestActor.ref)

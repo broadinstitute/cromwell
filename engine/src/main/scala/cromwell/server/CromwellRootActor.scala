@@ -210,9 +210,11 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
     systemConfig.as[Option[Boolean]]("quota-exhaustion-job-start-control.enabled").getOrElse(false)
   private lazy val quotaExhaustionThresholdInMins: Long =
     systemConfig.as[Option[Long]]("quota-exhaustion-job-start-control.threshold-minutes").getOrElse(15)
+  private lazy val quotaExhaustionLoggingInterval: FiniteDuration =
+    systemConfig.as[Option[FiniteDuration]]("quota-exhaustion-job-start-control.logging-interval").getOrElse(5.minutes)
   private lazy val groupMetricsActor: ActorRef =
     context.actorOf(
-      GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface, quotaExhaustionThresholdInMins)
+      GroupMetricsActor.props(EngineServicesStore.engineDatabaseInterface, quotaExhaustionThresholdInMins, quotaExhaustionLoggingInterval)
     )
   private lazy val groupMetricsActorForJTDA: Option[ActorRef] =
     if (quotaExhaustionJobControlEnabled) Option(groupMetricsActor) else None

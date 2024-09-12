@@ -7,16 +7,13 @@ import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.functor._
 import cats.instances.future._
 import com.google.api.client.http.{HttpRequest, HttpRequestInitializer}
-import com.google.api.gax.retrying.RetrySettings
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciences
-import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
-import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor.{MonitoredSubsystem, OkStatus, SubsystemStatus}
 import cromwell.services.healthmonitor.impl.common.EngineDatabaseMonitor
@@ -42,7 +39,6 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config,
   def papiMonitoredSubsystem(papiConfiguration: PapiConfiguration): MonitoredSubsystem =
     MonitoredSubsystem(papiConfiguration.backendName, () => checkPapi(papiConfiguration))
 
-  protected lazy val Gcs = MonitoredSubsystem("GCS", () => checkGcs())
   protected lazy val PapiSubsystems = papiBackendConfigurations map papiMonitoredSubsystem
 
   lazy val googleConfig = GoogleConfiguration(globalConfig)
@@ -56,19 +52,6 @@ abstract class WorkbenchHealthMonitorServiceActor(val serviceConfig: Config,
       case Invalid(e) =>
         throw new IllegalArgumentException("Unable to configure WorkbenchHealthMonitor: " + e.toList.mkString(", "))
     }
-
-  /**
-    * Demonstrates connectivity to GCS by stat-ing a bucket
-    */
-  private def checkGcs(): Future[SubsystemStatus] = {
-    // For any expected production usage of this check, the GCS bucket should be public read */
-    val gcsBucketToCheck = serviceConfig.as[String]("gcs-bucket-to-check")
-    val storageScopes = List(StorageScopes.DEVSTORAGE_READ_ONLY)
-    val storage = Future(googleAuth.credentials(storageScopes)) map { credentials =>
-      GcsStorage.gcsStorage(googleConfig.applicationName, credentials, RetrySettings.newBuilder().build())
-    }
-    storage map { _.buckets.get(gcsBucketToCheck).execute() } as OkStatus
-  }
 
   private def checkPapi(papiConfiguration: PapiConfiguration): Future[SubsystemStatus] = {
     val papiConfig = papiConfiguration.papiConfig

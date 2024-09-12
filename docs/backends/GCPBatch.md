@@ -171,14 +171,29 @@ backend.providers.GCPBATCH.config {
 Every call run on the GCP Batch backend is given certain labels by default, so that Google resources can be queried by these labels later. 
 The current default label set automatically applied is:
 
-| Key | Value | Example | Notes |
-|-----|-------|---------|-------|
-| cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-' |
-| cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only present if the task is called in a subworkflow. |
-| wdl-task-name | The name of the WDL task | my-task | |
-| wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
+| Key                        | Value                                                                                       | Example                                           | Notes                                                                                                                             |
+|----------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| cromwell-workflow-id       | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26     | To fit the required [format](#label-format), we prefix with 'cromwell-'                                                           |
+| cromwell-sub-workflow-id   | The Cromwell ID given to this job's sub-workflow (immediate parent workflow)                | cromwell-sub-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-sub-'. Only present if the task is called in a subworkflow. |
+| cromwell-sub-workflow-name | The name of this job's sub-workflow                                                         | my-sub-workflow                                   | Only present if the task is called in a subworkflow.                                                                              |
+| wdl-task-name              | The name of the WDL task                                                                    | my-task                                           |                                                                                                                                   |
+| wdl-call-alias             | The alias of the WDL call that created this job                                             | my-task-1                                         | Only present if the task was called with an alias.                                                                                |
+| wdl-attempt                | Attempt number for this call                                                                | 1                                                 |                                                                                                                                   |
+| wdl-shard-index            | Index of this job within a scatter,                                                         |                                                   | Only present if the task was called within a scatter.                                                                             |
 
 Any custom labels provided as '`google_labels`' in the [workflow options](../wf_options/Google) are also applied to Google resources by GCP Batch.
+
+### Custom Mount Points
+
+Cromwell's GCP Batch backend supports custom mount points as documented [here](../RuntimeAttributes.md#disks), with the caveat that all custom mount points must be specified under `/mnt/disks`.
+
+e.g. a GCP Batch custom mount point specification should look like:
+
+```
+runtime {
+    disks: "/mnt/disks/my_mnt 30 SSD, /mnt/disks/my_mnt2 500 HDD"
+}
+```
 
 ### Virtual Private Network
 

@@ -70,6 +70,45 @@ class GroupMetricsSlickDatabaseSpec extends AnyFlatSpec with Matchers with Scala
       } yield ()).futureValue
     }
 
+    it should "return correct group experiencing active quota exhaustion" taggedAs DbmsTest in {
+      (for {
+        // groot-hog-group records quota exhaustion at X-20 minutes
+        _ <- dataAccess.recordGroupMetricsEntry(
+          GroupMetricsEntry(testHogGroup1, OffsetDateTime.now.minusMinutes(20).toSystemTimestamp)
+        )
+        // rocket-raccoon-hog-group records quota exhaustion at X-18 minutes
+        _ <- dataAccess.recordGroupMetricsEntry(
+          GroupMetricsEntry(testHogGroup2, OffsetDateTime.now.minusMinutes(18).toSystemTimestamp)
+        )
+        // groot-hog-group records quota exhaustion again at X-10 minutes
+        _ <- dataAccess.recordGroupMetricsEntry(GroupMetricsEntry(testHogGroup1, OffsetDateTime.now.toSystemTimestamp))
+        // check that it returns only 'groot-hog-group' as currently experiencing quota exhaustion
+        quotaExhaustedGroups <- dataAccess.getQuotaExhaustedGroups(
+          OffsetDateTime.now.minusMinutes(15).toSystemTimestamp
+        )
+        _ = quotaExhaustedGroups.size shouldBe 1
+        _ = quotaExhaustedGroups.toList.head shouldBe testHogGroup1
+      } yield ()).futureValue
+    }
+
+    it should "return empty list if no group is experiencing active quota exhaustion" taggedAs DbmsTest in {
+      (for {
+        // groot-hog-group records quota exhaustion at X-20 minutes
+        _ <- dataAccess.recordGroupMetricsEntry(
+          GroupMetricsEntry(testHogGroup1, OffsetDateTime.now.minusMinutes(20).toSystemTimestamp)
+        )
+        // rocket-raccoon-hog-group records quota exhaustion at X-18 minutes
+        _ <- dataAccess.recordGroupMetricsEntry(
+          GroupMetricsEntry(testHogGroup2, OffsetDateTime.now.minusMinutes(18).toSystemTimestamp)
+        )
+        // check that it returns empty list
+        quotaExhaustedGroups <- dataAccess.getQuotaExhaustedGroups(
+          OffsetDateTime.now.minusMinutes(15).toSystemTimestamp
+        )
+        _ = quotaExhaustedGroups shouldBe empty
+      } yield ()).futureValue
+    }
+
     it should "close the database" taggedAs DbmsTest in {
       dataAccess.close()
     }

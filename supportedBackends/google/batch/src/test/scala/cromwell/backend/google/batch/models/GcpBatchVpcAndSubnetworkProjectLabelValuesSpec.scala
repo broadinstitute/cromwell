@@ -13,7 +13,7 @@ class GcpBatchVpcAndSubnetworkProjectLabelValuesSpec extends AnyFlatSpec with Ma
   private val labelsTests = Table(
     ("description", "network", "subnetOption", "networkName", "subnetNameOption"),
     ("a network with a slash", "slash/net", None, "slash/net", None),
-    ("a network without a slash", "net", None, "projects/my-project/global/networks/net/", None),
+    ("a network without a slash", "net", None, "projects/my-project/global/networks/net", None),
     ("a subnet with a slash", "slashed/net", Option("slashed/sub"), "slashed/net", Option("slashed/sub")),
     ("a subnet without a slash", "slashed/net", Option("sub"), "slashed/net", Option("sub")),
     (

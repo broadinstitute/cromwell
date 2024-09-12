@@ -24,7 +24,7 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase,
   implicit val ec: MessageDispatcher = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
 
   log.info(
-    s"${this.getClass.getSimpleName} configured to log groups experiencing quota exhaustion at interval ${loggingInterval.toString()}."
+    s"${this.getClass.getSimpleName} configured to log groups experiencing quota exhaustion at interval of ${loggingInterval.toString()}."
   )
   // initial schedule for logging exhausted groups
   context.system.scheduler.scheduleOnce(loggingInterval)(self ! LogQuotaExhaustedGroups)

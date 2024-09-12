@@ -69,7 +69,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
       }
   }
 
-  override val costHelper: Option[ActorRef] = Option(context.actorOf(PapiCostPollingHelper.props(tellMetadata)))
+  override val pollingResultMonitorActor: Option[ActorRef] = Option(
+    context.actorOf(PapiCostPollingHelper.props(tellMetadata, tellBard))
+  )
 
   private lazy val gcsTransferLibrary =
     Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gcs_transfer.sh")).mkString

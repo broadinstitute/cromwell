@@ -132,7 +132,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override type StandardAsyncRunState = RunStatus
 
-  override val costHelper: Option[ActorRef] = Option.empty
+  override val pollingResultMonitorActor: Option[ActorRef] = Option.empty
   def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
@@ -776,7 +776,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
 
   override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit = runStatus match {
-    case AwaitingCloudQuota(_,_) =>
+    case AwaitingCloudQuota(_, _) =>
       standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
     case _ =>
   }
@@ -830,7 +830,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
 
-  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = {
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
     /*
     // Intuition:
     // "job start" is the earliest event time across all events.
@@ -855,7 +855,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
      */
     None
-  }
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =
     exception match {

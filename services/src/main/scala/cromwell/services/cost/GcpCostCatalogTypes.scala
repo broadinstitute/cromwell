@@ -19,7 +19,8 @@ object MachineType {
     if (machineTypeString.startsWith("n1")) Some(N1)
     else if (machineTypeString.startsWith("n2d")) Some(N2d)
     else if (machineTypeString.startsWith("n2")) Some(N2)
-    else if (machineTypeString.startsWith("custom")) None // TODO: should this be n1? Make a 'custom' type? Combine with MachineCustomization?
+    else if (machineTypeString.startsWith("custom"))
+      None // TODO: should this be n1? Make a 'custom' type? Combine with MachineCustomization?
     else {
       println(s"Error: Unrecognized machine type: $machineTypeString")
       None

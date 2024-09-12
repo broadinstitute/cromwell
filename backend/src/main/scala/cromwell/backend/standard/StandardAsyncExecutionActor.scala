@@ -23,6 +23,7 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
+import cromwell.backend.standard.costestimation.{AsyncJobHasFinished, ProcessThisPollResult}
 import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.validation._
 import cromwell.core._
@@ -944,9 +945,10 @@ trait StandardAsyncExecutionActor
     * @param handle The handle of the running job.
     * @return A set of actions when the job is complete
     */
-  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit = tellBard(
-    runStatus
-  )
+  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit =
+    pollingResultMonitorActor.foreach(helper =>
+      helper.tell(AsyncJobHasFinished(runStatus.getClass.getSimpleName), self)
+    )
 
   /**
     * Attempts to abort a job when an abort signal is retrieved.
@@ -1340,7 +1342,7 @@ trait StandardAsyncExecutionActor
     checkAndRecordQuotaExhaustion(state)
 
     // present the poll result to the cost helper. It will keep track of vm start/stop times and may emit some metadata.
-    costHelper.foreach(helper => helper.tell(state, self))
+    pollingResultMonitorActor.foreach(helper => helper.tell(ProcessThisPollResult[StandardAsyncRunState](state), self))
 
     state match {
       case _ if isTerminal(state) =>
@@ -1357,7 +1359,7 @@ trait StandardAsyncExecutionActor
 
   // If present, polling results will be presented to this helper.
   // Subclasses can use this to emit proper metadata based on polling responses.
-  protected val costHelper: Option[ActorRef] = Option.empty
+  protected val pollingResultMonitorActor: Option[ActorRef] = Option.empty
 
   /**
     * Process a poll failure.
@@ -1544,39 +1546,46 @@ trait StandardAsyncExecutionActor
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
 
-  def tellBard(state: StandardAsyncRunState): Unit =
-    getStartAndEndTimes(state) match {
-      case Some(startAndEndTimes: StartAndEndTimes) =>
-        val dockerImage =
-          RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
-        val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
-        val memory = RuntimeAttributesValidation
-          .extract(MemoryValidation.instance(), validatedRuntimeAttributes)
-          .to(MemoryUnit.Bytes)
-          .amount
-        serviceRegistryActor ! BardEventRequest(
-          TaskSummaryEvent(
-            workflowDescriptor.id.id,
-            workflowDescriptor.possibleParentWorkflowId.map(_.id),
-            workflowDescriptor.rootWorkflowId.id,
-            jobDescriptor.key.tag,
-            jobDescriptor.key.call.fullyQualifiedName,
-            jobDescriptor.key.index,
-            jobDescriptor.key.attempt,
-            state.getClass.getSimpleName,
-            platform.map(_.runtimeKey),
-            dockerImage,
-            cpus,
-            memory,
-            startAndEndTimes.jobStart.toString,
-            startAndEndTimes.cpuStart.map(_.toString),
-            startAndEndTimes.jobEnd.toString,
-            startAndEndTimes.jobStart.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS),
-            startAndEndTimes.cpuStart.map(_.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS))
-          )
-        )
-      case _ => ()
-    }
+  /**
+   * Reports metrics to bard.
+   * @param jobStart: Time that Cromwell started processing this job. Should be the earliest recorded time that this job has done...anything.
+   * @param vmStartTime: Time that the backend started spending money.
+   * @param vmEndTime: Time that the backend stopped spending money.
+   */
+  def tellBard(terminalStateName: String,
+               jobStart: OffsetDateTime,
+               vmStartTime: OffsetDateTime,
+               vmEndTime: OffsetDateTime
+  ): Unit = {
+    val dockerImage =
+      RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
+    val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
+    val memory = RuntimeAttributesValidation
+      .extract(MemoryValidation.instance(), validatedRuntimeAttributes)
+      .to(MemoryUnit.Bytes)
+      .amount
+    serviceRegistryActor ! BardEventRequest(
+      TaskSummaryEvent(
+        workflowDescriptor.id.id,
+        workflowDescriptor.possibleParentWorkflowId.map(_.id),
+        workflowDescriptor.rootWorkflowId.id,
+        jobDescriptor.key.tag,
+        jobDescriptor.key.call.fullyQualifiedName,
+        jobDescriptor.key.index,
+        jobDescriptor.key.attempt,
+        terminalStateName,
+        platform.map(_.runtimeKey),
+        dockerImage,
+        cpus,
+        memory,
+        jobStart.toString,
+        Option(vmStartTime.toString),
+        vmEndTime.toString,
+        jobStart.until(vmEndTime, ChronoUnit.SECONDS),
+        Option(vmStartTime.until(vmEndTime, ChronoUnit.SECONDS))
+      )
+    )
+  }
 
   implicit override protected lazy val ec: ExecutionContextExecutor = context.dispatcher
 }

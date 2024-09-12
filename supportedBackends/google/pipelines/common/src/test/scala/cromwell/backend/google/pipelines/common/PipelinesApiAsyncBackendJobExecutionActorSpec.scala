@@ -203,7 +203,9 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
-    override val costHelper: Option[CostPollingHelper[RunStatus]] = Some(new PapiCostPollingHelper(tellMetadata))
+    override val pollingResultMonitorActor: Option[CostPollingHelper[RunStatus]] = Some(
+      new PapiCostPollingHelper(tellMetadata)
+    )
     override lazy val backendEngineFunctions: PipelinesApiExpressionFunctions = functions
   }
 
@@ -1782,9 +1784,9 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     val cpuStartPollResult = Running(Seq(earliestEvent, cpuStartEvent))
     val cpuEndPollResult = RunStatus.Success(Seq(earliestEvent, cpuStartEvent, cpuEndEvent), None, None, None)
 
-    jesBackend.costHelper.get.processPollResult(initialPollResult)
-    jesBackend.costHelper.get.processPollResult(cpuStartPollResult)
-    jesBackend.costHelper.get.processPollResult(cpuEndPollResult)
+    jesBackend.pollingResultMonitorActor.get.processPollResult(initialPollResult)
+    jesBackend.pollingResultMonitorActor.get.processPollResult(cpuStartPollResult)
+    jesBackend.pollingResultMonitorActor.get.processPollResult(cpuEndPollResult)
 
     jesBackend.getStartAndEndTimes(cpuEndPollResult) shouldBe Some(
       StartAndEndTimes(earliestEvent.offsetDateTime, Some(cpuStartEvent.offsetDateTime), cpuEndEvent.offsetDateTime)
@@ -1804,9 +1806,9 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     val cpuStartPollResult = Running(Seq(earliestEvent))
     val cpuEndPollResult = RunStatus.Success(Seq(earliestEvent, cpuEndEvent), None, None, None)
 
-    jesBackend.costHelper.get.processPollResult(initialPollResult)
-    jesBackend.costHelper.get.processPollResult(cpuStartPollResult)
-    jesBackend.costHelper.get.processPollResult(cpuEndPollResult)
+    jesBackend.pollingResultMonitorActor.get.processPollResult(initialPollResult)
+    jesBackend.pollingResultMonitorActor.get.processPollResult(cpuStartPollResult)
+    jesBackend.pollingResultMonitorActor.get.processPollResult(cpuEndPollResult)
 
     jesBackend.getStartAndEndTimes(cpuEndPollResult) shouldBe Some(
       StartAndEndTimes(earliestEvent.offsetDateTime, None, cpuEndEvent.offsetDateTime)

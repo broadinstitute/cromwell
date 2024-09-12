@@ -14,11 +14,15 @@ sealed trait RunStatus {
 }
 
 object RunStatus {
-  case class Initializing(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty) extends RunStatus { override def toString = "Initializing" }
-  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty) extends RunStatus {
+  case class Initializing(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
+      extends RunStatus { override def toString = "Initializing" }
+  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent],
+                                instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
+  ) extends RunStatus {
     override def toString = "AwaitingCloudQuota"
   }
-  case class Running(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty) extends RunStatus { override def toString = "Running" }
+  case class Running(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
+      extends RunStatus { override def toString = "Running" }
 
   sealed trait TerminalRunStatus extends RunStatus {
     def machineType: Option[String]

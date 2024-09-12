@@ -1,12 +1,12 @@
-name: reference_disk_test_false_option
+name: gcpbatch_reference_disk_test_unspecified_option
 testFormat: workflowsuccess
 # see https://github.com/broadinstitute/cromwell/pull/7502
-backends: [Papiv2-Reference-Disk-Localization, GCPBATCH_ALT]
+backends: [GCPBATCH-Reference-Disk-Localization]
 
 files {
-  workflow: reference_disk/reference_disk_test.wdl
+  workflow: reference_disk/gcpbatch_reference_disk_test.wdl
   inputs: reference_disk/reference_disk_test.inputs
-  options: reference_disk/reference_disk_test_false.options.json
+  options: reference_disk/reference_disk_test_unspecified.options.json
 }
 
 metadata {

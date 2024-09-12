@@ -1,9 +1,5 @@
 package cromwell
 
-import java.time.OffsetDateTime
-import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.Props
 import akka.testkit._
 import com.typesafe.config.ConfigFactory
@@ -21,6 +17,9 @@ import cromwell.util.SampleWdl
 import cromwell.util.SampleWdl.HelloWorld.Addressee
 import org.scalatest.BeforeAndAfter
 
+import java.time.OffsetDateTime
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -80,10 +79,10 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
         callCacheWriteActor = system.actorOf(EmptyCallCacheWriteActor.props),
         dockerHashActor = system.actorOf(EmptyDockerHashActor.props),
         jobRestartCheckTokenDispenserActor = system.actorOf(
-          JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")
+          JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running", None)
         ),
         jobExecutionTokenDispenserActor = system.actorOf(
-          JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running")
+          JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running", None)
         ),
         backendSingletonCollection = BackendSingletonCollection(Map("Local" -> None)),
         serverMode = true,

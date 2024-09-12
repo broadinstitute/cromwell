@@ -22,7 +22,8 @@ task MentionsNirvanaReference {
         # Debug output
         lsblk > lsblk.out
 
-        CANDIDATE_MOUNT_POINT=$(lsblk | sed -E -n 's!.*(/mnt/[^/]+).*!\1!p')
+        # Look for mounted disks other than the main /mnt/disks/cromwell_root volume
+        CANDIDATE_MOUNT_POINT=$(lsblk | grep -E -v '/mnt/disks/cromwell_root\>' | sed -E -n 's!.*(/mnt/disks/[^/]+).*!\1!p')
 
         if [[ ! -z ${CANDIDATE_MOUNT_POINT} ]]; then
             echo "Found unexpected mounted disk, investigating further."
@@ -40,7 +41,7 @@ task MentionsNirvanaReference {
     >>>
     runtime {
         docker: "ubuntu:latest"
-        backend: "Papiv2-Reference-Disk-Localization"
+        backend: "GCPBATCH-Reference-Disk-Localization"
     }
     output {
         File lsblk = "lsblk.out"

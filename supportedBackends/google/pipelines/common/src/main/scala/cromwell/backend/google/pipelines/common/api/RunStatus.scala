@@ -6,15 +6,19 @@ import cromwell.core.ExecutionEvent
 
 import scala.util.Try
 
-sealed trait RunStatus
+sealed trait RunStatus {
+  def eventList: Seq[ExecutionEvent]
+  def toString: String
+}
 
 object RunStatus {
-  case object Initializing extends RunStatus
-  case object AwaitingCloudQuota extends RunStatus
-  case object Running extends RunStatus
+  case class Initializing(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Initializing" }
+  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent]) extends RunStatus {
+    override def toString = "AwaitingCloudQuota"
+  }
+  case class Running(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Running" }
 
   sealed trait TerminalRunStatus extends RunStatus {
-    def eventList: Seq[ExecutionEvent]
     def machineType: Option[String]
     def zone: Option[String]
     def instanceName: Option[String]

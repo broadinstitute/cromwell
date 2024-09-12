@@ -6,7 +6,6 @@ import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.standard.GroupMetricsActor.{
   GetQuotaExhaustedGroups,
   GetQuotaExhaustedGroupsSuccess,
-  LogQuotaExhaustedGroups,
   RecordGroupQuotaExhaustion
 }
 import cromwell.database.slick.EngineSlickDatabase

@@ -216,7 +216,6 @@ backend {
         ...
         virtual-private-cloud {
           network-name = "vpc-network"
-          subnetwork-name = "vpc-subnetwork"
         }
         ...
       }
@@ -225,21 +224,22 @@ backend {
 }
 ```
 
-The `network-name` and `subnetwork-name` should reference the name of your private network and subnetwork within that
-network respectively. The `subnetwork-name` is an optional config.
+The `network-name` should reference the name of your private network within that network respectively. Note that in the
+PAPI v2 backend `subnetwork-name` was an optional configuration parameter, but `subnetwork-name` does not need to
+specified (and will not be used) in GCP Batch.
 
 For example, if your `virtual-private-cloud` config looks like the one above, then Cromwell will use the value of the
 configuration key, which is `vpc-network` here, as the name of private network and run the jobs on this network.
 If the network name is not present in the config Cromwell will fall back to trying to run jobs on the default network.
 
-If the `network-name` or `subnetwork-name` values contain the string `${projectId}` then that value will be replaced
+If `network-name` contains the string `${projectId}` then that value will be replaced
 by Cromwell with the name of the project running GCP Batch.
 
 If the `network-name` does not contain a `/` then it will be prefixed with `projects/${projectId}/global/networks/`.
 
-Cromwell will then pass the network and subnetwork values to GCP Batch. See the documentation for
+Cromwell will then pass the network value to GCP Batch. See the documentation for
 [GCP Batch](https://cloud.google.com/batch/docs/networking-overview)
-for more information on the various formats accepted for `network` and `subnetwork`.
+for more information on the various formats accepted for `network`.
 
 #### Virtual Private Network via Labels
 
@@ -254,7 +254,6 @@ backend {
         ...
         virtual-private-cloud {
           network-label-key = "my-private-network"
-          subnetwork-label-key = "my-private-subnetwork"
           auth = "reference-to-auth-scheme"
         }
         ...
@@ -265,9 +264,11 @@ backend {
 ```
 
 
-The `network-label-key` and `subnetwork-label-key` should reference the keys in your project's labels whose value is the name of your private network
-and subnetwork within that network respectively. `auth` should reference an auth scheme in the `google` stanza which will be used to get the project metadata from Google Cloud.
-The `subnetwork-label-key` is an optional config.
+The `network-label-key` should reference the key in your project's labels whose value is the name of your private network.
+`auth` should reference an auth scheme in the `google` stanza which will be used to get the project metadata from Google Cloud.
+Note that in the
+PAPI v2 backend `subnetwork-label-key` was an optional configuration parameter, but `subnetwork-label-key` does not need to
+specified (and will not be used) in GCP Batch.
 
 For example, if your `virtual-private-cloud` config looks like the one above, and one of the labels in your project is
 

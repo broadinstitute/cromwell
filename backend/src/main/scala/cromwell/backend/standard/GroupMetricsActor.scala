@@ -23,11 +23,11 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase,
 
   implicit val ec: MessageDispatcher = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
 
-  // initial schedule for logging exhausted groups
-  context.system.scheduler.scheduleOnce(loggingInterval)(self ! LogQuotaExhaustedGroups)
   log.info(
     s"${this.getClass.getSimpleName} configured to log groups experiencing quota exhaustion at interval ${loggingInterval.toString()}."
   )
+  // initial schedule for logging exhausted groups
+  context.system.scheduler.scheduleOnce(loggingInterval)(self ! LogQuotaExhaustedGroups)
 
   override def receive: Receive = {
     case RecordGroupQuotaExhaustion(group) =>

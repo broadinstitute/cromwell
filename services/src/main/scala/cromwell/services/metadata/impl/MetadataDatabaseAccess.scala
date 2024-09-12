@@ -269,19 +269,6 @@ trait MetadataDatabaseAccess {
       metadataToMetadataEvents(id)
   }
 
-  def queryCost(id: WorkflowId, timeout: Duration)(implicit
-    ec: ExecutionContext
-  ): Future[Seq[MetadataEvent]] = {
-    val keys = List(CallMetadataKeys.VmStartTime,
-                    CallMetadataKeys.VmEndTime,
-                    CallMetadataKeys.VmCostPerHour,
-                    CallMetadataKeys.SubWorkflowId
-    )
-    metadataDatabaseInterface
-      .queryMetadataEntryWithKeyConstraints(id.toString, keys, List.empty, CallOrWorkflowQuery, timeout)
-      .map(metadataToMetadataEvents(id))
-  }
-
   def refreshWorkflowMetadataSummaries(limit: Int)(implicit ec: ExecutionContext): Future[SummaryResult] =
     for {
       increasingProcessed <- metadataDatabaseInterface.summarizeIncreasing(

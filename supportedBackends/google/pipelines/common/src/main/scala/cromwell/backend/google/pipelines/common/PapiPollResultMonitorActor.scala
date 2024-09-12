@@ -2,7 +2,7 @@ package cromwell.backend.google.pipelines.common
 
 import akka.actor.Props
 import cromwell.backend.google.pipelines.common.api.RunStatus
-import cromwell.backend.standard.costestimation.{
+import cromwell.backend.standard.pollmonitoring.{
   AsyncJobHasFinished,
   PollResultMessage,
   PollResultMonitorActor,
@@ -12,14 +12,14 @@ import cromwell.services.metadata.CallMetadataKeys
 
 import java.time.OffsetDateTime
 
-object PapiCostPollingHelper {
+object PapiPollResultMonitorActor {
   def props(tellMetadataFn: Map[String, Any] => Unit,
             tellBardFn: (String, OffsetDateTime, OffsetDateTime, OffsetDateTime) => Unit
-  ): Props = Props(new PapiCostPollingHelper(tellMetadataFn, tellBardFn))
+  ): Props = Props(new PapiPollResultMonitorActor(tellMetadataFn, tellBardFn))
 }
 
-class PapiCostPollingHelper(tellMetadataFn: Map[String, Any] => Unit,
-                            tellBardFn: (String, OffsetDateTime, OffsetDateTime, OffsetDateTime) => Unit
+class PapiPollResultMonitorActor(tellMetadataFn: Map[String, Any] => Unit,
+                                 tellBardFn: (String, OffsetDateTime, OffsetDateTime, OffsetDateTime) => Unit
 ) extends PollResultMonitorActor[RunStatus] {
 
   override def extractStartTimeFromRunState(pollStatus: RunStatus): Option[OffsetDateTime] =
@@ -31,11 +31,6 @@ class PapiCostPollingHelper(tellMetadataFn: Map[String, Any] => Unit,
     pollStatus.eventList.collectFirst {
       case event if event.name == CallMetadataKeys.VmEndTime => event.offsetDateTime
     }
-
-  override def extractVmCostPerHourFromRunState(pollStatus: RunStatus): Option[BigDecimal] = {
-    // TODO ;)
-      Option(math.BigDecimal(3.50))
-  }
 
   override def tellMetadata(metadata: Map[String, Any]): Unit = tellMetadataFn(metadata)
   override def tellBard(terminalStateName: String,

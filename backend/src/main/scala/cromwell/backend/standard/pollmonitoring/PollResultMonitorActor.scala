@@ -1,4 +1,4 @@
-package cromwell.backend.standard.costestimation
+package cromwell.backend.standard.pollmonitoring
 import akka.actor.Actor
 import cromwell.services.metadata.CallMetadataKeys
 import java.time.OffsetDateTime
@@ -18,9 +18,10 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
   // None if it can't be ascertained from the provided status.
   def extractEndTimeFromRunState(pollStatus: PollResultType): Option[OffsetDateTime]
 
-  def extractVmCostPerHourFromRunState(pollStatus: PollResultType): Option[BigDecimal]
   // Function to emit metadata that is associated with a specific call attempt.
   def tellMetadata(metadata: Map[String, Any]): Unit
+
+  // Function that reports metrics to bard, called when a specific call attempt terminates.
   def tellBard(terminalStateName: String,
                jobStart: OffsetDateTime,
                vmStartTime: OffsetDateTime,
@@ -29,9 +30,8 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
 
   var vmStartTime: Option[OffsetDateTime] = Option.empty
   var vmEndTime: Option[OffsetDateTime] = Option.empty
-  var vmCostPerHour: Option[BigDecimal] = Option.empty
+
   def processPollResult(pollStatus: PollResultType): Unit = {
-    println("Processing Poll Result")
     if (vmStartTime.isEmpty) {
       extractStartTimeFromRunState(pollStatus).foreach { start =>
         vmStartTime = Some(start)
@@ -45,15 +45,8 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
         tellMetadata(Map(CallMetadataKeys.VmEndTime -> end))
       }
     }
-
-    if (vmCostPerHour.isEmpty) {
-      extractVmCostPerHourFromRunState(pollStatus).foreach { costPerHour =>
-        vmCostPerHour = Option(costPerHour)
-        tellMetadata(Map(CallMetadataKeys.VmCostPerHour -> costPerHour))
-      }
-    }
   }
 
-  def handleAsyncJobFinish(terminalStateName: String) =
+  def handleAsyncJobFinish(terminalStateName: String): Unit =
     tellBard(terminalStateName, vmStartTime.get, vmStartTime.get, vmEndTime.get)
 }

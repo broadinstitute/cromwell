@@ -30,7 +30,7 @@ import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Run
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
-import cromwell.backend.standard.costestimation.CostPollingHelper
+import cromwell.backend.standard.pollmonitoring.CostPollingHelper
 import cromwell.backend.standard.{
   DefaultStandardAsyncExecutionActorParams,
   StandardAsyncExecutionActorParams,
@@ -204,7 +204,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
     override val pollingResultMonitorActor: Option[CostPollingHelper[RunStatus]] = Some(
-      new PapiCostPollingHelper(tellMetadata)
+      new PapiPollResultMonitorActor(tellMetadata)
     )
     override lazy val backendEngineFunctions: PipelinesApiExpressionFunctions = functions
   }

@@ -12,7 +12,7 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesApiAsyncBackendJobExecutionActor._
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
-import cromwell.backend.google.pipelines.common.PapiCostPollingHelper
+import cromwell.backend.google.pipelines.common.PapiPollResultMonitorActor
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
@@ -70,7 +70,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   }
 
   override val pollingResultMonitorActor: Option[ActorRef] = Option(
-    context.actorOf(PapiCostPollingHelper.props(tellMetadata, tellBard))
+    context.actorOf(PapiPollResultMonitorActor.props(tellMetadata, tellBard))
   )
 
   private lazy val gcsTransferLibrary =

@@ -9,7 +9,6 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
 import akka.stream.ActorMaterializer
 import akka.util.ByteString
-import cats.data.NonEmptyList
 import cats.implicits._
 import common.collections.EnhancedCollections._
 import common.exception.AggregatedMessageException
@@ -28,8 +27,7 @@ import cromwell.backend.standard.{
   ScriptPreambleData,
   StandardAsyncExecutionActor,
   StandardAsyncExecutionActorParams,
-  StandardAsyncJob,
-  StartAndEndTimes
+  StandardAsyncJob
 }
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -39,14 +37,13 @@ import cromwell.filesystems.blob.{BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
 import cromwell.filesystems.http.HttpPath
 import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.services.instrumentation.CromwellInstrumentation.InstrumentationPath
 import cromwell.services.metadata.CallMetadataKeys
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
-import java.time.{Duration, OffsetDateTime}
+import java.time.Duration
 import java.time.temporal.ChronoUnit
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
@@ -156,9 +153,10 @@ object TesAsyncBackendJobExecutionActor {
    * This assumes that some of the task inputs are blob files, all blob files are in the same container, and we can get a sas
    * token for this container from WSM.
    * The task VM will use the user assigned managed identity that it is running as in order to authenticate.
-   * @param taskInputs The inputs to this particular TesTask. If any are blob files, the first  will be used to
-   *                   determine the storage container to retrieve the sas token for.
-   * @param pathGetter A function to convert string filepath into a cromwell Path object.
+   *
+   * @param taskInputs    The inputs to this particular TesTask. If any are blob files, the first  will be used to
+   *                      determine the storage container to retrieve the sas token for.
+   * @param pathGetter    A function to convert string filepath into a cromwell Path object.
    * @param blobConverter A function to convert a Path into a Blob path, if possible. Provided for testing purposes.
    * @return A URL endpoint that, when called with proper authentication, will return a sas token.
    *         Returns 'None' if one should not be used for this task.
@@ -347,24 +345,6 @@ object TesAsyncBackendJobExecutionActor {
         result.foreach(r => tellMetadataFn(Map(CallMetadataKeys.VmEndTime -> r)))
       case Failure(e) => logger.error(e.getMessage)
     }
-  }
-
-  def getStartAndEndTimes(runStatus: StandardAsyncRunState,
-                          logger: LoggingAdapter,
-                          incrementFn: (InstrumentationPath, Option[String]) => Unit
-  ): Option[StartAndEndTimes] = runStatus.costData match {
-    case Some(TesVmCostData(Some(startTime), Some(endTime), _)) =>
-      Try {
-        (OffsetDateTime.parse(startTime), OffsetDateTime.parse(endTime))
-      } match {
-        case Success((parsedStartTime, parsedEndTime)) =>
-          Some(StartAndEndTimes(parsedStartTime, Option(parsedStartTime), parsedEndTime))
-        case Failure(e: Throwable) =>
-          incrementFn(NonEmptyList.of("parse_tes_timestamp", "failure"), Some("bard"))
-          logger.error(s"Parsing TES task start and end time failed: $e")
-          None
-      }
-    case _ => None
   }
 }
 
@@ -696,7 +676,5 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
         }
     } yield data
 
-  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
-    TesAsyncBackendJobExecutionActor.getStartAndEndTimes(runStatus, log, increment)
   override def platform: Option[Platform] = tesConfiguration.platform
 }

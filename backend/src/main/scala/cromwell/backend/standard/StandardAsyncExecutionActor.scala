@@ -77,8 +77,6 @@ case class DefaultStandardAsyncExecutionActorParams(
 // Override to `false` when we need the script to set an environment variable in the parent shell.
 case class ScriptPreambleData(bashString: String, executeInSubshell: Boolean = true)
 
-case class StartAndEndTimes(jobStart: OffsetDateTime, cpuStart: Option[OffsetDateTime], jobEnd: OffsetDateTime)
-
 /**
   * An extension of the generic AsyncBackendJobExecutionActor providing a standard abstract implementation of an
   * asynchronous polling backend.
@@ -903,14 +901,6 @@ trait StandardAsyncExecutionActor
     * @return The execution events.
     */
   def getTerminalEvents(runStatus: StandardAsyncRunState): Seq[ExecutionEvent] = Seq.empty
-
-  /**
-    * Get the min and max event times from a terminal run status
-    *
-    * @param runStatus The terminal run status, as defined by isTerminal.
-    * @return The min and max event times, if events exist.
-    */
-  def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = None
 
   /**
     * Returns true if the status represents a completion.

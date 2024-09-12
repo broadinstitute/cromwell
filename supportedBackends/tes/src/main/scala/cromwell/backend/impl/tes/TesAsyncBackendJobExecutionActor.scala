@@ -322,7 +322,6 @@ object TesAsyncBackendJobExecutionActor {
                      handle: StandardAsyncPendingExecutionHandle,
                      getTaskLogsFn: StandardAsyncPendingExecutionHandle => Future[Option[TaskLog]],
                      tellMetadataFn: Map[String, Any] => Unit,
-                     tellBardFn: StandardAsyncRunState => Unit,
                      logger: LoggingAdapter
   )(implicit ec: ExecutionContext): Unit = {
     val logs = getTaskLogsFn(handle)
@@ -346,14 +345,6 @@ object TesAsyncBackendJobExecutionActor {
     taskEndTime.onComplete {
       case Success(result) =>
         result.foreach(r => tellMetadataFn(Map(CallMetadataKeys.VmEndTime -> r)))
-        val newCostData = runStatus.costData.map(_.copy(endTime = result))
-        runStatus match {
-          case _: Complete => tellBardFn(Complete(newCostData))
-          case _: Cancelled => tellBardFn(Cancelled(newCostData))
-          case failed: Failed => tellBardFn(Failed(sysLogs = failed.sysLogs, costData = newCostData))
-          case error: Error => tellBardFn(Error(sysLogs = error.sysLogs, costData = newCostData))
-          case _ => ()
-        }
       case Failure(e) => logger.error(e.getMessage)
     }
   }
@@ -565,7 +556,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
       handle,
       getTaskLogs,
       tellMetadata,
-      tellBard,
       log
     )
     ()
@@ -587,7 +577,6 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
                   tellMetadata,
                   getErrorLogs
     )
-
   }
 
   private def getTesStatus(state: Option[String], withCostData: Option[TesVmCostData], jobId: String): TesRunStatus =

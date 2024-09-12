@@ -37,7 +37,6 @@ import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfigu
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
 import cromwell.backend.standard._
-import cromwell.backend.standard.costestimation.CostPollingHelper
 
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
@@ -62,7 +61,6 @@ import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
 import java.net.SocketTimeoutException
-import java.time.OffsetDateTime
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -134,9 +132,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override type StandardAsyncRunState = RunStatus
 
-  override val costHelper: Option[CostPollingHelper[RunStatus]] = Option(new PapiCostPollingHelper(tellMetadata))
-  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean =
-    thiz.toString == that.toString
+  override val pollingResultMonitorActor: Option[ActorRef] = Option.empty
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
 
@@ -833,7 +830,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
 
-  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = {
+  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
+    /*
     // Intuition:
     // "job start" is the earliest event time across all events.
     // "cpuStart" is obtained from the cost helper. It should be the event time where the user VM started spending money.
@@ -842,6 +840,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     val jobStart: Option[OffsetDateTime] = runStatus.eventList.minByOption(_.offsetDateTime).map(e => e.offsetDateTime)
     val maxEventTime: Option[OffsetDateTime] =
       runStatus.eventList.maxByOption(_.offsetDateTime).map(e => e.offsetDateTime)
+
 
     costHelper match {
       case Some(helper) =>
@@ -854,7 +853,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         )
         None
     }
-  }
+     */
+    None
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =
     exception match {

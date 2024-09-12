@@ -15,15 +15,19 @@ import scala.concurrent.Future
 import scala.concurrent.duration.FiniteDuration
 import scala.util.{Failure, Success}
 
-class GroupMetricsActor(engineDbInterface: EngineSqlDatabase, quotaExhaustionThresholdInMins: Long, loggingInterval: FiniteDuration)
-    extends Actor
+class GroupMetricsActor(engineDbInterface: EngineSqlDatabase,
+                        quotaExhaustionThresholdInMins: Long,
+                        loggingInterval: FiniteDuration
+) extends Actor
     with ActorLogging {
 
   implicit val ec: MessageDispatcher = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
 
   // initial schedule for logging exhausted groups
   context.system.scheduler.scheduleOnce(loggingInterval)(self ! LogQuotaExhaustedGroups)
-  log.info(s"${this.getClass.getSimpleName} configured to log groups experiencing quota exhaustion at interval ${loggingInterval.toString()}.")
+  log.info(
+    s"${this.getClass.getSimpleName} configured to log groups experiencing quota exhaustion at interval ${loggingInterval.toString()}."
+  )
 
   override def receive: Receive = {
     case RecordGroupQuotaExhaustion(group) =>
@@ -36,11 +40,17 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase, quotaExhaustionThr
         case Success(quotaExhaustedGroups) => respondTo ! GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups.toList)
         case Failure(exception) => respondTo ! GetQuotaExhaustedGroupsFailure(exception.getMessage)
       }
-    case LogQuotaExhaustedGroups => getQuotaExhaustedGroups() onComplete {
+    case LogQuotaExhaustedGroups =>
+      getQuotaExhaustedGroups() onComplete {
         case Success(quotaExhaustedGroups) =>
-          log.info(s"Hog groups currently experiencing quota exhaustion: ${quotaExhaustedGroups.length}. Group IDs: ${quotaExhaustedGroups.toList.toString()}")
+          log.info(
+            s"Hog groups currently experiencing quota exhaustion: ${quotaExhaustedGroups.length}. Group IDs: ${quotaExhaustedGroups.toList.toString()}"
+          )
         case Failure(exception) =>
-          log.info(s"Something went wrong when fetching quota exhausted groups for logging. Will retry in ${loggingInterval.toString()}. Exception: ${exception.getMessage}")
+          log.info(
+            s"Something went wrong when fetching quota exhausted groups for logging. Will retry in ${loggingInterval
+                .toString()}. Exception: ${exception.getMessage}"
+          )
       }
       // schedule next logging
       context.system.scheduler.scheduleOnce(loggingInterval)(self ! LogQuotaExhaustedGroups)
@@ -72,6 +82,10 @@ object GroupMetricsActor {
   case class GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups: List[String]) extends GetQuotaExhaustedGroupsResponse
   case class GetQuotaExhaustedGroupsFailure(errorMsg: String) extends GetQuotaExhaustedGroupsResponse
 
-  def props(engineDbInterface: EngineSqlDatabase, quotaExhaustionThresholdInMins: Long, loggingInterval: FiniteDuration): Props =
-    Props(new GroupMetricsActor(engineDbInterface, quotaExhaustionThresholdInMins, loggingInterval)).withDispatcher(EngineDispatcher)
+  def props(engineDbInterface: EngineSqlDatabase,
+            quotaExhaustionThresholdInMins: Long,
+            loggingInterval: FiniteDuration
+  ): Props =
+    Props(new GroupMetricsActor(engineDbInterface, quotaExhaustionThresholdInMins, loggingInterval))
+      .withDispatcher(EngineDispatcher)
 }

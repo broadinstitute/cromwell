@@ -3,7 +3,12 @@ package cromwell.backend.standard
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.backend.standard.GroupMetricsActor.{GetQuotaExhaustedGroups, GetQuotaExhaustedGroupsSuccess, LogQuotaExhaustedGroups, RecordGroupQuotaExhaustion}
+import cromwell.backend.standard.GroupMetricsActor.{
+  GetQuotaExhaustedGroups,
+  GetQuotaExhaustedGroupsSuccess,
+  LogQuotaExhaustedGroups,
+  RecordGroupQuotaExhaustion
+}
 import cromwell.database.slick.EngineSlickDatabase
 import cromwell.database.sql.tables.GroupMetricsEntry
 import cromwell.services.EngineServicesStore

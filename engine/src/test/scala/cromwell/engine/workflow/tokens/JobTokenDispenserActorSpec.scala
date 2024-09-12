@@ -3,7 +3,11 @@ package cromwell.engine.workflow.tokens
 import akka.actor.{ActorRef, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import cromwell.backend.standard.GroupMetricsActor
-import cromwell.backend.standard.GroupMetricsActor.{GetQuotaExhaustedGroups, GetQuotaExhaustedGroupsSuccess, LogQuotaExhaustedGroups}
+import cromwell.backend.standard.GroupMetricsActor.{
+  GetQuotaExhaustedGroups,
+  GetQuotaExhaustedGroupsSuccess,
+  LogQuotaExhaustedGroups
+}
 import cromwell.core.JobToken.JobTokenType
 import cromwell.core.{HogGroup, TestKitSuite}
 import cromwell.engine.workflow.tokens.DynamicRateLimiter.{Rate, TokensAvailable}

@@ -1,9 +1,11 @@
 package cromwell.backend.standard.costestimation
+import akka.actor.Actor
 import cromwell.services.metadata.CallMetadataKeys
+
 import java.time.OffsetDateTime
 
 // Emits metadata based on backend poll results. Limits the amount of metadata emitted.
-trait CostPollingHelper[A] {
+trait CostPollingHelper[A] extends Actor {
 
   // Should be overridden to return the time that the user VM starts spending money.
   // None if it can't be ascertained from the provided status.

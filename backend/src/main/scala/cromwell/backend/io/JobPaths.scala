@@ -43,6 +43,7 @@ trait JobPaths {
   def memoryRetryRCFilename: String = "memory_retry_rc"
   def defaultStdoutFilename = "stdout"
   def defaultStderrFilename = "stderr"
+  def defaultTaskLogFilename = "task.log"
   def isDocker: Boolean = false
 
   // In this non-Docker version of `JobPaths` there is no distinction between host and container roots so this is
@@ -73,7 +74,8 @@ trait JobPaths {
   // enable dynamic standard output and error file names for languages like CWL that support this feature.
   var standardPaths: StandardPaths = StandardPaths(
     output = callExecutionRoot.resolve(defaultStdoutFilename),
-    error = callExecutionRoot.resolve(defaultStderrFilename)
+    error = callExecutionRoot.resolve(defaultStderrFilename),
+    taskLog = callExecutionRoot.resolve(defaultTaskLogFilename)
   )
 
   lazy val script = callExecutionRoot.resolve(scriptFilename)
@@ -85,7 +87,8 @@ trait JobPaths {
   // standard output and error file names.
   def standardOutputAndErrorPaths: Map[String, Path] = Map(
     CallMetadataKeys.Stdout -> standardPaths.output,
-    CallMetadataKeys.Stderr -> standardPaths.error
+    CallMetadataKeys.Stderr -> standardPaths.error,
+    CallMetadataKeys.TaskLog -> standardPaths.taskLog
   )
 
   private lazy val commonMetadataPaths: Map[String, Path] =

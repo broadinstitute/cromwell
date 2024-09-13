@@ -838,16 +838,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         contentType = plainTextContentType
       )
 
-      val logFileOutput = GcpBatchFileOutput(
-        logFilename,
-        logGcsPath,
-        DefaultPathBuilder.get(logFilename),
-        workingDisk,
-        optional = true,
-        secondary = false,
-        contentType = plainTextContentType
-      )
-
       val memoryRetryRCFileOutput = GcpBatchFileOutput(
         memoryRetryRCFilename,
         memoryRetryRCGcsPath,
@@ -864,7 +854,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
       val standardStreams = List(
         StandardStream("stdout", _.output),
-        StandardStream("stderr", _.error)
+        StandardStream("stderr", _.error),
+        StandardStream("taskLog", _.taskLog)
       ) map { s =>
         GcpBatchFileOutput(
           s.name,
@@ -888,8 +879,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput,
-          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput,
-          logFileOutputParameter = logFileOutput
+          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
         ),
         List.empty
       )
@@ -908,10 +898,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         runtimeAttributes = runtimeAttributes,
         batchAttributes = batchAttributes,
         projectId = batchAttributes.project,
-        region = batchAttributes.location,
-        logfile = createParameters.commandScriptContainerPath.sibling(
-          batchParameters.detritusOutputParameters.logFileOutputParameter.name
-        )
+        region = batchAttributes.location
       )
 
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName

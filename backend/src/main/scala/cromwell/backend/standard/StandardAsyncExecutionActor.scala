@@ -380,6 +380,7 @@ trait StandardAsyncExecutionActor
     instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
   def executionStderr: String =
     instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
+  def executionTaskLog: String = jobPaths.defaultTaskLogFilename |> absolutizeContainerPath
 
   /*
    * Ensures the standard paths are correct w.r.t overridden paths. This is called in two places: when generating the command and
@@ -393,9 +394,10 @@ trait StandardAsyncExecutionActor
     // .get's are safe on stdout and stderr after falling back to default names above.
     jobPaths.standardPaths = StandardPaths(
       output = hostPathFromContainerPath(executionStdout),
-      error = hostPathFromContainerPath(executionStderr)
+      error = hostPathFromContainerPath(executionStderr),
+      taskLog = hostPathFromContainerPath(executionTaskLog)
     )
-    // Re-publish stdout and stderr paths that were possibly just updated.
+    // Re-publish stdout, stderr and task log paths that were possibly just updated.
     tellMetadata(jobPaths.standardOutputAndErrorPaths)
     jobPathsUpdated = true
   }
@@ -423,6 +425,7 @@ trait StandardAsyncExecutionActor
     val stdinRedirection = executionStdin.map("< " + _.shellQuote).getOrElse("")
     val stdoutRedirection = executionStdout.shellQuote
     val stderrRedirection = executionStderr.shellQuote
+    val taskLogRedirection = executionTaskLog.shellQuote
     val rcTmpPath = rcPath.plusExt("tmp")
 
     val errorOrDirectoryOutputs: ErrorOr[List[WomUnlistedDirectory]] =
@@ -491,6 +494,7 @@ trait StandardAsyncExecutionActor
           |touch $stdoutRedirection $stderrRedirection
           |tee $stdoutRedirection < "$$$out" &
           |tee $stderrRedirection < "$$$err" >&2 &
+          |tail -q -f $stdoutRedirection $stderrRedirection > $taskLogRedirection &
           |(
           |cd ${cwd.pathAsString}
           |ENVIRONMENT_VARIABLES

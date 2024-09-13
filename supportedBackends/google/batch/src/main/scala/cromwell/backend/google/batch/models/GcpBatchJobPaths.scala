@@ -21,16 +21,9 @@ case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths,
                             override val isCallCacheCopyAttempt: Boolean = false
 ) extends JobPaths {
 
-  def batchLogBasename = {
-    val index = jobKey.index
-      .map(s => s"-$s")
-      .getOrElse("")
-    s"${jobKey.node.localName}$index"
-  }
-
   override def implementsTaskLogging: Boolean = true
 
-  val batchLogFilename: String = s"$batchLogBasename.log"
+  val batchLogFilename: String = "task.log"
   lazy val batchLogPath: Path = callExecutionRoot.resolve(batchLogFilename)
 
   val batchMonitoringLogFilename: String = s"${GcpBatchJobPaths.BatchMonitoringKey}.log"

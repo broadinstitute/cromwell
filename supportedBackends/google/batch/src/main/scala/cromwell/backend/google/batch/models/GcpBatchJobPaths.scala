@@ -28,6 +28,8 @@ case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths,
     s"${jobKey.node.localName}$index"
   }
 
+  override def implementsTaskLogging: Boolean = true
+
   val batchLogFilename: String = s"$batchLogBasename.log"
   lazy val batchLogPath: Path = callExecutionRoot.resolve(batchLogFilename)
 

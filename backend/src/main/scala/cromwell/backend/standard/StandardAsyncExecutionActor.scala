@@ -494,7 +494,7 @@ trait StandardAsyncExecutionActor
           |touch $stdoutRedirection $stderrRedirection
           |tee $stdoutRedirection < "$$$out" &
           |tee $stderrRedirection < "$$$err" >&2 &
-          |tail -q -f $stdoutRedirection $stderrRedirection > $taskLogRedirection &
+          |${if (jobPaths.implementsTaskLogging) s"tail -q -f $stdoutRedirection $stderrRedirection > $taskLogRedirection &" else ""}
           |(
           |cd ${cwd.pathAsString}
           |ENVIRONMENT_VARIABLES

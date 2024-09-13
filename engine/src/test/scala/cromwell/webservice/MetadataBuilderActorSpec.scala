@@ -195,7 +195,7 @@ class MetadataBuilderActorSpec
                     MetadataValue("2023-10-30T11:00:00Z")
       ),
       MetadataEvent(MetadataKey(workflowId, Option(MetadataJobKey("callA", None, 1)), CallMetadataKeys.VmCostPerHour),
-                    MetadataValue(3.5)
+                    MetadataValue(BigDecimal(3.5))
       ),
       MetadataEvent(MetadataKey(workflowId, Option(MetadataJobKey("callB", None, 1)), CallMetadataKeys.VmStartTime),
                     MetadataValue("2023-10-30T11:01:00Z")
@@ -204,7 +204,7 @@ class MetadataBuilderActorSpec
                     MetadataValue("2023-10-30T12:31:00Z")
       ),
       MetadataEvent(MetadataKey(workflowId, Option(MetadataJobKey("callB", None, 1)), CallMetadataKeys.VmCostPerHour),
-                    MetadataValue(0.5)
+                    MetadataValue(BigDecimal(0.5))
       )
     )
     val query = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)

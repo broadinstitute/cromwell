@@ -34,7 +34,7 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 - Fixes pulling Docker image metadata from private GCR repositories.
 - Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
 - A task log file with the name "task.log" that combines standard output and standard error is now streamed to the task directory in Google Cloud Storage.
-- Many more Cromwell / WDL labels for workflow, root workflow, call, shard etc. are now assigned to GCP Batch log entries in Cloud Logging.
+- When Cloud Logging is enabled, many more Cromwell / WDL labels for workflow, root workflow, call, shard etc. are now assigned to GCP Batch log entries.
 
 ### Improved handling of Life Sciences API quota errors
 

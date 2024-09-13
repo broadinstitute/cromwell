@@ -14,14 +14,16 @@ import java.time.OffsetDateTime
 
 object PapiPollResultMonitorActor {
   def props(tellMetadataFn: Map[String, Any] => Unit,
-            tellBardFn: (String, OffsetDateTime, OffsetDateTime, OffsetDateTime) => Unit
+            tellBardFn: (String, OffsetDateTime, Option[OffsetDateTime], OffsetDateTime) => Unit
   ): Props = Props(new PapiPollResultMonitorActor(tellMetadataFn, tellBardFn))
 }
 
 class PapiPollResultMonitorActor(tellMetadataFn: Map[String, Any] => Unit,
-                                 tellBardFn: (String, OffsetDateTime, OffsetDateTime, OffsetDateTime) => Unit
+                                 tellBardFn: (String, OffsetDateTime, Option[OffsetDateTime], OffsetDateTime) => Unit
 ) extends PollResultMonitorActor[RunStatus] {
 
+  override def extractEarliestEventTimeFromRunState(pollStatus: RunStatus): Option[OffsetDateTime] =
+    pollStatus.eventList.minByOption(_.offsetDateTime).map(e => e.offsetDateTime)
   override def extractStartTimeFromRunState(pollStatus: RunStatus): Option[OffsetDateTime] =
     pollStatus.eventList.collectFirst {
       case event if event.name == CallMetadataKeys.VmStartTime => event.offsetDateTime
@@ -35,7 +37,7 @@ class PapiPollResultMonitorActor(tellMetadataFn: Map[String, Any] => Unit,
   override def tellMetadata(metadata: Map[String, Any]): Unit = tellMetadataFn(metadata)
   override def tellBard(terminalStateName: String,
                         jobStart: OffsetDateTime,
-                        vmStartTime: OffsetDateTime,
+                        vmStartTime: Option[OffsetDateTime],
                         vmEndTime: OffsetDateTime
   ): Unit =
     tellBardFn(terminalStateName, jobStart, vmStartTime, vmEndTime)

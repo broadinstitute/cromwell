@@ -1544,7 +1544,7 @@ trait StandardAsyncExecutionActor
    */
   def tellBard(terminalStateName: String,
                jobStart: OffsetDateTime,
-               vmStartTime: OffsetDateTime,
+               vmStartTime: Option[OffsetDateTime],
                vmEndTime: OffsetDateTime
   ): Unit = {
     val dockerImage =
@@ -1569,10 +1569,10 @@ trait StandardAsyncExecutionActor
         cpus,
         memory,
         jobStart.toString,
-        Option(vmStartTime.toString),
+        vmStartTime.map(startTime => startTime.toString),
         vmEndTime.toString,
         jobStart.until(vmEndTime, ChronoUnit.SECONDS),
-        Option(vmStartTime.until(vmEndTime, ChronoUnit.SECONDS))
+        vmStartTime.map(start => start.until(vmEndTime, ChronoUnit.SECONDS))
       )
     )
   }

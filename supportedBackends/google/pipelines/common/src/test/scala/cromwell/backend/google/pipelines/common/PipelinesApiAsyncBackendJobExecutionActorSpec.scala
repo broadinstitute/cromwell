@@ -30,13 +30,11 @@ import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Run
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
-import cromwell.backend.standard.pollmonitoring.CostPollingHelper
 import cromwell.backend.standard.{
   DefaultStandardAsyncExecutionActorParams,
   StandardAsyncExecutionActorParams,
   StandardAsyncJob,
-  StandardExpressionFunctionsParams,
-  StartAndEndTimes
+  StandardExpressionFunctionsParams
 }
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
@@ -203,9 +201,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
-    override val pollingResultMonitorActor: Option[CostPollingHelper[RunStatus]] = Some(
-      new PapiPollResultMonitorActor(tellMetadata)
+    override val pollingResultMonitorActor: Option[ActorRef] = Some(
+      context.actorOf(PapiPollResultMonitorActor.props(tellMetadata, tellBard))
     )
+
     override lazy val backendEngineFunctions: PipelinesApiExpressionFunctions = functions
   }
 
@@ -1784,13 +1783,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     val cpuStartPollResult = Running(Seq(earliestEvent, cpuStartEvent))
     val cpuEndPollResult = RunStatus.Success(Seq(earliestEvent, cpuStartEvent, cpuEndEvent), None, None, None)
 
-    jesBackend.pollingResultMonitorActor.get.processPollResult(initialPollResult)
-    jesBackend.pollingResultMonitorActor.get.processPollResult(cpuStartPollResult)
-    jesBackend.pollingResultMonitorActor.get.processPollResult(cpuEndPollResult)
+    jesBackend.pollingResultMonitorActor.get.tell(initialPollResult, jesBackend.self)
+    jesBackend.pollingResultMonitorActor.get.tell(cpuStartPollResult, jesBackend.self)
+    jesBackend.pollingResultMonitorActor.get.tell(cpuEndPollResult, jesBackend.self)
 
-    jesBackend.getStartAndEndTimes(cpuEndPollResult) shouldBe Some(
-      StartAndEndTimes(earliestEvent.offsetDateTime, Some(cpuStartEvent.offsetDateTime), cpuEndEvent.offsetDateTime)
-    )
   }
 
   it should "not return a cpu start time if one was never recorded" in {
@@ -1805,22 +1801,9 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     val initialPollResult = Initializing(Seq(earliestEvent))
     val cpuStartPollResult = Running(Seq(earliestEvent))
     val cpuEndPollResult = RunStatus.Success(Seq(earliestEvent, cpuEndEvent), None, None, None)
-
-    jesBackend.pollingResultMonitorActor.get.processPollResult(initialPollResult)
-    jesBackend.pollingResultMonitorActor.get.processPollResult(cpuStartPollResult)
-    jesBackend.pollingResultMonitorActor.get.processPollResult(cpuEndPollResult)
-
-    jesBackend.getStartAndEndTimes(cpuEndPollResult) shouldBe Some(
-      StartAndEndTimes(earliestEvent.offsetDateTime, None, cpuEndEvent.offsetDateTime)
-    )
-  }
-
-  it should "return None trying to get start and end times from a status containing no events" in {
-    val jesBackend = setupBackend
-
-    val successStatus = RunStatus.Success(Seq(), None, None, None)
-
-    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
+    jesBackend.pollingResultMonitorActor.get.tell(initialPollResult, jesBackend.self)
+    jesBackend.pollingResultMonitorActor.get.tell(cpuStartPollResult, jesBackend.self)
+    jesBackend.pollingResultMonitorActor.get.tell(cpuEndPollResult, jesBackend.self)
   }
 
   it should "send bard metrics message on task success" in {

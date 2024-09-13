@@ -1084,7 +1084,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/stderr"
     batchBackend.gcpBatchCallPaths.batchLogPath should be(a[GcsPath])
     batchBackend.gcpBatchCallPaths.batchLogPath.pathAsString shouldBe
-      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/hello.log"
+      "gs://path/to/gcs_root/wf_hello/e6236763-c518-41d0-9688-432549a8bf7c/call-hello/task.log"
   }
 
   it should "return Batch log paths for scattered call" in {
@@ -1132,7 +1132,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/stderr"
     batchBackend.gcpBatchCallPaths.batchLogPath should be(a[GcsPath])
     batchBackend.gcpBatchCallPaths.batchLogPath.pathAsString shouldBe
-      "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/B-2.log"
+      "gs://path/to/gcs_root/w/e6236763-c518-41d0-9688-432549a8bf7d/call-B/shard-2/task.log"
   }
 
   it should "return the project from the workflow options in the start metadata" in {

@@ -1,14 +1,15 @@
 # Uses the Papiv2 backend which does not specify a parallel composite upload threshold, so parallel
 # composite uploads should be off.
 
-name: parallel_composite_uploads_off_by_default
+name: gcpbatch_parallel_composite_uploads_off_by_default
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH_ALT]
+# needs alt, hardcodes backend in library WDL
+backends: [GCPBATCH]
 
 files {
-  workflow: parallel_composite_uploads/parallel_composite_uploads_off.wdl
+  workflow: parallel_composite_uploads/gcpbatch_parallel_composite_uploads_off.wdl
   imports: [
-    "parallel_composite_uploads/parallel_composite_uploads_lib.wdl"
+    "parallel_composite_uploads/gcpbatch_parallel_composite_uploads_lib.wdl"
   ]
   options: "parallel_composite_uploads/caching_off.options"
 }

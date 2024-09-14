@@ -1,4 +1,4 @@
-# Uses the Papiv2ParallelCompositeUploads backend which specifies a parallel composite upload threshold,
+# Uses the GCPBATCHParallelCompositeUploads backend which specifies a parallel composite upload threshold,
 # so parallel composite uploads should be on.
 
 name: gcpbatch_parallel_composite_uploads_on_in_config

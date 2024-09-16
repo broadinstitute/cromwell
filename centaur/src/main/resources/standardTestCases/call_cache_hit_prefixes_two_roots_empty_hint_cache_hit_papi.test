@@ -4,7 +4,7 @@
 name: call_cache_hit_prefixes_two_roots_empty_hint_cache_hit_papi
 testFormat: runthriceexpectingcallcaching
 # don't know
-backends: [GCPBATCH]
+backends:  [Papi, GCPBATCH_ALT]
 
 files {
   workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl

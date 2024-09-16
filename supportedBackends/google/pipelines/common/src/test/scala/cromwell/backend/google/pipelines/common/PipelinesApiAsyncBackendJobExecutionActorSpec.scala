@@ -47,6 +47,7 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
 import cromwell.services.metadata.CallMetadataKeys
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metrics.bard.BardEventing.BardEventRequest
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
@@ -375,7 +376,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
 
   def buildPreemptibleTestActorRef(attempt: Int,
                                    preemptible: Int,
-                                   failedRetriesCountOpt: Option[Int] = None
+                                   failedRetriesCountOpt: Option[Int] = None,
+                                    serviceRegistryActor: Option[TestProbe] = None
   ): TestActorRef[TestablePipelinesApiJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,
@@ -389,7 +391,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
                                                 papiConfiguration,
                                                 TestableJesExpressionFunctions,
                                                 emptyActor,
-                                                failIoActor
+                                                failIoActor,
+                                                serviceRegistryActor.getOrElse(TestProbe()).ref
       )
     )
     TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
@@ -1789,21 +1792,55 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
 
   }
 
-  it should "not return a cpu start time if one was never recorded" in {
-    val jesBackend = setupBackend
+  it should "emit expected timing metadata as task executes" in {
+    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val expectedVmEnd = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
 
-    val earliestEvent =
-      ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val pollResult0 = RunStatus.Initializing(Seq.empty)
+    val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
+    val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
+    val pollResult3 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, expectedVmEnd)))
+    val terminalPollResult = RunStatus.Success(
+      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance")
+    )
 
-    // Note how there is no VmStartTime execution event.
-    val cpuEndEvent =
-      ExecutionEvent(CallMetadataKeys.VmEndTime, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
-    val initialPollResult = Initializing(Seq(earliestEvent))
-    val cpuStartPollResult = Running(Seq(earliestEvent))
-    val cpuEndPollResult = RunStatus.Success(Seq(earliestEvent, cpuEndEvent), None, None, None)
-    jesBackend.pollingResultMonitorActor.get.tell(initialPollResult, jesBackend.self)
-    jesBackend.pollingResultMonitorActor.get.tell(cpuStartPollResult, jesBackend.self)
-    jesBackend.pollingResultMonitorActor.get.tell(cpuEndPollResult, jesBackend.self)
+    val serviceRegistryProbe = TestProbe()
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val job = StandardAsyncJob(UUID.randomUUID().toString)
+    val run = Run(job)
+    val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
+    val testActorRef = buildPreemptibleTestActorRef(1, 1, None, Option(serviceRegistryProbe))
+
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult0)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult1)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult2)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult3)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, terminalPollResult)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
   }
 
   it should "send bard metrics message on task success" in {

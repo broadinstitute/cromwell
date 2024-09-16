@@ -377,7 +377,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
   def buildPreemptibleTestActorRef(attempt: Int,
                                    preemptible: Int,
                                    failedRetriesCountOpt: Option[Int] = None,
-                                    serviceRegistryActor: Option[TestProbe] = None
+                                   serviceRegistryActor: Option[TestProbe] = None
   ): TestActorRef[TestablePipelinesApiJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,

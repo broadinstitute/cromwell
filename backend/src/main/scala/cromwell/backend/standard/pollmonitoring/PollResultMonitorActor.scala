@@ -6,20 +6,18 @@ trait PollResultMessage
 case class ProcessThisPollResult[PollResultType](pollResultType: PollResultType) extends PollResultMessage
 case class AsyncJobHasFinished(terminalStateName: String) extends PollResultMessage
 
-// Processes poll results from backends and sends messages to other actors based on their contents.
-// Primarily concerned with reporting start times, end times, and cost data to both the bard service and cromwell metadata.
+/**
+ * Processes poll results from backends and sends messages to other actors based on their contents.
+ * Primarily concerned with reporting start times, end times, and cost data to both the bard and cromwell metadata services.
+ */
 trait PollResultMonitorActor[PollResultType] extends Actor {
-
-  // Should be overridden to return the earliest time that anything has happened. Used to determine when Cromwell (but not necessarily the cloud)
-  // started working on this job.
+  // Time that Cromwell (but not necessarily the cloud) started working on this job.
   def extractEarliestEventTimeFromRunState(pollStatus: PollResultType): Option[OffsetDateTime]
 
-  // Should be overridden to return the time that the user VM starts spending money.
-  // None if it can't be ascertained from the provided status.
+  // Time that the user VM started spending money.
   def extractStartTimeFromRunState(pollStatus: PollResultType): Option[OffsetDateTime]
 
-  // Should be overridden to return the time that the user VM stops spending money.
-  // None if it can't be ascertained from the provided status.
+  // Time that the user VM stopped spending money.
   def extractEndTimeFromRunState(pollStatus: PollResultType): Option[OffsetDateTime]
 
   // Function to emit metadata that is associated with a specific call attempt.
@@ -32,10 +30,10 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
                vmEndTime: OffsetDateTime
   ): Unit
 
-  var jobStartTime: Option[OffsetDateTime] =
-    Option.empty // earliest recorded time that this job has done anything at all
-  var vmStartTime: Option[OffsetDateTime] = Option.empty // time that the VM starts spending money
-  var vmEndTime: Option[OffsetDateTime] = Option.empty // time that the VM stopped spending money, falling back to now.
+  private var jobStartTime: Option[OffsetDateTime] =
+    Option.empty
+  private var vmStartTime: Option[OffsetDateTime] = Option.empty
+  private var vmEndTime: Option[OffsetDateTime] = Option.empty
 
   def processPollResult(pollStatus: PollResultType): Unit = {
     // Make sure jobStartTime remains the earliest event time ever seen
@@ -63,7 +61,8 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
 
   // When a job finishes, the bard actor needs to know about the timing in order to record metrics.
   // Cost related metadata should already have been handled in processPollResult.
-  def handleAsyncJobFinish(terminalStateName: String): Unit = {
-    jobStartTime.foreach(jobStart => tellBard(terminalStateName, jobStart, vmStartTime, vmEndTime.getOrElse(OffsetDateTime.now())))
-  }
+  def handleAsyncJobFinish(terminalStateName: String): Unit =
+    jobStartTime.foreach(jobStart =>
+      tellBard(terminalStateName, jobStart, vmStartTime, vmEndTime.getOrElse(OffsetDateTime.now()))
+    )
 }

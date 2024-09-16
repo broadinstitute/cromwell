@@ -1772,7 +1772,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     val functions = new TestPipelinesApiExpressionFunctions
     makeJesActorRef(SampleWdl.ArrayIO, Map.empty, "serialize", inputs, functions).underlyingActor
   }
-  
+
   it should "emit expected timing metadata as task executes" in {
     val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
     val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
@@ -1809,7 +1809,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     }
     testActorRef.underlyingActor.handlePollSuccess(handle, pollResult2)
     serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
-      case action: PutMetadataAction => action.events.exists(event => event.key.key.equals(CallMetadataKeys.VmStartTime))
+      case action: PutMetadataAction =>
+        action.events.exists(event => event.key.key.equals(CallMetadataKeys.VmStartTime))
       case _ => false
     }
     testActorRef.underlyingActor.handlePollSuccess(handle, pollResult3)

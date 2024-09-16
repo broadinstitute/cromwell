@@ -6,6 +6,7 @@ import java.time.{OffsetDateTime, ZoneOffset}
 import akka.pattern.ask
 import akka.testkit._
 import akka.util.Timeout
+import cats.implicits.catsSyntaxValidatedId
 import cromwell.core._
 import cromwell.services._
 import cromwell.services.metadata.MetadataService._
@@ -21,6 +22,7 @@ import org.scalatest.{Assertion, Succeeded}
 import spray.json._
 
 import java.util.UUID
+import scala.BigDecimal
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Random
@@ -425,6 +427,53 @@ class MetadataBuilderActorSpec
     val response = mba.ask(mainAction).mapTo[MetadataJsonResponse]
     response map { r => r shouldBe a[SuccessfulMetadataJsonResponse] }
     response.mapTo[SuccessfulMetadataJsonResponse] map { b => b.responseJson shouldBe expectedRes.parseJson }
+  }
+
+  it should "compute cost for calls" in {
+    val costJsValRows = Table(
+      ("jsInput", "expected"),
+      ("""{"attempt": 1, "shardIndex": -1, "vmStartTime": "2023-10-30T04:00:00Z", "vmEndTime": "2023-10-30T05:00:00Z", "vmCostPerHour": 0.0567}""",
+       BigDecimal(0.0567).validNel
+      ),
+      ("""{"attempt": 1, "shardIndex": -1, "vmStartTime": "2023-10-30T04:00:00Z", "vmEndTime": "2023-10-30T04:30:00Z", "vmCostPerHour": 0.0567}""",
+       BigDecimal(0.02835).validNel
+      ),
+      ("""{"attempt": 1, "shardIndex": -1, "vmEndTime": "2023-10-30T05:00:00Z", "vmCostPerHour": 0.0567}""",
+       BigDecimal(0).validNel
+      ),
+      ("""{"attempt": 1, "shardIndex": -1, "vmEndTime": "2023-10-30T05:00:00Z", "vmEndTime": "2023-10-30T04:30:00Z"}""",
+       BigDecimal(0).validNel
+      ),
+      (s"""{"attempt": 1, "shardIndex": -1, "vmStartTime": "2023-10-30 05:00:00Z", "vmCostPerHour": 0.0567}""",
+       "Text '2023-10-30 05:00:00Z' could not be parsed at index 10".invalidNel
+      ),
+      (s"""{"attempt": 1, "shardIndex": -1, "vmStartTime": "2023-10-30T05:00:00Z", "vmEndTime": "2023-10-30T04:30:00Z", "vmCostPerHour": -1}""",
+       "Couldn't find valid vmCostPerHour for foo.-1.1".invalidNel
+      )
+    )
+
+    forAll(costJsValRows) { case (jsInput: String, expected) =>
+      val jsVal = jsInput.parseJson
+      val retVal = MetadataBuilderActor.computeCost("foo", jsVal)
+      retVal shouldBe expected
+    }
+  }
+
+  it should "compute cost for calls that are still running" in {
+    val inputJsVal =
+      s"""{
+         |"attempt": 1,
+         |"shardIndex": -1,
+         |"vmStartTime": "${OffsetDateTime.now().minusMinutes(5)}",
+         |"vmCostPerHour": 12
+         |}""".stripMargin.parseJson
+
+    val retVal = MetadataBuilderActor.computeCost("foo", inputJsVal)
+
+    // Just test that the cost is approximately 1 - we don't know
+    // exactly how long the test takes to run
+    retVal.getOrElse(BigDecimal(0)) should be > BigDecimal(0.9)
+    retVal.getOrElse(BigDecimal(100)) should be < BigDecimal(1.1)
   }
 
   it should "build the call list for failed tasks when prompted" in {

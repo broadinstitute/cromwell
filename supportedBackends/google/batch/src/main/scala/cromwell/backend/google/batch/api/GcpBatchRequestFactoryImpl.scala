@@ -241,8 +241,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val logsPolicy = data.gcpBatchParameters.batchAttributes.logsPolicy match {
       case GcpBatchLogsPolicy.CloudLogging =>
         LogsPolicy.newBuilder.setDestination(Destination.CLOUD_LOGGING).build
-      case GcpBatchLogsPolicy.Path =>
-        ???
     }
 
     val googleLabels = data.createParameters.googleLabels.map(l => Label(l.key, l.value))

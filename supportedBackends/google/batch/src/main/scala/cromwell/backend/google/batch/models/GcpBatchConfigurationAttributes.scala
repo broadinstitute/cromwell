@@ -216,7 +216,6 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     val logsPolicy: ErrorOr[GcpBatchLogsPolicy] = validate {
       backendConfig.as[Option[String]]("batch.logs-policy").getOrElse("CLOUD_LOGGING") match {
         case "CLOUD_LOGGING" => GcpBatchLogsPolicy.CloudLogging
-        case "PATH" => GcpBatchLogsPolicy.Path
         case other =>
           throw new IllegalArgumentException(
             s"Unrecognized logs policy entry: $other. Supported strategies are CLOUD_LOGGING and PATH."

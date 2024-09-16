@@ -135,12 +135,6 @@ class GcpBatchConfigurationAttributesSpec
     gcpBatchAttributes.logsPolicy should be(GcpBatchLogsPolicy.CloudLogging)
   }
 
-  it should "parse logs-policy = PATH" in {
-    val backendConfig = ConfigFactory.parseString(configString(batch = "logs-policy = PATH"))
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
-    gcpBatchAttributes.logsPolicy should be(GcpBatchLogsPolicy.Path)
-  }
-
   it should "reject invalid logs-policy" in {
     val expected =
       "Google Cloud Batch configuration is not valid: Errors:\nUnrecognized logs policy entry: INVALID. Supported strategies are CLOUD_LOGGING and PATH."

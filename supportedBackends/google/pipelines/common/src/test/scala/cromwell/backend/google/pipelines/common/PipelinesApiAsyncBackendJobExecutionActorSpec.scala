@@ -392,7 +392,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
                                                 TestableJesExpressionFunctions,
                                                 emptyActor,
                                                 failIoActor,
-                                                serviceRegistryActor.getOrElse(TestProbe()).ref
+                                                serviceRegistryActor.map(actor => actor.ref).getOrElse(kvService)
       )
     )
     TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")

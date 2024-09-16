@@ -386,13 +386,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
                                                       failedRetriesCountOpt = failedRetriesCountOpt
     )
     val props = Props(
-      new TestablePipelinesApiJobExecutionActor(jobDescriptor,
-                                                Promise(),
-                                                papiConfiguration,
-                                                TestableJesExpressionFunctions,
-                                                emptyActor,
-                                                failIoActor,
-                                                serviceRegistryActor.map(actor => actor.ref).getOrElse(kvService)
+      new TestablePipelinesApiJobExecutionActor(
+        jobDescriptor,
+        Promise(),
+        papiConfiguration,
+        TestableJesExpressionFunctions,
+        emptyActor,
+        failIoActor,
+        serviceRegistryActor.map(actor => actor.ref).getOrElse(kvService)
       )
     )
     TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")

@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory
 import spray.json._
 
 import java.time.temporal.ChronoUnit
+import java.util.Currency
 import scala.language.postfixOps
 
 object MetadataBuilderActor {
@@ -57,6 +58,8 @@ object MetadataBuilderActor {
 
   private val AttemptKey = "attempt"
   private val ShardKey = "shardIndex"
+
+  final private val DefaultCurrency = Currency.getInstance("USD")
 
   /**
     * Metadata for a call attempt
@@ -642,7 +645,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       Map(
         WorkflowMetadataKeys.Id -> JsString(id.toString),
         WorkflowMetadataKeys.Status -> JsString(status),
-        "currency" -> JsString("USD"),
+        "currency" -> JsString(DefaultCurrency.getCurrencyCode),
         "cost" -> JsNumber(callCost + subworkflowCost),
         "errors" -> JsArray(costErrors ++ subworkflowErrors)
       )

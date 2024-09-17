@@ -936,9 +936,7 @@ trait StandardAsyncExecutionActor
     * @return A set of actions when the job is complete
     */
   def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit =
-    pollingResultMonitorActor.foreach(helper =>
-      helper.tell(AsyncJobHasFinished(runStatus.getClass.getSimpleName), self)
-    )
+    pollingResultMonitorActor.foreach(helper => helper.tell(AsyncJobHasFinished(runStatus), self))
 
   /**
     * Attempts to abort a job when an abort signal is retrieved.

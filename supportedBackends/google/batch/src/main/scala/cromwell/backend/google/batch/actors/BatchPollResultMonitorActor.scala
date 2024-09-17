@@ -55,9 +55,19 @@ class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
     case message: PollResultMessage =>
       message match {
         case ProcessThisPollResult(pollResult: RunStatus) => processPollResult(pollResult)
-        case ProcessThisPollResult(result) => params.logger.foreach(logger => logger.error(s"Programmer error: Received Poll Result of unknown type. Expected ${RunStatus.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."))
+        case ProcessThisPollResult(result) =>
+          params.logger.foreach(logger =>
+            logger.error(
+              s"Programmer error: Received Poll Result of unknown type. Expected ${RunStatus.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."
+            )
+          )
         case AsyncJobHasFinished(pollResult: RunStatus) => handleAsyncJobFinish(pollResult.getClass.getSimpleName)
-        case AsyncJobHasFinished(result) => params.logger.foreach(logger => logger.error(s"Programmer error: Received Poll Result of unknown type. Expected ${AsyncJobHasFinished.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."))
+        case AsyncJobHasFinished(result) =>
+          params.logger.foreach(logger =>
+            logger.error(
+              s"Programmer error: Received Poll Result of unknown type. Expected ${AsyncJobHasFinished.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."
+            )
+          )
       }
     case _ =>
       println("Programmer error: Cost Helper received message of type other than CostPollingMessage")

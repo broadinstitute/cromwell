@@ -3,7 +3,13 @@ package cromwell.backend.google.pipelines.common
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Platform}
 import cromwell.backend.google.pipelines.common.api.RunStatus
-import cromwell.backend.standard.pollmonitoring.{AsyncJobHasFinished, PollMonitorParameters, PollResultMessage, PollResultMonitorActor, ProcessThisPollResult}
+import cromwell.backend.standard.pollmonitoring.{
+  AsyncJobHasFinished,
+  PollMonitorParameters,
+  PollResultMessage,
+  PollResultMonitorActor,
+  ProcessThisPollResult
+}
 import cromwell.backend.validation.ValidatedRuntimeAttributes
 import cromwell.core.logging.JobLogger
 import cromwell.services.metadata.CallMetadataKeys
@@ -19,7 +25,13 @@ object PapiPollResultMonitorActor {
             logger: JobLogger
   ): Props = Props(
     new PapiPollResultMonitorActor(
-      PollMonitorParameters(serviceRegistry, workflowDescriptor, jobDescriptor, runtimeAttributes, platform, Option(logger))
+      PollMonitorParameters(serviceRegistry,
+                            workflowDescriptor,
+                            jobDescriptor,
+                            runtimeAttributes,
+                            platform,
+                            Option(logger)
+      )
     )
   )
 }
@@ -42,9 +54,19 @@ class PapiPollResultMonitorActor(parameters: PollMonitorParameters) extends Poll
     case message: PollResultMessage =>
       message match {
         case ProcessThisPollResult(pollResult: RunStatus) => processPollResult(pollResult)
-        case ProcessThisPollResult(result) => params.logger.foreach(logger => logger.error(s"Programmer error: Received Poll Result of unknown type. Expected ${RunStatus.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."))
+        case ProcessThisPollResult(result) =>
+          params.logger.foreach(logger =>
+            logger.error(
+              s"Programmer error: Received Poll Result of unknown type. Expected ${RunStatus.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."
+            )
+          )
         case AsyncJobHasFinished(pollResult: RunStatus) => handleAsyncJobFinish(pollResult.getClass.getSimpleName)
-        case AsyncJobHasFinished(result) => params.logger.foreach(logger => logger.error(s"Programmer error: Received Poll Result of unknown type. Expected ${AsyncJobHasFinished.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."))
+        case AsyncJobHasFinished(result) =>
+          params.logger.foreach(logger =>
+            logger.error(
+              s"Programmer error: Received Poll Result of unknown type. Expected ${AsyncJobHasFinished.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."
+            )
+          )
       }
     case _ =>
       println("Programmer error: Cost Helper received message of type other than CostPollingMessage")

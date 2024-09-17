@@ -70,7 +70,11 @@ class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
           )
       }
     case _ =>
-      println("Programmer error: Cost Helper received message of type other than CostPollingMessage")
+      params.logger.foreach(logger =>
+        logger.error(
+          s"Programmer error: Cost Helper received message of type other than CostPollingMessage"
+        )
+      )
   }
 
   override def params: PollMonitorParameters = pollMonitorParameters

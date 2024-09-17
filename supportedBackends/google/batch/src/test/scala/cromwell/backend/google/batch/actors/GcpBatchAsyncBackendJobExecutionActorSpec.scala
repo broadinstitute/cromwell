@@ -14,9 +14,7 @@ import common.collections.EnhancedCollections._
 import common.mock.MockSugar
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
-import cromwell.backend.async.AsyncBackendJobExecutionActor.Execute
 import cromwell.backend.google.batch.actors.GcpBatchAsyncBackendJobExecutionActor.GcpBatchPendingExecutionHandle
-import cromwell.backend.google.batch.api.BatchApiRequestManager.BatchStatusPollRequest
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models._
@@ -1254,9 +1252,9 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   }
 
   def buildTestActorRef(
+    jobDescriptor: BackendJobDescriptor,
     serviceRegistryActor: Option[TestProbe] = None
   ): TestActorRef[TestableGcpBatchJobExecutionActor] = {
-    val jobDescriptor = buildJobDescriptor()
     val props = Props(
       new TestableGcpBatchJobExecutionActor(
         jobDescriptor,
@@ -1289,7 +1287,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val job = StandardAsyncJob(UUID.randomUUID().toString)
     val run = Run(job)
     val handle = new GcpBatchPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
-    val testActorRef = buildTestActorRef(Option(serviceRegistryProbe))
+    val testActorRef = buildTestActorRef(jobDescriptor, Option(serviceRegistryProbe))
 
     testActorRef.underlyingActor.handlePollSuccess(handle, pollResult0)
     serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
@@ -1320,30 +1318,35 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   }
 
   it should "send bard metrics message on task success" in {
-    val runStatus = RunStatus.Success(
-      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS)))
-    )
+    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val expectedVmEnd = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
+
+    val pollResult0 = RunStatus.Initializing(Seq.empty)
+    val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
+    val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
+    val pollResult3 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, expectedVmEnd)))
+    val terminalPollResult =
+      RunStatus.Success(Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))))
+
     val serviceRegistryProbe = TestProbe()
-    val statusPoller = TestProbe("statusPoller")
 
     val jobDescriptor = buildJobDescriptor()
+    val job = StandardAsyncJob(jobDescriptor.workflowDescriptor.id.id.toString)
+    val run = Run(job)
+    val handle = new GcpBatchPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
+    val testActorRef = buildTestActorRef(jobDescriptor, Option(serviceRegistryProbe))
 
-    val props = Props(new TestableGcpBatchJobExecutionActor(jobDescriptor, Promise(), gcpBatchConfiguration))
-    val testActorRef = TestActorRef[TestableGcpBatchJobExecutionActor](
-      props,
-      s"TestableGcpBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
-    )
-    val backend = testActorRef
-    backend ! Execute
-    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: BatchStatusPollRequest =>
-      backend ! runStatus
-    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult0)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult1)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult2)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult3)
+    testActorRef.underlyingActor.handlePollSuccess(handle, terminalPollResult)
 
     val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
       case _: BardEventRequest => true
       case _ => false
     }
-
     val taskSummary = bardMessage.asInstanceOf[BardEventRequest].event.asInstanceOf[TaskSummaryEvent]
     taskSummary.workflowId should be(jobDescriptor.workflowDescriptor.id.id)
     taskSummary.parentWorkflowId should be(None)
@@ -1358,37 +1361,35 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     taskSummary.cpuCount should be(1)
     taskSummary.memoryBytes should be(2.147483648e9)
     taskSummary.startTime should not be empty
-    taskSummary.cpuStartTime should be(None)
+    taskSummary.cpuStartTime should be(Option(expectedVmStart.toString))
     taskSummary.endTime should not be empty
-    taskSummary.jobSeconds should be(0)
-    taskSummary.cpuSeconds should be(None)
+    taskSummary.jobSeconds should be(7200)
+    taskSummary.cpuSeconds should be(Option(3600))
   }
 
   it should "send bard metrics message on task failure" in {
-    val runStatus =
-      RunStatus.Aborted(Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))))
+    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+
+    val pollResult0 = RunStatus.Initializing(Seq.empty)
+    val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
+    val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
+    val abortStatus = RunStatus.Aborted(
+      Seq(ExecutionEvent("got aborted", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS)))
+    )
 
     val serviceRegistryProbe = TestProbe()
-    val statusPoller = TestProbe("statusPoller")
 
     val jobDescriptor = buildJobDescriptor()
+    val job = StandardAsyncJob(jobDescriptor.workflowDescriptor.id.id.toString)
+    val run = Run(job)
+    val handle = new GcpBatchPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
+    val testActorRef = buildTestActorRef(jobDescriptor, Option(serviceRegistryProbe))
 
-    val props = Props(
-      new TestableGcpBatchJobExecutionActor(jobDescriptor,
-                                            Promise(),
-                                            gcpBatchConfiguration,
-                                            TestableGcpBatchExpressionFunctions
-      )
-    )
-    val backend = TestActorRef[TestableGcpBatchJobExecutionActor](
-      props,
-      s"TestableBatchJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
-    )
-
-    backend ! Execute
-    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: BatchStatusPollRequest =>
-      backend ! runStatus
-    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult0)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult1)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult2)
+    testActorRef.underlyingActor.handlePollSuccess(handle, abortStatus)
 
     val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
       case _: BardEventRequest => true
@@ -1409,10 +1410,10 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     taskSummary.cpuCount should be(1)
     taskSummary.memoryBytes should be(2.147483648e9)
     taskSummary.startTime should not be empty
-    taskSummary.cpuStartTime should be(None)
+    taskSummary.cpuStartTime should be(Option(expectedVmStart.toString))
     taskSummary.endTime should not be empty
-    taskSummary.jobSeconds should be(0)
-    taskSummary.cpuSeconds should be(None)
+    taskSummary.jobSeconds should be > 0.toLong
+    taskSummary.cpuSeconds.get should be > 0.toLong
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

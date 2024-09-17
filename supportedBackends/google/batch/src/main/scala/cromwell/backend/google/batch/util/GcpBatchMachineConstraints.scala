@@ -10,21 +10,19 @@ import cromwell.backend.google.batch.models.{
 import cromwell.core.logging.JobLogger
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import scala.util.matching.Regex
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 
 object GcpBatchMachineConstraints {
-  private val machineTypePattern: Regex = """^\w{2}\w?-\w+-\w+$""".r
-
   def machineType(memory: MemorySize,
                   cpu: Int Refined Positive,
                   cpuPlatformOption: Option[String],
+                  standardMachineTypeOption: Option[String],
                   googleLegacyMachineSelection: Boolean,
                   jobLogger: JobLogger
   ): String =
-    if (isStandardMachineType(cpuPlatformOption.getOrElse(""))) {
-      StandardMachineType(cpuPlatformOption.getOrElse("")).machineType
+    if (standardMachineTypeOption.exists(_.trim.nonEmpty)) {
+      StandardMachineType(standardMachineTypeOption.get).machineType
     } else if (googleLegacyMachineSelection) {
       s"predefined-$cpu-${memory.to(MemoryUnit.MB).amount.intValue()}"
     } else {
@@ -39,6 +37,4 @@ object GcpBatchMachineConstraints {
         }
       customMachineType.machineType(memory, cpu, jobLogger)
     }
-
-  def isStandardMachineType(machineType: String): Boolean = machineTypePattern.matches(machineType)
 }

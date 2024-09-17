@@ -1,16 +1,22 @@
-package cromwell.backend.google.pipelines.common
+package cromwell.backend.google.batch.actors
 
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Platform}
-import cromwell.backend.google.pipelines.common.api.RunStatus
-import cromwell.backend.standard.pollmonitoring.{AsyncJobHasFinished, PollMonitorParameters, PollResultMessage, PollResultMonitorActor, ProcessThisPollResult}
+import cromwell.backend.google.batch.models.RunStatus
+import cromwell.backend.standard.pollmonitoring.{
+  AsyncJobHasFinished,
+  PollMonitorParameters,
+  PollResultMessage,
+  PollResultMonitorActor,
+  ProcessThisPollResult
+}
 import cromwell.backend.validation.ValidatedRuntimeAttributes
 import cromwell.core.logging.JobLogger
 import cromwell.services.metadata.CallMetadataKeys
 
 import java.time.OffsetDateTime
 
-object PapiPollResultMonitorActor {
+object BatchPollResultMonitorActor {
   def props(serviceRegistry: ActorRef,
             workflowDescriptor: BackendWorkflowDescriptor,
             jobDescriptor: BackendJobDescriptor,
@@ -18,13 +24,20 @@ object PapiPollResultMonitorActor {
             platform: Option[Platform],
             logger: JobLogger
   ): Props = Props(
-    new PapiPollResultMonitorActor(
-      PollMonitorParameters(serviceRegistry, workflowDescriptor, jobDescriptor, runtimeAttributes, platform, Option(logger))
+    new BatchPollResultMonitorActor(
+      PollMonitorParameters(serviceRegistry,
+                            workflowDescriptor,
+                            jobDescriptor,
+                            runtimeAttributes,
+                            platform,
+                            Option(logger)
+      )
     )
   )
 }
 
-class PapiPollResultMonitorActor(parameters: PollMonitorParameters) extends PollResultMonitorActor[RunStatus] {
+class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
+    extends PollResultMonitorActor[RunStatus] {
 
   override def extractEarliestEventTimeFromRunState(pollStatus: RunStatus): Option[OffsetDateTime] =
     pollStatus.eventList.minByOption(_.offsetDateTime).map(e => e.offsetDateTime)
@@ -50,5 +63,5 @@ class PapiPollResultMonitorActor(parameters: PollMonitorParameters) extends Poll
       println("Programmer error: Cost Helper received message of type other than CostPollingMessage")
   }
 
-  override def params: PollMonitorParameters = parameters
+  override def params: PollMonitorParameters = pollMonitorParameters
 }

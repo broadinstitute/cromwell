@@ -70,7 +70,15 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
   }
 
   override val pollingResultMonitorActor: Option[ActorRef] = Option(
-    context.actorOf(PapiPollResultMonitorActor.props(tellMetadata, tellBard))
+    context.actorOf(
+      PapiPollResultMonitorActor.props(serviceRegistryActor,
+                                       workflowDescriptor,
+                                       jobDescriptor,
+                                       validatedRuntimeAttributes,
+                                       platform,
+                                       jobLogger
+      )
+    )
   )
 
   private lazy val gcsTransferLibrary =

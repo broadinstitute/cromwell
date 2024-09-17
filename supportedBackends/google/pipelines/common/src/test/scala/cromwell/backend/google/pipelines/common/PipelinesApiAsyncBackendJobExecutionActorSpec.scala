@@ -203,7 +203,15 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
     override val pollingResultMonitorActor: Option[ActorRef] = Some(
-      context.actorOf(PapiPollResultMonitorActor.props(tellMetadata, tellBard))
+      context.actorOf(
+        PapiPollResultMonitorActor.props(serviceRegistryActor,
+                                         workflowDescriptor,
+                                         jobDescriptor,
+                                         validatedRuntimeAttributes,
+                                         platform,
+                                         jobLogger
+        )
+      )
     )
 
     override lazy val backendEngineFunctions: PipelinesApiExpressionFunctions = functions
@@ -374,10 +382,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     Await.result(promise.future, Timeout)
   }
 
-  def buildPreemptibleTestActorRef(attempt: Int,
-                                   preemptible: Int,
-                                   failedRetriesCountOpt: Option[Int] = None,
-                                   serviceRegistryActor: Option[TestProbe] = None
+  private def buildPreemptibleTestActorRef(attempt: Int,
+                                           preemptible: Int,
+                                           failedRetriesCountOpt: Option[Int] = None,
+                                           serviceRegistryActor: Option[TestProbe] = None
   ): TestActorRef[TestablePipelinesApiJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,

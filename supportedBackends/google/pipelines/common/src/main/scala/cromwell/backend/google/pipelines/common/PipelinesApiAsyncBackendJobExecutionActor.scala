@@ -133,7 +133,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override type StandardAsyncRunState = RunStatus
 
   override val pollingResultMonitorActor: Option[ActorRef] = Option.empty
-  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz.toString == that.toString
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean =
+    thiz.toString == that.toString
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
 

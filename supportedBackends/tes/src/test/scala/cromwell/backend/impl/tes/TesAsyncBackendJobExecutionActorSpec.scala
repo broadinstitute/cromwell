@@ -1,6 +1,5 @@
 package cromwell.backend.impl.tes
 
-import akka.event.LoggingAdapter
 import common.mock.MockSugar
 import cromwell.backend.async.PendingExecutionHandle
 import cromwell.backend.standard.StandardAsyncJob
@@ -11,7 +10,6 @@ import cromwell.core.path.{DefaultPathBuilder, NioPath}
 import cromwell.filesystems.blob.{BlobFileSystemManager, BlobPath, WSMBlobSasTokenGenerator}
 import cromwell.filesystems.http.HttpPathBuilder
 import org.mockito.ArgumentMatchers.any
-import org.mockito.Mockito.verify
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -435,37 +433,5 @@ class TesAsyncBackendJobExecutionActorSpec
       val actual = TesAsyncBackendJobExecutionActor.mapInputPath(httpPathWithParams.get, jobPaths, commandDirectory)
       actual shouldBe s"${jobPaths.callInputsDockerRoot}/$localPathInInputDir"
     }
-  }
-
-  it should "call tellBard with Complete status containing task end time" in {
-    val runId = StandardAsyncJob(UUID.randomUUID().toString)
-    val handle = new StandardAsyncPendingExecutionHandle(null, runId, None, None)
-    val getTaskLogsFn = (_: StandardAsyncPendingExecutionHandle) =>
-      Future.successful(
-        Some(
-          TaskLog(Some("2024-04-04T20:20:32.240066+00:00"),
-                  Some("2024-04-04T20:22:32.077818+00:00"),
-                  None,
-                  None,
-                  None,
-                  None
-          )
-        )
-      )
-    val tellMetadataFn = mock[Map[String, Any] => Unit]
-    val tellBardFn = mock[TesRunStatus => Unit]
-    val mockLogger = mock[LoggingAdapter]
-
-    val tesRunStatus = Complete(Some(TesVmCostData(Some("2024-04-04T20:20:32.240066+00:00"), None, Some("0.203"))))
-    val expectedNewCostData = Some(
-      TesVmCostData(Some("2024-04-04T20:20:32.240066+00:00"), Some("2024-04-04T20:22:32.077818+00:00"), Some("0.203"))
-    )
-
-    TesAsyncBackendJobExecutionActor.onTaskComplete(tesRunStatus, handle, getTaskLogsFn, tellMetadataFn, mockLogger)
-
-    // Wait for any futures to complete, I tried using whenReady and it didn't work.
-    Thread.sleep(500)
-
-    verify(tellBardFn).apply(Complete(expectedNewCostData))
   }
 }

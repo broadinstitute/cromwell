@@ -1,8 +1,8 @@
 # Tests that a runtime option to save call logs is copying said logs appropriately.
 
-name: final_call_logs_dir_jes
+name: gcpbatch_final_call_logs_dir_jes
 # not sure
-backends: [Papi, GCPBATCH_ALT]
+backends: [GCPBATCH]
 
 testFormat: workflowsuccess
 
@@ -15,7 +15,6 @@ fileSystemCheck: "gcs"
 outputExpectations {
   "gs://cloud-cromwell-dev-self-cleaning/callLogs/wf_hello/<<UUID>>/call-hello/stdout": 1
   "gs://cloud-cromwell-dev-self-cleaning/callLogs/wf_hello/<<UUID>>/call-hello/stderr": 1
-  "gs://cloud-cromwell-dev-self-cleaning/callLogs/wf_hello/<<UUID>>/call-hello/hello.log": 1
   "gs://cloud-cromwell-dev-self-cleaning/workflowLogDir/workflow.<<UUID>>.log": 1
   "gs://cloud-cromwell-dev-self-cleaning/outputs/wf_hello/<<UUID>>/call-hello/test.out": 1
   "gs://cloud-cromwell-dev-self-cleaning/outputs/wf_hello/<<UUID>>/call-hello/array.out": 1

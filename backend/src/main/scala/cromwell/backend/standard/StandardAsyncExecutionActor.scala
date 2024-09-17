@@ -32,15 +32,12 @@ import cromwell.core.path.Path
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-import cromwell.services.metrics.bard.BardEventing.BardEventRequest
-import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
-import wdl4s.parser.MemoryUnit
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
@@ -48,8 +45,6 @@ import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
 import java.io.IOException
-import java.time.OffsetDateTime
-import java.time.temporal.ChronoUnit
 import scala.concurrent._
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -1532,47 +1527,6 @@ trait StandardAsyncExecutionActor
   def tellMetadata(metadataKeyValues: Map[String, Any]): Unit = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
-  }
-
-  /**
-   * Reports metrics to bard.
-   * @param jobStart: Time that Cromwell started processing this job. Should be the earliest recorded time that this job has done...anything.
-   * @param vmStartTime: Time that the backend started spending money.
-   * @param vmEndTime: Time that the backend stopped spending money.
-   */
-  def tellBard(terminalStateName: String,
-               jobStart: OffsetDateTime,
-               vmStartTime: Option[OffsetDateTime],
-               vmEndTime: OffsetDateTime
-  ): Unit = {
-    val dockerImage =
-      RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
-    val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
-    val memory = RuntimeAttributesValidation
-      .extract(MemoryValidation.instance(), validatedRuntimeAttributes)
-      .to(MemoryUnit.Bytes)
-      .amount
-    serviceRegistryActor ! BardEventRequest(
-      TaskSummaryEvent(
-        workflowDescriptor.id.id,
-        workflowDescriptor.possibleParentWorkflowId.map(_.id),
-        workflowDescriptor.rootWorkflowId.id,
-        jobDescriptor.key.tag,
-        jobDescriptor.key.call.fullyQualifiedName,
-        jobDescriptor.key.index,
-        jobDescriptor.key.attempt,
-        terminalStateName,
-        platform.map(_.runtimeKey),
-        dockerImage,
-        cpus,
-        memory,
-        jobStart.toString,
-        vmStartTime.map(startTime => startTime.toString),
-        vmEndTime.toString,
-        jobStart.until(vmEndTime, ChronoUnit.SECONDS),
-        vmStartTime.map(start => start.until(vmEndTime, ChronoUnit.SECONDS))
-      )
-    )
   }
 
   implicit override protected lazy val ec: ExecutionContextExecutor = context.dispatcher

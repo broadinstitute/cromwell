@@ -234,8 +234,10 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
                                                              googleLegacyMachineSelection = false,
                                                              jobLogger = jobLogger
     )
+    // Don't set cpuPlatform if the field was used to specify standard machine type when submitting the GCP Batch request
+    val cpuPlatformBatchRequest = if (GcpBatchMachineConstraints.isStandardMachineType(cpuPlatform)) "" else cpuPlatform
     val instancePolicy =
-      createInstancePolicy(cpuPlatform = cpuPlatform, spotModel, accelerators, allDisks, machineType = machineType)
+      createInstancePolicy(cpuPlatform = cpuPlatformBatchRequest, spotModel, accelerators, allDisks, machineType = machineType)
     val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
     val allocationPolicy =
       createAllocationPolicy(data, locationPolicy, instancePolicy.build, networkPolicy, gcpSa, accelerators)

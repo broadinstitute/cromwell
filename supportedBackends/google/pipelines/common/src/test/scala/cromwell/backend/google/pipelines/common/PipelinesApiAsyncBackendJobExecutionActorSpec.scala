@@ -26,17 +26,15 @@ import cromwell.backend.async.{
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor.JesPendingExecutionHandle
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, RunStatus}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
-import cromwell.backend.google.pipelines.common.api.RunStatus.{Initializing, Running, UnsuccessfulRunStatus}
+import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
-import cromwell.backend.standard.costestimation.CostPollingHelper
 import cromwell.backend.standard.{
   DefaultStandardAsyncExecutionActorParams,
   StandardAsyncExecutionActorParams,
   StandardAsyncJob,
-  StandardExpressionFunctionsParams,
-  StartAndEndTimes
+  StandardExpressionFunctionsParams
 }
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
@@ -49,6 +47,7 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
 import cromwell.services.metadata.CallMetadataKeys
+import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metrics.bard.BardEventing.BardEventRequest
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
@@ -203,7 +202,18 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
-    override val costHelper: Option[CostPollingHelper[RunStatus]] = Some(new PapiCostPollingHelper(tellMetadata))
+    override val pollingResultMonitorActor: Option[ActorRef] = Some(
+      context.actorOf(
+        PapiPollResultMonitorActor.props(serviceRegistryActor,
+                                         workflowDescriptor,
+                                         jobDescriptor,
+                                         validatedRuntimeAttributes,
+                                         platform,
+                                         jobLogger
+        )
+      )
+    )
+
     override lazy val backendEngineFunctions: PipelinesApiExpressionFunctions = functions
   }
 
@@ -372,9 +382,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     Await.result(promise.future, Timeout)
   }
 
-  def buildPreemptibleTestActorRef(attempt: Int,
-                                   preemptible: Int,
-                                   failedRetriesCountOpt: Option[Int] = None
+  private def buildPreemptibleTestActorRef(attempt: Int,
+                                           preemptible: Int,
+                                           failedRetriesCountOpt: Option[Int] = None,
+                                           serviceRegistryActor: Option[TestProbe] = None
   ): TestActorRef[TestablePipelinesApiJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,
@@ -383,12 +394,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
                                                       failedRetriesCountOpt = failedRetriesCountOpt
     )
     val props = Props(
-      new TestablePipelinesApiJobExecutionActor(jobDescriptor,
-                                                Promise(),
-                                                papiConfiguration,
-                                                TestableJesExpressionFunctions,
-                                                emptyActor,
-                                                failIoActor
+      new TestablePipelinesApiJobExecutionActor(
+        jobDescriptor,
+        Promise(),
+        papiConfiguration,
+        TestableJesExpressionFunctions,
+        emptyActor,
+        failIoActor,
+        serviceRegistryActor.map(actor => actor.ref).getOrElse(kvService)
       )
     )
     TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
@@ -1769,56 +1782,56 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     makeJesActorRef(SampleWdl.ArrayIO, Map.empty, "serialize", inputs, functions).underlyingActor
   }
 
-  it should "extract start, cpu, and end times from terminal run statuses" in {
-    val jesBackend = setupBackend
+  it should "emit expected timing metadata as task executes" in {
+    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val expectedVmEnd = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
 
-    val earliestEvent =
-      ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
-    val cpuStartEvent =
-      ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now().minus(30, ChronoUnit.MINUTES), None)
-    val cpuEndEvent =
-      ExecutionEvent(CallMetadataKeys.VmEndTime, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
-    val initialPollResult = Initializing(Seq(earliestEvent))
-    val cpuStartPollResult = Running(Seq(earliestEvent, cpuStartEvent))
-    val cpuEndPollResult = RunStatus.Success(Seq(earliestEvent, cpuStartEvent, cpuEndEvent), None, None, None)
-
-    jesBackend.costHelper.get.processPollResult(initialPollResult)
-    jesBackend.costHelper.get.processPollResult(cpuStartPollResult)
-    jesBackend.costHelper.get.processPollResult(cpuEndPollResult)
-
-    jesBackend.getStartAndEndTimes(cpuEndPollResult) shouldBe Some(
-      StartAndEndTimes(earliestEvent.offsetDateTime, Some(cpuStartEvent.offsetDateTime), cpuEndEvent.offsetDateTime)
+    val pollResult0 = RunStatus.Initializing(Seq.empty)
+    val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
+    val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
+    val pollResult3 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, expectedVmEnd)))
+    val terminalPollResult = RunStatus.Success(
+      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance")
     )
-  }
 
-  it should "not return a cpu start time if one was never recorded" in {
-    val jesBackend = setupBackend
+    val serviceRegistryProbe = TestProbe()
 
-    val earliestEvent =
-      ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val job = StandardAsyncJob(UUID.randomUUID().toString)
+    val run = Run(job)
+    val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
+    val testActorRef = buildPreemptibleTestActorRef(1, 1, None, Option(serviceRegistryProbe))
 
-    // Note how there is no VmStartTime execution event.
-    val cpuEndEvent =
-      ExecutionEvent(CallMetadataKeys.VmEndTime, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
-    val initialPollResult = Initializing(Seq(earliestEvent))
-    val cpuStartPollResult = Running(Seq(earliestEvent))
-    val cpuEndPollResult = RunStatus.Success(Seq(earliestEvent, cpuEndEvent), None, None, None)
-
-    jesBackend.costHelper.get.processPollResult(initialPollResult)
-    jesBackend.costHelper.get.processPollResult(cpuStartPollResult)
-    jesBackend.costHelper.get.processPollResult(cpuEndPollResult)
-
-    jesBackend.getStartAndEndTimes(cpuEndPollResult) shouldBe Some(
-      StartAndEndTimes(earliestEvent.offsetDateTime, None, cpuEndEvent.offsetDateTime)
-    )
-  }
-
-  it should "return None trying to get start and end times from a status containing no events" in {
-    val jesBackend = setupBackend
-
-    val successStatus = RunStatus.Success(Seq(), None, None, None)
-
-    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult0)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult1)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult2)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case action: PutMetadataAction =>
+        action.events.exists(event => event.key.key.equals(CallMetadataKeys.VmStartTime))
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult3)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case action: PutMetadataAction => action.events.exists(event => event.key.key.equals(CallMetadataKeys.VmEndTime))
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, terminalPollResult)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
   }
 
   it should "send bard metrics message on task success" in {

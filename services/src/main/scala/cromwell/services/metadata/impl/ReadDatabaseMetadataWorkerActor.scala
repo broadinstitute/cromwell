@@ -2,11 +2,12 @@ package cromwell.services.metadata.impl
 
 import java.sql.SQLTimeoutException
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props}
+import cats.data.NonEmptyList
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.{WorkflowId, WorkflowSubmitted}
 import cromwell.services.MetadataServicesStore
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.{MetadataEvent, MetadataQuery, WorkflowQueryParameters}
+import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataQuery, WorkflowQueryParameters}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
@@ -38,10 +39,8 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     case GetRootAndSubworkflowLabels(rootWorkflowId: WorkflowId) =>
       evaluateRespondAndStop(sender(), queryRootAndSubworkflowLabelsAndRespond(rootWorkflowId))
     case GetLogs(workflowId) => evaluateRespondAndStop(sender(), queryLogsAndRespond(workflowId))
-    case GetCost(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown) =>
-      evaluateRespondAndStop(sender(),
-                             queryCostAndRespond(workflowId, includeTaskBreakdown, includeSubworkflowBreakdown)
-      )
+    case GetCost(workflowId) =>
+      evaluateRespondAndStop(sender(), queryCostAndRespond(workflowId))
     case QueryForWorkflowsMatchingParameters(parameters) =>
       evaluateRespondAndStop(sender(), queryWorkflowsAndRespond(parameters))
     case WorkflowOutputs(id) => evaluateRespondAndStop(sender(), queryWorkflowOutputsAndRespond(id))
@@ -160,21 +159,28 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
       LogsFailure(id, t)
     }
 
-  private def queryCostAndRespond(id: WorkflowId,
-                                  includeTaskBreakdown: Boolean,
-                                  includeSubworkflowBreakdown: Boolean
-  ): Future[MetadataServiceResponse] = {
+  private def queryCostAndRespond(id: WorkflowId): Future[MetadataServiceResponse] = {
+
+    val keys = NonEmptyList.of(CallMetadataKeys.VmStartTime,
+                               CallMetadataKeys.VmEndTime,
+                               CallMetadataKeys.VmCostPerHour,
+                               CallMetadataKeys.SubWorkflowId
+    )
+    val metadataQuery = MetadataQuery(id, None, None, Option(keys), None, expandSubWorkflows = true)
+
     val results = for {
       status <- getWorkflowStatus(id)
-      costEvents <- queryCost(id, metadataReadTimeout)
+      costEvents <- queryMetadata(metadataQuery)
     } yield (status, costEvents)
 
     results.map { case (s, m) =>
       (s, m) match {
-        case (Some(wfState), metadataEvents) =>
-          CostResponse(id, wfState, metadataEvents, includeTaskBreakdown, includeSubworkflowBreakdown)
-        // TODO should this be a failure?
-        case (None, _) => CostFailure(id, new Exception("Couldn't find workflow status"))
+        case (Some(wfState), resp: MetadataLookupResponse) =>
+          CostResponse(id, wfState, resp)
+        case (None, resp: MetadataLookupResponse) =>
+          // See note in getStatus above - if we can't find status, it's Submitted
+          CostResponse(id, WorkflowSubmitted, resp)
+        case (_, errorMetadataResponse) => errorMetadataResponse
       }
     } recover { case t =>
       CostFailure(id, t)

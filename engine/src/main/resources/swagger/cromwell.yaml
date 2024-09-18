@@ -556,7 +556,8 @@ paths:
           in: query
         - name: expandSubWorkflows
           description: >
-            When true, metadata for sub workflows will be fetched and inserted automatically in the metadata response.
+            When true, metadata for sub workflows will be fetched and inserted automatically in the metadata response. 
+            Requires inclusion of key subworkflowId in metadata results (either included or not excluded).
           required: false
           type: boolean
           in: query

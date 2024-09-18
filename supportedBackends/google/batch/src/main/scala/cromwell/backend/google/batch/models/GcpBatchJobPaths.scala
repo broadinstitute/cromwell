@@ -42,9 +42,7 @@ case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths,
 
   override lazy val customMetadataPaths =
     workflowPaths.monitoringScriptPath map { p =>
-      Map(GcpBatchMetadataKeys.MonitoringScript -> p,
-        GcpBatchMetadataKeys.MonitoringLog -> jesMonitoringLogPath
-      )
+      Map(GcpBatchMetadataKeys.MonitoringScript -> p, GcpBatchMetadataKeys.MonitoringLog -> jesMonitoringLogPath)
     } getOrElse Map.empty
 
   override def standardOutputAndErrorPaths: Map[String, Path] =

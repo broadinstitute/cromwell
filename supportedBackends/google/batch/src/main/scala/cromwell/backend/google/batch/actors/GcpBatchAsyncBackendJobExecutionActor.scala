@@ -1074,7 +1074,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     Future.fromTry {
       Try {
         runStatus match {
-          case RunStatus.Aborted => AbortedExecutionHandle
+          case RunStatus.Aborted(_) => AbortedExecutionHandle
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus)
           case unknown =>
             throw new RuntimeException(

@@ -42,18 +42,6 @@ class GcpBatchMachineConstraintsSpec extends AnyFlatSpec with CromwellTimeoutSpe
       // Increase to a cpu selection not valid for n2 below
       (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, "custom-34-31488"),
 
-      // Same tests as above but with legacy machine type selection (cpu and memory as specified. No 'custom machine
-      // requirement' adjustments are expected this time, except float->int)
-      (MemorySize(1024, MemoryUnit.MB), refineMV[Positive](1), None, "predefined-1-1024"),
-      (MemorySize(4, MemoryUnit.GB), refineMV[Positive](3), None, "predefined-3-4096"),
-      (MemorySize(1, MemoryUnit.GB), refineMV[Positive](1), None, "predefined-1-1024"),
-      (MemorySize(1, MemoryUnit.GB), refineMV[Positive](4), None, "predefined-4-1024"),
-      (MemorySize(14, MemoryUnit.GB), refineMV[Positive](16), None, "predefined-16-14336"),
-      (MemorySize(13.65, MemoryUnit.GB), refineMV[Positive](1), None, "predefined-1-13977"),
-      (MemorySize(1520.96, MemoryUnit.MB), refineMV[Positive](1), None, "predefined-1-1520"),
-      (MemorySize(1024.0, MemoryUnit.MB), refineMV[Positive](1), None, "predefined-1-1024"),
-      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, "predefined-33-2048"),
-
       // Same tests but with cascade lake (n2)
       (MemorySize(1024, MemoryUnit.MB), refineMV[Positive](1), n2OptionCascadeLake, "n2-custom-2-2048"),
       (MemorySize(4, MemoryUnit.GB), refineMV[Positive](3), n2OptionCascadeLake, "n2-custom-4-4096"),

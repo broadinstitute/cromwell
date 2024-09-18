@@ -3,15 +3,10 @@ package cromwell.backend.google.batch.actors
 import akka.actor.{ActorRef, Props}
 import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Platform}
 import cromwell.backend.google.batch.models.RunStatus
-import cromwell.backend.standard.pollmonitoring.{
-  AsyncJobHasFinished,
-  PollMonitorParameters,
-  PollResultMessage,
-  PollResultMonitorActor,
-  ProcessThisPollResult
-}
+import cromwell.backend.standard.pollmonitoring.{AsyncJobHasFinished, PollMonitorParameters, PollResultMessage, PollResultMonitorActor, ProcessThisPollResult}
 import cromwell.backend.validation.ValidatedRuntimeAttributes
 import cromwell.core.logging.JobLogger
+import cromwell.services.cost.InstantiatedVmInfo
 import cromwell.services.metadata.CallMetadataKeys
 
 import java.time.OffsetDateTime
@@ -78,4 +73,6 @@ class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
   }
 
   override def params: PollMonitorParameters = pollMonitorParameters
+
+  override def extractVmInfoFromRunState(pollStatus: RunStatus): Option[InstantiatedVmInfo] = Option.empty //TODO
 }

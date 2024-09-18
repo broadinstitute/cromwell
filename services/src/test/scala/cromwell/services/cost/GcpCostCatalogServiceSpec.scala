@@ -75,7 +75,8 @@ class GcpCostCatalogServiceSpec
       machineType = Some(N2),
       usageType = Some(Preemptible),
       machineCustomization = Some(Predefined),
-      resourceGroup = Some(Cpu)
+      resourceGroup = Some(Cpu),
+      region = "europe-west9"
     )
 
     val freshActor = constructTestActor
@@ -103,9 +104,10 @@ class GcpCostCatalogServiceSpec
       machineType = Some(N2d),
       usageType = Some(Preemptible),
       machineCustomization = None,
-      resourceGroup = Some(Ram)
+      resourceGroup = Some(Ram),
+      region = "europe-west9"
     )
     val foundValue = testActorRef.getSku(expectedKey)
-    foundValue.get.catalogObject.getDescription shouldBe "Spot Preemptible N2D AMD Instance Ram running in Johannesburg"
+    foundValue.get.catalogObject.getDescription shouldBe "Spot Preemptible N2D AMD Instance Ram running in Paris"
   }
 }

@@ -1,22 +1,30 @@
 package cromwell.services.cost
 
 import akka.actor.{Actor, ActorRef}
+import com.google.`type`.Money
 import com.google.cloud.billing.v1._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.util.StringUtil.EnhancedToStringable
+import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.cost.GcpCostCatalogService.{COMPUTE_ENGINE_SERVICE_NAME, DEFAULT_CURRENCY_CODE}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 
 import java.time.{Duration, Instant}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 import java.time.temporal.ChronoUnit.SECONDS
+import scala.util.{Failure, Success, Try}
 
 case class CostCatalogKey(machineType: Option[MachineType],
                           usageType: Option[UsageType],
                           machineCustomization: Option[MachineCustomization],
-                          resourceGroup: Option[ResourceGroup]
+                          resourceGroup: Option[ResourceGroup],
+                          region: String
 )
+case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) extends ServiceRegistryMessage {
+  override def serviceName: String = GcpCostCatalogService.getClass.getSimpleName
+}
+case class GcpCostLookupResponse(calculatedCost: Option[BigDecimal])
 case class CostCatalogValue(catalogObject: Sku)
 case class ExpiringGcpCostCatalog(catalog: Map[CostCatalogKey, CostCatalogValue], fetchTime: Instant)
 
@@ -88,21 +96,78 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
    * Ideally, we don't want to have an entire, unprocessed, cost catalog in memory at once since it's ~20MB.
    */
   private def processCostCatalog(skus: Iterable[Sku]): Map[CostCatalogKey, CostCatalogValue] =
-    // TODO: Account for key collisions (same key can be in multiple regions)
     // TODO: reduce memory footprint of returned map  (don't store entire SKU object)
     skus.foldLeft(Map.empty[CostCatalogKey, CostCatalogValue]) { case (acc, sku) =>
-      acc + convertSkuToKeyValuePair(sku)
+      acc ++ convertSkuToKeyValuePairs(sku)
     }
 
-  private def convertSkuToKeyValuePair(sku: Sku): (CostCatalogKey, CostCatalogValue) = CostCatalogKey(
-    machineType = MachineType.fromSku(sku),
-    usageType = UsageType.fromSku(sku),
-    machineCustomization = MachineCustomization.fromSku(sku),
-    resourceGroup = ResourceGroup.fromSku(sku)
-  ) -> CostCatalogValue(sku)
+  private def convertSkuToKeyValuePairs(sku: Sku): List[(CostCatalogKey, CostCatalogValue)] = {
+    val allAvailableRegions = sku.getServiceRegionsList.asScala.toList
+    allAvailableRegions.map(region =>
+      CostCatalogKey(
+        machineType = MachineType.fromSku(sku),
+        usageType = UsageType.fromSku(sku),
+        machineCustomization = MachineCustomization.fromSku(sku),
+        resourceGroup = ResourceGroup.fromSku(sku),
+        region = region
+      ) -> CostCatalogValue(sku)
+    )
+  }
+
+  // See: https://cloud.google.com/billing/v1/how-tos/catalog-api
+  private def calculateCpuPricePerHour(cpuSku: Sku, coreCount: Int): Try[BigDecimal] = {
+    val pricingInfo = getMostRecentPricingInfo(cpuSku)
+    val usageUnit = pricingInfo.getPricingExpression.getUsageUnit
+    if (usageUnit != "h") {
+      return Failure(new UnsupportedOperationException(s"Expected usage units of CPUs to be 'h'. Got ${usageUnit}"))
+    }
+    // Price per hour of a single core
+    // NB: Ignoring "TieredRates" here (the idea that stuff gets cheaper the more you use).
+    // Technically, we should write code that determines which tier(s) to use.
+    // In practice, from what I've seen, CPU cores and RAM don't have more than a single tier.
+    val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
+    val costPerCorePerHour: BigDecimal =
+      costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
+    Success(costPerCorePerHour * coreCount)
+  }
+
+  private def calculateRamPricePerHour(ramSku: Sku, ramMbCount: Int): Try[BigDecimal] =
+    // TODO
+    Success(ramMbCount.toLong * 0.25)
+
+  private def getMostRecentPricingInfo(sku: Sku): PricingInfo = {
+    val mostRecentPricingInfoIndex = sku.getPricingInfoCount - 1
+    sku.getPricingInfo(mostRecentPricingInfoIndex)
+  }
+
+  private def calculateVmCostPerHour(instantiatedVmInfo: InstantiatedVmInfo): Try[BigDecimal] = {
+    val machineType = MachineType.fromGoogleMachineTypeString(instantiatedVmInfo.machineType)
+    val usageType = UsageType.fromBoolean(instantiatedVmInfo.preemptible)
+    val machineCustomization = MachineCustomization.fromMachineTypeString(instantiatedVmInfo.machineType)
+    val region = instantiatedVmInfo.region
+    val coreCount = MachineType.extractCoreCountFromMachineTypeString(instantiatedVmInfo.machineType)
+    val ramMbCount = MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
+
+    val cpuResourceGroup = Cpu // TODO: Investigate the situation in which the resource group is n1
+    val cpuKey =
+      CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(cpuResourceGroup), region)
+    val cpuSku = getSku(cpuKey)
+    val cpuCost = cpuSku.map(sku => calculateCpuPricePerHour(sku.catalogObject, coreCount.get)) // TODO .get
+
+    val ramResourceGroup = Ram
+    val ramKey =
+      CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(ramResourceGroup), region)
+    val ramSku = getSku(ramKey)
+    val ramCost = ramSku.map(sku => calculateRamPricePerHour(sku.catalogObject, ramMbCount.get)) // TODO .get
+    Success(cpuCost.get.get + ramCost.get.get)
+  }
 
   def serviceRegistryActor: ActorRef = serviceRegistry
   override def receive: Receive = {
+    case GcpCostLookupRequest(vmInfo, replyTo) =>
+      val calculatedCost = calculateVmCostPerHour(vmInfo).toOption
+      val response = GcpCostLookupResponse(calculatedCost)
+      replyTo ! response
     case ShutdownCommand =>
       googleClient.foreach(client => client.shutdownNow())
       context stop self

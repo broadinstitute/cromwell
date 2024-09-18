@@ -9,19 +9,14 @@ import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus
-import cromwell.backend.google.pipelines.common.api.RunStatus.{
-  AwaitingCloudQuota,
-  Initializing,
-  Running,
-  Success,
-  UnsuccessfulRunStatus
-}
+import cromwell.backend.google.pipelines.common.api.RunStatus.{AwaitingCloudQuota, Initializing, Running, Success, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.common.errors.isQuotaMessage
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import cromwell.backend.google.pipelines.v2beta.api.request.ErrorReporter._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.ExecutionEvent
+import cromwell.services.cost.InstantiatedVmInfo
 import cromwell.services.metadata.CallMetadataKeys
 import io.grpc.Status
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -29,7 +24,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success => TrySuccess, Try}
+import scala.util.{Failure, Try, Success => TrySuccess}
 
 trait GetRequestHandler { this: RequestHandler =>
   // the Genomics batch endpoint doesn't seem to be able to handle get requests on V2 operations at the moment
@@ -81,33 +76,44 @@ trait GetRequestHandler { this: RequestHandler =>
           .toList
           .flatten
         val executionEvents = getEventList(metadata, events, actions)
+        val workerAssignedEvent: Option[WorkerAssignedEvent] =
+          events.collectFirst {
+            case event if event.getWorkerAssigned != null => event.getWorkerAssigned
+          }
+        val virtualMachineOption = for {
+          pipelineValue <- pipeline
+          resources <- Option(pipelineValue.getResources)
+          virtualMachine <- Option(resources.getVirtualMachine)
+        } yield virtualMachine
+
+        // Correlate `executionEvents` to `actions` to potentially assign a grouping into the appropriate events.
+        val machineType = virtualMachineOption.flatMap(virtualMachine => Option(virtualMachine.getMachineType))
+        /*
+        preemptible is only used if the job fails, as a heuristic to guess if the VM was preempted.
+        If we can't get the value of preempted we still need to return something, returning false will not make the
+        failure count as a preemption which seems better than saying that it was preemptible when we really don't know
+         */
+        val preemptibleOption = for {
+          pipelineValue <- pipeline
+          resources <- Option(pipelineValue.getResources)
+          virtualMachine <- Option(resources.getVirtualMachine)
+          preemptible <- Option(virtualMachine.getPreemptible)
+        } yield preemptible
+        val preemptible = preemptibleOption.exists(_.booleanValue)
+        val instanceName =
+          workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
+        val zone = workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
+        val region = zone.map { zoneString =>
+          val lastDashIndex = zoneString.lastIndexOf("-")
+          if (lastDashIndex != -1) zoneString.substring(0, lastDashIndex) else zoneString
+        }
+
+        val instantiatedVmInfo: Option[InstantiatedVmInfo] = (region, machineType) match {
+          case (Some(instantiatedRegion), Some(instantiatedMachineType)) =>
+            Option(InstantiatedVmInfo(instantiatedRegion, instantiatedMachineType, preemptible))
+          case _ => Option.empty
+        }
         if (operation.getDone) {
-          val workerAssignedEvent: Option[WorkerAssignedEvent] =
-            events.collectFirst {
-              case event if event.getWorkerAssigned != null => event.getWorkerAssigned
-            }
-          val virtualMachineOption = for {
-            pipelineValue <- pipeline
-            resources <- Option(pipelineValue.getResources)
-            virtualMachine <- Option(resources.getVirtualMachine)
-          } yield virtualMachine
-          // Correlate `executionEvents` to `actions` to potentially assign a grouping into the appropriate events.
-          val machineType = virtualMachineOption.flatMap(virtualMachine => Option(virtualMachine.getMachineType))
-          /*
-          preemptible is only used if the job fails, as a heuristic to guess if the VM was preempted.
-          If we can't get the value of preempted we still need to return something, returning false will not make the
-          failure count as a preemption which seems better than saying that it was preemptible when we really don't know
-           */
-          val preemptibleOption = for {
-            pipelineValue <- pipeline
-            resources <- Option(pipelineValue.getResources)
-            virtualMachine <- Option(resources.getVirtualMachine)
-            preemptible <- Option(virtualMachine.getPreemptible)
-          } yield preemptible
-          val preemptible = preemptibleOption.exists(_.booleanValue)
-          val instanceName =
-            workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
-          val zone = workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
           // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
           Option(operation.getError) match {
             case Some(error) =>
@@ -122,14 +128,14 @@ trait GetRequestHandler { this: RequestHandler =>
                 pollingRequest.workflowId
               )
               errorReporter.toUnsuccessfulRunStatus(error, events)
-            case None => Success(executionEvents, machineType, zone, instanceName)
+            case None => Success(executionEvents, machineType, zone, instanceName, instantiatedVmInfo)
           }
         } else if (isQuotaDelayed(events)) {
-          AwaitingCloudQuota(executionEvents)
+          AwaitingCloudQuota(executionEvents, instantiatedVmInfo)
         } else if (operation.hasStarted) {
-          Running(executionEvents)
+          Running(executionEvents, instantiatedVmInfo)
         } else {
-          Initializing(executionEvents)
+          Initializing(executionEvents, instantiatedVmInfo)
         }
       } catch {
         case nullPointerException: NullPointerException =>

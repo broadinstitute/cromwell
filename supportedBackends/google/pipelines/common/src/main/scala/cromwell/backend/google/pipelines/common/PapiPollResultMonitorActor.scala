@@ -1,17 +1,12 @@
 package cromwell.backend.google.pipelines.common
 
 import akka.actor.{ActorRef, Props}
-import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Platform}
 import cromwell.backend.google.pipelines.common.api.RunStatus
-import cromwell.backend.standard.pollmonitoring.{
-  AsyncJobHasFinished,
-  PollMonitorParameters,
-  PollResultMessage,
-  PollResultMonitorActor,
-  ProcessThisPollResult
-}
+import cromwell.backend.standard.pollmonitoring._
 import cromwell.backend.validation.ValidatedRuntimeAttributes
+import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Platform}
 import cromwell.core.logging.JobLogger
+import cromwell.services.cost.{GcpCostLookupResponse, InstantiatedVmInfo}
 import cromwell.services.metadata.CallMetadataKeys
 
 import java.time.OffsetDateTime
@@ -50,7 +45,13 @@ class PapiPollResultMonitorActor(parameters: PollMonitorParameters) extends Poll
       case event if event.name == CallMetadataKeys.VmEndTime => event.offsetDateTime
     }
 
+  override def extractVmInfoFromRunState(pollStatus: RunStatus): Option[InstantiatedVmInfo] =
+    pollStatus.instantiatedVmInfo
+
+  override def params: PollMonitorParameters = parameters
+
   override def receive: Receive = {
+    case costResponse: GcpCostLookupResponse => handleCostResponse(costResponse)
     case message: PollResultMessage =>
       message match {
         case ProcessThisPollResult(pollResult: RunStatus) => processPollResult(pollResult)
@@ -75,5 +76,4 @@ class PapiPollResultMonitorActor(parameters: PollMonitorParameters) extends Poll
         )
       )
   }
-  override def params: PollMonitorParameters = parameters
 }

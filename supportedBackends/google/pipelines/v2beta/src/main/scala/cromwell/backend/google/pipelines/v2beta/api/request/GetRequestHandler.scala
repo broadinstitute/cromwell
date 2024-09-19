@@ -88,6 +88,7 @@ trait GetRequestHandler { this: RequestHandler =>
 
         // Correlate `executionEvents` to `actions` to potentially assign a grouping into the appropriate events.
         val machineType = virtualMachineOption.flatMap(virtualMachine => Option(virtualMachine.getMachineType))
+
         /*
         preemptible is only used if the job fails, as a heuristic to guess if the VM was preempted.
         If we can't get the value of preempted we still need to return something, returning false will not make the
@@ -110,6 +111,7 @@ trait GetRequestHandler { this: RequestHandler =>
 
         val instantiatedVmInfo: Option[InstantiatedVmInfo] = (region, machineType) match {
           case (Some(instantiatedRegion), Some(instantiatedMachineType)) =>
+            println(s"Machine Type: ${instantiatedMachineType}")
             Option(InstantiatedVmInfo(instantiatedRegion, instantiatedMachineType, preemptible))
           case _ => Option.empty
         }

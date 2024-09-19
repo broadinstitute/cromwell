@@ -22,7 +22,7 @@ case class CostCatalogKey(machineType: Option[MachineType],
                           region: String
 )
 case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) extends ServiceRegistryMessage {
-  override def serviceName: String = GcpCostCatalogService.getClass.getSimpleName
+  override def serviceName: String = "GcpCostCatalogService"
 }
 case class GcpCostLookupResponse(calculatedCost: Option[BigDecimal])
 case class CostCatalogValue(catalogObject: Sku)
@@ -152,12 +152,22 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     val cpuKey =
       CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(cpuResourceGroup), region)
     val cpuSku = getSku(cpuKey)
+    if(cpuSku.isEmpty) {
+      println(s"Failed to find CPU Sku for ${cpuKey}")
+    } else {
+      println(s"Found CPU Sku ${cpuSku.get.catalogObject.getDescription} from key ${cpuKey}")
+    }
     val cpuCost = cpuSku.map(sku => calculateCpuPricePerHour(sku.catalogObject, coreCount.get)) // TODO .get
 
     val ramResourceGroup = Ram
     val ramKey =
       CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(ramResourceGroup), region)
     val ramSku = getSku(ramKey)
+    if(ramSku.isEmpty) {
+      println(s"Failed to find Ram Sku for ${ramKey}")
+    } else {
+      println(s"Found CPU Sku ${ramSku.get.catalogObject.getDescription} from key ${ramKey}")
+    }
     val ramCost = ramSku.map(sku => calculateRamPricePerHour(sku.catalogObject, ramMbCount.get)) // TODO .get
     Success(cpuCost.get.get + ramCost.get.get)
   }

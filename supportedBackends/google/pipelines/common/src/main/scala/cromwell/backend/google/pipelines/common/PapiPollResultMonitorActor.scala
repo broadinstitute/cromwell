@@ -69,10 +69,10 @@ class PapiPollResultMonitorActor(parameters: PollMonitorParameters) extends Poll
             )
           )
       }
-    case _ =>
+    case unexpected =>
       params.logger.foreach(logger =>
         logger.error(
-          s"Programmer error: Cost Helper received message of type other than CostPollingMessage"
+          s"Programmer error: Cost Helper received message of unexpected type. Was ${unexpected.getClass.getSimpleName}."
         )
       )
   }

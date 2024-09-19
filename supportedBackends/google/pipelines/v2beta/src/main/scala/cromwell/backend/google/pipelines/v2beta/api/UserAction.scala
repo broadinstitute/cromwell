@@ -10,6 +10,7 @@ trait UserAction {
       createPipelineParameters.commandScriptContainerPath.pathAsString,
       mounts,
       createPipelineParameters.jobShell,
+      // PAPI v2: send in the key name and encrypted Docker token here
       createPipelineParameters.privateDockerKeyAndEncryptedToken,
       createPipelineParameters.fuseEnabled
     )

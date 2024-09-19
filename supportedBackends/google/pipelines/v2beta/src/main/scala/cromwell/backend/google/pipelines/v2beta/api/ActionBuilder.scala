@@ -122,6 +122,7 @@ object ActionBuilder {
       if DockerHub.isValidDockerHubHost(
         imageId.host
       ) // This token only works for Docker Hub and not other repositories.
+      // PAPI v2: If the private Docker key and token are defined, create a Secret
       keyAndToken <- privateDockerKeyAndToken
       s = new Secret().setKeyName(keyAndToken.key).setCipherText(keyAndToken.encryptedToken)
     } yield s
@@ -132,6 +133,7 @@ object ActionBuilder {
       .setMounts(mounts.asJava)
       .setEntrypoint(jobShell)
       .setLabels(Map(Key.Tag -> Value.UserAction).asJava)
+      // PAPI v2: Set the Secret as the credentials
       .setCredentials(secret.orNull)
       .setEnableFuse(fuseEnabled)
   }

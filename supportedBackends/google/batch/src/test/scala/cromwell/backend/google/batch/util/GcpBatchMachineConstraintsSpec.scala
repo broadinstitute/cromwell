@@ -87,7 +87,33 @@ class GcpBatchMachineConstraintsSpec extends AnyFlatSpec with CromwellTimeoutSpe
       (MemorySize(1024.0, MemoryUnit.MB), refineMV[Positive](1), n2dOption, None, false, "n2d-custom-2-1024"),
       (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), n2dOption, None, false, "n2d-custom-48-24576"),
       (MemorySize(2, MemoryUnit.GB), refineMV[Positive](81), n2dOption, None, false, "n2d-custom-96-49152"),
-      (MemorySize(256, MemoryUnit.GB), refineMV[Positive](128), n2dOption, None, false, "n2d-custom-96-262144")
+      (MemorySize(256, MemoryUnit.GB), refineMV[Positive](128), n2dOption, None, false, "n2d-custom-96-262144"),
+
+      // Test Standard Machine types
+      // General-purpose machine family
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("n1-standard-2"), false, "n1-standard-2"),
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("n1-highmem-2"), false, "n1-highmem-2"),
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("n1-highcpu-4"), false, "n1-highcpu-4"),
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("f1-micro"), false, "f1-micro"),
+
+      // Accelerator-optimized machine family
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("a2-highgpu-1g"), false, "a2-highgpu-1g"),
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("a3-megagpu-8g"), false, "a3-megagpu-8g"),
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("g2-standard-4"), false, "g2-standard-4"),
+
+      // Other machine families
+      // Storage-optimized
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("z3-highmem-88"), false, "z3-highmem-88"),
+      // Compute-optimized
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("h3-standard-88"), false, "h3-standard-88"),
+      // Memory-optimized
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("m3-ultramem-128"), false, "m3-ultramem-128"),
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("a2-highgpu-1g"), false, "a2-highgpu-1g"),
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("a2-highgpu-1g"), false, "a2-highgpu-1g"),
+
+      // Standard machine type overrides legacy selection
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("a2-highgpu-1g"), true, "a2-highgpu-1g"),
+      (MemorySize(2, MemoryUnit.GB), refineMV[Positive](33), None, Option("a2-highgpu-1g"), false, "a2-highgpu-1g")
     )
 
     forAll(validTypes) { (memory, cpu, cpuPlatformOption, standardMachineTypeOption, googleLegacyMachineSelection, expected) =>

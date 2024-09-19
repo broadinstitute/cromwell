@@ -42,10 +42,16 @@ object MachineType {
       Failure(new IllegalArgumentException(s"Could not extract core count from ${machineTypeString}"))
     }
   }
-
-  def extractRamMbFromMachineTypeString(machineTypeString: String): Try[Int] =
-    // TODO
-    Success(4096)
+  def extractRamMbFromMachineTypeString(machineTypeString: String): Try[Int] = {
+    // Regular expression to match the number after the second dash
+    val pattern: Pattern = Pattern.compile(".*?-.*?-(\\d+)")
+    val matcher: Matcher = pattern.matcher(machineTypeString);
+    if (matcher.find()) {
+      Success(matcher.group(1).toInt)
+    } else {
+      Failure(new IllegalArgumentException(s"Could not Ram MB count from ${machineTypeString}"))
+    }
+  }
 }
 sealed trait MachineType { def machineTypeName: String }
 case object N1 extends MachineType { override val machineTypeName = "N1" }

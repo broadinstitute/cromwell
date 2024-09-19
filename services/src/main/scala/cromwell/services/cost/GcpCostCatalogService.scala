@@ -128,12 +128,23 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
     val costPerCorePerHour: BigDecimal =
       costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
+
+    println(s"Calculated ${coreCount} cpu cores to cost ${costPerCorePerHour * coreCount} per hour")
     Success(costPerCorePerHour * coreCount)
   }
 
-  private def calculateRamPricePerHour(ramSku: Sku, ramMbCount: Int): Try[BigDecimal] =
-    // TODO
-    Success(ramMbCount.toLong * 0.25)
+  private def calculateRamPricePerHour(ramSku: Sku, ramGbCount: Int): Try[BigDecimal] = {
+    val pricingInfo = getMostRecentPricingInfo(ramSku)
+    val usageUnit = pricingInfo.getPricingExpression.getUsageUnit
+    if (usageUnit != "GiBy.h") {
+      return Failure(new UnsupportedOperationException(s"Expected usage units of RAM to be 'GiBy.h'. Got ${usageUnit}"))
+    }
+    val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
+    val costPerGbHour: BigDecimal =
+      costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
+    println(s"Calculated ${ramGbCount} GB of ram to cost ${ramGbCount * costPerGbHour} per hour")
+    Success(costPerGbHour * ramGbCount)
+  }
 
   private def getMostRecentPricingInfo(sku: Sku): PricingInfo = {
     val mostRecentPricingInfoIndex = sku.getPricingInfoCount - 1
@@ -147,12 +158,13 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     val region = instantiatedVmInfo.region
     val coreCount = MachineType.extractCoreCountFromMachineTypeString(instantiatedVmInfo.machineType)
     val ramMbCount = MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
+    val ramGbCount = ramMbCount.getOrElse(0) / 1024
 
     val cpuResourceGroup = Cpu // TODO: Investigate the situation in which the resource group is n1
     val cpuKey =
       CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(cpuResourceGroup), region)
     val cpuSku = getSku(cpuKey)
-    if(cpuSku.isEmpty) {
+    if (cpuSku.isEmpty) {
       println(s"Failed to find CPU Sku for ${cpuKey}")
     } else {
       println(s"Found CPU Sku ${cpuSku.get.catalogObject.getDescription} from key ${cpuKey}")
@@ -163,12 +175,12 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     val ramKey =
       CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(ramResourceGroup), region)
     val ramSku = getSku(ramKey)
-    if(ramSku.isEmpty) {
+    if (ramSku.isEmpty) {
       println(s"Failed to find Ram Sku for ${ramKey}")
     } else {
       println(s"Found CPU Sku ${ramSku.get.catalogObject.getDescription} from key ${ramKey}")
     }
-    val ramCost = ramSku.map(sku => calculateRamPricePerHour(sku.catalogObject, ramMbCount.get)) // TODO .get
+    val ramCost = ramSku.map(sku => calculateRamPricePerHour(sku.catalogObject, ramGbCount)) // TODO .get
     Success(cpuCost.get.get + ramCost.get.get)
   }
 

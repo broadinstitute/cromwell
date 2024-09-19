@@ -286,7 +286,8 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
     continueOnReturnCode = ContinueOnReturnCodeSet(Set(0)),
     noAddress = false,
     useDockerImageCache = None,
-    checkpointFilename = None
+    checkpointFilename = None,
+    standardMachineType = None
   )
 
   def assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WomValue],

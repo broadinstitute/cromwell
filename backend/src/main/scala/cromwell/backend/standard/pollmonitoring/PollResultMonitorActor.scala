@@ -154,9 +154,10 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
 
   def handleCostResponse(costLookupResponse: GcpCostLookupResponse): Unit = {
     println(s"Handling Cost Response from Catalog Service: ${costLookupResponse}")
-    if (vmCostPerHour.isDefined) { return } // Optimization to avoid processing responses after we've received a valid one.
-    val cost = costLookupResponse.calculatedCost.getOrElse(BigDecimal(-1)) // TODO: better logging here.
-    vmCostPerHour = Option(cost)
-    tellMetadata(Map(CallMetadataKeys.VmCostPerHour -> vmCostPerHour))
+    if (vmCostPerHour.isEmpty) { // Optimization to avoid processing responses after we've received a valid one.
+      val cost = costLookupResponse.calculatedCost.getOrElse(BigDecimal(-1)) // TODO: better logging here.
+      vmCostPerHour = Option(cost)
+      tellMetadata(Map(CallMetadataKeys.VmCostPerHour -> cost))
+    }
   }
 }

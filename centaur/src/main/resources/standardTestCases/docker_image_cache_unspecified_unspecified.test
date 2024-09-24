@@ -1,7 +1,7 @@
 name: docker_image_cache_unspecified_unspecified
 testFormat: workflowsuccess
 # needs an alt if we're going to keep Docker image cache tests which I'm not sure we are
-backends: [Papiv2-Docker-Image-Cache, GCPBATCH_NEEDS_ALT]
+backends: [Papiv2-Docker-Image-Cache, GCPBATCH_DOCKER_IMAGE_CACHE_NOT_IMPLEMENTED]
 
 files {
   workflow: docker_image_cache/docker_image_cache_unspecified.wdl

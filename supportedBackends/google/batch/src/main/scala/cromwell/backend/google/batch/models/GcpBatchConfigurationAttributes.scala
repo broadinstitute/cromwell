@@ -11,9 +11,17 @@ import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
 import cromwell.backend.google.batch._
 import cromwell.backend.google.batch.authentication.GcpBatchAuths
-import cromwell.backend.google.batch.callcaching.{BatchCacheHitDuplicationStrategy, CopyCachedOutputs, UseOriginalCachedOutputs}
+import cromwell.backend.google.batch.callcaching.{
+  BatchCacheHitDuplicationStrategy,
+  CopyCachedOutputs,
+  UseOriginalCachedOutputs
+}
 import cromwell.backend.google.batch.io.GcpBatchReferenceFilesDisk
-import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, VirtualPrivateCloudConfiguration}
+import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{
+  BatchRequestTimeoutConfiguration,
+  GcsTransferConfiguration,
+  VirtualPrivateCloudConfiguration
+}
 import cromwell.backend.google.batch.util.GcpBatchReferenceFilesMappingOperations
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -51,9 +59,7 @@ case class GcpBatchConfigurationAttributes(
   logsPolicy: GcpBatchLogsPolicy
 )
 
-object GcpBatchConfigurationAttributes
-    extends GcpBatchReferenceFilesMappingOperations
-    with StrictLogging {
+object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOperations with StrictLogging {
 
   /**
     * param transferAttempts This is the number of attempts, not retries, hence it is positive.

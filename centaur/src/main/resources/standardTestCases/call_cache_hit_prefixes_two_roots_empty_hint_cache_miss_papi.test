@@ -7,7 +7,7 @@ testFormat: runtwiceexpectingnocallcaching
 # should NOT call cache the second run of call_cache_hit_prefixes_two_roots_empty_hint_cache_miss_papi *** FAILED *** (11 minutes, 11 seconds)
 #    centaur.test.CentaurTestException: Found unexpected cache hits for call_cache_hit_prefixes_two_roots_empty_hint_cache_miss_papi:
 #  calls.call_cache_hit_prefixes.yo.callCaching.result: Cache Hit: 19e522ed-685e-4c53-9d49-949d8b05a2a9:call_cache_hit_prefixes.yo:-1
-backends: [Papi, GCPBATCH_FAIL]
+backends: [Papi, GCPBATCH_CALL_CACHE_PREFIXES_NOT_IMPLEMENTED]
 
 files {
   workflow: call_cache_hit_prefixes/call_cache_hit_prefixes.wdl

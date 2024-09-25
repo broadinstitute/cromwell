@@ -23,11 +23,10 @@ object MachineType {
 
   // expects a string that looks something like "n1-standard-1" or "custom-1-4096"
   def fromGoogleMachineTypeString(machineTypeString: String): Option[MachineType] =
-    if (machineTypeString.startsWith("n1")) Some(N1)
-    else if (machineTypeString.startsWith("n2d")) Some(N2d)
-    else if (machineTypeString.startsWith("n2")) Some(N2)
-    else if (machineTypeString.startsWith("custom"))
-      None // TODO: should this be n1? Make a 'custom' type? Combine with MachineCustomization?
+    if (machineTypeString.toLowerCase().startsWith("n1-")) Some(N1)
+    else if (machineTypeString.toLowerCase().startsWith("n2d-")) Some(N2d)
+    else if (machineTypeString.toLowerCase().startsWith("n2-")) Some(N2)
+    else if (machineTypeString.toLowerCase().startsWith("custom-")) Some(N1) // by convention
     else {
       println(s"Error: Unrecognized machine type: $machineTypeString")
       None
@@ -43,8 +42,9 @@ object MachineType {
     }
   }
   def extractRamMbFromMachineTypeString(machineTypeString: String): Try[Int] = {
-    // Regular expression to match the number after the second dash
-    val pattern: Pattern = Pattern.compile(".*?-.*?-(\\d+)")
+    // Regular expression to match the number after the dash at the end of the string
+    // TODO add test
+    val pattern: Pattern = Pattern.compile(".*?-(\\d+)$")
     val matcher: Matcher = pattern.matcher(machineTypeString);
     if (matcher.find()) {
       Success(matcher.group(1).toInt)
@@ -76,17 +76,25 @@ case object OnDemand extends UsageType { override val typeName = "OnDemand" }
 case object Preemptible extends UsageType { override val typeName = "Preemptible" }
 
 object MachineCustomization {
-  // TODO: I think this is right but I am not 100% sure. Needs testing.
-  // Do custom machine types always have the word "custom"?
-  // Does Cromwell ever assign Predefined Machines?
-  // Is it possible to have a custom machine that *doesn't* contain the word custom?
   def fromMachineTypeString(machineTypeString: String): MachineCustomization =
     if (machineTypeString.toLowerCase.contains("custom")) Custom else Predefined
+
+  /*
+  The cost catalog is annoyingly inconsistent and unstructured in this area.
+   - For N1 machines, only predefined SKUs are included, and they have "Predefined" in their description strings.
+   We will eventually fall back to using these SKUs for custom machines, but accurately represent them as Predefined here.
+   - For non-N1 machines, both custom and predefined SKUs are included, custom ones include "Custom" in their description
+   strings and predefined SKUs are only identifiable by the absence of "Custom."
+   */
   def fromSku(sku: Sku): Option[MachineCustomization] = {
     val tokenizedDescription = sku.getDescription.split(" ")
+
+    // ex. "N1 Predefined Instance Core running in Montreal"
     if (tokenizedDescription.contains(Predefined.customizationName)) Some(Predefined)
+    // ex. "N2 Custom Instance Core running in Paris"
     else if (tokenizedDescription.contains(Custom.customizationName)) Some(Custom)
-    else Option.empty
+    // ex. "N2 Instance Core running in Paris"
+    else Some(Predefined)
   }
 }
 sealed trait MachineCustomization { def customizationName: String }
@@ -106,9 +114,5 @@ sealed trait ResourceGroup { def groupName: String }
 case object Cpu extends ResourceGroup { override val groupName = "CPU" }
 case object Ram extends ResourceGroup { override val groupName = "RAM" }
 
-// TODO: What is the deal with this? It seems out of place.
-// Need to figure out how to reconcile with the Cpu resource group.
-// Current theory is that the n1 machines are legacy machines,
-// and are therefore categorized differently.
-// Unfortunately, N1 is Cromwell's default machine.
+// N1 machine SKUs are structured differently and use this resource group.
 case object N1Standard extends ResourceGroup { override val groupName = "N1Standard" }

@@ -1,4 +1,0 @@
-{
-   "gcp_batch_gcs_root" : "gs://cloud-cromwell-dev-self-cleaning-another",
-   "call_cache_hit_path_prefixes": []
-}

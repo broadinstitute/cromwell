@@ -46,7 +46,7 @@ class CostLookupSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
     val legalMachineTypes: List[MachineType] = List(N1, N2, N2d)
     val legalUsageTypes: List[UsageType] = List(Preemptible, OnDemand)
     val legalCustomizations: List[MachineCustomization] = List(Custom, Predefined)
-    val resourceGroup: Option[ResourceGroup] = Some(Cpu)
+    val resourceGroup: Option[ResourceType] = Some(Cpu)
     val region = "us-west1"
     for (machineType <- legalMachineTypes)
       for (usageType <- legalUsageTypes)

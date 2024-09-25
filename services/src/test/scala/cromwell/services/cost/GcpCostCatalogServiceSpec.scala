@@ -75,7 +75,7 @@ class GcpCostCatalogServiceSpec
       machineType = Some(N2),
       usageType = Some(Preemptible),
       machineCustomization = Some(Predefined),
-      resourceGroup = Some(Cpu),
+      resourceType = Some(Cpu),
       region = "europe-west9"
     )
 
@@ -104,7 +104,7 @@ class GcpCostCatalogServiceSpec
       machineType = Some(N2d),
       usageType = Some(Preemptible),
       machineCustomization = None,
-      resourceGroup = Some(Ram),
+      resourceType = Some(Ram),
       region = "europe-west9"
     )
     val foundValue = testActorRef.getSku(expectedKey)

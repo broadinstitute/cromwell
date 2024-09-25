@@ -101,18 +101,18 @@ sealed trait MachineCustomization { def customizationName: String }
 case object Custom extends MachineCustomization { override val customizationName = "Custom" }
 case object Predefined extends MachineCustomization { override val customizationName = "Predefined" }
 
-object ResourceGroup {
-  def fromSku(sku: Sku): Option[ResourceGroup] =
+object ResourceType {
+  def fromSku(sku: Sku): Option[ResourceType] = {
+    val tokenizedDescription = sku.getDescription.split(" ")
     sku.getCategory.getResourceGroup match {
       case Cpu.groupName => Some(Cpu)
       case Ram.groupName => Some(Ram)
-      case N1Standard.groupName => Some(N1Standard)
+      case "N1Standard" if tokenizedDescription.contains("Ram") => Some(Ram)
+      case "N1Standard" if tokenizedDescription.contains("Core") => Some(Cpu)
       case _ => Option.empty
     }
+  }
 }
-sealed trait ResourceGroup { def groupName: String }
-case object Cpu extends ResourceGroup { override val groupName = "CPU" }
-case object Ram extends ResourceGroup { override val groupName = "RAM" }
-
-// N1 machine SKUs are structured differently and use this resource group.
-case object N1Standard extends ResourceGroup { override val groupName = "N1Standard" }
+sealed trait ResourceType { def groupName: String }
+case object Cpu extends ResourceType { override val groupName = "CPU" }
+case object Ram extends ResourceType { override val groupName = "RAM" }

@@ -18,7 +18,7 @@ import scala.util.{Failure, Success, Try}
 case class CostCatalogKey(machineType: Option[MachineType],
                           usageType: Option[UsageType],
                           machineCustomization: Option[MachineCustomization],
-                          resourceGroup: Option[ResourceGroup],
+                          resourceType: Option[ResourceType],
                           region: String
 )
 case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) extends ServiceRegistryMessage {
@@ -103,12 +103,13 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
 
   private def convertSkuToKeyValuePairs(sku: Sku): List[(CostCatalogKey, CostCatalogValue)] = {
     val allAvailableRegions = sku.getServiceRegionsList.asScala.toList
+    // TODO jdewar flatMap this and discard any entries that we don't understand
     allAvailableRegions.map(region =>
       CostCatalogKey(
         machineType = MachineType.fromSku(sku),
         usageType = UsageType.fromSku(sku),
         machineCustomization = MachineCustomization.fromSku(sku),
-        resourceGroup = ResourceGroup.fromSku(sku),
+        resourceType = ResourceType.fromSku(sku),
         region = region
       ) -> CostCatalogValue(sku)
     )
@@ -160,9 +161,9 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     val ramMbCount = MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
     val ramGbCount = ramMbCount.getOrElse(0) / 1024
 
-    val cpuResourceGroup = Cpu // TODO: Investigate the situation in which the resource group is n1
+    val cpuResourceType = Cpu // TODO: Investigate the situation in which the resource group is n1
     val cpuKey =
-      CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(cpuResourceGroup), region)
+      CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(cpuResourceType), region)
     val cpuSku = getSku(cpuKey)
     if (cpuSku.isEmpty) {
       println(s"Failed to find CPU Sku for ${cpuKey}")
@@ -171,9 +172,9 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     }
     val cpuCost = cpuSku.map(sku => calculateCpuPricePerHour(sku.catalogObject, coreCount.get)) // TODO .get
 
-    val ramResourceGroup = Ram
+    val ramResourceType = Ram
     val ramKey =
-      CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(ramResourceGroup), region)
+      CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(ramResourceType), region)
     val ramSku = getSku(ramKey)
     if (ramSku.isEmpty) {
       println(s"Failed to find Ram Sku for ${ramKey}")

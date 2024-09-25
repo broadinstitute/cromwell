@@ -41,10 +41,6 @@ class BatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingAc
         }
     }
 
-  override def extractBlacklistPrefix(path: String): Option[String] = Option(
-    path.stripPrefix("gs://").takeWhile(_ != '/')
-  )
-
   override def processDetritus(
     sourceJobDetritusFiles: Map[String, String]
   ): Try[(Map[String, Path], Set[IoCommand[_]])] =

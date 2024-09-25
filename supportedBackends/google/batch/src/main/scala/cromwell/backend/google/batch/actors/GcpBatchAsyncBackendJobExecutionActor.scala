@@ -1003,20 +1003,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
     }
 
-  protected def sendIncrementMetricsForDockerImageCache(dockerImageCacheDiskOpt: Option[String],
-                                                        dockerImageAsSpecifiedByUser: String,
-                                                        isDockerImageCacheUsageRequested: Boolean
-  ): Unit =
-    (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
-      case (true, None) =>
-        increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
-      case (true, Some(_)) =>
-        increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
-      case (false, Some(_)) =>
-        increment(NonEmptyList("docker", List("image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser)))
-      case _ => // docker image cache not requested and image is not in cache anyway - do nothing
-    }
-
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
     // yes, we use the whole jobName as the id
     val jobNameStr = handle.pendingJob.jobId
@@ -1112,9 +1098,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   protected def fuseEnabled(descriptor: BackendWorkflowDescriptor): Boolean =
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.EnableFuse).toOption.getOrElse(batchAttributes.enableFuse)
-
-  protected def useDockerImageCache(descriptor: BackendWorkflowDescriptor): Boolean =
-    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
 
   override def cloudResolveWomFile(womFile: WomFile): WomFile =
     womFile.mapFile { value =>

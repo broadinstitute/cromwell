@@ -285,7 +285,6 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
     failOnStderr = false,
     continueOnReturnCode = ContinueOnReturnCodeSet(Set(0)),
     noAddress = false,
-    useDockerImageCache = None,
     checkpointFilename = None
   )
 

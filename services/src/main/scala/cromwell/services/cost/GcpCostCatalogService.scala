@@ -15,10 +15,10 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
 import java.time.temporal.ChronoUnit.SECONDS
 import scala.util.{Failure, Success, Try}
 
-case class CostCatalogKey(machineType: Option[MachineType],
-                          usageType: Option[UsageType],
-                          machineCustomization: Option[MachineCustomization],
-                          resourceType: Option[ResourceType],
+case class CostCatalogKey(machineType: MachineType,
+                          usageType: UsageType,
+                          machineCustomization: MachineCustomization,
+                          resourceType: ResourceType,
                           region: String
 )
 case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) extends ServiceRegistryMessage {
@@ -101,19 +101,24 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
       acc ++ convertSkuToKeyValuePairs(sku)
     }
 
-  private def convertSkuToKeyValuePairs(sku: Sku): List[(CostCatalogKey, CostCatalogValue)] = {
-    val allAvailableRegions = sku.getServiceRegionsList.asScala.toList
-    // TODO jdewar flatMap this and discard any entries that we don't understand
-    allAvailableRegions.map(region =>
-      CostCatalogKey(
-        machineType = MachineType.fromSku(sku),
-        usageType = UsageType.fromSku(sku),
-        machineCustomization = MachineCustomization.fromSku(sku),
-        resourceType = ResourceType.fromSku(sku),
-        region = region
-      ) -> CostCatalogValue(sku)
-    )
-  }
+  /**
+   * Convert a SKU into a cost catalog map entry. We drop all SKUs that to not map to known machine types,
+   * resource types, usage types, etc. 
+   */
+  private def convertSkuToKeyValuePairs(sku: Sku): List[(CostCatalogKey, CostCatalogValue)] =
+    for {
+      region <- sku.getServiceRegionsList.asScala.toList
+      machineType <- MachineType.fromSku(sku)
+      usageType <- UsageType.fromSku(sku)
+      machineCustomization <- MachineCustomization.fromSku(sku)
+      resourceType <- ResourceType.fromSku(sku)
+    } yield CostCatalogKey(
+      machineType,
+      usageType,
+      machineCustomization,
+      resourceType,
+      region
+    ) -> CostCatalogValue(sku)
 
   // See: https://cloud.google.com/billing/v1/how-tos/catalog-api
   private def calculateCpuPricePerHour(cpuSku: Sku, coreCount: Int): Try[BigDecimal] = {
@@ -161,9 +166,9 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     val ramMbCount = MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
     val ramGbCount = ramMbCount.getOrElse(0) / 1024
 
-    val cpuResourceType = Cpu // TODO: Investigate the situation in which the resource group is n1
+    val cpuResourceType = Cpu
     val cpuKey =
-      CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(cpuResourceType), region)
+      CostCatalogKey(machineType.get, usageType, machineCustomization, cpuResourceType, region) // TODO .get
     val cpuSku = getSku(cpuKey)
     if (cpuSku.isEmpty) {
       println(s"Failed to find CPU Sku for ${cpuKey}")
@@ -174,7 +179,7 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
 
     val ramResourceType = Ram
     val ramKey =
-      CostCatalogKey(machineType, Option(usageType), Option(machineCustomization), Option(ramResourceType), region)
+      CostCatalogKey(machineType.get, usageType, machineCustomization, ramResourceType, region) // TODO .get
     val ramSku = getSku(ramKey)
     if (ramSku.isEmpty) {
       println(s"Failed to find Ram Sku for ${ramKey}")

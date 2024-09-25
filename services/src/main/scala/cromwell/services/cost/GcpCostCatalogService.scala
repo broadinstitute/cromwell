@@ -169,7 +169,15 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     val cpuResourceType = Cpu
     val cpuKey =
       CostCatalogKey(machineType.get, usageType, machineCustomization, cpuResourceType, region) // TODO .get
-    val cpuSku = getSku(cpuKey)
+
+    // As of Sept 2024 the cost catalog does not contain entries for custom N1 machines. If we're using N1, attempt
+    // to fall back to predefined.
+    lazy val n1PredefinedCpuSku = (machineType, machineCustomization) match {
+      case (Some(N1), Custom) => getSku(cpuKey.copy(machineCustomization = Predefined))
+      case _ => None
+    }
+
+    val cpuSku = getSku(cpuKey).orElse(n1PredefinedCpuSku)
     if (cpuSku.isEmpty) {
       println(s"Failed to find CPU Sku for ${cpuKey}")
     } else {
@@ -180,7 +188,15 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     val ramResourceType = Ram
     val ramKey =
       CostCatalogKey(machineType.get, usageType, machineCustomization, ramResourceType, region) // TODO .get
-    val ramSku = getSku(ramKey)
+
+    // As of Sept 2024 the cost catalog does not contain entries for custom N1 machines. If we're using N1, attempt
+    // to fall back to predefined.
+    lazy val n1PredefinedRamSku = (machineType, machineCustomization) match {
+      case (Some(N1), Custom) => getSku(ramKey.copy(machineCustomization = Predefined))
+      case _ => None
+    }
+
+    val ramSku = getSku(ramKey).orElse(n1PredefinedRamSku)
     if (ramSku.isEmpty) {
       println(s"Failed to find Ram Sku for ${ramKey}")
     } else {

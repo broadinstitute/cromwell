@@ -434,7 +434,6 @@ class BatchBackendCacheHitCopyingActorSpec
       virtualPrivateCloudConfiguration = VirtualPrivateCloudConfiguration(None, None),
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
-      dockerImageToCacheDiskImageMappingOpt = None,
       checkpointingInterval = 10.minutes,
       logsPolicy = GcpBatchLogsPolicy.CloudLogging
     )

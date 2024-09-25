@@ -1,6 +1,5 @@
 package cromwell.backend.google.batch.models
 
-import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
 import com.typesafe.config.{Config, ConfigFactory}
 import common.assertion.CromwellTimeoutSpec
@@ -9,7 +8,6 @@ import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes._
 import cromwell.backend.google.batch.models.GcpBatchTestConfig.BatchGlobalConfig
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.MockAuthMode
-import cromwell.filesystems.gcs.GcsPathBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
@@ -456,43 +454,6 @@ class GcpBatchConfigurationAttributesSpec
       val backendConfig = ConfigFactory.parseString(configString(customContent))
       val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "batch")
       validation.isInvalid shouldBe true
-    }
-  }
-
-  it should "parse correct existing docker-image-cache-manifest-file config" in {
-
-    val dockerImageCacheManifest1Path = "gs://bucket/manifest1.json"
-    val dockerImageCacheManifestConfigStr = s"""docker-image-cache-manifest-file = "$dockerImageCacheManifest1Path""""
-    val backendConfig = ConfigFactory.parseString(configString(dockerImageCacheManifestConfigStr))
-
-    val validatedGcsPathToDockerImageCacheManifestFileErrorOr =
-      GcpBatchConfigurationAttributes.validateGcsPathToDockerImageCacheManifestFile(backendConfig)
-    validatedGcsPathToDockerImageCacheManifestFileErrorOr match {
-      case Valid(validatedGcsPathToDockerImageCacheManifestFileOpt) =>
-        validatedGcsPathToDockerImageCacheManifestFileOpt match {
-          case Some(validatedGcsPathToDockerCacheManifestFile) =>
-            validatedGcsPathToDockerCacheManifestFile shouldBe GcsPathBuilder.validateGcsPath(
-              dockerImageCacheManifest1Path
-            )
-          case None =>
-            fail("GCS paths to docker image cache manifest files, parsed from config, should not be empty")
-        }
-      case Invalid(ex) =>
-        fail(s"Error while parsing GCS paths to docker image cache manifest files from config: $ex")
-    }
-  }
-
-  it should "parse correct missing docker-image-cache-manifest-file config" in {
-
-    val backendConfig = ConfigFactory.parseString(configString())
-
-    val validatedGcsPathsToDockerImageCacheManifestFilesErrorOr =
-      GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "unit-test-backend")
-    validatedGcsPathsToDockerImageCacheManifestFilesErrorOr match {
-      case Valid(validatedGcsPathsToDockerImageCacheManifestFilesOpt) =>
-        validatedGcsPathsToDockerImageCacheManifestFilesOpt shouldBe None
-      case Invalid(ex) =>
-        fail(s"Error while parsing GCS paths to docker image cache manifest files from config: $ex")
     }
   }
 }

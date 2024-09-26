@@ -17,7 +17,6 @@ object JobPaths {
   val TaskLogPathKey = "taskLog"
   val ReturnCodePathKey = "returnCode"
   val CallRootPathKey = "callRootPath"
-  val DockerCidPathKey = "dockerCidPath"
 
   def callPathBuilder(root: Path, jobKey: JobKey, isCallCacheCopyAttempt: Boolean) = {
     val callName = jobKey.node.localName

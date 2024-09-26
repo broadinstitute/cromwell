@@ -48,7 +48,6 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            failOnStderr: Boolean,
                                            continueOnReturnCode: ContinueOnReturnCode,
                                            noAddress: Boolean,
-                                           useDockerImageCache: Option[Boolean],
                                            checkpointFilename: Option[String]
 )
 
@@ -77,12 +76,8 @@ object GcpBatchRuntimeAttributes {
   private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
   // via `gcloud compute zones describe us-central1-a`
   val CpuPlatformIntelCascadeLakeValue = "Intel Cascade Lake"
+  val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
-
-  val UseDockerImageCacheKey = "useDockerImageCache"
-  private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(
-    UseDockerImageCacheKey
-  ).optional
 
   val CheckpointFileKey = "checkpointFile"
   private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional
@@ -147,11 +142,6 @@ object GcpBatchRuntimeAttributes {
           .configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue
       )
 
-  private def useDockerImageCacheValidation(
-    runtimeConfig: Option[Config]
-  ): OptionalRuntimeAttributesValidation[Boolean] =
-    useDockerImageCacheValidationInstance
-
   def runtimeAttributesBuilder(batchConfiguration: GcpBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = batchConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder
@@ -168,7 +158,6 @@ object GcpBatchRuntimeAttributes {
         preemptibleValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
         bootDiskSizeValidation(runtimeConfig),
-        useDockerImageCacheValidation(runtimeConfig),
         checkpointFileValidationInstance,
         dockerValidation
       )
@@ -223,10 +212,6 @@ object GcpBatchRuntimeAttributes {
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[GcpBatchAttachedDisk] =
       RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val useDockerImageCache: Option[Boolean] = RuntimeAttributesValidation.extractOption(
-      useDockerImageCacheValidation(runtimeAttrsConfig).key,
-      validatedRuntimeAttributes
-    )
 
     new GcpBatchRuntimeAttributes(
       cpu = cpu,
@@ -241,7 +226,6 @@ object GcpBatchRuntimeAttributes {
       failOnStderr = failOnStderr,
       continueOnReturnCode = continueOnReturnCode,
       noAddress = noAddress,
-      useDockerImageCache = useDockerImageCache,
       checkpointFilename = checkpointFileName
     )
   }

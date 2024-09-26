@@ -48,7 +48,7 @@ trait BatchUtilityConversions {
     disk match {
       case _: GcpBatchReferenceFilesDisk =>
         volume
-          .addMountOptions("async, rw")
+          .addMountOptions("ro")
           .build
       case _ =>
         volume.build

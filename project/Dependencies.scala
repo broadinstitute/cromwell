@@ -32,7 +32,7 @@ object Dependencies {
   private val circeGenericExtrasV = "0.14.1"
   private val circeOpticsV = "0.14.1"
   private val circeV = "0.14.1"
-  private val circeYamlV = "0.14.1"
+  private val circeYamlV = "0.15.1"
   private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
   private val commonsCsvV = "1.9.0"
   private val commonsIoV = "2.11.0" // via: https://commons.apache.org/proper/commons-io/
@@ -53,8 +53,6 @@ object Dependencies {
   private val googleCloudNioV = "0.127.18"
   private val googleCloudStorageV = "2.17.2"
   private val googleGaxGrpcV = "2.48.0"
-  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
-  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.42.3"
   private val googleCloudBatchV1 = "0.18.0"
@@ -135,10 +133,10 @@ object Dependencies {
     * https://github.com/slick/slick/pull/2201
   */
   private val slickV = "3.4.0-M1"
-  private val snakeyamlV = "1.33"
+  private val snakeyamlV = "2.3"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.7.2"
-  private val swaggerParserV = "1.0.56"
+  private val swaggerParserV = "1.0.71"
   private val swaggerUiV = "4.5.2"
   private val testContainersScalaV = "0.40.10"
   private val tikaV = "2.3.0"
@@ -367,11 +365,6 @@ object Dependencies {
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
-  private val googleGenomicsV2Alpha1Dependency = List(
-    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2Alpha1ApiV
-      exclude("com.google.guava", "guava-jdk5")
-  )
-
   private val googleLifeSciencesV2BetaDependency = List(
     "com.google.apis" % "google-api-services-lifesciences" % googleLifeSciencesServicesV2BetaApiV
       exclude("com.google.guava", "guava-jdk5")
@@ -383,7 +376,7 @@ object Dependencies {
     "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
   )
 
-  private val googlePapiBatchDependencies = googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
+  private val googlePapiBatchDependencies =  googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
 
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`

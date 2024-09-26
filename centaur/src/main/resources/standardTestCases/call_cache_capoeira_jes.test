@@ -1,6 +1,8 @@
 name: call_cache_capoeira_jes
 testFormat: workflowsuccess
-backends: [Papi, Local]
+# hashing backend name, doesn't match
+#  -Metadata mismatch for calls.call_cache_capoeira.read_array_files.callCaching.hashes.backend name - expected: "36EF4A8AB268D1A1C74D8108C93D48ED" but got: "F9B949AB11D336FE12AEEF8C8DB7D3F9"
+backends: [Papi, GCPBATCH_NEEDS_ALT]
 retryTestFailures: false
 
 files {

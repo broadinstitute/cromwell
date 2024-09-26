@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.v2beta
 
+import akka.actor.ActorRef
 import cats.data.NonEmptyList
 import cats.implicits._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
@@ -11,6 +12,7 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesApiAsyncBackendJobExecutionActor._
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
+import cromwell.backend.google.pipelines.common.PapiPollResultMonitorActor
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
@@ -23,7 +25,6 @@ import wom.expression.FileEvaluation
 import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomSingleFile, WomUnlistedDirectory}
 
 import java.nio.charset.Charset
-
 import java.io.{FileNotFoundException, OutputStreamWriter}
 import scala.concurrent.Future
 import scala.io.Source
@@ -67,6 +68,18 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
         case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
       }
   }
+
+  override val pollingResultMonitorActor: Option[ActorRef] = Option(
+    context.actorOf(
+      PapiPollResultMonitorActor.props(serviceRegistryActor,
+                                       workflowDescriptor,
+                                       jobDescriptor,
+                                       validatedRuntimeAttributes,
+                                       platform,
+                                       jobLogger
+      )
+    )
+  )
 
   private lazy val gcsTransferLibrary =
     Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gcs_transfer.sh")).mkString

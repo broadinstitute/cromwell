@@ -48,7 +48,7 @@ object TokenDispenserBenchmark extends Bench[Double] with DefaultJsonProtocol {
   def useQueue(tokenQueueIn: TokenQueue, jobsToDequeue: Int, jobsAtATime: Int) = {
     var tokenQueue = tokenQueueIn
     (0 until (jobsToDequeue / jobsAtATime)) foreach { _ =>
-      val iterator = new RoundRobinQueueIterator(List(tokenQueue), 0)
+      val iterator = new RoundRobinQueueIterator(List(tokenQueue), 0, List.empty)
       iterator.take(jobsAtATime)
       tokenQueue = iterator.updatedQueues.head
     }
@@ -56,12 +56,12 @@ object TokenDispenserBenchmark extends Bench[Double] with DefaultJsonProtocol {
   }
 
   def useEntireAvailability(tokenQueueIn: TokenQueue, jobsAtATime: Int): TokenQueue = {
-    var iterator = new RoundRobinQueueIterator(List(tokenQueueIn), 0)
+    var iterator = new RoundRobinQueueIterator(List(tokenQueueIn), 0, List.empty)
 
     while (iterator.hasNext) {
       iterator.take(jobsAtATime).toList
       val newQueue = iterator.updatedQueues.head
-      iterator = new RoundRobinQueueIterator(List(newQueue), 0)
+      iterator = new RoundRobinQueueIterator(List(newQueue), 0, List.empty)
     }
 
     iterator.updatedQueues.head

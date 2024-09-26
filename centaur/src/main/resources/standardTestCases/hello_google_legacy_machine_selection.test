@@ -1,6 +1,11 @@
 name: hello_google_legacy_machine_selection
 testFormat: workflowsuccess
-backends: [ Papiv2 ]
+
+# Legacy PAPI v1 (aka JES) machine types not supported on GCP Batch.
+# Task wf_hello.hello:NA:1 failed: Job failed when Batch tries to schedule it:
+# Batch Error: code - CODE_MACHINE_TYPE_NOT_FOUND, description -
+# machine type predefined-1-2048 for job job-xyz, project 8675309, region us-central1, zones (if any) us-central1-b is not available.
+backends: [ Papiv2, GCPBATCH_LEGACY_MACHINE_TYPES_NOT_SUPPORTED ]
 
 files {
   workflow: wdl_draft3/hello/hello.wdl

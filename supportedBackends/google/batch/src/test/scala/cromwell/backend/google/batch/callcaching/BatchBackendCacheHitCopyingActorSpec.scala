@@ -3,8 +3,11 @@ package cromwell.backend.google.batch.callcaching
 import akka.event.NoLogging
 import akka.testkit.{ImplicitSender, TestFSMRef, TestProbe}
 import com.typesafe.config.ConfigFactory
+import common.mock.MockSugar
 import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedResponse, CopyOutputsCommand}
 import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
+import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
+import cromwell.backend.google.batch.models._
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.standard.callcaching.CopyingActorBlacklistCacheSupport.HasFormatting
@@ -27,15 +30,6 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.slf4j.Logger
-import common.mock.MockSugar
-import cromwell.backend.google.batch.models.{
-  GcpBackendInitializationData,
-  GcpBatchConfiguration,
-  GcpBatchConfigurationAttributes,
-  GcpBatchJobPaths,
-  GcpBatchWorkflowPaths
-}
-import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
 import wom.callable.CommandTaskDefinition
 import wom.graph.{CommandCallNode, FullyQualifiedName, LocalName, WomIdentifier}
 import wom.values.WomValue
@@ -440,8 +434,8 @@ class BatchBackendCacheHitCopyingActorSpec
       virtualPrivateCloudConfiguration = VirtualPrivateCloudConfiguration(None, None),
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
-      dockerImageToCacheDiskImageMappingOpt = None,
-      checkpointingInterval = 10.minutes
+      checkpointingInterval = 10.minutes,
+      logsPolicy = GcpBatchLogsPolicy.CloudLogging
     )
 
     val batchConfiguration = mockWithDefaults[GcpBatchConfiguration]

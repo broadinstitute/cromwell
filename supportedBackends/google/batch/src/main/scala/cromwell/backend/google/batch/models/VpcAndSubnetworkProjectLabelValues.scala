@@ -12,7 +12,7 @@ final case class VpcAndSubnetworkProjectLabelValues(vpcName: String, subnetNameO
       if (vpcName.contains("/")) {
         vpcName
       } else {
-        s"projects/$ProjectIdToken/global/networks/$vpcName/"
+        s"projects/$ProjectIdToken/global/networks/$vpcName"
       }
 
     networkNameTemplate.replace(ProjectIdToken, projectId)

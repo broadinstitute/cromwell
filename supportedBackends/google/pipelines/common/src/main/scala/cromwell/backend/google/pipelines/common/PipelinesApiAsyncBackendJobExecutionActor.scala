@@ -37,6 +37,7 @@ import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfigu
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
 import cromwell.backend.standard._
+
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -131,7 +132,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override type StandardAsyncRunState = RunStatus
 
-  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
+  override val pollingResultMonitorActor: Option[ActorRef] = Option.empty
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean =
+    thiz.toString == that.toString
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
 
@@ -773,10 +776,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] =
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
 
-  override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit =
-    if (runStatus == AwaitingCloudQuota) {
+  override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit = runStatus match {
+    case AwaitingCloudQuota(_) =>
       standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
-    }
+    case _ =>
+  }
 
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (_: JesPendingExecutionHandle @unchecked, JobAbortedException) =>
@@ -825,17 +829,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       case successStatus: RunStatus.Success => successStatus.eventList
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
-    }
-
-  override def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] =
-    runStatus match {
-      case terminalRunStatus: TerminalRunStatus if terminalRunStatus.eventList.nonEmpty =>
-        val offsetDateTimes = terminalRunStatus.eventList.map(_.offsetDateTime)
-        val cpuStart = terminalRunStatus.eventList.find(event =>
-          event.name.matches("""^Worker[\s\"\\]+google-pipelines-worker-[a-zA-Z0-9\s\"\\]+assigned in.*""")
-        )
-        Some(StartAndEndTimes(offsetDateTimes.min, cpuStart.map(_.offsetDateTime), offsetDateTimes.max))
-      case _ => None
     }
 
   override def retryEvaluateOutputs(exception: Exception): Boolean =

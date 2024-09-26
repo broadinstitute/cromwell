@@ -1,6 +1,13 @@
 name: dedup_localizations_papi_v2
 testFormat: workflowsuccess
-backends: [Papiv2]
+# The test is looking for a Papi v2-style log with combined stdout and stderr for container setup, localization, user
+# command, and delocalization. Within that task log the WDL is searching for a particular localization command.
+# The GCP Batch backend does not currently have file-based logging of container setup, localization or delocalization.
+#
+# PR #7529 would provide this file-based logging, but is not a replacement for Papi v2-style streaming logs. The logs
+# it produces have some other issues (not streaming within runnables, tons of logs formatting, includes Batch agent
+# logs) such that it's not clear we would want to merge it as is.
+backends: [Papiv2, GCPBATCH_NEEDS_FILE_BASED_LOCALIZATION_LOGGING]
 
 files {
   workflow: dedup_localizations_papi_v2/dedup_localizations_papi_v2.wdl

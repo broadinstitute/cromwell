@@ -160,7 +160,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
    * in the state type.
    */
-  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean =
+    thiz.toString == that.toString
 
   protected lazy val cmdInput: GcpBatchFileInput =
     GcpBatchFileInput(GcpBatchJobPaths.BatchExecParamName,
@@ -570,7 +571,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
 
         val referenceDisksToMount =
-          batchAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
+          if (useReferenceDisks)
+            batchAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
+          else
+            None
 
         val dockerhubCredentials: (String, String) =
           new String(Base64.getDecoder.decode(batchAttributes.dockerhubToken), "UTF-8").split(":", 2) match {
@@ -834,6 +838,16 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         contentType = plainTextContentType
       )
 
+      val logFileOutput = GcpBatchFileOutput(
+        logFilename,
+        logGcsPath,
+        DefaultPathBuilder.get(logFilename),
+        workingDisk,
+        optional = true,
+        secondary = false,
+        contentType = plainTextContentType
+      )
+
       val memoryRetryRCFileOutput = GcpBatchFileOutput(
         memoryRetryRCFilename,
         memoryRetryRCGcsPath,
@@ -874,20 +888,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput,
-          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
+          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput,
+          logFileOutputParameter = logFileOutput
         ),
         List.empty
       )
 
     })
-
-    val gcpBatchParameters = CreateGcpBatchParameters(
-      jobDescriptor = jobDescriptor,
-      runtimeAttributes = runtimeAttributes,
-      batchAttributes = batchAttributes,
-      projectId = batchAttributes.project,
-      region = batchAttributes.location
-    )
 
     val runBatchResponse = for {
       _ <- evaluateRuntimeAttributes
@@ -895,6 +902,18 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       customLabels <- Future.fromTry(GcpLabel.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       batchParameters <- generateInputOutputParameters
       createParameters = createBatchParameters(batchParameters, customLabels)
+
+      gcpBatchParameters = CreateGcpBatchParameters(
+        jobDescriptor = jobDescriptor,
+        runtimeAttributes = runtimeAttributes,
+        batchAttributes = batchAttributes,
+        projectId = batchAttributes.project,
+        region = batchAttributes.location,
+        logfile = createParameters.commandScriptContainerPath.sibling(
+          batchParameters.detritusOutputParameters.logFileOutputParameter.name
+        )
+      )
+
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
       _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
       gcsTransferConfiguration = initializationData.gcpBatchConfiguration.batchAttributes.gcsTransferConfiguration
@@ -984,20 +1003,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
     }
 
-  protected def sendIncrementMetricsForDockerImageCache(dockerImageCacheDiskOpt: Option[String],
-                                                        dockerImageAsSpecifiedByUser: String,
-                                                        isDockerImageCacheUsageRequested: Boolean
-  ): Unit =
-    (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
-      case (true, None) =>
-        increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
-      case (true, Some(_)) =>
-        increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
-      case (false, Some(_)) =>
-        increment(NonEmptyList("docker", List("image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser)))
-      case _ => // docker image cache not requested and image is not in cache anyway - do nothing
-    }
-
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
     // yes, we use the whole jobName as the id
     val jobNameStr = handle.pendingJob.jobId
@@ -1055,7 +1060,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     Future.fromTry {
       Try {
         runStatus match {
-          case RunStatus.Aborted => AbortedExecutionHandle
+          case RunStatus.Aborted(_) => AbortedExecutionHandle
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus)
           case unknown =>
             throw new RuntimeException(
@@ -1093,9 +1098,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   protected def fuseEnabled(descriptor: BackendWorkflowDescriptor): Boolean =
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.EnableFuse).toOption.getOrElse(batchAttributes.enableFuse)
-
-  protected def useDockerImageCache(descriptor: BackendWorkflowDescriptor): Boolean =
-    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
 
   override def cloudResolveWomFile(womFile: WomFile): WomFile =
     womFile.mapFile { value =>

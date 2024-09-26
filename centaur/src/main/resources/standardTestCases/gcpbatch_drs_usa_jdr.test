@@ -1,6 +1,5 @@
 name: gcpbatch_drs_usa_jdr
 testFormat: WorkflowSuccess
-# "Caused by: cloud.nio.impl.drs.DrsPathResolver$$anon$2: Unexpected response during resolution of 'drs://jade.datarepo-dev.broadinstitute.org/v1_f90f5d7f-c507-4e56-abfc-b965a66023fb_585f3f19-985f-43b0-ab6a-79fa4c8310fc': HTTP status 401: Unauthorized"
 backends: ["GCPBATCH-usa"]
 tags: [ drs ]
 skipDescribeEndpointValidation: true

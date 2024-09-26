@@ -123,19 +123,18 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
    * NB: This function takes an iterable so we can take advantage of the pagination provided by googleClient.listSkus.
    * Ideally, we don't want to have an entire, unprocessed, cost catalog in memory at once since it's ~20MB.
    */
-  // TODO check for collisions when building map
   private def processCostCatalog(skus: Iterable[Sku]): Map[CostCatalogKey, CostCatalogValue] =
-    // TODO: reduce memory footprint of returned map  (don't store entire SKU object)
     skus.foldLeft(Map.empty[CostCatalogKey, CostCatalogValue]) { case (acc, sku) =>
-      acc ++ convertSkuToKeyValuePairs(sku)
-    }
+      val keys = CostCatalogKey(sku)
 
-  /**
-   * Convert a SKU into a cost catalog map entry. We drop all SKUs that to not map to known machine types,
-   * resource types, usage types, etc. 
-   */
-  private def convertSkuToKeyValuePairs(sku: Sku): List[(CostCatalogKey, CostCatalogValue)] =
-    CostCatalogKey(sku).map(k => (k, CostCatalogValue(sku)))
+      // We expect that every cost catalog key is unique, but changes to the SKUs returned by Google may
+      // break this assumption. Check and log an error if we find collisions.
+      val collisions = keys.filter(acc.contains)
+      if (collisions.nonEmpty)
+        logger.error(s"Found SKU key collision for ${sku.getDescription}")
+
+      acc ++ keys.map(k => (k, CostCatalogValue(sku)))
+    }
 
   // See: https://cloud.google.com/billing/v1/how-tos/catalog-api
   private def calculateCpuPricePerHour(cpuSku: Sku, coreCount: Int): Try[BigDecimal] = {

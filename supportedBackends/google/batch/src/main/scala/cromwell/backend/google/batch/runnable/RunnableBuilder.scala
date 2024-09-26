@@ -156,6 +156,7 @@ object RunnableBuilder {
           .setImageUri(docker)
           .setEntrypoint(jobShell)
           .addCommands(scriptContainerPath)
+          // GCP Batch: no way to pass in KMS-encrypted Secret like PAPI v2?
           .setUsername(username)
           .setPassword(password)
       case _ =>

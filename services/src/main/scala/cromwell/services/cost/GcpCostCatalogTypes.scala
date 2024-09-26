@@ -9,9 +9,16 @@ import scala.util.{Failure, Success, Try}
  * Case class that contains information retrieved from Google about a VM that cromwell has started
  */
 case class InstantiatedVmInfo(region: String, machineType: String, preemptible: Boolean)
+
 /*
  * These types reflect hardcoded strings found in a google cost catalog.
  */
+
+sealed trait MachineType { def machineTypeName: String }
+case object N1 extends MachineType { override val machineTypeName = "N1" }
+case object N2 extends MachineType { override val machineTypeName = "N2" }
+case object N2d extends MachineType { override val machineTypeName = "N2D" }
+
 object MachineType {
   def fromSku(sku: Sku): Option[MachineType] = {
     val tokenizedDescription = sku.getDescription.split(" ")
@@ -53,10 +60,10 @@ object MachineType {
     }
   }
 }
-sealed trait MachineType { def machineTypeName: String }
-case object N1 extends MachineType { override val machineTypeName = "N1" }
-case object N2 extends MachineType { override val machineTypeName = "N2" }
-case object N2d extends MachineType { override val machineTypeName = "N2D" }
+
+sealed trait UsageType { def typeName: String }
+case object OnDemand extends UsageType { override val typeName = "OnDemand" }
+case object Preemptible extends UsageType { override val typeName = "Preemptible" }
 
 object UsageType {
   def fromSku(sku: Sku): Option[UsageType] =
@@ -71,9 +78,10 @@ object UsageType {
   }
 
 }
-sealed trait UsageType { def typeName: String }
-case object OnDemand extends UsageType { override val typeName = "OnDemand" }
-case object Preemptible extends UsageType { override val typeName = "Preemptible" }
+
+sealed trait MachineCustomization { def customizationName: String }
+case object Custom extends MachineCustomization { override val customizationName = "Custom" }
+case object Predefined extends MachineCustomization { override val customizationName = "Predefined" }
 
 object MachineCustomization {
   def fromMachineTypeString(machineTypeString: String): MachineCustomization =
@@ -97,9 +105,10 @@ object MachineCustomization {
     else Some(Predefined)
   }
 }
-sealed trait MachineCustomization { def customizationName: String }
-case object Custom extends MachineCustomization { override val customizationName = "Custom" }
-case object Predefined extends MachineCustomization { override val customizationName = "Predefined" }
+
+sealed trait ResourceType { def groupName: String }
+case object Cpu extends ResourceType { override val groupName = "CPU" }
+case object Ram extends ResourceType { override val groupName = "RAM" }
 
 object ResourceType {
   def fromSku(sku: Sku): Option[ResourceType] = {
@@ -113,6 +122,3 @@ object ResourceType {
     }
   }
 }
-sealed trait ResourceType { def groupName: String }
-case object Cpu extends ResourceType { override val groupName = "CPU" }
-case object Ram extends ResourceType { override val groupName = "RAM" }

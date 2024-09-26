@@ -21,6 +21,34 @@ case class CostCatalogKey(machineType: MachineType,
                           resourceType: ResourceType,
                           region: String
 )
+
+object CostCatalogKey {
+
+  // Specifically support only the SKUs that we know we can use. This is brittle and I hate it, but the more structured
+  // fields available in the SKU don't give us enough information without relying on the human-readable descriptions.
+  //
+  // N1: We usually use custom machines but SKUs are only available for predefined; we'll fall back to these SKUs.
+  // N2 and N2D: We only use custom machines.
+
+  // Use this regex to filter down to just the SKUs we are interested in.
+  // NB: This should be updated if we add new machine types or the cost catalog descriptions change
+  final val expectedSku =
+    (".*?N1 Predefined Instance (Core|Ram) .*|" +
+      ".*?N2 Custom Instance (Core|Ram) .*|" +
+      ".*?N2D AMD Custom Instance (Core|Ram) .*").r
+
+  def apply(sku: Sku): List[CostCatalogKey] =
+    for {
+      _ <- expectedSku.findFirstIn(sku.getDescription).toList
+      machineType <- MachineType.fromSku(sku).toList
+      resourceType <- ResourceType.fromSku(sku).toList
+      usageType <- UsageType.fromSku(sku).toList
+      machineCustomization <- MachineCustomization.fromSku(sku).toList
+      region <- sku.getServiceRegionsList.asScala.toList
+    } yield CostCatalogKey(machineType, usageType, machineCustomization, resourceType, region)
+
+}
+
 case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) extends ServiceRegistryMessage {
   override def serviceName: String = "GcpCostCatalogService"
 }
@@ -95,6 +123,7 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
    * NB: This function takes an iterable so we can take advantage of the pagination provided by googleClient.listSkus.
    * Ideally, we don't want to have an entire, unprocessed, cost catalog in memory at once since it's ~20MB.
    */
+  // TODO check for collisions when building map
   private def processCostCatalog(skus: Iterable[Sku]): Map[CostCatalogKey, CostCatalogValue] =
     // TODO: reduce memory footprint of returned map  (don't store entire SKU object)
     skus.foldLeft(Map.empty[CostCatalogKey, CostCatalogValue]) { case (acc, sku) =>
@@ -106,19 +135,7 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
    * resource types, usage types, etc. 
    */
   private def convertSkuToKeyValuePairs(sku: Sku): List[(CostCatalogKey, CostCatalogValue)] =
-    for {
-      region <- sku.getServiceRegionsList.asScala.toList
-      machineType <- MachineType.fromSku(sku)
-      usageType <- UsageType.fromSku(sku)
-      machineCustomization <- MachineCustomization.fromSku(sku)
-      resourceType <- ResourceType.fromSku(sku)
-    } yield CostCatalogKey(
-      machineType,
-      usageType,
-      machineCustomization,
-      resourceType,
-      region
-    ) -> CostCatalogValue(sku)
+    CostCatalogKey(sku).map(k => (k, CostCatalogValue(sku)))
 
   // See: https://cloud.google.com/billing/v1/how-tos/catalog-api
   private def calculateCpuPricePerHour(cpuSku: Sku, coreCount: Int): Try[BigDecimal] = {

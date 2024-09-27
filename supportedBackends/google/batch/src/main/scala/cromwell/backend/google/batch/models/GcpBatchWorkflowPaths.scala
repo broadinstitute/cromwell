@@ -2,7 +2,6 @@ package cromwell.backend.google.batch.models
 
 import com.google.auth.Credentials
 import com.typesafe.config.Config
-import cromwell.backend.google.batch.models.GcpBatchWorkflowPaths.callCachePathPrefixFromExecutionRoot
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
@@ -14,11 +13,6 @@ import scala.concurrent.ExecutionContext
 
 object GcpBatchWorkflowPaths {
   val GcsRootOptionKey = "gcp_batch_gcs_root"
-  private val GcsPrefix = "gs://"
-
-  private[models] def callCachePathPrefixFromExecutionRoot(executionRoot: String): String =
-    // If the root looks like gs://bucket/stuff-under-bucket this should return gs://bucket
-    GcsPrefix + executionRoot.substring(GcsPrefix.length).takeWhile(_ != '/')
 }
 case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                                  gcsCredentials: Credentials,
@@ -31,9 +25,6 @@ case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
 
   override lazy val executionRootString: String =
     workflowDescriptor.workflowOptions.getOrElse(GcpBatchWorkflowPaths.GcsRootOptionKey, gcpBatchConfiguration.root)
-  override lazy val callCacheRootPrefix: Option[String] = Option(
-    callCachePathPrefixFromExecutionRoot(executionRootString)
-  )
 
   private val workflowOptions: WorkflowOptions = workflowDescriptor.workflowOptions
 

@@ -1,7 +1,7 @@
 {
   "jes_gcs_root": "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci",
-  "final_workflow_outputs_dir": "gs://non-existent-bucket/move_destination",
-  "final_workflow_outputs_mode": "move",
+  "final_workflow_outputs_dir": "gs://non-existent-bucket/copy_destination",
+  "final_workflow_outputs_dir_metadata": "destination",
   "read_from_cache": false,
   "write_to_cache": false
 }

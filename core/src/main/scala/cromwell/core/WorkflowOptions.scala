@@ -56,19 +56,19 @@ object WorkflowOptions {
   case object FinalCallLogsDir extends WorkflowOption("final_call_logs_dir")
   case object FinalWorkflowOutputsDir extends WorkflowOption("final_workflow_outputs_dir")
   case object UseRelativeOutputPaths extends WorkflowOption(name = "use_relative_output_paths")
-  case object FinalWorkflowOutputsMode extends WorkflowOption("final_workflow_outputs_mode") {
-    // Default to Copy because that was originally the only behavior
-    def fromString(s: Option[String]): FinalWorkflowOutputsMode =
+  case object FinalWorkflowOutputsDirMetadata extends WorkflowOption("final_workflow_outputs_metadata_mode") {
+    // Default to Source because that was originally the only behavior
+    def fromString(s: Option[String]): FinalWorkflowOutputsDirMetadata =
       s match {
-        case Some("copy") => Copy
-        case Some("move") => Move
-        case _ => Copy
+        case Some("source") => Source
+        case Some("destination") => Destination
+        case _ => Source
       }
   }
 
-  sealed trait FinalWorkflowOutputsMode
-  case object Copy extends FinalWorkflowOutputsMode
-  case object Move extends FinalWorkflowOutputsMode
+  sealed trait FinalWorkflowOutputsDirMetadata
+  case object Source extends FinalWorkflowOutputsDirMetadata
+  case object Destination extends FinalWorkflowOutputsDirMetadata
 
   // Misc.
   case object DefaultRuntimeOptions extends WorkflowOption("default_runtime_attributes")

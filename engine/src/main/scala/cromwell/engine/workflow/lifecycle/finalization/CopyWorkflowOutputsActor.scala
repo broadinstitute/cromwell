@@ -11,7 +11,6 @@ import cromwell.backend.BackendWorkflowFinalizationActor.{
 }
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.Dispatcher.IoDispatcher
-import cromwell.core.WorkflowOptions.{Copy, Move}
 import cromwell.core._
 import cromwell.core.io.AsyncIoActorClient
 import cromwell.core.path.Path
@@ -94,28 +93,12 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     Future.sequence(copies)
   }
 
-  private def moveWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
-    val outputFilePaths =
-      outputFilePathMapping(outputsDir, workflowDescriptor, initializationData, workflowOutputs.outputs.values.toSeq)
-
-    markDuplicates(outputFilePaths)
-
-    val moves = outputFilePaths.toList map { case (srcPath, dstPath) =>
-      asyncIo.copyAsync(srcPath, dstPath) flatMap { _ =>
-        asyncIo.deleteAsync(srcPath)
-      }
-    }
-
-    Future.sequence(moves)
-  }
-
   /**
     * Happens after everything else runs
     */
   final def afterAll()(implicit ec: ExecutionContext): Future[FinalizationResponse] =
-    (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsMode) match {
-      case (Some(outputsDir), Copy) => copyWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
-      case (Some(outputsDir), Move) => moveWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
+    workflowDescriptor.finalWorkflowOutputsDir match {
+      case Some(outputsDir) => copyWorkflowOutputs(outputsDir) map { _ => FinalizationSuccess }
       case _ => Future.successful(FinalizationSuccess)
     }
 }

@@ -20,7 +20,7 @@ import cromwell.backend._
 import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionStatus._
-import cromwell.core.WorkflowOptions.Move
+import cromwell.core.WorkflowOptions.Destination
 import cromwell.core._
 import cromwell.core.io.AsyncIo
 import cromwell.core.logging.WorkflowLogging
@@ -31,17 +31,10 @@ import cromwell.engine.workflow.lifecycle.OutputsLocationHelper.FileRelocationMa
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData.DataStoreUpdate
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
-import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{
-  ExpressionEvaluationFailedResponse,
-  ExpressionEvaluationSucceededResponse
-}
+import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{ExpressionEvaluationFailedResponse, ExpressionEvaluationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.{ActiveExecutionStore, ExecutionStore}
-import cromwell.engine.workflow.lifecycle.{
-  EngineLifecycleActorAbortCommand,
-  EngineLifecycleActorAbortedResponse,
-  OutputsLocationHelper
-}
+import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse, OutputsLocationHelper}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -417,8 +410,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
     def handleSuccessfulWorkflowOutputs(outputs: Map[GraphOutputNode, WomValue]) = {
       val fileMap: FileRelocationMap =
-        (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsMode) match {
-          case (Some(outputDir), Move) =>
+        (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsDirMetadata) match {
+          case (Some(outputDir), Destination) =>
             outputFilePathMapping(outputDir, workflowDescriptor, params.initializationData, outputs.values.toSeq) map {
               case (src, dst) =>
                 (src, dst)

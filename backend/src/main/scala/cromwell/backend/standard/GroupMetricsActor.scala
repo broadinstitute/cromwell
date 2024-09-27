@@ -43,10 +43,11 @@ class GroupMetricsActor(engineDbInterface: EngineSqlDatabase,
     case LogQuotaExhaustedGroups =>
       getQuotaExhaustedGroups() onComplete {
         case Success(quotaExhaustedGroups) =>
-          log.info(
-            s"Hog groups currently experiencing quota exhaustion: ${quotaExhaustedGroups.length}. Group IDs: [${quotaExhaustedGroups.toList
-                .mkString(", ")}]."
-          )
+          if (quotaExhaustedGroups.nonEmpty)
+            log.info(
+              s"Hog groups currently experiencing quota exhaustion: ${quotaExhaustedGroups.length}. Group IDs: [${quotaExhaustedGroups.toList
+                  .mkString(", ")}]."
+            )
         case Failure(exception) =>
           log.info(
             s"Something went wrong when fetching quota exhausted groups for logging. Will retry in ${loggingInterval

@@ -1,5 +1,6 @@
 package cromwell.backend.standard.pollmonitoring
 import akka.actor.{Actor, ActorRef}
+import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Platform}
 import cromwell.backend.validation.{
   CpuValidation,
@@ -17,7 +18,6 @@ import wdl4s.parser.MemoryUnit
 
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
-import scala.util.{Failure, Success}
 trait PollResultMessage
 case class ProcessThisPollResult[PollResultType](pollResult: PollResultType) extends PollResultMessage
 case class AsyncJobHasFinished[PollResultType](pollResult: PollResultType) extends PollResultMessage
@@ -157,9 +157,10 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
     println(s"Handling Cost Response from Catalog Service: ${costLookupResponse}")
     if (vmCostPerHour.isEmpty) { // Optimization to avoid processing responses after we've received a valid one.
       val cost = costLookupResponse.calculatedCost match {
-        case Success(c) => c
-        case Failure(e) =>
-          params.logger.foreach(_.error(s"Failed to calculate VM cost per hour. ${e.getMessage}"))
+        case Valid(c) => c
+        case Invalid(errors) =>
+          // TODO contextualizeErrors
+          params.logger.foreach(_.error(s"Failed to calculate VM cost per hour. ${errors.toList.mkString(", ")}"))
           BigDecimal(-1)
       }
       vmCostPerHour = Option(cost)

@@ -1,11 +1,14 @@
 package cromwell.services.cost
 
 import akka.actor.{Actor, ActorRef}
+import cats.implicits.catsSyntaxValidatedId
 import com.google.`type`.Money
 import com.google.cloud.billing.v1._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.util.StringUtil.EnhancedToStringable
+import common.validation.ErrorOr._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
 import cromwell.services.cost.GcpCostCatalogService.{COMPUTE_ENGINE_SERVICE_NAME, DEFAULT_CURRENCY_CODE}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -13,7 +16,6 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import java.time.{Duration, Instant}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 import java.time.temporal.ChronoUnit.SECONDS
-import scala.util.{Failure, Success, Try}
 
 case class CostCatalogKey(machineType: MachineType,
                           usageType: UsageType,
@@ -47,7 +49,7 @@ object CostCatalogKey {
       region <- sku.getServiceRegionsList.asScala.toList
     } yield CostCatalogKey(machineType, usageType, machineCustomization, resourceType, region)
 
-  def apply(instantiatedVmInfo: InstantiatedVmInfo, resourceType: ResourceType): Option[CostCatalogKey] =
+  def apply(instantiatedVmInfo: InstantiatedVmInfo, resourceType: ResourceType): ErrorOr[CostCatalogKey] =
     MachineType.fromGoogleMachineTypeString(instantiatedVmInfo.machineType).map { mType =>
       CostCatalogKey(
         mType,
@@ -62,7 +64,7 @@ object CostCatalogKey {
 case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) extends ServiceRegistryMessage {
   override def serviceName: String = "GcpCostCatalogService"
 }
-case class GcpCostLookupResponse(calculatedCost: Try[BigDecimal])
+case class GcpCostLookupResponse(calculatedCost: ErrorOr[BigDecimal])
 case class CostCatalogValue(catalogObject: Sku)
 case class ExpiringGcpCostCatalog(catalog: Map[CostCatalogKey, CostCatalogValue], fetchTime: Instant)
 
@@ -79,7 +81,7 @@ object GcpCostCatalogService {
   }
 
   // See: https://cloud.google.com/billing/v1/how-tos/catalog-api
-  def calculateCpuPricePerHour(cpuSku: Sku, coreCount: Int): Try[BigDecimal] = {
+  def calculateCpuPricePerHour(cpuSku: Sku, coreCount: Int): ErrorOr[BigDecimal] = {
     val pricingInfo = getMostRecentPricingInfo(cpuSku)
     val usageUnit = pricingInfo.getPricingExpression.getUsageUnit
     if (usageUnit == "h") {
@@ -92,25 +94,26 @@ object GcpCostCatalogService {
         costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
 
       println(s"Calculated ${coreCount} cpu cores to cost ${costPerCorePerHour * coreCount} per hour")
-      Success(costPerCorePerHour * coreCount)
+      val result = costPerCorePerHour * coreCount
+      result.validNel
     } else {
-      Failure(new UnsupportedOperationException(s"Expected usage units of CPUs to be 'h'. Got ${usageUnit}"))
+      s"Expected usage units of CPUs to be 'h'. Got ${usageUnit}".invalidNel
     }
   }
 
-  def calculateRamPricePerHour(ramSku: Sku, ramGbCount: Int): Try[BigDecimal] = {
+  def calculateRamPricePerHour(ramSku: Sku, ramGbCount: Int): ErrorOr[BigDecimal] = {
     val pricingInfo = getMostRecentPricingInfo(ramSku)
     val usageUnit = pricingInfo.getPricingExpression.getUsageUnit
     if (usageUnit == "GiBy.h") {
       val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
       val costPerGbHour: BigDecimal =
         costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
+
       println(s"Calculated ${ramGbCount} GB of ram to cost ${ramGbCount * costPerGbHour} per hour")
-      Success(costPerGbHour * ramGbCount)
+      val result = costPerGbHour * ramGbCount
+      result.validNel
     } else {
-      Failure(
-        new UnsupportedOperationException(s"Expected usage units of RAM to be 'GiBy.h'. Got ${usageUnit}")
-      )
+      s"Expected usage units of RAM to be 'GiBy.h'. Got ${usageUnit}".invalidNel
     }
   }
 }
@@ -187,32 +190,30 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
       acc ++ keys.map(k => (k, CostCatalogValue(sku)))
     }
 
-  def lookUpSku(instantiatedVmInfo: InstantiatedVmInfo, resourceType: ResourceType): Try[Sku] = {
-    val keyOpt = CostCatalogKey(instantiatedVmInfo, resourceType)
-
-    // As of Sept 2024 the cost catalog does not contain entries for custom N1 machines. If we're using N1, attempt
-    // to fall back to predefined.
-    lazy val n1PredefinedSku = keyOpt.flatMap { key =>
-      (key.machineType, key.machineCustomization) match {
-        case (N1, Custom) => getSku(key.copy(machineCustomization = Predefined))
-        case _ => None
+  def lookUpSku(instantiatedVmInfo: InstantiatedVmInfo, resourceType: ResourceType): ErrorOr[Sku] =
+    CostCatalogKey(instantiatedVmInfo, resourceType).flatMap { key =>
+      // As of Sept 2024 the cost catalog does not contain entries for custom N1 machines. If we're using N1, attempt
+      // to fall back to predefined.
+      lazy val n1PredefinedKey =
+        (key.machineType, key.machineCustomization) match {
+          case (N1, Custom) => Option(key.copy(machineCustomization = Predefined))
+          case _ => None
+        }
+      val sku = getSku(key).orElse(n1PredefinedKey.flatMap(getSku)).map(_.catalogObject)
+      sku match {
+        case Some(sku) => sku.validNel
+        case None => s"Failed to look up ${resourceType} SKU for ${instantiatedVmInfo}".invalidNel
       }
     }
-    val sku = keyOpt.flatMap(getSku).orElse(n1PredefinedSku).map(_.catalogObject)
-    sku match {
-      case Some(s) => Success(s)
-      case None => Failure(new Exception(s"Failed to look up ${resourceType} SKU for ${instantiatedVmInfo}"))
-    }
-  }
 
-  def calculateVmCostPerHour(instantiatedVmInfo: InstantiatedVmInfo): Try[BigDecimal] = {
-    val cpuPricePerHour: Try[BigDecimal] = for {
+  def calculateVmCostPerHour(instantiatedVmInfo: InstantiatedVmInfo): ErrorOr[BigDecimal] = {
+    val cpuPricePerHour: ErrorOr[BigDecimal] = for {
       cpuSku <- lookUpSku(instantiatedVmInfo, Cpu)
       coreCount <- MachineType.extractCoreCountFromMachineTypeString(instantiatedVmInfo.machineType)
       pricePerHour <- GcpCostCatalogService.calculateCpuPricePerHour(cpuSku, coreCount)
     } yield pricePerHour
 
-    val ramPricePerHour: Try[BigDecimal] = for {
+    val ramPricePerHour: ErrorOr[BigDecimal] = for {
       ramSku <- lookUpSku(instantiatedVmInfo, Ram)
       ramMbCount <- MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
       ramGbCount = ramMbCount / 1024

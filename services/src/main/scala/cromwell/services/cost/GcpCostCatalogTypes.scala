@@ -1,9 +1,10 @@
 package cromwell.services.cost
 
+import cats.implicits.catsSyntaxValidatedId
 import com.google.cloud.billing.v1.Sku
+import common.validation.ErrorOr.ErrorOr
 
 import java.util.regex.{Matcher, Pattern}
-import scala.util.{Failure, Success, Try}
 
 /*
  * Case class that contains information retrieved from Google about a VM that cromwell has started
@@ -29,34 +30,33 @@ object MachineType {
   }
 
   // expects a string that looks something like "n1-standard-1" or "custom-1-4096"
-  def fromGoogleMachineTypeString(machineTypeString: String): Option[MachineType] =
-    if (machineTypeString.toLowerCase().startsWith("n1-")) Some(N1)
-    else if (machineTypeString.toLowerCase().startsWith("n2d-")) Some(N2d)
-    else if (machineTypeString.toLowerCase().startsWith("n2-")) Some(N2)
-    else if (machineTypeString.toLowerCase().startsWith("custom-")) Some(N1) // by convention
-    else {
-      println(s"Error: Unrecognized machine type: $machineTypeString")
-      None
-    }
+  def fromGoogleMachineTypeString(machineTypeString: String): ErrorOr[MachineType] = {
+    val mType = machineTypeString.toLowerCase()
+    if (mType.startsWith("n1-")) N1.validNel
+    else if (mType.startsWith("n2d-")) N2d.validNel
+    else if (mType.startsWith("n2-")) N2.validNel
+    else if (mType.startsWith("custom-")) N1.validNel // by convention
+    else s"Error: Unrecognized machine type: $machineTypeString".invalidNel
+  }
 
-  def extractCoreCountFromMachineTypeString(machineTypeString: String): Try[Int] = {
+  def extractCoreCountFromMachineTypeString(machineTypeString: String): ErrorOr[Int] = {
     val pattern: Pattern = Pattern.compile("-(\\d+)")
     val matcher: Matcher = pattern.matcher(machineTypeString)
     if (matcher.find()) {
-      Success(matcher.group(1).toInt)
+      matcher.group(1).toInt.validNel
     } else {
-      Failure(new IllegalArgumentException(s"Could not extract core count from ${machineTypeString}"))
+      s"Could not extract core count from ${machineTypeString}".invalidNel
     }
   }
-  def extractRamMbFromMachineTypeString(machineTypeString: String): Try[Int] = {
+  def extractRamMbFromMachineTypeString(machineTypeString: String): ErrorOr[Int] = {
     // Regular expression to match the number after the dash at the end of the string
     // TODO add test
     val pattern: Pattern = Pattern.compile(".*?-(\\d+)$")
     val matcher: Matcher = pattern.matcher(machineTypeString);
     if (matcher.find()) {
-      Success(matcher.group(1).toInt)
+      matcher.group(1).toInt.validNel
     } else {
-      Failure(new IllegalArgumentException(s"Could not Ram MB count from ${machineTypeString}"))
+      s"Could not Ram MB count from ${machineTypeString}".invalidNel
     }
   }
 }

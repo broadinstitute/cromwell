@@ -72,10 +72,10 @@ class GcpCostCatalogServiceSpec
 
   it should "cache catalogs properly" in {
     val testLookupKey = CostCatalogKey(
-      machineType = Some(N2),
-      usageType = Some(Preemptible),
-      machineCustomization = Some(Predefined),
-      resourceType = Some(Cpu),
+      machineType = N2,
+      usageType = Preemptible,
+      machineCustomization = Predefined,
+      resourceType = Cpu,
       region = "europe-west9"
     )
 
@@ -101,13 +101,13 @@ class GcpCostCatalogServiceSpec
 
   it should "contain an expected SKU" in {
     val expectedKey = CostCatalogKey(
-      machineType = Some(N2d),
-      usageType = Some(Preemptible),
-      machineCustomization = None,
-      resourceType = Some(Ram),
+      machineType = N2d,
+      usageType = Preemptible,
+      machineCustomization = Custom,
+      resourceType = Ram,
       region = "europe-west9"
     )
     val foundValue = testActorRef.getSku(expectedKey)
-    foundValue.get.catalogObject.getDescription shouldBe "Spot Preemptible N2D AMD Instance Ram running in Paris"
+    foundValue.get.catalogObject.getDescription shouldBe "Spot Preemptible N2D AMD Custom Instance Ram running in Paris"
   }
 }

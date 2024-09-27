@@ -47,12 +47,22 @@ object CostCatalogKey {
       region <- sku.getServiceRegionsList.asScala.toList
     } yield CostCatalogKey(machineType, usageType, machineCustomization, resourceType, region)
 
+  def apply(instantiatedVmInfo: InstantiatedVmInfo, resourceType: ResourceType): Option[CostCatalogKey] =
+    MachineType.fromGoogleMachineTypeString(instantiatedVmInfo.machineType).map { mType =>
+      CostCatalogKey(
+        mType,
+        UsageType.fromBoolean(instantiatedVmInfo.preemptible),
+        MachineCustomization.fromMachineTypeString(instantiatedVmInfo.machineType),
+        resourceType,
+        instantiatedVmInfo.region
+      )
+    }
 }
 
 case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) extends ServiceRegistryMessage {
   override def serviceName: String = "GcpCostCatalogService"
 }
-case class GcpCostLookupResponse(calculatedCost: Option[BigDecimal])
+case class GcpCostLookupResponse(calculatedCost: Try[BigDecimal])
 case class CostCatalogValue(catalogObject: Sku)
 case class ExpiringGcpCostCatalog(catalog: Map[CostCatalogKey, CostCatalogValue], fetchTime: Instant)
 
@@ -62,6 +72,47 @@ object GcpCostCatalogService {
 
   // ISO 4217 https://developers.google.com/adsense/management/appendix/currencies
   private val DEFAULT_CURRENCY_CODE = "USD"
+
+  def getMostRecentPricingInfo(sku: Sku): PricingInfo = {
+    val mostRecentPricingInfoIndex = sku.getPricingInfoCount - 1
+    sku.getPricingInfo(mostRecentPricingInfoIndex)
+  }
+
+  // See: https://cloud.google.com/billing/v1/how-tos/catalog-api
+  def calculateCpuPricePerHour(cpuSku: Sku, coreCount: Int): Try[BigDecimal] = {
+    val pricingInfo = getMostRecentPricingInfo(cpuSku)
+    val usageUnit = pricingInfo.getPricingExpression.getUsageUnit
+    if (usageUnit == "h") {
+      // Price per hour of a single core
+      // NB: Ignoring "TieredRates" here (the idea that stuff gets cheaper the more you use).
+      // Technically, we should write code that determines which tier(s) to use.
+      // In practice, from what I've seen, CPU cores and RAM don't have more than a single tier.
+      val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
+      val costPerCorePerHour: BigDecimal =
+        costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
+
+      println(s"Calculated ${coreCount} cpu cores to cost ${costPerCorePerHour * coreCount} per hour")
+      Success(costPerCorePerHour * coreCount)
+    } else {
+      Failure(new UnsupportedOperationException(s"Expected usage units of CPUs to be 'h'. Got ${usageUnit}"))
+    }
+  }
+
+  def calculateRamPricePerHour(ramSku: Sku, ramGbCount: Int): Try[BigDecimal] = {
+    val pricingInfo = getMostRecentPricingInfo(ramSku)
+    val usageUnit = pricingInfo.getPricingExpression.getUsageUnit
+    if (usageUnit == "GiBy.h") {
+      val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
+      val costPerGbHour: BigDecimal =
+        costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
+      println(s"Calculated ${ramGbCount} GB of ram to cost ${ramGbCount * costPerGbHour} per hour")
+      Success(costPerGbHour * ramGbCount)
+    } else {
+      Failure(
+        new UnsupportedOperationException(s"Expected usage units of RAM to be 'GiBy.h'. Got ${usageUnit}")
+      )
+    }
+  }
 }
 
 /**
@@ -136,96 +187,48 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
       acc ++ keys.map(k => (k, CostCatalogValue(sku)))
     }
 
-  // See: https://cloud.google.com/billing/v1/how-tos/catalog-api
-  private def calculateCpuPricePerHour(cpuSku: Sku, coreCount: Int): Try[BigDecimal] = {
-    val pricingInfo = getMostRecentPricingInfo(cpuSku)
-    val usageUnit = pricingInfo.getPricingExpression.getUsageUnit
-    if (usageUnit != "h") {
-      return Failure(new UnsupportedOperationException(s"Expected usage units of CPUs to be 'h'. Got ${usageUnit}"))
-    }
-    // Price per hour of a single core
-    // NB: Ignoring "TieredRates" here (the idea that stuff gets cheaper the more you use).
-    // Technically, we should write code that determines which tier(s) to use.
-    // In practice, from what I've seen, CPU cores and RAM don't have more than a single tier.
-    val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
-    val costPerCorePerHour: BigDecimal =
-      costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
-
-    println(s"Calculated ${coreCount} cpu cores to cost ${costPerCorePerHour * coreCount} per hour")
-    Success(costPerCorePerHour * coreCount)
-  }
-
-  private def calculateRamPricePerHour(ramSku: Sku, ramGbCount: Int): Try[BigDecimal] = {
-    val pricingInfo = getMostRecentPricingInfo(ramSku)
-    val usageUnit = pricingInfo.getPricingExpression.getUsageUnit
-    if (usageUnit != "GiBy.h") {
-      return Failure(new UnsupportedOperationException(s"Expected usage units of RAM to be 'GiBy.h'. Got ${usageUnit}"))
-    }
-    val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
-    val costPerGbHour: BigDecimal =
-      costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
-    println(s"Calculated ${ramGbCount} GB of ram to cost ${ramGbCount * costPerGbHour} per hour")
-    Success(costPerGbHour * ramGbCount)
-  }
-
-  private def getMostRecentPricingInfo(sku: Sku): PricingInfo = {
-    val mostRecentPricingInfoIndex = sku.getPricingInfoCount - 1
-    sku.getPricingInfo(mostRecentPricingInfoIndex)
-  }
-
-  private def calculateVmCostPerHour(instantiatedVmInfo: InstantiatedVmInfo): Try[BigDecimal] = {
-    val machineType = MachineType.fromGoogleMachineTypeString(instantiatedVmInfo.machineType)
-    val usageType = UsageType.fromBoolean(instantiatedVmInfo.preemptible)
-    val machineCustomization = MachineCustomization.fromMachineTypeString(instantiatedVmInfo.machineType)
-    val region = instantiatedVmInfo.region
-    val coreCount = MachineType.extractCoreCountFromMachineTypeString(instantiatedVmInfo.machineType)
-    val ramMbCount = MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
-    val ramGbCount = ramMbCount.getOrElse(0) / 1024
-
-    val cpuResourceType = Cpu
-    val cpuKey =
-      CostCatalogKey(machineType.get, usageType, machineCustomization, cpuResourceType, region) // TODO .get
+  def lookUpSku(instantiatedVmInfo: InstantiatedVmInfo, resourceType: ResourceType): Try[Sku] = {
+    val keyOpt = CostCatalogKey(instantiatedVmInfo, resourceType)
 
     // As of Sept 2024 the cost catalog does not contain entries for custom N1 machines. If we're using N1, attempt
     // to fall back to predefined.
-    lazy val n1PredefinedCpuSku = (machineType, machineCustomization) match {
-      case (Some(N1), Custom) => getSku(cpuKey.copy(machineCustomization = Predefined))
-      case _ => None
+    lazy val n1PredefinedSku = keyOpt.flatMap { key =>
+      (key.machineType, key.machineCustomization) match {
+        case (N1, Custom) => getSku(key.copy(machineCustomization = Predefined))
+        case _ => None
+      }
     }
-
-    val cpuSku = getSku(cpuKey).orElse(n1PredefinedCpuSku)
-    if (cpuSku.isEmpty) {
-      println(s"Failed to find CPU Sku for ${cpuKey}")
-    } else {
-      println(s"Found CPU Sku ${cpuSku.get.catalogObject.getDescription} from key ${cpuKey}")
+    val sku = keyOpt.flatMap(getSku).orElse(n1PredefinedSku).map(_.catalogObject)
+    sku match {
+      case Some(s) => Success(s)
+      case None => Failure(new Exception(s"Failed to look up ${resourceType} SKU for ${instantiatedVmInfo}"))
     }
-    val cpuCost = cpuSku.map(sku => calculateCpuPricePerHour(sku.catalogObject, coreCount.get)) // TODO .get
+  }
 
-    val ramResourceType = Ram
-    val ramKey =
-      CostCatalogKey(machineType.get, usageType, machineCustomization, ramResourceType, region) // TODO .get
+  def calculateVmCostPerHour(instantiatedVmInfo: InstantiatedVmInfo): Try[BigDecimal] = {
+    val cpuPricePerHour: Try[BigDecimal] = for {
+      cpuSku <- lookUpSku(instantiatedVmInfo, Cpu)
+      coreCount <- MachineType.extractCoreCountFromMachineTypeString(instantiatedVmInfo.machineType)
+      pricePerHour <- GcpCostCatalogService.calculateCpuPricePerHour(cpuSku, coreCount)
+    } yield pricePerHour
 
-    // As of Sept 2024 the cost catalog does not contain entries for custom N1 machines. If we're using N1, attempt
-    // to fall back to predefined.
-    lazy val n1PredefinedRamSku = (machineType, machineCustomization) match {
-      case (Some(N1), Custom) => getSku(ramKey.copy(machineCustomization = Predefined))
-      case _ => None
-    }
+    val ramPricePerHour: Try[BigDecimal] = for {
+      ramSku <- lookUpSku(instantiatedVmInfo, Ram)
+      ramMbCount <- MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
+      ramGbCount = ramMbCount / 1024
+      pricePerHour <- GcpCostCatalogService.calculateRamPricePerHour(ramSku, ramGbCount)
+    } yield pricePerHour
 
-    val ramSku = getSku(ramKey).orElse(n1PredefinedRamSku)
-    if (ramSku.isEmpty) {
-      println(s"Failed to find Ram Sku for ${ramKey}")
-    } else {
-      println(s"Found CPU Sku ${ramSku.get.catalogObject.getDescription} from key ${ramKey}")
-    }
-    val ramCost = ramSku.map(sku => calculateRamPricePerHour(sku.catalogObject, ramGbCount)) // TODO .get
-    Success(cpuCost.get.get + ramCost.get.get)
+    for {
+      cpuPrice <- cpuPricePerHour
+      ramPrice <- ramPricePerHour
+    } yield cpuPrice + ramPrice
   }
 
   def serviceRegistryActor: ActorRef = serviceRegistry
   override def receive: Receive = {
     case GcpCostLookupRequest(vmInfo, replyTo) =>
-      val calculatedCost = calculateVmCostPerHour(vmInfo).toOption
+      val calculatedCost = calculateVmCostPerHour(vmInfo)
       val response = GcpCostLookupResponse(calculatedCost)
       replyTo ! response
     case ShutdownCommand =>

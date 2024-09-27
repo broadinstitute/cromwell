@@ -17,6 +17,7 @@ import wdl4s.parser.MemoryUnit
 
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
+import scala.util.{Failure, Success}
 trait PollResultMessage
 case class ProcessThisPollResult[PollResultType](pollResult: PollResultType) extends PollResultMessage
 case class AsyncJobHasFinished[PollResultType](pollResult: PollResultType) extends PollResultMessage
@@ -155,7 +156,12 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
   def handleCostResponse(costLookupResponse: GcpCostLookupResponse): Unit = {
     println(s"Handling Cost Response from Catalog Service: ${costLookupResponse}")
     if (vmCostPerHour.isEmpty) { // Optimization to avoid processing responses after we've received a valid one.
-      val cost = costLookupResponse.calculatedCost.getOrElse(BigDecimal(-1)) // TODO: better logging here.
+      val cost = costLookupResponse.calculatedCost match {
+        case Success(c) => c
+        case Failure(e) =>
+          params.logger.foreach(_.error(s"Failed to calculate VM cost per hour. ${e.getMessage}"))
+          BigDecimal(-1)
+      }
       vmCostPerHour = Option(cost)
       tellMetadata(Map(CallMetadataKeys.VmCostPerHour -> cost))
     }

@@ -23,6 +23,7 @@ import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{
 }
 import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
+import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.{
   StandardInitializationActor,
   StandardInitializationActorParams,
@@ -274,7 +275,7 @@ object GcpBatchInitializationActor {
   // For metadata publishing purposes default to using the name of a standard stream as the stream's filename.
   def defaultStandardStreamNameToFileNameMetadataMapper(gcpBatchJobPaths: GcpBatchJobPaths,
                                                         streamName: String
-  ): String = streamName
+  ): String = if (streamName == JobPaths.TaskLogPathKey) gcpBatchJobPaths.batchLogFilename else streamName
 
   def encryptKms(keyName: String, credentials: OAuth2Credentials, plainText: String): String = {
     val httpCredentialsAdapter = new HttpCredentialsAdapter(credentials)

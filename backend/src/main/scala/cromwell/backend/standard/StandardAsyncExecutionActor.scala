@@ -380,6 +380,7 @@ trait StandardAsyncExecutionActor
     instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
   def executionStderr: String =
     instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
+  def executionTaskLog: String = jobPaths.defaultTaskLogFilename |> absolutizeContainerPath
 
   /*
    * Ensures the standard paths are correct w.r.t overridden paths. This is called in two places: when generating the command and
@@ -393,9 +394,10 @@ trait StandardAsyncExecutionActor
     // .get's are safe on stdout and stderr after falling back to default names above.
     jobPaths.standardPaths = StandardPaths(
       output = hostPathFromContainerPath(executionStdout),
-      error = hostPathFromContainerPath(executionStderr)
+      error = hostPathFromContainerPath(executionStderr),
+      taskLog = hostPathFromContainerPath(executionTaskLog)
     )
-    // Re-publish stdout and stderr paths that were possibly just updated.
+    // Re-publish stdout, stderr and task log paths that were possibly just updated.
     tellMetadata(jobPaths.standardOutputAndErrorPaths)
     jobPathsUpdated = true
   }
@@ -423,6 +425,7 @@ trait StandardAsyncExecutionActor
     val stdinRedirection = executionStdin.map("< " + _.shellQuote).getOrElse("")
     val stdoutRedirection = executionStdout.shellQuote
     val stderrRedirection = executionStderr.shellQuote
+    val taskLogRedirection = executionTaskLog.shellQuote
     val rcTmpPath = rcPath.plusExt("tmp")
 
     val errorOrDirectoryOutputs: ErrorOr[List[WomUnlistedDirectory]] =
@@ -471,6 +474,10 @@ trait StandardAsyncExecutionActor
       }
     }
 
+    val taskLoggingCommand =
+      if (jobPaths.implementsTaskLogging) s"tail -q -f $stdoutRedirection $stderrRedirection > $taskLogRedirection &"
+      else ""
+
     // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
     // stdout and stderr for PAPI to periodically upload to cloud storage.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
@@ -491,6 +498,7 @@ trait StandardAsyncExecutionActor
           |touch $stdoutRedirection $stderrRedirection
           |tee $stdoutRedirection < "$$$out" &
           |tee $stderrRedirection < "$$$err" >&2 &
+          |TASK_LOGGING_COMMAND
           |(
           |cd ${cwd.pathAsString}
           |ENVIRONMENT_VARIABLES
@@ -511,6 +519,7 @@ trait StandardAsyncExecutionActor
         .replace("INSTANTIATED_COMMAND", commandString)
         .replace("SCRIPT_EPILOGUE", scriptEpilogue)
         .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir)
+        .replace("TASK_LOGGING_COMMAND", taskLoggingCommand)
     )
   }
 

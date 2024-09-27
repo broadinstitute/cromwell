@@ -14,9 +14,9 @@ object JobPaths {
   val ScriptPathKey = "script"
   val StdoutPathKey = "stdout"
   val StdErrPathKey = "stderr"
+  val TaskLogPathKey = "taskLog"
   val ReturnCodePathKey = "returnCode"
   val CallRootPathKey = "callRootPath"
-  val DockerCidPathKey = "dockerCidPath"
 
   def callPathBuilder(root: Path, jobKey: JobKey, isCallCacheCopyAttempt: Boolean) = {
     val callName = jobKey.node.localName
@@ -43,7 +43,9 @@ trait JobPaths {
   def memoryRetryRCFilename: String = "memory_retry_rc"
   def defaultStdoutFilename = "stdout"
   def defaultStderrFilename = "stderr"
+  def defaultTaskLogFilename = "task.log"
   def isDocker: Boolean = false
+  def implementsTaskLogging: Boolean = false
 
   // In this non-Docker version of `JobPaths` there is no distinction between host and container roots so this is
   // just called 'rootWithSlash'.
@@ -73,7 +75,8 @@ trait JobPaths {
   // enable dynamic standard output and error file names for languages like CWL that support this feature.
   var standardPaths: StandardPaths = StandardPaths(
     output = callExecutionRoot.resolve(defaultStdoutFilename),
-    error = callExecutionRoot.resolve(defaultStderrFilename)
+    error = callExecutionRoot.resolve(defaultStderrFilename),
+    taskLog = callExecutionRoot.resolve(defaultTaskLogFilename)
   )
 
   lazy val script = callExecutionRoot.resolve(scriptFilename)
@@ -86,7 +89,7 @@ trait JobPaths {
   def standardOutputAndErrorPaths: Map[String, Path] = Map(
     CallMetadataKeys.Stdout -> standardPaths.output,
     CallMetadataKeys.Stderr -> standardPaths.error
-  )
+  ) ++ (if (implementsTaskLogging) Map(CallMetadataKeys.TaskLog -> standardPaths.taskLog) else Map.empty)
 
   private lazy val commonMetadataPaths: Map[String, Path] =
     standardOutputAndErrorPaths + (CallMetadataKeys.CallRoot -> callRoot)
@@ -99,7 +102,7 @@ trait JobPaths {
     JobPaths.StdoutPathKey -> standardPaths.output,
     JobPaths.StdErrPathKey -> standardPaths.error,
     JobPaths.ReturnCodePathKey -> returnCode
-  )
+  ) ++ (if (implementsTaskLogging) Map(JobPaths.TaskLogPathKey -> standardPaths.taskLog) else Map.empty)
 
   private lazy val commonLogPaths: Map[String, Path] = Map(
     JobPaths.StdoutPathKey -> standardPaths.output,

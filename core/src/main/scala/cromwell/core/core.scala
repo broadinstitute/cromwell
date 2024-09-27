@@ -8,7 +8,7 @@ import mouse.boolean._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.control.NoStackTrace
 
-case class StandardPaths(output: Path, error: Path)
+case class StandardPaths(output: Path, error: Path, taskLog: Path)
 
 case class CallContext(root: Path, standardPaths: StandardPaths, isDocker: Boolean)
 

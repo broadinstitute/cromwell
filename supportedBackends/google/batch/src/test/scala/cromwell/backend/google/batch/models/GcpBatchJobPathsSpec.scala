@@ -41,7 +41,7 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
     callPaths.returnCodeFilename should be("rc")
     callPaths.stderr.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/stderr")
     callPaths.stdout.getFileName.pathAsString should be("gs://my-cromwell-workflows-bucket/stdout")
-    callPaths.batchLogFilename should be("hello.log")
+    callPaths.batchLogFilename should be("task.log")
   }
 
   it should "map the correct paths" in {
@@ -69,7 +69,7 @@ class GcpBatchJobPathsSpec extends TestKitSuite with AnyFlatSpecLike with Matche
     callPaths.stderr.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/stderr")
     callPaths.batchLogPath.pathAsString should
-      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/hello.log")
+      be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/call-hello/task.log")
   }
 
   it should "map the correct call context" in {

@@ -1,7 +1,7 @@
 package cromwell.engine
 
 import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.core.WorkflowOptions.{FinalWorkflowOutputsDir, FinalWorkflowOutputsDirMetadata, FinalWorkflowOutputsDirMetadata, WorkflowOption}
+import cromwell.core.WorkflowOptions.{FinalWorkflowOutputsDir, FinalWorkflowOutputsDirMetadata, WorkflowOption}
 import cromwell.core.callcaching.CallCachingMode
 import cromwell.core.path.PathBuilder
 import wom.callable.Callable

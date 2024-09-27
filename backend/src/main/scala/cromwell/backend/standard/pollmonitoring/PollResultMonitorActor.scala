@@ -28,7 +28,7 @@ case class PollMonitorParameters(
   jobDescriptor: BackendJobDescriptor,
   validatedRuntimeAttributes: ValidatedRuntimeAttributes,
   platform: Option[Platform],
-  logger: Option[JobLogger]
+  logger: JobLogger
 )
 
 /**
@@ -160,7 +160,7 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
         case Valid(c) => c
         case Invalid(errors) =>
           // TODO contextualizeErrors
-          params.logger.foreach(_.error(s"Failed to calculate VM cost per hour. ${errors.toList.mkString(", ")}"))
+          params.logger.error(s"Failed to calculate VM cost per hour. ${errors.toList.mkString(", ")}")
           BigDecimal(-1)
       }
       vmCostPerHour = Option(cost)

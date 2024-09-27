@@ -20,13 +20,7 @@ object PapiPollResultMonitorActor {
             logger: JobLogger
   ): Props = Props(
     new PapiPollResultMonitorActor(
-      PollMonitorParameters(serviceRegistry,
-                            workflowDescriptor,
-                            jobDescriptor,
-                            runtimeAttributes,
-                            platform,
-                            Option(logger)
-      )
+      PollMonitorParameters(serviceRegistry, workflowDescriptor, jobDescriptor, runtimeAttributes, platform, logger)
     )
   )
 }
@@ -56,24 +50,21 @@ class PapiPollResultMonitorActor(parameters: PollMonitorParameters) extends Poll
       message match {
         case ProcessThisPollResult(pollResult: RunStatus) => processPollResult(pollResult)
         case ProcessThisPollResult(result) =>
-          params.logger.foreach(logger =>
-            logger.error(
-              s"Programmer error: Received Poll Result of unknown type. Expected ${RunStatus.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."
-            )
+          params.logger.error(
+            s"Programmer error: Received Poll Result of unknown type. Expected ${RunStatus.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."
           )
+
         case AsyncJobHasFinished(pollResult: RunStatus) => handleAsyncJobFinish(pollResult.getClass.getSimpleName)
         case AsyncJobHasFinished(result) =>
-          params.logger.foreach(logger =>
-            logger.error(
-              s"Programmer error: Received Poll Result of unknown type. Expected ${AsyncJobHasFinished.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."
-            )
+          params.logger.error(
+            s"Programmer error: Received Poll Result of unknown type. Expected ${AsyncJobHasFinished.getClass.getSimpleName} but got ${result.getClass.getSimpleName}."
           )
+
       }
     case unexpected =>
-      params.logger.foreach(logger =>
-        logger.error(
-          s"Programmer error: Cost Helper received message of unexpected type. Was ${unexpected.getClass.getSimpleName}."
-        )
+      params.logger.error(
+        s"Programmer error: Cost Helper received message of unexpected type. Was ${unexpected.getClass.getSimpleName}."
       )
+
   }
 }

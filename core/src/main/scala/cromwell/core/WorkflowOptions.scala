@@ -67,7 +67,9 @@ object WorkflowOptions {
   }
 
   sealed trait FinalWorkflowOutputsDirMetadata
+  // Metadata points to original location (copy source)
   case object Source extends FinalWorkflowOutputsDirMetadata
+  // Metadata points to new location (copy destination)
   case object Destination extends FinalWorkflowOutputsDirMetadata
 
   // Misc.

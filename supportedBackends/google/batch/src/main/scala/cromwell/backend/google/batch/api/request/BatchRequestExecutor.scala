@@ -28,7 +28,6 @@ object BatchRequestExecutor {
 
     def execute(groupedRequests: GcpBatchGroupedRequests)(implicit ec: ExecutionContext): Future[List[Try[Unit]]] = {
       val requests = groupedRequests.entries
-      logger.info(s"Execute ${requests.size} requests")
 
       if (requests.isEmpty) Future.successful(List.empty)
       else nonEmptyExecute(requests)

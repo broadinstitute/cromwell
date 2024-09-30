@@ -34,7 +34,6 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       virtualPrivateCloudConfiguration = null,
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
-      dockerImageToCacheDiskImageMappingOpt = None,
       checkpointingInterval = 1 second,
       logsPolicy = GcpBatchLogsPolicy.CloudLogging
     )

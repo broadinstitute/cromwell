@@ -16,13 +16,13 @@ case class InstantiatedVmInfo(region: String, machineType: String, preemptible: 
  */
 
 sealed trait MachineType { def machineTypeName: String }
-case object N1 extends MachineType { override val machineTypeName = "N1" }
-case object N2 extends MachineType { override val machineTypeName = "N2" }
-case object N2d extends MachineType { override val machineTypeName = "N2D" }
+case object N1 extends MachineType { override val machineTypeName = "n1" }
+case object N2 extends MachineType { override val machineTypeName = "n2" }
+case object N2d extends MachineType { override val machineTypeName = "n2d" }
 
 object MachineType {
   def fromSku(sku: Sku): Option[MachineType] = {
-    val tokenizedDescription = sku.getDescription.split(" ")
+    val tokenizedDescription = sku.getDescription.toLowerCase.split(" ")
     if (tokenizedDescription.contains(N1.machineTypeName)) Some(N1)
     else if (tokenizedDescription.contains(N2.machineTypeName)) Some(N2)
     else if (tokenizedDescription.contains(N2d.machineTypeName)) Some(N2d)
@@ -31,7 +31,7 @@ object MachineType {
 
   // expects a string that looks something like "n1-standard-1" or "custom-1-4096"
   def fromGoogleMachineTypeString(machineTypeString: String): ErrorOr[MachineType] = {
-    val mType = machineTypeString.toLowerCase()
+    val mType = machineTypeString.toLowerCase
     if (mType.startsWith("n1-")) N1.validNel
     else if (mType.startsWith("n2d-")) N2d.validNel
     else if (mType.startsWith("n2-")) N2.validNel
@@ -62,12 +62,12 @@ object MachineType {
 }
 
 sealed trait UsageType { def typeName: String }
-case object OnDemand extends UsageType { override val typeName = "OnDemand" }
-case object Preemptible extends UsageType { override val typeName = "Preemptible" }
+case object OnDemand extends UsageType { override val typeName = "ondemand" }
+case object Preemptible extends UsageType { override val typeName = "preemptible" }
 
 object UsageType {
   def fromSku(sku: Sku): Option[UsageType] =
-    sku.getCategory.getUsageType match {
+    sku.getCategory.getUsageType.toLowerCase match {
       case OnDemand.typeName => Some(OnDemand)
       case Preemptible.typeName => Some(Preemptible)
       case _ => Option.empty
@@ -80,8 +80,8 @@ object UsageType {
 }
 
 sealed trait MachineCustomization { def customizationName: String }
-case object Custom extends MachineCustomization { override val customizationName = "Custom" }
-case object Predefined extends MachineCustomization { override val customizationName = "Predefined" }
+case object Custom extends MachineCustomization { override val customizationName = "custom" }
+case object Predefined extends MachineCustomization { override val customizationName = "predefined" }
 
 object MachineCustomization {
   def fromMachineTypeString(machineTypeString: String): MachineCustomization =
@@ -95,7 +95,7 @@ object MachineCustomization {
    strings and predefined SKUs are only identifiable by the absence of "Custom."
    */
   def fromSku(sku: Sku): Option[MachineCustomization] = {
-    val tokenizedDescription = sku.getDescription.split(" ")
+    val tokenizedDescription = sku.getDescription.toLowerCase.split(" ")
 
     // ex. "N1 Predefined Instance Core running in Montreal"
     if (tokenizedDescription.contains(Predefined.customizationName)) Some(Predefined)
@@ -107,17 +107,17 @@ object MachineCustomization {
 }
 
 sealed trait ResourceType { def groupName: String }
-case object Cpu extends ResourceType { override val groupName = "CPU" }
-case object Ram extends ResourceType { override val groupName = "RAM" }
+case object Cpu extends ResourceType { override val groupName = "cpu" }
+case object Ram extends ResourceType { override val groupName = "ram" }
 
 object ResourceType {
   def fromSku(sku: Sku): Option[ResourceType] = {
-    val tokenizedDescription = sku.getDescription.split(" ")
-    sku.getCategory.getResourceGroup match {
+    val tokenizedDescription = sku.getDescription.toLowerCase.split(" ")
+    sku.getCategory.getResourceGroup.toLowerCase match {
       case Cpu.groupName => Some(Cpu)
       case Ram.groupName => Some(Ram)
-      case "N1Standard" if tokenizedDescription.contains("Ram") => Some(Ram)
-      case "N1Standard" if tokenizedDescription.contains("Core") => Some(Cpu)
+      case "n1standard" if tokenizedDescription.contains("ram") => Some(Ram)
+      case "n1standard" if tokenizedDescription.contains("core") => Some(Cpu)
       case _ => Option.empty
     }
   }

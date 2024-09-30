@@ -6,8 +6,15 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import cromwell.services.cost._
 import org.scalatest.concurrent.Eventually
+import org.scalatest.prop.TableDrivenPropertyChecks
 
-class CostLookupSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually with ImplicitSender {
+class CostLookupSpec
+    extends TestKitSuite
+    with AnyFlatSpecLike
+    with Matchers
+    with Eventually
+    with ImplicitSender
+    with TableDrivenPropertyChecks {
   behavior of "CostLookup"
 
   def constructTestActor: GcpCostCatalogServiceTestActor =
@@ -21,10 +28,10 @@ class CostLookupSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
   val testCatalogService = constructTestActor
 
   it should "find a CPU sku" in {
-    val machineType = Some(N2)
-    val usageType = Some(OnDemand)
-    val customization = Some(Custom)
-    val resourceGroup = Some(Cpu)
+    val machineType = N2
+    val usageType = OnDemand
+    val customization = Custom
+    val resourceGroup = Cpu
     val region = "europe-west9"
     val key = CostCatalogKey(machineType, usageType, customization, resourceGroup, region)
     val result = testCatalogService.getSku(key).get.catalogObject.getDescription
@@ -32,10 +39,10 @@ class CostLookupSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
   }
 
   it should "find a RAM sku" in {
-    val machineType = Some(N2)
-    val usageType = Some(OnDemand)
-    val customization = Some(Custom)
-    val resourceGroup = Some(Ram)
+    val machineType = N2
+    val usageType = OnDemand
+    val customization = Custom
+    val resourceGroup = Ram
     val region = "europe-west9"
     val key = CostCatalogKey(machineType, usageType, customization, resourceGroup, region)
     val result = testCatalogService.getSku(key).get.catalogObject.getDescription
@@ -43,20 +50,38 @@ class CostLookupSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
   }
 
   it should "find CPU skus for all supported machine types" in {
-    val legalMachineTypes: List[MachineType] = List(N1, N2, N2d)
-    val legalUsageTypes: List[UsageType] = List(Preemptible, OnDemand)
-    val legalCustomizations: List[MachineCustomization] = List(Custom, Predefined)
-    val resourceGroup: Option[ResourceType] = Some(Cpu)
-    val region = "us-west1"
-    for (machineType <- legalMachineTypes)
-      for (usageType <- legalUsageTypes)
-        for (customization <- legalCustomizations) {
-          val key = CostCatalogKey(Some(machineType), Some(usageType), Some(customization), resourceGroup, region)
-          val result = testCatalogService.getSku(key)
-          if (!result.isEmpty) {
-            println("Success")
-          }
-          result.isEmpty shouldBe false
-        }
+    val lookupRows = Table(
+      ("machineType", "usage", "customization", "resource", "region", "exists"),
+      (N1, Preemptible, Predefined, Cpu, "us-west1", true),
+      (N1, Preemptible, Predefined, Ram, "us-west1", true),
+      (N1, OnDemand, Predefined, Cpu, "us-west1", true),
+      (N1, OnDemand, Predefined, Ram, "us-west1", true),
+      (N1, Preemptible, Custom, Cpu, "us-west1", false),
+      (N1, Preemptible, Custom, Ram, "us-west1", false),
+      (N1, OnDemand, Custom, Cpu, "us-west1", false),
+      (N1, OnDemand, Custom, Ram, "us-west1", false),
+      (N2, Preemptible, Predefined, Cpu, "us-west1", false),
+      (N2, Preemptible, Predefined, Ram, "us-west1", false),
+      (N2, OnDemand, Predefined, Cpu, "us-west1", false),
+      (N2, OnDemand, Predefined, Ram, "us-west1", false),
+      (N2, Preemptible, Custom, Cpu, "us-west1", true),
+      (N2, Preemptible, Custom, Ram, "us-west1", true),
+      (N2, OnDemand, Custom, Cpu, "us-west1", true),
+      (N2, OnDemand, Custom, Ram, "us-west1", true),
+      (N2d, Preemptible, Predefined, Cpu, "us-west1", false),
+      (N2d, Preemptible, Predefined, Ram, "us-west1", false),
+      (N2d, OnDemand, Predefined, Cpu, "us-west1", false),
+      (N2d, OnDemand, Predefined, Ram, "us-west1", false),
+      (N2d, Preemptible, Custom, Cpu, "us-west1", true),
+      (N2d, Preemptible, Custom, Ram, "us-west1", true),
+      (N2d, OnDemand, Custom, Cpu, "us-west1", true),
+      (N2d, OnDemand, Custom, Ram, "us-west1", true)
+    )
+
+    forAll(lookupRows) { case (machineType, usage, customization, resource, region, exists: Boolean) =>
+      val key = CostCatalogKey(machineType, usage, customization, resource, region)
+      val result = testCatalogService.getSku(key)
+      result.nonEmpty shouldBe exists
+    }
   }
 }

@@ -9,6 +9,7 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableDrivenPropertyChecks
 
 import java.time.Duration
 import java.io.{File, FileInputStream, FileOutputStream}
@@ -53,7 +54,8 @@ class GcpCostCatalogServiceSpec
     with AnyFlatSpecLike
     with Matchers
     with Eventually
-    with ImplicitSender {
+    with ImplicitSender
+    with TableDrivenPropertyChecks {
   behavior of "CostCatalogService"
 
   def constructTestActor: GcpCostCatalogServiceTestActor =
@@ -109,5 +111,164 @@ class GcpCostCatalogServiceSpec
     )
     val foundValue = testActorRef.getSku(expectedKey)
     foundValue.get.catalogObject.getDescription shouldBe "Spot Preemptible N2D AMD Custom Instance Ram running in Paris"
+  }
+
+  it should "find the skus for a VM when appropriate" in {
+    val lookupRows = Table(
+      ("instantiatedVmInfo", "resource", "skuDescription"),
+      (InstantiatedVmInfo("europe-west9", "custom-16-32768", false),
+       Cpu,
+       "N1 Predefined Instance Core running in Paris"
+      ),
+      (InstantiatedVmInfo("europe-west9", "custom-16-32768", false),
+       Ram,
+       "N1 Predefined Instance Ram running in Paris"
+      ),
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", true),
+       Cpu,
+       "Spot Preemptible N1 Predefined Instance Core running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", true),
+       Ram,
+       "Spot Preemptible N1 Predefined Instance Ram running in Americas"
+      ),
+      (InstantiatedVmInfo("europe-west9", "n1-custom-16-32768", false),
+       Cpu,
+       "N1 Predefined Instance Core running in Paris"
+      ),
+      (InstantiatedVmInfo("europe-west9", "n1-custom-16-32768", false),
+       Ram,
+       "N1 Predefined Instance Ram running in Paris"
+      ),
+      (InstantiatedVmInfo("us-central1", "n1-custom-4-4096", true),
+       Cpu,
+       "Spot Preemptible N1 Predefined Instance Core running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "n1-custom-4-4096", true),
+       Ram,
+       "Spot Preemptible N1 Predefined Instance Ram running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", true),
+       Cpu,
+       "Spot Preemptible N2 Custom Instance Core running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", true),
+       Ram,
+       "Spot Preemptible N2 Custom Instance Ram running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", false),
+       Cpu,
+       "N2 Custom Instance Core running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", false), Ram, "N2 Custom Instance Ram running in Americas"),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", true),
+       Cpu,
+       "Spot Preemptible N2D AMD Custom Instance Core running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", true),
+       Ram,
+       "Spot Preemptible N2D AMD Custom Instance Ram running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", false),
+       Cpu,
+       "N2D AMD Custom Instance Core running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", false),
+       Ram,
+       "N2D AMD Custom Instance Ram running in Americas"
+      )
+    )
+
+    forAll(lookupRows) { case (instantiatedVmInfo: InstantiatedVmInfo, resource: ResourceType, expectedSku: String) =>
+      val skuOr = testActorRef.lookUpSku(instantiatedVmInfo, resource)
+      skuOr.isValid shouldBe true
+      skuOr.map(sku => sku.getDescription shouldEqual expectedSku)
+    }
+  }
+
+  it should "fail to find the skus for a VM when appropriate" in {
+    val lookupRows = Table(
+      ("instantiatedVmInfo", "resource", "errors"),
+      (InstantiatedVmInfo("us-central1", "custooooooom-4-4096", true),
+       Cpu,
+       List("Unrecognized machine type: custooooooom-4-4096")
+      ),
+      (InstantiatedVmInfo("us-central1", "n2custom-4-4096", true),
+       Cpu,
+       List("Unrecognized machine type: n2custom-4-4096")
+      ),
+      (InstantiatedVmInfo("us-central1", "standard-4-4096", true),
+       Cpu,
+       List("Unrecognized machine type: standard-4-4096")
+      ),
+      (InstantiatedVmInfo("planet-mars1", "custom-4-4096", true),
+       Cpu,
+       List("Failed to look up Cpu SKU for InstantiatedVmInfo(planet-mars1,custom-4-4096,true)")
+      )
+    )
+
+    forAll(lookupRows) {
+      case (instantiatedVmInfo: InstantiatedVmInfo, resource: ResourceType, expectedErrors: List[String]) =>
+        val skuOr = testActorRef.lookUpSku(instantiatedVmInfo, resource)
+        skuOr.isValid shouldBe false
+        skuOr.leftMap(errors => errors.toList shouldEqual expectedErrors)
+    }
+  }
+
+  it should "calculate the cost per hour for a VM" in {
+    // Create BigDecimals from strings to avoid inequality due to floating point shenanigans
+    val lookupRows = Table(
+      ("instantiatedVmInfo", "costPerHour"),
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", true), BigDecimal(".361")),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", true), BigDecimal(".42544000000000004")),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", true), BigDecimal(".2371600000000000024")),
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", false), BigDecimal("1.43392")),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", false), BigDecimal("1.50561600000000012")),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", false), BigDecimal("1.309896")),
+      (InstantiatedVmInfo("europe-west9", "custom-4-4096", true), BigDecimal(".3501808")),
+      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4096", true), BigDecimal("0.49532")),
+      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", true), BigDecimal("0.30608")),
+      (InstantiatedVmInfo("europe-west9", "custom-4-4096", false), BigDecimal("1.663347200000000016")),
+      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4352", false), BigDecimal("1.75941630500000012")),
+      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", false), BigDecimal("1.51947952"))
+    )
+
+    forAll(lookupRows) { case (instantiatedVmInfo: InstantiatedVmInfo, expectedCostPerHour: BigDecimal) =>
+      val costOr = testActorRef.calculateVmCostPerHour(instantiatedVmInfo)
+      costOr.isValid shouldBe true
+      costOr.map(cost => cost shouldEqual expectedCostPerHour)
+    }
+  }
+
+  it should "fail to calculate the cost oer hour for a VM" in {
+
+    val lookupRows = Table(
+      ("instantiatedVmInfo", "errors"),
+      (InstantiatedVmInfo("us-central1", "custooooooom-4-4096", true),
+       List("Unrecognized machine type: custooooooom-4-4096")
+      ),
+      (InstantiatedVmInfo("us-central1", "n2_custom_4_4096", true),
+       List("Unrecognized machine type: n2_custom_4_4096")
+      ),
+      (InstantiatedVmInfo("us-central1", "custom-foo-4096", true),
+       List("Could not extract core count from custom-foo-4096")
+      ),
+      (InstantiatedVmInfo("us-central1", "custom-16-bar", true),
+       List("Could not extract Ram MB count from custom-16-bar")
+      ),
+      (InstantiatedVmInfo("us-central1", "123-456-789", true), List("Unrecognized machine type: 123-456-789")),
+      (InstantiatedVmInfo("us-central1", "n2-16-4096", true),
+       List("Failed to look up Cpu SKU for InstantiatedVmInfo(us-central1,n2-16-4096,true)")
+      ),
+      (InstantiatedVmInfo("planet-mars1", "n2-custom-4-4096", true),
+       List("Failed to look up Cpu SKU for InstantiatedVmInfo(planet-mars1,n2-custom-4-4096,true)")
+      )
+    )
+
+    forAll(lookupRows) { case (instantiatedVmInfo: InstantiatedVmInfo, expectedErrors: List[String]) =>
+      val costOr = testActorRef.calculateVmCostPerHour(instantiatedVmInfo)
+      costOr.isValid shouldBe false
+      costOr.leftMap(errors => errors.toList shouldEqual expectedErrors)
+    }
   }
 }

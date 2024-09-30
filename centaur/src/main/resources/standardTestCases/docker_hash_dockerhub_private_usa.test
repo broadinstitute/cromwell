@@ -1,7 +1,7 @@
 name: docker_hash_dockerhub_private_config_usa_wf_options
 testFormat: workflowsuccess
 # see https://github.com/broadinstitute/cromwell/pull/7515
-backends: [Papiv2USADockerhub, GCPBATCH_FAIL, GCPBATCH_NEEDS_ALT]
+backends: [Papiv2USADockerhub, GCPBATCH_ALT]
 
 files {
   workflow: docker_hash/docker_hash_dockerhub_private_usa_dockerhub.wdl

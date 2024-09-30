@@ -40,10 +40,4 @@ class GcpBatchWorkflowPathsSpec extends TestKitSuite with AnyFlatSpecLike with M
     workflowPaths.workflowRoot.pathAsString should
       be(s"gs://my-cromwell-workflows-bucket/wf_hello/${workflowDescriptor.id}/")
   }
-
-  it should "calculate the call cache path prefix from the workflow execution root correctly" in {
-    val WorkspaceBucket = "gs://workspace-id"
-    val ExecutionRoot = WorkspaceBucket + "/submission-id"
-    GcpBatchWorkflowPaths.callCachePathPrefixFromExecutionRoot(ExecutionRoot) shouldBe WorkspaceBucket
-  }
 }

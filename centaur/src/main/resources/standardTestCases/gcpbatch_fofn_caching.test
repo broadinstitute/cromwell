@@ -1,0 +1,21 @@
+name: gcpbatch_fofn_caching
+testFormat: runtwiceexpectingcallcaching
+backends: [GCPBATCH-Caching-No-Copy]
+
+files {
+  workflow: fofn_caching/gcpbatch_fofn_caching.wdl
+}
+
+metadata {
+  workflowName: fofn_caching
+  status: Succeeded
+  # We expect this to cache hit, because the backend is re-using original file paths,
+  # so the fofn will have the same content hence the same hash.
+  # Which means the whole call should be strictly similar to the first run
+  "calls.fofn_caching.use_fofn.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:fofn_caching.use_fofn:-1"
+}
+
+fileSystemCheck: "gcs"
+outputExpectations {
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/fofn_caching/<<UUID>>/call-use_fofn/cacheCopy/call_caching_placeholder.txt": 1
+}

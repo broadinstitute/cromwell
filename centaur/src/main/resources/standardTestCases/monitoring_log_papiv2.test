@@ -2,8 +2,7 @@
 
 name: monitoring_log
 testFormat: workflowsuccess
-# see doc 2.14
-backends: [Papiv2, GCPBATCH_FAIL]
+backends: [Papiv2, GCPBATCH_ALT]
 
 files {
   workflow: monitoring_log/monitoring_log.wdl

@@ -3,7 +3,7 @@
 
 name: parallel_composite_uploads_override_on
 testFormat: workflowsuccess
-backends: [Papiv2ParallelCompositeUploads, GCPBATCH_NEEDS_ALT]
+backends: [Papiv2ParallelCompositeUploads, GCPBATCH_ALT]
 
 files {
   workflow: parallel_composite_uploads/parallel_composite_uploads_off.wdl

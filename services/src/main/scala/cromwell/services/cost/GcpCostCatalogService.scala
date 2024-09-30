@@ -179,9 +179,11 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
 
       // We expect that every cost catalog key is unique, but changes to the SKUs returned by Google may
       // break this assumption. Check and log an error if we find collisions.
-      val collisions = keys.filter(acc.contains)
+      val collisions = keys.flatMap(acc.get(_).toList).map(_.catalogObject.getDescription)
       if (collisions.nonEmpty)
-        logger.error(s"Found SKU key collision for ${sku.getDescription}")
+        logger.error(
+          s"Found SKU key collision when adding ${sku.getDescription}, collides with ${collisions.mkString(", ")}"
+        )
 
       acc ++ keys.map(k => (k, CostCatalogValue(sku)))
     }

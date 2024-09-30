@@ -56,7 +56,7 @@ object WorkflowOptions {
   case object FinalCallLogsDir extends WorkflowOption("final_call_logs_dir")
   case object FinalWorkflowOutputsDir extends WorkflowOption("final_workflow_outputs_dir")
   case object UseRelativeOutputPaths extends WorkflowOption(name = "use_relative_output_paths")
-  case object FinalWorkflowOutputsDirMetadata extends WorkflowOption("final_workflow_outputs_metadata_mode") {
+  case object FinalWorkflowOutputsDirMetadata extends WorkflowOption("final_workflow_outputs_dir_metadata") {
     // Default to Source because that was originally the only behavior
     def fromString(s: Option[String]): FinalWorkflowOutputsDirMetadata =
       s match {

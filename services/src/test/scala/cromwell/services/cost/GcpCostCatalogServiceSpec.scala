@@ -101,16 +101,40 @@ class GcpCostCatalogServiceSpec
     freshActor.getCatalogAge.toNanos should (be < shortDuration.toNanos)
   }
 
-  it should "contain an expected SKU" in {
-    val expectedKey = CostCatalogKey(
-      machineType = N2d,
-      usageType = Preemptible,
-      machineCustomization = Custom,
-      resourceType = Ram,
-      region = "europe-west9"
+  it should "find CPU and RAM skus for all supported machine types" in {
+    val lookupRows = Table(
+      ("machineType", "usage", "customization", "resource", "region", "exists"),
+      (N1, Preemptible, Predefined, Cpu, "us-west1", true),
+      (N1, Preemptible, Predefined, Ram, "us-west1", true),
+      (N1, OnDemand, Predefined, Cpu, "us-west1", true),
+      (N1, OnDemand, Predefined, Ram, "us-west1", true),
+      (N1, Preemptible, Custom, Cpu, "us-west1", false),
+      (N1, Preemptible, Custom, Ram, "us-west1", false),
+      (N1, OnDemand, Custom, Cpu, "us-west1", false),
+      (N1, OnDemand, Custom, Ram, "us-west1", false),
+      (N2, Preemptible, Predefined, Cpu, "us-west1", false),
+      (N2, Preemptible, Predefined, Ram, "us-west1", false),
+      (N2, OnDemand, Predefined, Cpu, "us-west1", false),
+      (N2, OnDemand, Predefined, Ram, "us-west1", false),
+      (N2, Preemptible, Custom, Cpu, "us-west1", true),
+      (N2, Preemptible, Custom, Ram, "us-west1", true),
+      (N2, OnDemand, Custom, Cpu, "us-west1", true),
+      (N2, OnDemand, Custom, Ram, "us-west1", true),
+      (N2d, Preemptible, Predefined, Cpu, "us-west1", false),
+      (N2d, Preemptible, Predefined, Ram, "us-west1", false),
+      (N2d, OnDemand, Predefined, Cpu, "us-west1", false),
+      (N2d, OnDemand, Predefined, Ram, "us-west1", false),
+      (N2d, Preemptible, Custom, Cpu, "us-west1", true),
+      (N2d, Preemptible, Custom, Ram, "us-west1", true),
+      (N2d, OnDemand, Custom, Cpu, "us-west1", true),
+      (N2d, OnDemand, Custom, Ram, "us-west1", true)
     )
-    val foundValue = testActorRef.getSku(expectedKey)
-    foundValue.get.catalogObject.getDescription shouldBe "Spot Preemptible N2D AMD Custom Instance Ram running in Paris"
+
+    forAll(lookupRows) { case (machineType, usage, customization, resource, region, exists: Boolean) =>
+      val key = CostCatalogKey(machineType, usage, customization, resource, region)
+      val result = testActorRef.getSku(key)
+      result.nonEmpty shouldBe exists
+    }
   }
 
   it should "find the skus for a VM when appropriate" in {

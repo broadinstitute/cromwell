@@ -52,7 +52,7 @@ outputExpectations: {
 
     "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest1.txt": 1
     "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest2.txt": 1
-    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow<<UUID>>/call-simpleStdoutTask/arraytest3.txt": 1
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/arraytest3.txt": 1
 
     "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/object_out.txt": 1
 }

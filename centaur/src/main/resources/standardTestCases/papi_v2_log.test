@@ -1,7 +1,11 @@
 name: papi_v2_log
 testFormat: workflowsuccess
-# don't know
-backends: [Papiv2, GCPBATCH_FAIL]
+# The test is looking for a Papi v2-style log with combined stdout and stderr for container setup, localization, user
+# command, and delocalization. Within that task log the WDL is searching for very specific and specifically formatted
+# localization and delocalization commands.
+#
+# The GCP Batch backend does not currently have file-based logging of container setup, localization or delocalization.
+backends: [Papiv2, GCPBATCH_NEEDS_FILE_BASED_LOCALIZATION_LOGGING]
 
 files {
   workflow: papi_v2_log/papi_v2_log.wdl

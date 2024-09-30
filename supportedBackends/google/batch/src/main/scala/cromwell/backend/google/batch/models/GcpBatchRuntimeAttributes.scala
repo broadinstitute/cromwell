@@ -48,7 +48,6 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            failOnStderr: Boolean,
                                            continueOnReturnCode: ContinueOnReturnCode,
                                            noAddress: Boolean,
-                                           useDockerImageCache: Option[Boolean],
                                            checkpointFilename: Option[String],
                                            standardMachineType: Option[String]
 )
@@ -80,11 +79,6 @@ object GcpBatchRuntimeAttributes {
   val CpuPlatformIntelCascadeLakeValue = "Intel Cascade Lake"
   val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
-
-  val UseDockerImageCacheKey = "useDockerImageCache"
-  private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(
-    UseDockerImageCacheKey
-  ).optional
 
   val StandardMachineTypeKey = "standardMachineType"
 
@@ -153,11 +147,6 @@ object GcpBatchRuntimeAttributes {
           .configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue
       )
 
-  private def useDockerImageCacheValidation(
-    runtimeConfig: Option[Config]
-  ): OptionalRuntimeAttributesValidation[Boolean] =
-    useDockerImageCacheValidationInstance
-
   def runtimeAttributesBuilder(batchConfiguration: GcpBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = batchConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder
@@ -174,7 +163,6 @@ object GcpBatchRuntimeAttributes {
         preemptibleValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
         bootDiskSizeValidation(runtimeConfig),
-        useDockerImageCacheValidation(runtimeConfig),
         checkpointFileValidationInstance,
         dockerValidation,
         standardMachineTypeValidation(runtimeConfig)
@@ -230,10 +218,6 @@ object GcpBatchRuntimeAttributes {
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[GcpBatchAttachedDisk] =
       RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val useDockerImageCache: Option[Boolean] = RuntimeAttributesValidation.extractOption(
-      useDockerImageCacheValidation(runtimeAttrsConfig).key,
-      validatedRuntimeAttributes
-    )
     val standardMachineType: Option[String] = RuntimeAttributesValidation.extractOption(
       standardMachineTypeValidation(runtimeAttrsConfig).key,
       validatedRuntimeAttributes
@@ -252,7 +236,6 @@ object GcpBatchRuntimeAttributes {
       failOnStderr = failOnStderr,
       continueOnReturnCode = continueOnReturnCode,
       noAddress = noAddress,
-      useDockerImageCache = useDockerImageCache,
       checkpointFilename = checkpointFileName,
       standardMachineType = standardMachineType
     )

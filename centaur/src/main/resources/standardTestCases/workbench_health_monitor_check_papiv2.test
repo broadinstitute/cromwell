@@ -1,7 +1,6 @@
 name: workbench_health_monitor_check_papiv2
 testFormat: workflowsuccess
-# needs alt, expectations are specific to PAPI v2
-backends: [Papiv2, GCPBATCH_NEEDS_ALT]
+backends: [Papiv2, GCPBATCH_HEALTH_MONITORS_BEING_PHASED_OUT]
 
 files {
   workflow: workbench_health_monitor_check/workbench_health_monitor_check.wdl

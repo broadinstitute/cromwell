@@ -1,5 +1,9 @@
 package cromwell.backend.google.batch.api
 
+import com.google.api.services.bigquery.BigqueryScopes
+import com.google.api.services.compute.ComputeScopes
+import com.google.api.services.oauth2.Oauth2Scopes
+import com.google.api.services.storage.StorageScopes
 import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.cloud.batch.v1.{
@@ -169,7 +173,20 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     // set parent for metadata storage of job information
     lazy val parent = s"projects/${createParameters.projectId}/locations/${data.gcpBatchParameters.region}"
-    val gcpSa = ServiceAccount.newBuilder.setEmail(createParameters.computeServiceAccount).build
+    val scopes = List(
+      ComputeScopes.COMPUTE,
+      StorageScopes.DEVSTORAGE_FULL_CONTROL,
+      GoogleCloudScopes.KmsScope,
+      // Profile and Email scopes are requirements for interacting with DRS Resolvers
+      Oauth2Scopes.USERINFO_EMAIL,
+      Oauth2Scopes.USERINFO_PROFILE,
+      // Monitoring scope as POC
+      GoogleCloudScopes.MonitoringWrite,
+      // Allow read/write with BigQuery
+      BigqueryScopes.BIGQUERY
+    ).asJava
+
+    val gcpSa = ServiceAccount.newBuilder.setEmail(createParameters.computeServiceAccount).addAllScopes(scopes).build
 
     // make zones path
     val zones = toZonesPath(runtimeAttributes.zones)
@@ -232,7 +249,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
                                                              runtimeAttributes.cpu,
                                                              cpuPlatformOption = runtimeAttributes.cpuPlatform,
                                                              standardMachineTypeOption = runtimeAttributes.standardMachineType,
-                                                             googleLegacyMachineSelection = false,
                                                              jobLogger = jobLogger
     )
     val instancePolicy =

@@ -79,6 +79,3 @@ final case class GcpBatchDirectoryOutput(name: String,
                                          secondary: Boolean,
                                          override val contentType: Option[ContentType] = None
 ) extends GcpBatchOutput
-
-// TODO: Remove when support for V1 is stopped, this is only used to pass the extra_param auth file
-final case class GcpBatchLiteralInput(name: String, value: String)

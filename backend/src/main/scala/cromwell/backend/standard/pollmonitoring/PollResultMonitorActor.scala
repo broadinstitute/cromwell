@@ -1,6 +1,6 @@
 package cromwell.backend.standard.pollmonitoring
+
 import akka.actor.{Actor, ActorRef}
-import cats.data.Validated.{Invalid, Valid}
 import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Platform}
 import cromwell.backend.validation.{
   CpuValidation,
@@ -10,7 +10,7 @@ import cromwell.backend.validation.{
   ValidatedRuntimeAttributes
 }
 import cromwell.core.logging.JobLogger
-import cromwell.services.cost.{GcpCostLookupRequest, GcpCostLookupResponse, InstantiatedVmInfo}
+import cromwell.services.cost.InstantiatedVmInfo
 import cromwell.services.metadata.CallMetadataKeys
 import cromwell.services.metrics.bard.BardEventing.BardEventRequest
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
@@ -104,7 +104,7 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
     Option.empty
   private var vmStartTime: Option[OffsetDateTime] = Option.empty
   private var vmEndTime: Option[OffsetDateTime] = Option.empty
-  private var vmCostPerHour: Option[BigDecimal] = Option.empty
+  protected var vmCostPerHour: Option[BigDecimal] = Option.empty
 
   def processPollResult(pollStatus: PollResultType): Unit = {
     // Make sure jobStartTime remains the earliest event time ever seen
@@ -132,13 +132,11 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
     // We expect it to reply with an answer, which is handled in receive.
     // NB: Due to the nature of async code, we may send a few cost requests before we get a response back.
     if (vmCostPerHour.isEmpty) {
-      val instantiatedVmInfo = extractVmInfoFromRunState(pollStatus)
-      instantiatedVmInfo.foreach { vmInfo =>
-        val request = GcpCostLookupRequest(vmInfo, self)
-        params.serviceRegistry ! request
-      }
+      extractVmInfoFromRunState(pollStatus).foreach(handleVmCostLookup)
     }
   }
+
+  def handleVmCostLookup(vmInfo: InstantiatedVmInfo): Unit
 
   // When a job finishes, the bard actor needs to know about the timing in order to record metrics.
   // Cost related metadata should already have been handled in processPollResult.
@@ -151,20 +149,4 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
         vmEndTime = vmEndTime.getOrElse(OffsetDateTime.now())
       )
     )
-
-  def handleCostResponse(costLookupResponse: GcpCostLookupResponse): Unit =
-    if (vmCostPerHour.isEmpty) { // Optimization to avoid processing responses after we've received a valid one.
-      val cost = costLookupResponse.calculatedCost match {
-        case Valid(c) =>
-          params.logger.info(s"vmCostPerHour for ${costLookupResponse.vmInfo} is ${c}")
-          c
-        case Invalid(errors) =>
-          params.logger.error(
-            s"Failed to calculate VM cost per hour for ${costLookupResponse.vmInfo}. ${errors.toList.mkString(", ")}"
-          )
-          BigDecimal(-1)
-      }
-      vmCostPerHour = Option(cost)
-      tellMetadata(Map(CallMetadataKeys.VmCostPerHour -> cost))
-    }
 }

@@ -36,11 +36,12 @@ object MachineType {
     else if (mType.startsWith("n2d-")) N2d.validNel
     else if (mType.startsWith("n2-")) N2.validNel
     else if (mType.startsWith("custom-")) N1.validNel // by convention
-    else s"Error: Unrecognized machine type: $machineTypeString".invalidNel
+    else s"Unrecognized machine type: $machineTypeString".invalidNel
   }
 
   def extractCoreCountFromMachineTypeString(machineTypeString: String): ErrorOr[Int] = {
-    val pattern: Pattern = Pattern.compile("-(\\d+)")
+    // Regex to capture second-to-last hyphen-delimited token as number
+    val pattern: Pattern = Pattern.compile("-(\\d+)-[^-]+$")
     val matcher: Matcher = pattern.matcher(machineTypeString)
     if (matcher.find()) {
       matcher.group(1).toInt.validNel
@@ -49,14 +50,13 @@ object MachineType {
     }
   }
   def extractRamMbFromMachineTypeString(machineTypeString: String): ErrorOr[Int] = {
-    // Regular expression to match the number after the dash at the end of the string
-    // TODO add test
-    val pattern: Pattern = Pattern.compile(".*?-(\\d+)$")
+    // Regular expression to match the number after a hyphen at the end of the string
+    val pattern: Pattern = Pattern.compile("-(\\d+)$")
     val matcher: Matcher = pattern.matcher(machineTypeString);
     if (matcher.find()) {
       matcher.group(1).toInt.validNel
     } else {
-      s"Could not Ram MB count from ${machineTypeString}".invalidNel
+      s"Could not extract Ram MB count from ${machineTypeString}".invalidNel
     }
   }
 }

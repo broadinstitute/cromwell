@@ -101,7 +101,7 @@ object GcpCostCatalogService {
     }
   }
 
-  def calculateRamPricePerHour(ramSku: Sku, ramGbCount: Int): ErrorOr[BigDecimal] = {
+  def calculateRamPricePerHour(ramSku: Sku, ramGbCount: Double): ErrorOr[BigDecimal] = {
     val pricingInfo = getMostRecentPricingInfo(ramSku)
     val usageUnit = pricingInfo.getPricingExpression.getUsageUnit
     if (usageUnit == "GiBy.h") {
@@ -216,7 +216,7 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     val ramPricePerHour: ErrorOr[BigDecimal] = for {
       ramSku <- lookUpSku(instantiatedVmInfo, Ram)
       ramMbCount <- MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
-      ramGbCount = ramMbCount / 1024
+      ramGbCount = ramMbCount / 1024d
       pricePerHour <- GcpCostCatalogService.calculateRamPricePerHour(ramSku, ramGbCount)
     } yield pricePerHour
 

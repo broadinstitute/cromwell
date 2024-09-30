@@ -134,7 +134,6 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
     if (vmCostPerHour.isEmpty) {
       val instantiatedVmInfo = extractVmInfoFromRunState(pollStatus)
       instantiatedVmInfo.foreach { vmInfo =>
-        println(s"Requesting cost info for: ${vmInfo}")
         val request = GcpCostLookupRequest(vmInfo, self)
         params.serviceRegistry ! request
       }
@@ -153,18 +152,19 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
       )
     )
 
-  def handleCostResponse(costLookupResponse: GcpCostLookupResponse): Unit = {
-    println(s"Handling Cost Response from Catalog Service: ${costLookupResponse}")
+  def handleCostResponse(costLookupResponse: GcpCostLookupResponse): Unit =
     if (vmCostPerHour.isEmpty) { // Optimization to avoid processing responses after we've received a valid one.
       val cost = costLookupResponse.calculatedCost match {
-        case Valid(c) => c
+        case Valid(c) =>
+          params.logger.info(s"vmCostPerHour for ${costLookupResponse.vmInfo} is ${c}")
+          c
         case Invalid(errors) =>
-          // TODO contextualizeErrors
-          params.logger.error(s"Failed to calculate VM cost per hour. ${errors.toList.mkString(", ")}")
+          params.logger.error(
+            s"Failed to calculate VM cost per hour for ${costLookupResponse.vmInfo}. ${errors.toList.mkString(", ")}"
+          )
           BigDecimal(-1)
       }
       vmCostPerHour = Option(cost)
       tellMetadata(Map(CallMetadataKeys.VmCostPerHour -> cost))
     }
-  }
 }

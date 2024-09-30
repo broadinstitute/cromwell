@@ -64,7 +64,7 @@ object CostCatalogKey {
 case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) extends ServiceRegistryMessage {
   override def serviceName: String = "GcpCostCatalogService"
 }
-case class GcpCostLookupResponse(calculatedCost: ErrorOr[BigDecimal])
+case class GcpCostLookupResponse(vmInfo: InstantiatedVmInfo, calculatedCost: ErrorOr[BigDecimal])
 case class CostCatalogValue(catalogObject: Sku)
 case class ExpiringGcpCostCatalog(catalog: Map[CostCatalogKey, CostCatalogValue], fetchTime: Instant)
 
@@ -92,8 +92,6 @@ object GcpCostCatalogService {
       val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
       val costPerCorePerHour: BigDecimal =
         costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
-
-      println(s"Calculated ${coreCount} cpu cores to cost ${costPerCorePerHour * coreCount} per hour")
       val result = costPerCorePerHour * coreCount
       result.validNel
     } else {
@@ -108,8 +106,6 @@ object GcpCostCatalogService {
       val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
       val costPerGbHour: BigDecimal =
         costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
-
-      println(s"Calculated ${ramGbCount} GB of ram to cost ${ramGbCount * costPerGbHour} per hour")
       val result = costPerGbHour * ramGbCount
       result.validNel
     } else {
@@ -206,31 +202,30 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
       }
     }
 
-  def calculateVmCostPerHour(instantiatedVmInfo: InstantiatedVmInfo): ErrorOr[BigDecimal] = {
-    val cpuPricePerHour: ErrorOr[BigDecimal] = for {
+  // TODO consider caching this, answers won't change until we reload the SKUs
+  def calculateVmCostPerHour(instantiatedVmInfo: InstantiatedVmInfo): ErrorOr[BigDecimal] =
+    for {
       cpuSku <- lookUpSku(instantiatedVmInfo, Cpu)
       coreCount <- MachineType.extractCoreCountFromMachineTypeString(instantiatedVmInfo.machineType)
-      pricePerHour <- GcpCostCatalogService.calculateCpuPricePerHour(cpuSku, coreCount)
-    } yield pricePerHour
-
-    val ramPricePerHour: ErrorOr[BigDecimal] = for {
+      cpuPricePerHour <- GcpCostCatalogService.calculateCpuPricePerHour(cpuSku, coreCount)
       ramSku <- lookUpSku(instantiatedVmInfo, Ram)
       ramMbCount <- MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
-      ramGbCount = ramMbCount / 1024d
-      pricePerHour <- GcpCostCatalogService.calculateRamPricePerHour(ramSku, ramGbCount)
-    } yield pricePerHour
-
-    for {
-      cpuPrice <- cpuPricePerHour
-      ramPrice <- ramPricePerHour
-    } yield cpuPrice + ramPrice
-  }
+      ramGbCount = ramMbCount / 1024d // need sub-integer resolution
+      ramPricePerHour <- GcpCostCatalogService.calculateRamPricePerHour(ramSku, ramGbCount)
+      totalCost = cpuPricePerHour + ramPricePerHour
+      _ = logger.info(
+        s"Calculated vmCostPerHour of ${totalCost} " +
+          s"(CPU ${coreCount} x ${cpuPricePerHour} [${cpuSku.getDescription}], " +
+          s"RAM ${ramGbCount} x ${ramPricePerHour} [${ramSku.getDescription}]) " +
+          s"for ${instantiatedVmInfo}"
+      )
+    } yield totalCost
 
   def serviceRegistryActor: ActorRef = serviceRegistry
   override def receive: Receive = {
     case GcpCostLookupRequest(vmInfo, replyTo) =>
       val calculatedCost = calculateVmCostPerHour(vmInfo)
-      val response = GcpCostLookupResponse(calculatedCost)
+      val response = GcpCostLookupResponse(vmInfo, calculatedCost)
       replyTo ! response
     case ShutdownCommand =>
       googleClient.foreach(client => client.shutdownNow())

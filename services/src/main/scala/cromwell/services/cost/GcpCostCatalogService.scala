@@ -217,8 +217,8 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
       totalCost = cpuPricePerHour + ramPricePerHour
       _ = logger.info(
         s"Calculated vmCostPerHour of ${totalCost} " +
-          s"(CPU ${coreCount} x ${cpuPricePerHour} [${cpuSku.getDescription}], " +
-          s"RAM ${ramGbCount} x ${ramPricePerHour} [${ramSku.getDescription}]) " +
+          s"(CPU ${cpuPricePerHour} for ${coreCount} cores [${cpuSku.getDescription}], " +
+          s"RAM ${ramPricePerHour} for ${ramGbCount} Gb [${ramSku.getDescription}]) " +
           s"for ${instantiatedVmInfo}"
       )
     } yield totalCost

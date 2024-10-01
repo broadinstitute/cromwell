@@ -24,6 +24,7 @@ class BardEventingActor(serviceConfig: Config, globalConfig: Config, serviceRegi
 
   override def receive: Receive = {
     case BardEventRequest(event) if bardConfig.enabled => bardService.sendEvent(event)
+    case BardEventRequest(_) => // do nothing if Bard not enabled
     // This service currently doesn't do any work on shutdown but the service registry pattern requires it
     // (see https://github.com/broadinstitute/cromwell/issues/2575)
     case ShutdownCommand => context stop self

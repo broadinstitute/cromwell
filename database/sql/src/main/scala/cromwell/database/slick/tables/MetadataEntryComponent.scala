@@ -60,11 +60,11 @@ trait MetadataEntryComponent {
 
     /**
       * Index designed to accelerate common key-specific queries across an entire workflow, such as:
-      * - Get me `outputs%` at the workflow level (no tasks, requireEmptyJobKey = true)
-      * - Get me `vmStartTime%`, `vmEndTime%`, `vmCostPerHour%` (include tasks, requireEmptyJobKey = false)
+      * - Get me workflow-level `outputs%` (no tasks, requireEmptyJobKey = true)
+      * - Get me all `vmStartTime%`, `vmEndTime%`, `vmCostPerHour%` in the workflow (include tasks, requireEmptyJobKey = false)
       *
-      * It is NOT good, as in may make actively slower, queries that reference a specific job. If we end up
-      * leaning more into queries like that, recommend creating this index including all 5 columns:
+      * It is NOT good, as in may make actively slower, queries that reference a specific job. If we do more
+      * with getting metadata for individual jobs, recommend creating this index with all 5 columns:
       * - WORKFLOW_EXECUTION_UUID, CALL_FQN, JOB_SCATTER_INDEX, JOB_RETRY_ATTEMPT, METADATA_KEY
       *
       * Do NOT recommend this alternate order, as wildcards in the middle are inefficient and this can be

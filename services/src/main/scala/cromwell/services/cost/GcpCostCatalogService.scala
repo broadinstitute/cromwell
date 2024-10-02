@@ -16,6 +16,7 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import java.time.{Duration, Instant}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 import java.time.temporal.ChronoUnit.SECONDS
+import scala.util.Using
 
 case class CostCatalogKey(machineType: MachineType,
                           usageType: UsageType,
@@ -67,6 +68,9 @@ case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) e
 case class GcpCostLookupResponse(vmInfo: InstantiatedVmInfo, calculatedCost: ErrorOr[BigDecimal])
 case class CostCatalogValue(catalogObject: Sku)
 case class ExpiringGcpCostCatalog(catalog: Map[CostCatalogKey, CostCatalogValue], fetchTime: Instant)
+object ExpiringGcpCostCatalog {
+  def empty: ExpiringGcpCostCatalog = ExpiringGcpCostCatalog(Map.empty, Instant.MIN)
+}
 
 object GcpCostCatalogService {
   // Can be gleaned by using googleClient.listServices
@@ -122,37 +126,38 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     extends Actor
     with LazyLogging {
 
-  private val maxCatalogLifetime: Duration =
-    Duration.of(CostCatalogConfig(serviceConfig).catalogExpirySeconds.longValue, SECONDS)
+  private val costCatalogConfig = CostCatalogConfig(serviceConfig)
 
-  private var googleClient: Option[CloudCatalogClient] = Option.empty
+  private val maxCatalogLifetime: Duration =
+    Duration.of(costCatalogConfig.catalogExpirySeconds.longValue, SECONDS)
 
   // Cached catalog. Refreshed lazily when older than maxCatalogLifetime.
-  private var costCatalog: Option[ExpiringGcpCostCatalog] = Option.empty
+  private var costCatalog: ExpiringGcpCostCatalog = ExpiringGcpCostCatalog.empty
 
   /**
    * Returns the SKU for a given key, if it exists
    */
   def getSku(key: CostCatalogKey): Option[CostCatalogValue] = getOrFetchCachedCatalog().get(key)
 
-  protected def fetchNewCatalog: Iterable[Sku] = {
-    if (googleClient.isEmpty) {
-      // We use option rather than lazy here so that the client isn't created when it is told to shutdown (see receive override)
-      googleClient = Some(CloudCatalogClient.create)
-    }
-    makeInitialWebRequest(googleClient.get).iterateAll().asScala
-  }
+  protected def fetchSkuIterable(googleClient: CloudCatalogClient): Iterable[Sku] =
+    makeInitialWebRequest(googleClient).iterateAll().asScala
 
-  def getCatalogAge: Duration =
-    Duration.between(costCatalog.map(c => c.fetchTime).getOrElse(Instant.ofEpochMilli(0)), Instant.now())
-  private def isCurrentCatalogExpired: Boolean = getCatalogAge.toNanos > maxCatalogLifetime.toNanos
+  private def fetchNewCatalog: ExpiringGcpCostCatalog =
+    Using.resource(CloudCatalogClient.create) { googleClient =>
+      val skus = fetchSkuIterable(googleClient)
+      ExpiringGcpCostCatalog(processCostCatalog(skus), Instant.now())
+    }
+
+  def getCatalogAge: Duration = Duration.between(costCatalog.fetchTime, Instant.now())
+
+  private def isCurrentCatalogExpired: Boolean = getCatalogAge.toSeconds > maxCatalogLifetime.toSeconds
 
   private def getOrFetchCachedCatalog(): Map[CostCatalogKey, CostCatalogValue] = {
-    if (costCatalog.isEmpty || isCurrentCatalogExpired) {
+    if (isCurrentCatalogExpired) {
       logger.info("Fetching a new GCP public cost catalog.")
-      costCatalog = Some(ExpiringGcpCostCatalog(processCostCatalog(fetchNewCatalog), Instant.now()))
+      costCatalog = fetchNewCatalog
     }
-    costCatalog.map(expiringCatalog => expiringCatalog.catalog).getOrElse(Map.empty)
+    costCatalog.catalog
   }
 
   /**
@@ -225,12 +230,12 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
 
   def serviceRegistryActor: ActorRef = serviceRegistry
   override def receive: Receive = {
-    case GcpCostLookupRequest(vmInfo, replyTo) =>
+    case GcpCostLookupRequest(vmInfo, replyTo) if costCatalogConfig.enabled =>
       val calculatedCost = calculateVmCostPerHour(vmInfo)
       val response = GcpCostLookupResponse(vmInfo, calculatedCost)
       replyTo ! response
+    case GcpCostLookupRequest(_, _) => // do nothing if we're disabled
     case ShutdownCommand =>
-      googleClient.foreach(client => client.shutdownNow())
       context stop self
     case other =>
       logger.error(

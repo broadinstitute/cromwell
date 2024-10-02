@@ -2,7 +2,7 @@ package cromwell.services.cost
 
 import akka.actor.ActorRef
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
-import com.google.cloud.billing.v1.Sku
+import com.google.cloud.billing.v1.{CloudCatalogClient, Sku}
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.core.TestKitSuite
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -14,10 +14,13 @@ import org.scalatest.prop.TableDrivenPropertyChecks
 import java.time.Duration
 import java.io.{File, FileInputStream, FileOutputStream}
 import scala.collection.mutable.ListBuffer
+import scala.util.Using
 
 object GcpCostCatalogServiceSpec {
   val catalogExpirySeconds: Long = 1 // Short duration so we can do a cache expiry test
-  val config: Config = ConfigFactory.parseString(s"catalogExpirySeconds = $catalogExpirySeconds")
+  val config: Config = ConfigFactory.parseString(
+    s"catalogExpirySeconds = $catalogExpirySeconds, enabled = true"
+  )
   val mockTestDataFilePath: String = "services/src/test/scala/cromwell/services/cost/serializedSkuList.testData"
 }
 class GcpCostCatalogServiceTestActor(serviceConfig: Config, globalConfig: Config, serviceRegistry: ActorRef)
@@ -35,18 +38,21 @@ class GcpCostCatalogServiceTestActor(serviceConfig: Config, globalConfig: Config
       fis.close()
     skuList.toSeq
   }
-  def saveMockData(): Unit = {
-    val fetchedData = super.fetchNewCatalog
-    val fos = new FileOutputStream(new File(GcpCostCatalogServiceSpec.mockTestDataFilePath))
-    fetchedData.foreach { sku =>
-      sku.writeDelimitedTo(fos)
+  def saveMockData(): Unit =
+    Using.resources(CloudCatalogClient.create,
+                    new FileOutputStream(new File(GcpCostCatalogServiceSpec.mockTestDataFilePath))
+    ) { (googleClient, fos) =>
+      val skus = super.fetchSkuIterable(googleClient)
+      skus.foreach { sku =>
+        sku.writeDelimitedTo(fos)
+      }
     }
-    fos.close()
-  }
+
   override def receive: Receive = { case ShutdownCommand =>
     context stop self
   }
-  override def fetchNewCatalog: Iterable[Sku] = loadMockData
+
+  override def fetchSkuIterable(client: CloudCatalogClient): Iterable[Sku] = loadMockData
 }
 
 class GcpCostCatalogServiceSpec
@@ -90,7 +96,7 @@ class GcpCostCatalogServiceSpec
     freshActor.getCatalogAge.toNanos should (be < shortDuration.toNanos)
 
     // Simulate the cached catalog living longer than its lifetime
-    Thread.sleep(shortDuration.toMillis)
+    Thread.sleep(shortDuration.plus(shortDuration).toMillis)
 
     // Confirm that the catalog is old
     freshActor.getCatalogAge.toNanos should (be > shortDuration.toNanos)

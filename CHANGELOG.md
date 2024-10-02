@@ -56,7 +56,7 @@ The index had low cardinality and workflow pickup is faster without it. Migratio
 
 #### Index addition
 
-The `IX_METADATA_ENTRY_WEU_MK` is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.
+The `IX_METADATA_ENTRY_WEU_MK` index is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.
 
 ### Bug fixes
 

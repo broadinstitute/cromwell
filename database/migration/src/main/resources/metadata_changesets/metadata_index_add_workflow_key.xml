@@ -11,7 +11,9 @@
             This changeset detects environments where this has been done and immediately marks itself as applied.
         -->
         <preConditions onFail="MARK_RAN">
-            <indexExists indexName="IX_METADATA_ENTRY_WEU_MK" />
+            <not>
+                <indexExists indexName="IX_METADATA_ENTRY_WEU_MK"/>
+            </not>
         </preConditions>
         <createIndex indexName="IX_METADATA_ENTRY_WEU_MK" tableName="METADATA_ENTRY">
             <column name="WORKFLOW_EXECUTION_UUID"/>

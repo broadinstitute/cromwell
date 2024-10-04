@@ -1,4 +1,4 @@
-name: gcpWdlResultsMovingFail
+name: gcpWdlResultsCopying_DestinationInMetadata_Fail
 testFormat: workflowfailure
 tags: ["copyGcp"]
 
@@ -8,7 +8,7 @@ backends: [Papi, Papiv2, GCPBatch]
 
 files {
   workflow: wdlResultsCopying/simpleWorkflow.wdl
-  options: wdlResultsMoving/gcp/options_fail.json
+  options: wdlResultsCopying_DestinationInMetadata/gcp/options_fail.json
 }
 
 metadata {

@@ -52,7 +52,7 @@ class GcpCostCatalogServiceTestActor(serviceConfig: Config, globalConfig: Config
     context stop self
   }
 
-  override def fetchSkuIterable(client: CloudCatalogClient): Iterable[Sku] = loadMockData
+  override def fetchNewCatalog: ExpiringGcpCostCatalog = makeCatalog(loadMockData)
 }
 
 class GcpCostCatalogServiceSpec

@@ -142,10 +142,12 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
   protected def fetchSkuIterable(googleClient: CloudCatalogClient): Iterable[Sku] =
     makeInitialWebRequest(googleClient).iterateAll().asScala
 
-  private def fetchNewCatalog: ExpiringGcpCostCatalog =
+  protected def makeCatalog(skus: Iterable[Sku]): ExpiringGcpCostCatalog =
+    ExpiringGcpCostCatalog(processCostCatalog(skus), Instant.now())
+
+  protected def fetchNewCatalog: ExpiringGcpCostCatalog =
     Using.resource(CloudCatalogClient.create) { googleClient =>
-      val skus = fetchSkuIterable(googleClient)
-      ExpiringGcpCostCatalog(processCostCatalog(skus), Instant.now())
+      makeCatalog(makeInitialWebRequest(googleClient).iterateAll().asScala)
     }
 
   def getCatalogAge: Duration = Duration.between(costCatalog.fetchTime, Instant.now())

@@ -1,8 +1,8 @@
-name: jes_labels
+name: gcpbatch_jes_labels
 testFormat: workflowsuccess
 tags: [ labels ]
 # see doc 2.13
-backends: [Papi, GCPBATCH_ALT]
+backends: [GCPBATCH]
 
 files {
   workflow: labels/jes_labels.wdl
@@ -13,8 +13,9 @@ metadata {
   workflowName: I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_
   status: Succeeded
   "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.cromwell-workflow-id": "cromwell-<<UUID>>"
+  # not clear why the task is normalized (lowercase, dashes for underscores) and the alias is verbatim
   "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.wdl-task-name": "my-task"
-  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.wdl-call-alias": "my-task-aliased"
+  "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.backendLabels.wdl-call-alias": "my_task_aliased"
   "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.labels.wdl-task-name": "MY_TASK"
   "calls.I_hope_nobody_names_workflows_like_this_as_it_seems_very_unnecessary_.my_task_aliased.labels.wdl-call-alias": "my_task_aliased"
   "labels.cromwell-workflow-id": "cromwell-<<UUID>>"

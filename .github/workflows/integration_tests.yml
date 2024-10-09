@@ -101,7 +101,7 @@ jobs:
         ref: ${{ inputs.target-branch }}
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
-        cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        cromwell_repo_token: ${{ secrets.GITHUB_TOKEN }}
     # Activate SSH and idle for 30 minutes
 #    - name: Setup tmate session
 #      uses: mxschmitt/action-tmate@v3
@@ -123,13 +123,7 @@ jobs:
         fail_ci_if_error: false # Tolerate missing codecov reports, since not all suites generate them.
     # always() is some github magic that forces the following step to run, even when the previous fails.
     # Without it, the if statement won't be evaluated on a test failure.
-    - uses: ravsamhq/notify-slack-action@v2
-      if: always() && github.ref == 'refs/heads/develop' #only report on failures against develop.
-      with:
-        status: ${{ job.status }}
-        notify_when: "failure"
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
     #The "shell: ..."" line is a way to force the Github Action Runner to use a bash shell that thinks it has a TTY.
     #The issue and solution are described here: https://github.com/actions/runner/issues/241#issuecomment-842566950
     #This is only needed for ReferenceDiskManifestBuilderApp test.

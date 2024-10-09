@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: deepgenomics/cromwell
-          token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           path: cromwell
       - uses: actions/setup-java@v4
         with:

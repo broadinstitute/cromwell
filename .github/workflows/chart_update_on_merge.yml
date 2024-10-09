@@ -15,7 +15,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: deepgenomics/cromwell
-        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
+        token: ${{ secrets.GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
     - id: get-jira-id
       # We're cloning multiple repos, so Cromwell and its actions are at `./cromwell/` instead of `./`
@@ -28,7 +28,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: broadinstitute/cromwhelm
-        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
+        token: ${{ secrets.GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwhelm
     - name: Find Cromwell short SHA
       run: |
@@ -62,20 +62,20 @@ jobs:
     - name: Deploy to dev and board release train (Cromwell)
       uses: broadinstitute/repository-dispatch@master
       with:
-        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}
         repository: broadinstitute/terra-helmfile
         event-type: update-service
         client-payload: '{"service": "cromwell", "version": "${{ env.CROMWELL_VERSION }}", "dev_only": false}'
     - name: Deploy to dev and board release train (CromIAM)
       uses: broadinstitute/repository-dispatch@master
       with:
-        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        token: ${{ secrets.GITHUB_TOKEN }}
         repository: broadinstitute/terra-helmfile
         event-type: update-service
         client-payload: '{"service": "cromiam", "version": "${{ env.CROMWELL_VERSION }}", "dev_only": false}'
     - name: Edit & push cromwhelm chart
       env:
-        BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -e
         cd cromwhelm
@@ -87,14 +87,14 @@ jobs:
         git config --global user.name "broadbot"
         git config --global user.email "broadbot@broadinstitute.org"
         git commit -am "${{ steps.get-jira-id.outputs.jira-id }}: Auto update to Cromwell $CROMWELL_VERSION"
-        git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main
+        git push https://broadbot:$GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main
         cd -
 
     - name: Clone terra-helmfile
       uses: actions/checkout@v3
       with:
         repository: broadinstitute/terra-helmfile
-        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
+        token: ${{ secrets.GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: terra-helmfile
 
     - name: Update workflows-app in terra-helmfile
@@ -114,8 +114,8 @@ jobs:
 
     - name: Make PR in terra-helmfile
       env:
-        BROADBOT_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-        GH_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        BROADBOT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         set -e
         JIRA_ID=${{ steps.get-jira-id.outputs.jira-id }}

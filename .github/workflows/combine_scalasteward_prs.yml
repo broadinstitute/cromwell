@@ -28,7 +28,7 @@ jobs:
       - name: Merge scala-steward PRs
         id: msp
         run: |
-          export GITHUB_TOKEN=${{ secrets.BROADBOT_GITHUB_TOKEN }}
+          export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
           PR_LIMIT=${{ github.event.inputs.prLimit }}
           PR_GROUP_SIZE=${{ github.event.inputs.prGroupSize }}
           echo "BASH_VERSION=${BASH_VERSION}"

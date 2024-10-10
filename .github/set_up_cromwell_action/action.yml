@@ -36,7 +36,7 @@ runs:
       - name: Clone Cromwell
         uses: actions/checkout@v3
         with:
-          repository: broadinstitute/cromwell
+          repository: deepgenomics/cromwell
           token: ${{ inputs.cromwell_repo_token }}
 
       #Install Java to this VM. This Java version and distribution is compatible with Cromwell.

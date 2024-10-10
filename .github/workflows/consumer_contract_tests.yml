@@ -32,17 +32,17 @@ name: Consumer contract tests
 on:
   pull_request:
     branches:
-      - develop
+      - debug-ci
     paths-ignore:
       - 'README.md'
   push:
     branches:
-      - develop
+      - debug-ci
     paths-ignore:
       - 'README.md'
   merge_group:
     branches:
-      - develop
+      - debug-ci
 
 env:
   PUBLISH_CONTRACTS_RUN_NAME: 'publish-contracts-${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'

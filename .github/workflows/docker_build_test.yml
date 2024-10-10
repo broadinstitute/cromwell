@@ -22,7 +22,7 @@ jobs:
       - name: Clone Cromwell
         uses: actions/checkout@v2
         with:
-          repository: broadinstitute/cromwell
+          repository: deepgenomics/cromwell
           token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
           path: cromwell
       - uses: actions/setup-java@v4

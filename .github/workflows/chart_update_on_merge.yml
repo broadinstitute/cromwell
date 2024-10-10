@@ -14,7 +14,7 @@ jobs:
     - name: Clone Cromwell
       uses: actions/checkout@v4
       with:
-        repository: broadinstitute/cromwell
+        repository: deepgenomics/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
     - id: get-jira-id

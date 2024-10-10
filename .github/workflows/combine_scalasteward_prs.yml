@@ -96,7 +96,7 @@ jobs:
               git push origin "${NEW_BRANCH}"
               gh pr create \
                 --title "[${{ github.event.inputs.jiraTicketId }}] Scala-steward shepherding consolidation (${FIRST_PR} to ${LAST_PR})" \
-                --body "This PR was generated automatically by the github action: https://github.com/broadinstitute/cromwell/actions/workflows/combine_scalasteward_prs.yml
+                --body "This PR was generated automatically by the github action: https://github.com/deepgenomics/cromwell/actions/workflows/combine_scalasteward_prs.yml
 
           Consolidates scala-steward PRs: ${SUCCESSFUL_PRS[*]}
 

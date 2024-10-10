@@ -67,7 +67,7 @@ jobs:
       - name: Find Cromwell release number
         run: |
           set -e
-          previous_version=$(curl -X GET https://api.github.com/repos/broadinstitute/cromwell/releases/latest | jq .tag_name | xargs)
+          previous_version=$(curl -X GET https://api.github.com/repos/deepgenomics/cromwell/releases/latest | jq .tag_name | xargs)
           if ! [[ "${previous_version}" =~ ^[0-9][0-9]+$ ]]; then
             exit 1
           fi

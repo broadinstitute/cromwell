@@ -53,7 +53,7 @@ trait BatchApiRunCreationClient { this: Actor with ActorLogging with BatchInstru
         backendSingletonActor ! BatchApiRequestManager.BatchRunCreationRequest(
           request.workflowId,
           self,
-          requestFactory.submitRequest(request)
+          requestFactory.submitRequest(request, jobLogger)
         )
         val newPromise = Promise[StandardAsyncJob]()
         runCreationClientPromise = Option(newPromise)

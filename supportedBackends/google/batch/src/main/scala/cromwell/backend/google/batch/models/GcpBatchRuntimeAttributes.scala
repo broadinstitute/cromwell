@@ -49,7 +49,8 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            continueOnReturnCode: ContinueOnReturnCode,
                                            noAddress: Boolean,
                                            useDockerImageCache: Option[Boolean],
-                                           checkpointFilename: Option[String]
+                                           checkpointFilename: Option[String],
+                                           standardMachineType: Option[String]
 )
 
 object GcpBatchRuntimeAttributes {
@@ -77,12 +78,15 @@ object GcpBatchRuntimeAttributes {
   private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
   // via `gcloud compute zones describe us-central1-a`
   val CpuPlatformIntelCascadeLakeValue = "Intel Cascade Lake"
+  val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
 
   val UseDockerImageCacheKey = "useDockerImageCache"
   private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(
     UseDockerImageCacheKey
   ).optional
+
+  val StandardMachineTypeKey = "standardMachineType"
 
   val CheckpointFileKey = "checkpointFile"
   private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional
@@ -97,6 +101,8 @@ object GcpBatchRuntimeAttributes {
       )
   private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
     cpuPlatformValidationInstance
+  private def standardMachineTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
+    new StringRuntimeAttributesValidation(StandardMachineTypeKey).optional
   private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] =
     GpuTypeValidation.optional
 
@@ -170,7 +176,8 @@ object GcpBatchRuntimeAttributes {
         bootDiskSizeValidation(runtimeConfig),
         useDockerImageCacheValidation(runtimeConfig),
         checkpointFileValidationInstance,
-        dockerValidation
+        dockerValidation,
+        standardMachineTypeValidation(runtimeConfig)
       )
   }
 
@@ -227,6 +234,10 @@ object GcpBatchRuntimeAttributes {
       useDockerImageCacheValidation(runtimeAttrsConfig).key,
       validatedRuntimeAttributes
     )
+    val standardMachineType: Option[String] = RuntimeAttributesValidation.extractOption(
+      standardMachineTypeValidation(runtimeAttrsConfig).key,
+      validatedRuntimeAttributes
+    )
 
     new GcpBatchRuntimeAttributes(
       cpu = cpu,
@@ -242,7 +253,8 @@ object GcpBatchRuntimeAttributes {
       continueOnReturnCode = continueOnReturnCode,
       noAddress = noAddress,
       useDockerImageCache = useDockerImageCache,
-      checkpointFilename = checkpointFileName
+      checkpointFilename = checkpointFileName,
+      standardMachineType = standardMachineType
     )
   }
 

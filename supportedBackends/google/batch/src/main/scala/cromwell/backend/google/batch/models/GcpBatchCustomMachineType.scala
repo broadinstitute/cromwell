@@ -11,6 +11,8 @@ import wom.format.MemorySize
 
 import scala.math.{log, pow}
 
+case class StandardMachineType(machineType: String) {}
+
 /**
   * Adjusts memory and cpu for custom machine types.
   *

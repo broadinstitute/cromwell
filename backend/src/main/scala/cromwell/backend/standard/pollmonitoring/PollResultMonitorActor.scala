@@ -1,4 +1,5 @@
 package cromwell.backend.standard.pollmonitoring
+
 import akka.actor.{Actor, ActorRef}
 import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Platform}
 import cromwell.backend.validation.{
@@ -9,6 +10,7 @@ import cromwell.backend.validation.{
   ValidatedRuntimeAttributes
 }
 import cromwell.core.logging.JobLogger
+import cromwell.services.cost.InstantiatedVmInfo
 import cromwell.services.metadata.CallMetadataKeys
 import cromwell.services.metrics.bard.BardEventing.BardEventRequest
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
@@ -26,7 +28,7 @@ case class PollMonitorParameters(
   jobDescriptor: BackendJobDescriptor,
   validatedRuntimeAttributes: ValidatedRuntimeAttributes,
   platform: Option[Platform],
-  logger: Option[JobLogger]
+  logger: JobLogger
 )
 
 /**
@@ -41,6 +43,9 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
 
   // Time that the user VM started spending money.
   def extractStartTimeFromRunState(pollStatus: PollResultType): Option[OffsetDateTime]
+
+  // Used to kick off a cost calculation
+  def extractVmInfoFromRunState(pollStatus: PollResultType): Option[InstantiatedVmInfo]
 
   // Time that the user VM stopped spending money.
   def extractEndTimeFromRunState(pollStatus: PollResultType): Option[OffsetDateTime]
@@ -99,6 +104,7 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
     Option.empty
   private var vmStartTime: Option[OffsetDateTime] = Option.empty
   private var vmEndTime: Option[OffsetDateTime] = Option.empty
+  protected var vmCostPerHour: Option[BigDecimal] = Option.empty
 
   def processPollResult(pollStatus: PollResultType): Unit = {
     // Make sure jobStartTime remains the earliest event time ever seen
@@ -122,7 +128,15 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
         tellMetadata(Map(CallMetadataKeys.VmEndTime -> end))
       }
     }
+    // If we don't yet have a cost per hour and we can extract VM info, send a cost request to the catalog service.
+    // We expect it to reply with an answer, which is handled in receive.
+    // NB: Due to the nature of async code, we may send a few cost requests before we get a response back.
+    if (vmCostPerHour.isEmpty) {
+      extractVmInfoFromRunState(pollStatus).foreach(handleVmCostLookup)
+    }
   }
+
+  def handleVmCostLookup(vmInfo: InstantiatedVmInfo): Unit
 
   // When a job finishes, the bard actor needs to know about the timing in order to record metrics.
   // Cost related metadata should already have been handled in processPollResult.

@@ -48,7 +48,8 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            failOnStderr: Boolean,
                                            continueOnReturnCode: ContinueOnReturnCode,
                                            noAddress: Boolean,
-                                           checkpointFilename: Option[String]
+                                           checkpointFilename: Option[String],
+                                           standardMachineType: Option[String]
 )
 
 object GcpBatchRuntimeAttributes {
@@ -79,6 +80,8 @@ object GcpBatchRuntimeAttributes {
   val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
 
+  val StandardMachineTypeKey = "standardMachineType"
+
   val CheckpointFileKey = "checkpointFile"
   private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional
 
@@ -92,6 +95,8 @@ object GcpBatchRuntimeAttributes {
       )
   private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
     cpuPlatformValidationInstance
+  private def standardMachineTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
+    new StringRuntimeAttributesValidation(StandardMachineTypeKey).optional
   private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] =
     GpuTypeValidation.optional
 
@@ -159,7 +164,8 @@ object GcpBatchRuntimeAttributes {
         memoryValidation(runtimeConfig),
         bootDiskSizeValidation(runtimeConfig),
         checkpointFileValidationInstance,
-        dockerValidation
+        dockerValidation,
+        standardMachineTypeValidation(runtimeConfig)
       )
   }
 
@@ -212,6 +218,10 @@ object GcpBatchRuntimeAttributes {
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[GcpBatchAttachedDisk] =
       RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val standardMachineType: Option[String] = RuntimeAttributesValidation.extractOption(
+      standardMachineTypeValidation(runtimeAttrsConfig).key,
+      validatedRuntimeAttributes
+    )
 
     new GcpBatchRuntimeAttributes(
       cpu = cpu,
@@ -226,7 +236,8 @@ object GcpBatchRuntimeAttributes {
       failOnStderr = failOnStderr,
       continueOnReturnCode = continueOnReturnCode,
       noAddress = noAddress,
-      checkpointFilename = checkpointFileName
+      checkpointFilename = checkpointFileName,
+      standardMachineType = standardMachineType
     )
   }
 

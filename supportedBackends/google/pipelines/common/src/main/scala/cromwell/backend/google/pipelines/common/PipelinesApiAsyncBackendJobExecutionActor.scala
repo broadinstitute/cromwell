@@ -777,7 +777,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
 
   override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit = runStatus match {
-    case AwaitingCloudQuota(_) =>
+    case AwaitingCloudQuota(_, _) =>
       standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
     case _ =>
   }

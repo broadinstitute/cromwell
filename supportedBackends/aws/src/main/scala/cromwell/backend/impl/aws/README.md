@@ -29,6 +29,14 @@ defined.
 This infrastructure and all the associated configuration still exists; however,
 it is moved out of the Cromwell configuration.
 
+Contributing
+-------------
+
+The aim of this fork is to have better cromwell support on AWS Batch. If you would like to contribute, please fork this repo and submit a pull request against the *aws_develop* branch. We follow the flow below to merge pull requests with upstream code into aws_releases: 
+
+![Merging Flow](merging_flow.png)
+
+
 Deployment
 ----------
 

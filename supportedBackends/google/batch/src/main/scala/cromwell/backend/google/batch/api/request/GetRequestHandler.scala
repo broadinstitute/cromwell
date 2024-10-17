@@ -29,7 +29,6 @@ trait GetRequestHandler extends LazyLogging { this: RequestHandler =>
     val _ = resultF
       .map {
         case Success(BatchApiResponse.StatusQueried(status)) =>
-          logger.info(s"Get operation succeeded for ${pollRequest.jobId.jobId}: $status")
           pollRequest.requester ! status
           Success(())
 

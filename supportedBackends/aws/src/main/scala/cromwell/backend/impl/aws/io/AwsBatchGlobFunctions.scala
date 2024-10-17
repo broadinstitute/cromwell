@@ -43,15 +43,14 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
     
   def standardParams: StandardExpressionFunctionsParams
 
-  
-
-  /**
-    * Returns a list of path from the glob.
+  /** Returns a list of path from the glob.
     *
     * The paths are read from a list file based on the pattern.
     *
-    * @param pattern The pattern of the glob. This is the same "glob" passed to globPath().
-    * @return The paths that match the pattern.
+    * @param pattern
+    *   The pattern of the glob. This is the same "glob" passed to globPath().
+    * @return
+    *   The paths that match the pattern.
     */
   override def glob(pattern: String): Future[Seq[String]] = {
     // get access to globName()
@@ -66,13 +65,25 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
 
     // for now : hard coded as local at mount point /mnt/efs.
     val wfid_regex = ".{8}-.{4}-.{4}-.{4}-.{12}".r
-    val wfid = callContext.root.toString.split("/").toList.filter(element => wfid_regex.pattern.matcher(element).matches()).lastOption.getOrElse("")
+    val wfid = callContext.root.toString
+      .split("/")
+      .toList
+      .filter(element => wfid_regex.pattern.matcher(element).matches())
+      .lastOption
+      .getOrElse("")
     val globPatternName = globName(s"${pattern}-${wfid}")
-    val globbedDir = Paths.get(pattern).getParent.toString
+    var globbedDirPath =
+      Paths.get(pattern).getParent()
+    while (globbedDirPath.toString().contains("*")) {
+      globbedDirPath = globbedDirPath.getParent()
+    }
+    val globbedDir: String = globbedDirPath.toString()
     val listFilePath = if (pattern.startsWith("/mnt/efs/")) {
         DefaultPathBuilder.get(globbedDir + "/." + globPatternName + ".list")
     } else {
-        callContext.root.resolve(s"${globbedDir}/.${globPatternName}.list".stripPrefix("/"))
+        callContext.root.resolve(
+        s"${globbedDir}/.${globPatternName}.list".stripPrefix("/")
+      )
     }
     asyncIo.readLinesAsync(listFilePath.toRealPath()) map { lines =>
       lines.toList map { fileName =>
@@ -80,7 +91,11 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
         if (pattern.startsWith("/mnt/efs/")) {
             s"${globbedDir}/.${globPatternName}/${fileName}"
         } else {
-            callContext.root.resolve(s"${globbedDir}/.${globPatternName}/${fileName}".stripPrefix("/")).pathAsString
+            callContext.root
+            .resolve(
+              s"${globbedDir}/.${globPatternName}/${fileName}".stripPrefix("/")
+            )
+            .pathAsString
         }
       }
     }

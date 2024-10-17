@@ -78,6 +78,7 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     Vector(Map.empty[String, String]),
     false,
     false,
+    sharedMemorySize = refineMV[Positive](64),
     "/Cromwell/job/",
     Map("tag1" -> "value1")
   )
@@ -99,6 +100,7 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     Vector(Map.empty[String, String]),
     false,
     false,
+    refineMV[Positive](64),
     "/Cromwell/job/",
     Map(),
     "local"
@@ -561,6 +563,17 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
                                                           awsBatchRetryAttempts = 0
                                                         )
       )
+    }
+
+    "if sharedMemorySize is set" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "scriptBucketName" -> WomString("my-stuff"),
+        "sharedMemorySize" -> WomInteger(10)
+      )
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedDefaults.copy(
+        sharedMemorySize = refineMV[Positive](10)
+      ))
     }
 
     "missing or invalid action key result in an invalid awsBatchEvaluateOnExit" in {

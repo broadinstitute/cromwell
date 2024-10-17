@@ -39,6 +39,7 @@ import software.amazon.awssdk.services.batch.model.{
   EvaluateOnExit,
   Host,
   KeyValuePair,
+  LinuxParameters,
   LogConfiguration,
   MountPoint,
   ResourceRequirement,
@@ -180,7 +181,8 @@ trait AwsBatchJobDefinitionBuilder {
                   efsDelocalize: Boolean,
                   efsMakeMD5: Boolean,
                   tagResources: Boolean,
-                  logGroupName: String
+                  logGroupName: String,
+                  sharedMemorySize: Int
     ): String =
       s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env
           .map(_.toString)
@@ -219,7 +221,8 @@ trait AwsBatchJobDefinitionBuilder {
       efsDelocalize,
       efsMakeMD5,
       tagResources,
-      logGroupName
+      logGroupName,
+      context.runtimeAttributes.sharedMemorySize.value
     )
 
     // To reuse job definition for gpu and gpu-runs, we will create a job definition that does not gpu requirements
@@ -231,20 +234,23 @@ trait AwsBatchJobDefinitionBuilder {
        .resourceRequirements(
          ResourceRequirement
            .builder()
-           .`type`(ResourceType.MEMORY)
-           .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
+           .`type`(ResourceType.VCPU)
+           .value(context.runtimeAttributes.cpu.##.toString)
            .build(),
          ResourceRequirement
            .builder()
-           .`type`(ResourceType.VCPU)
-           .value(context.runtimeAttributes.cpu.##.toString)
+           .`type`(ResourceType.MEMORY)
+           .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
            .build()
        )
        .logConfiguration(logConfiguration)
        .volumes(volumes.asJava)
        .mountPoints(mountPoints.asJava)
        .environment(environment.asJava)
-       .ulimits(ulimits.asJava),
+       .ulimits(ulimits.asJava)
+       .linuxParameters(
+         LinuxParameters.builder().sharedMemorySize(context.runtimeAttributes.sharedMemorySize.##).build()
+       ),
      containerPropsName
     )
   }

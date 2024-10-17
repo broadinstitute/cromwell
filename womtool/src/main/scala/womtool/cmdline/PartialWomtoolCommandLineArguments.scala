@@ -20,6 +20,7 @@ final case class InputsCommandLine(workflowSource: Path, showOptionals: Boolean)
 final case class OutputsCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 final case class WomtoolGraphCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 final case class WomtoolWomGraphCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
+final case class ParameterMetaCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 
 sealed trait WomtoolCommand
 
@@ -31,6 +32,7 @@ object WomtoolCommand {
   case object Outputs extends WomtoolCommand
   case object Graph extends WomtoolCommand
   case object WomGraph extends WomtoolCommand
+  case object ParameterMeta extends WomtoolCommand
 }
 
 sealed trait HighlightMode

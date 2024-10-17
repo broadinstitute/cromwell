@@ -81,7 +81,7 @@ trait CromIamApiService
 
   val workflowRoutes: Route = queryGetRoute ~ queryPostRoute ~ workflowOutputsRoute ~ submitRoute ~
     workflowLogsRoute ~ abortRoute ~ metadataRoute ~ timingRoute ~ statusRoute ~ backendRoute ~ labelPatchRoute ~
-    callCacheDiffRoute ~ labelGetRoute ~ releaseHoldRoute
+    callCacheDiffRoute ~ labelGetRoute ~ releaseHoldRoute ~ costRoute
 
   val allRoutes: Route = handleExceptions(CromIamExceptionHandler)(workflowRoutes ~ engineRoutes ~ womtoolRoutes)
 
@@ -114,6 +114,7 @@ trait CromIamApiService
   def timingRoute: Route = workflowGetRouteWithId("timing")
   def statusRoute: Route = workflowGetRouteWithId("status")
   def labelGetRoute: Route = workflowGetRouteWithId(Labels)
+  def costRoute: Route = workflowGetRouteWithId("cost")
 
   def labelPatchRoute: Route =
     path("api" / "workflows" / Segment / Segment / Labels) { (_, workflowId) =>

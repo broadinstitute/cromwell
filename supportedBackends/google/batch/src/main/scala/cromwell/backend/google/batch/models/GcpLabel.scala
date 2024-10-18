@@ -25,14 +25,14 @@ object GcpLabel {
 
   // This function is used to coerce a string into one that meets the requirements for a label submission to Google Batch API.
   // https://cloud.google.com/compute/docs/labeling-resources#requirements
-  def safeGoogleName(mainText: String, emptyAllowed: Boolean = false): String =
-    validateLabelRegex(mainText, true) match {
+  def safeGoogleName(mainText: String, isKey: Boolean, emptyAllowed: Boolean = false): String =
+    validateLabelRegex(mainText, isKey) match {
       case Valid(labelText) => labelText
       case invalid @ _ if mainText.equals("") && emptyAllowed => mainText
       case invalid @ _ =>
         def appendSafe(current: String, nextChar: Char): String =
           nextChar match {
-            case c if c.isLetterOrDigit || c == '-' => current + c.toLower
+            case c if c.isLetterOrDigit || c == '-' || c == '_' => current + c.toLower
             case _ => current + '-'
           }
 
@@ -75,7 +75,7 @@ object GcpLabel {
 
   def safeLabels(values: (String, String)*): Seq[GcpLabel] = {
     def safeGoogleLabel(kvp: (String, String)): GcpLabel =
-      GcpLabel(safeGoogleName(kvp._1), safeGoogleName(kvp._2, emptyAllowed = true))
+      GcpLabel(safeGoogleName(kvp._1, isKey = true), safeGoogleName(kvp._2, isKey = false, emptyAllowed = true))
     values.map(safeGoogleLabel)
   }
 

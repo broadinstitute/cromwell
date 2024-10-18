@@ -1,9 +1,9 @@
-name: google_labels_sub
+name: gcpbatch_google_labels_sub
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH_ALT]
+backends: [GCPBATCH]
 
 files {
-  workflow: google_labels/wrapper.wdl
+  workflow: google_labels/gcpbatch_wrapper.wdl
   options: google_labels/good_options.json
   imports: [
     google_labels/google_labels.wdl

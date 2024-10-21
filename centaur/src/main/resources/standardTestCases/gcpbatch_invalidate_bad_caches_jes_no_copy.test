@@ -1,12 +1,12 @@
-name: invalidate_bad_caches_jes_no_copy
+name: gcpbatch_invalidate_bad_caches_jes_no_copy
 testFormat: workflowsuccess
-backends: [Papi-Caching-No-Copy, GCPBATCH_ALT]
+backends: [GCPBATCH-Caching-No-Copy,]
 
 # No point retrying failures since they'll just end up colliding with previous results:
 retryTestFailures: false
 
 files {
-  workflow: invalidate_bad_caches/invalidate_bad_caches_no_copy.wdl
+  workflow: invalidate_bad_caches/gcpbatch_invalidate_bad_caches_no_copy.wdl
 }
 
 metadata {

@@ -233,7 +233,9 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
         )
       } else {
         IO.raiseError(
-          new RuntimeException(s"Exhausted $resolutionRetries resolution retries to resolve $drsUrlToResolve.drsUrl", t)
+          new RuntimeException(s"Exhausted $resolutionRetries resolution retries to resolve ${drsUrlToResolve.drsUrl}",
+                               t
+          )
         )
       }
 

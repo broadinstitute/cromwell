@@ -137,6 +137,33 @@ backend {
 
 `token` is the standard base64-encoded username:password for the appropriate Docker Hub account.
 
+GCP Batch also supports the use of Google Secret Manager for storing private Docker Hub credentials as described in
+Google Batch documentation
+[here](https://cloud.google.com/batch/docs/create-run-job-secret-manager#use-secrets-for-docker-registry). In the
+Cromwell GCP Batch backend, the usage of this feature is very similar to the regular
+base64-encoded `username:password` token, except that it is the GSM paths of username and password that are separated by
+a colon and base64
+encoded:
+
+```
+backend {
+  default = GCPBATCH
+  providers {
+    GCPBATCH {
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
+      config {
+        dockerhub {
+          token = "base64-encoded-GSM-path-to-docker-hub-username:GSM-path-to-docker-hub-password"
+        }
+      }
+    }
+  }
+}
+```
+
+Note that as per the Google Secret Manager docs, the compute service account for the project in which the GCP Batch
+jobs will run will need to be assigned the `Secret Manager Secret Accessor` IAM role.
+
 **Monitoring**
 
 In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.

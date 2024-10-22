@@ -31,7 +31,7 @@ class GcpBatchLabelSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matche
     }
 
     it should s"convert the bad label string '$label' into the safe label string '$conversion'" in {
-      GcpLabel.safeGoogleName(label) should be(conversion)
+      GcpLabel.safeGoogleName(label, isKey = true) should be(conversion)
     }
   }
 }

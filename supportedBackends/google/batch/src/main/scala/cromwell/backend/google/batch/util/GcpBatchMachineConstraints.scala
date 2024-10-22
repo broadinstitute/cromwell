@@ -4,7 +4,8 @@ import cromwell.backend.google.batch.models.{
   GcpBatchRuntimeAttributes,
   N1CustomMachineType,
   N2CustomMachineType,
-  N2DCustomMachineType
+  N2DCustomMachineType,
+  StandardMachineType
 }
 import cromwell.core.logging.JobLogger
 import eu.timepit.refined.api.Refined
@@ -15,17 +16,21 @@ object GcpBatchMachineConstraints {
   def machineType(memory: MemorySize,
                   cpu: Int Refined Positive,
                   cpuPlatformOption: Option[String],
+                  standardMachineTypeOption: Option[String],
                   jobLogger: JobLogger
-  ): String = {
-    // If someone requests Intel Cascade Lake or Intel Ice Lake as their CPU platform then switch the machine type to n2.
-    // Similarly, CPU platform of AMD Rome corresponds to the machine type n2d.
-    val customMachineType =
-      cpuPlatformOption match {
-        case Some(GcpBatchRuntimeAttributes.CpuPlatformIntelCascadeLakeValue) => N2CustomMachineType
-        case Some(GcpBatchRuntimeAttributes.CpuPlatformIntelIceLakeValue) => N2CustomMachineType
-        case Some(GcpBatchRuntimeAttributes.CpuPlatformAMDRomeValue) => N2DCustomMachineType
-        case _ => N1CustomMachineType
-      }
-    customMachineType.machineType(memory, cpu, jobLogger)
-  }
+  ): String =
+    if (standardMachineTypeOption.exists(_.trim.nonEmpty)) {
+      StandardMachineType(standardMachineTypeOption.get).machineType
+    } else {
+      // If someone requests Intel Cascade Lake or Intel Ice Lake as their CPU platform then switch the machine type to n2.
+      // Similarly, CPU platform of AMD Rome corresponds to the machine type n2d.
+      val customMachineType =
+        cpuPlatformOption match {
+          case Some(GcpBatchRuntimeAttributes.CpuPlatformIntelCascadeLakeValue) => N2CustomMachineType
+          case Some(GcpBatchRuntimeAttributes.CpuPlatformIntelIceLakeValue) => N2CustomMachineType
+          case Some(GcpBatchRuntimeAttributes.CpuPlatformAMDRomeValue) => N2DCustomMachineType
+          case _ => N1CustomMachineType
+        }
+      customMachineType.machineType(memory, cpu, jobLogger)
+    }
 }

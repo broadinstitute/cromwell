@@ -12,7 +12,7 @@ import cromwell.core.path.PathFactory.PathBuilders
 import scala.concurrent.ExecutionContext
 
 object GcpBatchWorkflowPaths {
-  val GcsRootOptionKey = "gcp_batch_gcs_root"
+  val GcsRootOptionKey = "jes_gcs_root"
 }
 case class GcpBatchWorkflowPaths(workflowDescriptor: BackendWorkflowDescriptor,
                                  gcsCredentials: Credentials,

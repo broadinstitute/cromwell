@@ -3,7 +3,7 @@ task dockerhub {
         echo "hello"
     }
     runtime {
-        docker: "broadinstitute/cloud-cromwell:dev"
+        docker: "broadinstitute/cloud-cromwell:2024-08-31"
         backend: "GCPBATCHGoogleSecretManager"
     }
 }

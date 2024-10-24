@@ -684,9 +684,6 @@ object CromwellApiServiceSpec {
           None
         )
         sender() ! response
-      case ValidateWorkflowIdInMetadata(id) =>
-        if (RecognizedWorkflowIds.contains(id)) sender() ! MetadataService.RecognizedWorkflowId
-        else sender() ! MetadataService.UnrecognizedWorkflowId
       case ValidateWorkflowIdInMetadataSummaries(id) =>
         if (SummarizedWorkflowIds.contains(id)) sender() ! MetadataService.RecognizedWorkflowId
         else sender() ! MetadataService.UnrecognizedWorkflowId

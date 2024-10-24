@@ -147,12 +147,14 @@ object RunnableBuilder {
                    scriptContainerPath: String,
                    jobShell: String,
                    volumes: List[Volume],
-                   dockerhubCredentials: (String, String)
+                   dockerhubCredentials: (String, String),
+                   fuseEnabled: Boolean
   ): Runnable.Builder = {
 
     val container = (dockerhubCredentials._1, dockerhubCredentials._2) match {
       case (username, password) if username.nonEmpty && password.nonEmpty =>
         Container.newBuilder
+          .setOptions(if(fuseEnabled) "--privileged" else "")
           .setImageUri(docker)
           .setEntrypoint(jobShell)
           .addCommands(scriptContainerPath)
@@ -160,6 +162,7 @@ object RunnableBuilder {
           .setPassword(password)
       case _ =>
         Container.newBuilder
+          .setOptions(if(fuseEnabled) "--privileged" else "")
           .setImageUri(docker)
           .setEntrypoint(jobShell)
           .addCommands(scriptContainerPath)

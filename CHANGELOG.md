@@ -54,6 +54,10 @@ The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 
 The index had low cardinality and workflow pickup is faster without it. Migration time depends on workflow store size, but should be very fast for most installations. Terminal workflows are removed from the workflow store, so only running workflows contribute to the cost.
 
+#### Index additions
+
+The `IX_METADATA_ENTRY_WEU_MK` and `IX_METADATA_ENTRY_WEU_CF_JSI_JRA_MK` indexes are added to `METADATA_ENTRY`. In pre-release testing, each index proceeded at about 3 million rows per minute. Please plan downtime accordingly: `minutes = ( METADATA_ENTRY rows / 3,000,000 ) * 2`.
+
 ### Bug fixes
 
 #### Improved `size()` function performance on arrays

@@ -574,15 +574,13 @@ object CromwellApiServiceSpec {
   val SucceededWorkflowId = WorkflowId.fromString("0cb43b8c-0259-4a19-b7fe-921ced326738")
   val FailedWorkflowId = WorkflowId.fromString("df501790-cef5-4df7-9b48-8760533e3136")
   val SummarizedWorkflowId = WorkflowId.fromString("f0000000-0000-0000-0000-000000000000")
+  val UnsummarizedWorkflowId = WorkflowId.fromString("00001111-aaaa-bbbb-cccc-ddddffffeeee")
   val WorkflowIdExistingOnlyInSummaryTable = WorkflowId.fromString("f0000000-0000-0000-0000-000000000011")
   val ArchivedWorkflowId = WorkflowId.fromString("c4c6339c-2145-47fb-acc5-b5cb8d2809f5")
   val ArchivedAndDeletedWorkflowId = WorkflowId.fromString("abc1234d-2145-47fb-acc5-b5cb8d2809f5")
   val wesWorkflowId = WorkflowId.randomId()
-  val SummarizedWorkflowIds = Set(
-    SummarizedWorkflowId,
-    WorkflowIdExistingOnlyInSummaryTable,
-    ArchivedWorkflowId,
-    ArchivedAndDeletedWorkflowId
+  val UnsummarizedWorkflowIds = Set(
+    UnsummarizedWorkflowId
   )
   val RecognizedWorkflowIds = Set(
     ExistingWorkflowId,
@@ -593,6 +591,7 @@ object CromwellApiServiceSpec {
     SucceededWorkflowId,
     FailedWorkflowId,
     SummarizedWorkflowId,
+    WorkflowIdExistingOnlyInSummaryTable,
     ArchivedWorkflowId,
     ArchivedAndDeletedWorkflowId,
     wesWorkflowId
@@ -684,11 +683,8 @@ object CromwellApiServiceSpec {
           None
         )
         sender() ! response
-      case ValidateWorkflowIdInMetadata(id) =>
-        if (RecognizedWorkflowIds.contains(id)) sender() ! MetadataService.RecognizedWorkflowId
-        else sender() ! MetadataService.UnrecognizedWorkflowId
       case ValidateWorkflowIdInMetadataSummaries(id) =>
-        if (SummarizedWorkflowIds.contains(id)) sender() ! MetadataService.RecognizedWorkflowId
+        if (RecognizedWorkflowIds.contains(id)) sender() ! MetadataService.RecognizedWorkflowId
         else sender() ! MetadataService.UnrecognizedWorkflowId
       case FetchWorkflowMetadataArchiveStatusAndEndTime(id) =>
         id match {

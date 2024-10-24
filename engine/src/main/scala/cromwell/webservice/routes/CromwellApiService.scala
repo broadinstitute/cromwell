@@ -123,7 +123,7 @@ trait CromwellApiService
       } ~
       path("workflows" / Segment / Segment / "timing") { (_, possibleWorkflowId) =>
         instrumentRequest {
-          onComplete(validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor)) {
+          onComplete(validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)) {
             case Success(workflowId) => completeTimingRouteResponse(metadataLookupForTimingRoute(workflowId))
             case Failure(e: UnrecognizedWorkflowException) => e.failRequest(StatusCodes.NotFound)
             case Failure(e: InvalidWorkflowException) => e.failRequest(StatusCodes.BadRequest)
@@ -159,7 +159,7 @@ trait CromwellApiService
       path("workflows" / Segment / Segment / "releaseHold") { (_, possibleWorkflowId) =>
         post {
           instrumentRequest {
-            val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap {
+            val response = validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor) flatMap {
               workflowId =>
                 workflowStoreActor
                   .ask(WorkflowStoreActor.WorkflowOnHoldToSubmittedCommand(workflowId))
@@ -318,20 +318,6 @@ object CromwellApiService {
     case e: TimeoutException => e.failRequest(StatusCodes.ServiceUnavailable)
     case e: Exception => e.errorRequest(StatusCodes.InternalServerError)
   }
-
-  def validateWorkflowIdInMetadata(possibleWorkflowId: String, serviceRegistryActor: ActorRef)(implicit
-    timeout: Timeout,
-    executor: ExecutionContext
-  ): Future[WorkflowId] =
-    Try(WorkflowId.fromString(possibleWorkflowId)) match {
-      case Success(w) =>
-        serviceRegistryActor.ask(ValidateWorkflowIdInMetadata(w)).mapTo[WorkflowValidationResponse] flatMap {
-          case RecognizedWorkflowId => Future.successful(w)
-          case UnrecognizedWorkflowId => validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor)
-          case FailedToCheckWorkflowId(t) => Future.failed(t)
-        }
-      case Failure(_) => Future.failed(InvalidWorkflowException(possibleWorkflowId))
-    }
 
   def validateWorkflowIdInMetadataSummaries(possibleWorkflowId: String, serviceRegistryActor: ActorRef)(implicit
     timeout: Timeout,

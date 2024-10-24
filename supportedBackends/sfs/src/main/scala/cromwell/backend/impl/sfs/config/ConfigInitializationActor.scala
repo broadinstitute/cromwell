@@ -1,5 +1,10 @@
 package cromwell.backend.impl.sfs.config
 
+import cats.instances.future._
+import cats.instances.option._
+import cats.syntax.traverse._
+import com.google.auth.oauth2.OAuth2Credentials
+import common.validation.Validation._
 import cromwell.backend.io.WorkflowPaths
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{
@@ -7,6 +12,8 @@ import cromwell.backend.standard.{
   StandardInitializationData,
   StandardValidatedRuntimeAttributesBuilder
 }
+import cromwell.cloudsupport.gcp.GoogleConfiguration
+import net.ceedubs.ficus.Ficus._
 import wdl.draft2.model.WdlNamespace
 
 import scala.concurrent.Future
@@ -23,6 +30,7 @@ import scala.concurrent.Future
   */
 class ConfigInitializationData(workflowPaths: WorkflowPaths,
                                runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder,
+                               val googleRegistryCredentialsOption: Option[OAuth2Credentials],
                                val declarationValidations: Seq[DeclarationValidation],
                                val wdlNamespace: WdlNamespace
 ) extends StandardInitializationData(workflowPaths,
@@ -47,11 +55,42 @@ class ConfigInitializationActor(params: StandardInitializationActorParams)
                                            configWdlNamespace.callCachedRuntimeAttributes
     )
 
+  /**
+    * Return optional credentials for call caching GAR/GCR images.
+    */
+  private lazy val googleRegistryCredentialsOption: Future[Option[OAuth2Credentials]] = {
+    val dockerGoogleAuthOption =
+      standardParams.configurationDescriptor.backendConfig.getAs[String]("docker.google.auth")
+    dockerGoogleAuthOption traverse { dockerGoogleAuth =>
+      val googleConfiguration = GoogleConfiguration(standardParams.configurationDescriptor.globalConfig)
+      val googleAuthTry =
+        googleConfiguration
+          .auth(dockerGoogleAuth)
+          .toTry(s"Error retrieving google auth mode $dockerGoogleAuth")
+      for {
+        googleAuth <- Future.fromTry(googleAuthTry)
+        credentials <- Future(
+          googleAuth.credentials(
+            workflowDescriptor.workflowOptions.get(_).get,
+            List("https://www.googleapis.com/auth/cloud-platform")
+          )
+        )
+      } yield credentials
+    }
+  }
+
   override lazy val initializationData: Future[ConfigInitializationData] = {
     val wdlNamespace = configWdlNamespace.wdlNamespace
-    workflowPaths map {
-      new ConfigInitializationData(_, runtimeAttributesBuilder, declarationValidations, wdlNamespace)
-    }
+    for {
+      workflowPathsActual <- workflowPaths
+      googleRegistryCredentialsOptionActual <- googleRegistryCredentialsOption
+    } yield new ConfigInitializationData(
+      workflowPathsActual,
+      runtimeAttributesBuilder,
+      googleRegistryCredentialsOptionActual,
+      declarationValidations,
+      wdlNamespace
+    )
   }
 
   override lazy val runtimeAttributesBuilder: StandardValidatedRuntimeAttributesBuilder = {

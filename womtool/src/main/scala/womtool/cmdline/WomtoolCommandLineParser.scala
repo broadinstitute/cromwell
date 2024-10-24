@@ -27,6 +27,8 @@ object WomtoolCommandLineParser {
       Option(WomtoolGraphCommandLine(mainFile))
     case PartialWomtoolCommandLineArguments(Some(WomGraph), Some(mainFile), None, None, None, None) =>
       Option(WomtoolWomGraphCommandLine(mainFile))
+    case PartialWomtoolCommandLineArguments(Some(ParameterMeta), Some(mainFile), None, None, None, None) =>
+      Option(ParameterMetaCommandLine(mainFile))
     case _ => None
   }
 }
@@ -110,5 +112,9 @@ class WomtoolCommandLineParser extends scopt.OptionParser[PartialWomtoolCommandL
     .text(
       "(Advanced) Generate and output a graph visualization of Cromwell's internal Workflow Object Model structure for this workflow in .dot format" + System.lineSeparator
     )
+
+  cmd("parametermeta")
+    .action((_, c) => c.copy(command = Option(ParameterMeta)))
+    .text("Generate and output parameter metadata in JSON for this workflow" + System.lineSeparator)
 
 }

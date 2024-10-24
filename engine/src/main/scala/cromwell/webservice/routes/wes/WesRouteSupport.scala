@@ -5,7 +5,7 @@ import akka.http.scaladsl.model.{Multipart, StatusCode, StatusCodes}
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.http.scaladsl.server.{Directive1, Route}
-import akka.pattern.{ask, AskTimeoutException}
+import akka.pattern.{AskTimeoutException, ask}
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
@@ -16,18 +16,12 @@ import cromwell.engine.instrumentation.HttpInstrumentation
 import cromwell.engine.workflow.WorkflowManagerActor.WorkflowNotFoundException
 import cromwell.engine.workflow.workflowstore.{WorkflowStoreActor, WorkflowStoreSubmitActor}
 import cromwell.server.CromwellShutdown
-import cromwell.services.metadata.MetadataService.{
-  BuildMetadataJsonAction,
-  GetSingleWorkflowMetadataAction,
-  GetStatus,
-  MetadataServiceResponse,
-  StatusLookupFailed
-}
+import cromwell.services.metadata.MetadataService.{BuildMetadataJsonAction, GetSingleWorkflowMetadataAction, GetStatus, MetadataServiceResponse, StatusLookupFailed}
 import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResponse}
 import cromwell.webservice.PartialWorkflowSources
-import cromwell.webservice.WebServiceUtils.{completeResponse, materializeFormData, EnhancedThrowable}
+import cromwell.webservice.WebServiceUtils.{EnhancedThrowable, completeResponse, materializeFormData}
 import cromwell.webservice.routes.CromwellApiService
-import cromwell.webservice.routes.CromwellApiService.{validateWorkflowIdInMetadata, UnrecognizedWorkflowException}
+import cromwell.webservice.routes.CromwellApiService.{UnrecognizedWorkflowException, validateWorkflowIdInMetadataSummaries}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 import cromwell.webservice.routes.wes.WesResponseJsonSupport._
 import cromwell.webservice.routes.wes.WesRouteSupport.{respondWithWesError, _}
@@ -94,7 +88,7 @@ trait WesRouteSupport extends HttpInstrumentation {
               }
             },
             path("runs" / Segment / "status") { possibleWorkflowId =>
-              val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w =>
+              val response = validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor).flatMap(w =>
                 serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse]
               )
               // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have

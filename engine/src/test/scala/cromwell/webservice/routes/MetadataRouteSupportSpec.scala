@@ -573,7 +573,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         |}
       """.stripMargin
 
-    val unsummarizedId = CromwellApiServiceSpec.ExistingWorkflowId
+    val unsummarizedId = CromwellApiServiceSpec.UnsummarizedWorkflowId
     Patch(s"/workflows/$version/$unsummarizedId/labels",
           HttpEntity(ContentTypes.`application/json`, validLabelsJson)
     ) ~>

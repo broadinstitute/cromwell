@@ -95,7 +95,7 @@ object GcpCostCatalogService {
       // In practice, from what I've seen, CPU cores and RAM don't have more than a single tier.
       val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
       val costPerCorePerHour: BigDecimal =
-        costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
+        costPerUnit.getUnits + (costPerUnit.getNanos * 10e-10) // Same as above, but as a big decimal
       val result = costPerCorePerHour * coreCount
       result.validNel
     } else {
@@ -109,7 +109,7 @@ object GcpCostCatalogService {
     if (usageUnit == "GiBy.h") {
       val costPerUnit: Money = pricingInfo.getPricingExpression.getTieredRates(0).getUnitPrice
       val costPerGbHour: BigDecimal =
-        costPerUnit.getUnits + (costPerUnit.getNanos * 10e-9) // Same as above, but as a big decimal
+        costPerUnit.getUnits + (costPerUnit.getNanos * 10e-10) // Same as above, but as a big decimal
       val result = costPerGbHour * ramGbCount
       result.validNel
     } else {

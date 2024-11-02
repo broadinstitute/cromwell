@@ -419,7 +419,6 @@ class BatchBackendCacheHitCopyingActorSpec
       project = null,
       computeServiceAccount = null,
       auths = null,
-      restrictMetadataAccess = false,
       dockerhubToken = null,
       enableFuse = false,
       executionBucket = null,

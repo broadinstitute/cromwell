@@ -56,6 +56,7 @@ import java.security.MessageDigest
 import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
 import wdl4s.parser.MemoryUnit
+import wom.format.MemorySize
 
 /**
   * Responsible for the creation of the job definition.
@@ -182,11 +183,11 @@ trait AwsBatchJobDefinitionBuilder {
                   efsMakeMD5: Boolean,
                   tagResources: Boolean,
                   logGroupName: String,
-                  sharedMemorySize: Int
+                  sharedMemorySize: MemorySize
     ): String =
       s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env
           .map(_.toString)
-          .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}:${tagResources.toString}:$logGroupName"
+          .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}:${tagResources.toString}:$logGroupName:${sharedMemorySize.to(MemoryUnit.MB).amount.toInt}"
 
     val environment = List.empty[KeyValuePair]
     val cmdName = context.runtimeAttributes.fileSystem match {
@@ -222,9 +223,8 @@ trait AwsBatchJobDefinitionBuilder {
       efsMakeMD5,
       tagResources,
       logGroupName,
-      context.runtimeAttributes.sharedMemorySize.value
+      context.runtimeAttributes.sharedMemorySize
     )
-
     // To reuse job definition for gpu and gpu-runs, we will create a job definition that does not gpu requirements
     // since aws batch does not allow you to set gpu as 0 when you dont need it. you will always need cpu and memory
     (ContainerProperties
@@ -249,7 +249,10 @@ trait AwsBatchJobDefinitionBuilder {
        .environment(environment.asJava)
        .ulimits(ulimits.asJava)
        .linuxParameters(
-         LinuxParameters.builder().sharedMemorySize(context.runtimeAttributes.sharedMemorySize.##).build()
+         LinuxParameters
+           .builder()
+           .sharedMemorySize(context.runtimeAttributes.sharedMemorySize.to(MemoryUnit.MB).amount.toInt)
+           .build() // Convert MemorySize to MB
        ),
      containerPropsName
     )

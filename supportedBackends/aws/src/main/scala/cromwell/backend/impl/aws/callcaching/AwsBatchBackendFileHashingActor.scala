@@ -40,6 +40,7 @@ import cromwell.core.io.DefaultIoCommandBuilder
 import scala.util.Try
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.core.path.DefaultPathBuilder
+import org.slf4j.{Logger, LoggerFactory}
 
 class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorParams)
     extends StandardFileHashingActor(standardParams) {
@@ -48,6 +49,7 @@ class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorPa
     ("s3", FileHashStrategy.ETag)
   )
 
+  val Log: Logger = LoggerFactory.getLogger(StandardFileHashingActor.getClass)
   override val ioCommandBuilder = BackendInitializationData
     .as[AwsBatchBackendInitializationData](standardParams.backendInitializationDataOption)
     .configuration
@@ -57,31 +59,48 @@ class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorPa
     case _ => DefaultIoCommandBuilder
   }
   // get backend config.
-  val aws_config = BackendInitializationData.as[AwsBatchBackendInitializationData](standardParams.backendInitializationDataOption).configuration
-  
-  // custom strategy to handle efs (local) files, in case sibling-md5 file is present. 
+  val aws_config = BackendInitializationData
+    .as[AwsBatchBackendInitializationData](standardParams.backendInitializationDataOption)
+    .configuration
+
+  // custom strategy to handle efs (local) files, in case sibling-md5 file is present.
+  //  if valid md5 is found : return the hash
+  //  if no md5 is found : return None (pass request to parent hashing actor)
+  //  if outdated md5 is found : return invalid string (assume file has been altered after md5 creation)
+  //  if file is missing : return invalid string
   override def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = {
     val file = DefaultPathBuilder.get(fileRequest.file.valueString)
-    if (aws_config.efsMntPoint.isDefined && file.toString.startsWith(aws_config.efsMntPoint.getOrElse("--")) && aws_config.checkSiblingMd5.getOrElse(false)) {
-            val md5 = file.sibling(s"${file.toString}.md5")
-            // check existance of the file : 
-            if (!file.exists) {
-                // if missing, cache hit is invalid; return invalid md5
-                Some("File Missing").map(str => Try(str))
-            }
-            // check existence of the sibling file
-            else if (md5.exists) {
-                // read the file.
-                val md5_value: Option[String] = Some(md5.contentAsString.split("\\s+")(0))
-                md5_value.map(str => Try(str))
-            } else {
-                // File present, but no sibling found, fall back to default.
-                None
-            }
-            
+    if (
+      aws_config.efsMntPoint.isDefined && file.toString.startsWith(
+        aws_config.efsMntPoint.getOrElse("--")
+      ) && aws_config.checkSiblingMd5.getOrElse(false)
+    ) {
+      val md5 = file.sibling(s"${file.toString}.md5")
+      // check existance of the file :
+      if (!file.exists) {
+        Log.debug(s"File Missing: ${file.toString}")
+        // if missing, cache hit is invalid; return invalid md5
+        Some("File Missing").map(str => Try(str))
+      }
+      // check existence of the sibling file and make sure it's newer than main file
+      else if (md5.exists && md5.lastModifiedTime.isAfter(file.lastModifiedTime)) {
+        // read the file.
+        Log.debug("Found valid sibling file for " + file.toString)
+        val md5_value: Option[String] = Some(md5.contentAsString.split("\\s+")(0))
+        md5_value.map(str => Try(str))
+      } else if (md5.exists && md5.lastModifiedTime.isBefore(file.lastModifiedTime)) {
+        // sibling file is outdated, return invalid md5
+        Log.debug("Found outdated sibling file for " + file.toString)
+        Some("Checksum File Outdated").map(str => Try(str))
+      } else {
+        Log.debug("Found no sibling file for " + file.toString)
+        // File present, but no sibling found, fall back to default.
+        None
+      }
+
     } else {
-        // Detected non-EFS file: return None
-        None  
+      // Detected non-EFS file: return None
+      None
     }
   }
 }

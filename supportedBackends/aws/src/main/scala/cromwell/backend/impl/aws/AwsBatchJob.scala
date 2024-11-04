@@ -437,18 +437,17 @@ final case class AwsBatchJob(
             // need to make md5sum?
             val md5_cmd = if (efsMakeMD5.isDefined && efsMakeMD5.getOrElse(false)) {
               Log.debug("Add cmd to create MD5 sibling.")
-              // this does NOT regenerate the md5 in case the file is overwritten !
-              // TODO : Add check for file age => recreate if md5 older than main file
+              // generate MD5 if missing or if local file is newer than sibling md5
               s"""
-                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then 
+                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' -nt '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]]; then
                  |   # the glob list
-                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 ); 
+                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 );
                  |   # globbed files, using specified number of cpus for parallel processing.
-                        SAVEIFS="$$IFS"
-                 |IFS=$$'\n'
+                 |   SAVEIFS="$$IFS"
+                 |   IFS=$$'\n'
                  |   cat "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" | xargs -I% -P${runtimeAttributes.cpu.##.toString} bash -c "md5sum ${globDirectory}/% > ${globDirectory}/%.md5"
+                 |   IFS="$$SAVEIFS"
                  |fi
-                 |IFS="$$SAVEIFS"
                  |""".stripMargin
             }
             // return combined result
@@ -474,7 +473,6 @@ final case class AwsBatchJob(
           Log.debug("output Data on working disk mount" + output.local.pathAsString)
           s"""_s3_delocalize_with_retry "$workDir/${output.local.pathAsString}" "${output.s3key}" """.stripMargin
 
-        // file(name (full path), s3key (delocalized path), local (file basename), mount (disk details))
         // files on EFS mounts are optionally delocalized.
         case output: AwsBatchFileOutput
             if efsMntPoint.isDefined && output.mount.mountPoint.pathAsString == efsMntPoint.get =>
@@ -496,10 +494,10 @@ final case class AwsBatchJob(
           // need to make md5sum?
           var md5_cmd = ""
           if (efsMakeMD5.isDefined && efsMakeMD5.getOrElse(false)) {
-            Log.debug("Add cmd to create MD5 sibling.")
+            Log.debug("Add cmd to create MD5 sibling if missing or outdated.")
             md5_cmd =
               s"""
-                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]] ; then
+                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' -nt '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]]; then
                  |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 );
                  |fi
                  |""".stripMargin

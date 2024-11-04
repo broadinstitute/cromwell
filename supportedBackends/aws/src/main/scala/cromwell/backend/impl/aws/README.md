@@ -75,13 +75,24 @@ This runtime attribute adds support to [*AWS Batch Automated Job Retries*](https
 
 It takes an Int, between 1 and 10, as a value that indicates the maximum number of times AWS Batch should retry a failed task. If the value 0 is passed, the [*Retry Strategy*](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#retryStrategy) will not be added to the job definiton and the task will run just once.
 
-This configuration should be passed in the `options.json` file when launching the pipeline.
+This configuration should be passed in the `options.json` file when launching the pipeline, as a default_runtime_attribute:
+
+```
+{
+  default_runtime_attribute: {
+    "awsBatchRetryAttempts" : 2
+  }
+}
+```
+Alternatively, it can be provided per task, using the task runtime settings in the WDL:
 
 ```
 runtime {
   awsBatchRetryAttempts: integer
 }
 ```
+
+_Note: Also see 'MaxRetries' options_
 
 ### `awsBatchEvaluteOnExit`
 
@@ -123,14 +134,17 @@ A list of [`ulimits`](https://docs.aws.amazon.com/batch/latest/userguide/job_def
 This configuration should be passed in the `options.json` file when launching the pipeline.
 
 ```
-"ulimits": [
-  {
-    "name": string,
-    "softLimit": integer,
-    "hardLimit": integer
+{
+  default_runtime_attribute: {
+    "ulimits": [
+      {
+        "name": "string",
+        "softLimit": "integer",
+        "hardLimit": "integer"
+      }
+    ]
   }
-  ...
-]
+}
 ```
 Parameter description:
 
@@ -141,12 +155,12 @@ Parameter description:
 
 - `softLimit`
   - The soft limit for the `ulimit` type.
-  - Type: Integer
+  - Type: Integer, but provided as string (with quotes)
   - Required: Yes, when `ulimits` is used.
 
 - `hardLimit`
   - The hard limit for the `ulimit` type.
-  - Type: Integer
+  - Type: Integer, but provided as string (with quotes)
   - Required: Yes, when `ulimits` is used.
 
 ### GPU support 
@@ -175,6 +189,27 @@ task gpu_queue_task {
 ```
 the gpuCount value will be passed to AWS Batch as part of [resourceRequirements](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#ContainerProperties-resourceRequirements).
 You will need to use this feature in conjunction with a aws queue that has GPU instances (see [compute-environment](/supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/DEPLOY.md#compute-environment) for more inforamtion)
+
+
+### Shared Memory Support
+
+Tasks can request shared memory by setting `sharedMemorySize` in the task runtime attribute.  This is required to support workflows with tasks that uses SharedMemory for their work, for example in popular ML libraries like PyTorch. The memory is available under /dev/shm in the task.  The value is provided as a Memory value, taking GB/MB suffixes.  For instance, requesting 1Gb of shared memory:
+
+```
+task gpu_queue_task {
+  input {
+    ...
+  } 
+  command <<<
+    ...
+  >>>
+  output {}
+  runtime {
+    sharedMemorySize: "1024 MB"
+  }
+}
+```
+
 
 
 ### Call Caching with ECR private
@@ -350,7 +385,7 @@ Cromwell EC2 instances can be equipped with a shared elastic filesystem, termed 
 
 Following the [GenomicsWorkFlows](https://docs.opendata.aws/genomics-workflows/orchestration/cromwell/cromwell-overview.html) deployment stack and selecting "Create EFS", you will end up with an EFS filesystem accessible within the provided subnets. It is mounted by default in EC2 workers under /mnt/efs. This is specified in the launch templates USER_DATA if you want to change this. *BEWARE* : For globbing to work on EFS, the mountpoint must be left as "/mnt/efs" ! 
 
-Next, it is recommended to change the EFS setup (in console : select EFS service, then the "SharedDataGenomics" volume, edit). Change performance settings to Enhanced/Elastic, because the bursting throughput is usually insufficient. Optionally set the lifecycle to archive infrequently accessed data and reduce costs. 
+Next, it is recommended to change the EFS setup (in console : select EFS service, then the "SharedDataGenomics" volume, edit). Change performance settings to Enhanced/Elastic, because the bursting throughput is usually insufficient (there can be a significant cost for that!). Optionally set the lifecycle to archive infrequently accessed data and reduce costs. 
 
 2. Set Cromwell Configuration
 
@@ -544,6 +579,7 @@ task task_three {
 ```
 
 #### TAGGING RESOURCES
+
 AWS Batch tags jobs and, if configured in the compute environment, instances and volumes with generic tags to track costs.  These tags typically include the job-queue name. To allow more detailed cost tracking, it is possible to enable tagging instances and connected volumes with the following information : 
 
 - *cromwell-workflow-name* : the top-level name of the submitted WDL (eg "workflow myWorkflow {...}")
@@ -556,7 +592,7 @@ In case the same instance is reused for multiple tasks, unique tag values are co
 - cromwell-workflow-id : 2443daac-c232-4e0a-920d-fbf53273e9c5;df19029e-cc02-41d5-a26d-8d30c0ab05cb
 - cromwell-task-id : myWorkflow.myTask-None-1
 
-To enable tagging, add "tagResources = true" to the default-runtime-attributes section of your configuration: 
+To enable default tagging, add "tagResources = true" to the default-runtime-attributes section of your configuration: 
 
 ```
 backend {
@@ -574,6 +610,28 @@ backend {
 }
 
 ```
+
+Additional, custom tags can be added to jobs, using the "additionalTags" paramter in the "default-runtime-attributes" section of the job definition:
+
+```
+backend {
+    providers {
+        AWSBatch {
+            config{
+                  default-runtime-attributes {
+                      logGroupName: "/Cromwell/job/"
+                      additionalTags {
+                         projectid: "project1"
+                      }
+                  }
+            }
+        }
+    }
+}
+```
+
+The _logGroupName_ enables you to send the logs to a custom log group name and tag the jobs that Cromwell submits.  The _additionalTags_ allows you to specify tags to be added to the jobs as <key> : <value> pairs. 
+
 
 
 AWS Batch

@@ -92,6 +92,10 @@ private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder
   override def existsCommand: PartialFunction[Path, Try[S3BatchExistsCommand]] = { case path: S3Path =>
     Try(S3BatchExistsCommand(path))
   }
+  
+  override def existsOrThrowCommand: PartialFunction[Path, Try[S3BatchExistsOrThrowCommand]] = { case path: S3Path =>
+    Try(S3BatchExistsOrThrowCommand(path))
+  }
 }
 
 /**

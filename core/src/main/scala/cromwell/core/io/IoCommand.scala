@@ -187,6 +187,14 @@ abstract class IoExistsCommand(val file: Path) extends SingleFileIoCommand[Boole
 }
 
 /**
+  * Check whether a file exists but throw an exception if it doesn't
+  */
+abstract class IoExistsOrThrowCommand(val file: Path) extends SingleFileIoCommand[Boolean] {
+  override def toString = s"Throw error if ${file.pathAsString} does not exist"
+  override lazy val name = "exist"
+}
+
+/**
   * Return the lines of a file in a collection
   */
 abstract class IoReadLinesCommand(val file: Path) extends SingleFileIoCommand[Iterable[String]] {

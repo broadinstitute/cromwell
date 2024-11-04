@@ -56,6 +56,10 @@ object DefaultIoCommand {
     override def commandDescription: String = s"DefaultIoExistsCommand file '$file'"
   }
 
+  case class DefaultIoExistsOrThrowCommand(override val file: Path) extends IoExistsOrThrowCommand(file) {
+    override def commandDescription: String = s"DefaultIoExistsOrThrowCommand file '$file'"
+  }
+  
   case class DefaultIoReadLinesCommand(override val file: Path) extends IoReadLinesCommand(file) {
     override def commandDescription: String = s"DefaultIoReadLinesCommand file '$file'"
   }

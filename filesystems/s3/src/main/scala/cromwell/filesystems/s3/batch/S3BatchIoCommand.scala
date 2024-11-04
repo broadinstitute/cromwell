@@ -39,11 +39,13 @@ import cromwell.core.io.{
   IoCopyCommand,
   IoDeleteCommand,
   IoExistsCommand,
+  IoExistsOrThrowCommand,
   IoHashCommand,
   IoSizeCommand,
   IoTouchCommand
 }
 import cromwell.filesystems.s3.S3Path
+import java.nio.file.NoSuchFileException
 
 /**
   * Io commands with S3 paths and some logic enabling batching of request.
@@ -158,6 +160,23 @@ case class S3BatchExistsCommand(override val file: S3Path)
     // If the object can't be found, don't fail the request but just return false as we were testing for existence
     error match {
       case _: NoSuchKeyException => Option(Left(false))
+      case _ => None
+    }
+  override def commandDescription: String = s"S3BatchExistsCommand file '$file'"
+}
+
+/**
+  * `IoCommand` to determine the existence of an object in S3, but throws execption if the object can't be found
+  * @param file the path to the object
+  */
+case class S3BatchExistsOrThrowCommand(override val file: S3Path)
+    extends IoExistsOrThrowCommand(file)
+    with S3BatchHeadCommand[Boolean] {
+  override def mapResponse(response: HeadObjectResponse): Boolean = true
+  override def onFailure(error: SdkException): Option[Left[Boolean, Nothing]] =
+    // If the object can't be found, fail the request and throw an exception
+    error match {
+      case _: NoSuchKeyException => throw new NoSuchFileException(file.toString)
       case _ => None
     }
   override def commandDescription: String = s"S3BatchExistsCommand file '$file'"

@@ -54,10 +54,10 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     val network = NetworkInterface.newBuilder
       .setNoExternalIpAddress(data.gcpBatchParameters.runtimeAttributes.noAddress)
-      .setNetwork(vpcAndSubnetworkProjectLabelValues.networkName(data.gcpBatchParameters.projectId))
+      .setNetwork(vpcAndSubnetworkProjectLabelValues.networkName(data.createParameters.projectId))
 
     vpcAndSubnetworkProjectLabelValues
-      .subnetNameOption(data.gcpBatchParameters.projectId)
+      .subnetNameOption(data.createParameters.projectId)
       .foreach(network.setSubnetwork)
 
     network

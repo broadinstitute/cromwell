@@ -14,13 +14,16 @@ import cromwell.backend.async.{
   AbortedExecutionHandle,
   ExecutionHandle,
   FailedNonRetryableExecutionHandle,
+  FailedRetryableExecutionHandle,
   PendingExecutionHandle
 }
+import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
 import cromwell.backend.google.batch.io._
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.GcpBatchJobPaths.GcsTransferLibraryName
 import cromwell.backend.google.batch.models.RunStatus.TerminalRunStatus
+import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}
 import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.monitoring.{BatchInstrumentation, CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
@@ -46,7 +49,7 @@ import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.services.instrumentation.CromwellInstrumentation
-import cromwell.services.keyvalue.KeyValueServiceActor.KvJobKey
+import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import shapeless.Coproduct
@@ -174,6 +177,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     .getOrElse(runtimeAttributes.dockerImage)
 
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
+
+  override lazy val preemptible: Int = jobDescriptor.prefetchedKvStoreEntries.get(GcpBatchBackendLifecycleActorFactory.preemptionCountKey) match {
+      case Some(KvPair(_, v)) =>
+        Try(v.toInt) match {
+          case Success(m) => m
+	  case Failure(_) => 0
+        }
+      case _ => runtimeAttributes.preemptible
+   }
 
   override def tryAbort(job: StandardAsyncJob): Unit =
     abortJob(workflowId = workflowId,
@@ -619,6 +631,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           projectId = googleProject(jobDescriptor.workflowDescriptor),
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
           googleLabels = backendLabels ++ customLabels,
+          preemptible = preemptible,
           batchTimeout = batchConfiguration.batchTimeout,
           jobShell = batchConfiguration.jobShell,
           privateDockerKeyAndEncryptedToken = dockerKeyAndToken,
@@ -825,7 +838,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def executeAsync(): Future[ExecutionHandle] = {
 
     // Want to force runtimeAttributes to evaluate so we can fail quickly now if we need to:
-    def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes))
+    def evaluateRuntimeAttributes = Future.fromTry(Try(runtimeAttributes.copy(preemptible = preemptible)))
 
     def generateInputOutputParameters: Future[InputOutputParameters] = Future.fromTry(Try {
       val rcFileOutput = GcpBatchFileOutput(
@@ -896,7 +909,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     })
 
     val runBatchResponse = for {
-      _ <- evaluateRuntimeAttributes
+      runtimeAttributes <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
       customLabels <- Future.fromTry(GcpLabel.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       batchParameters <- generateInputOutputParameters
@@ -1046,14 +1059,23 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // returnCode is provided by cromwell, so far, this is empty for all the tests I ran
   override def handleExecutionFailure(runStatus: RunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus): ExecutionHandle =
-      FailedNonRetryableExecutionHandle(
-        StandardException(
+      if (runStatus.exitCode == Some(GcpBatchExitCode.VMPreemption)) {
+        FailedRetryableExecutionHandle(
+          StandardException(
+            message = runStatus.prettyPrintedError,
+            jobTag = jobTag),
+            returnCode,
+            Option(Seq(KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey), "0")))
+        )
+      } else {
+        FailedNonRetryableExecutionHandle(
+          StandardException(
           message = runStatus.prettyPrintedError,
-          jobTag = jobTag
-        ),
-        returnCode,
-        None
-      )
+          jobTag = jobTag),
+          returnCode,
+          None
+        )
+      }
 
     Future.fromTry {
       Try {

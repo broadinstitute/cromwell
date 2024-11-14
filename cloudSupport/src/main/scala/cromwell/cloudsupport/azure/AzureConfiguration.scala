@@ -6,7 +6,8 @@ import net.ceedubs.ficus.Ficus._
 
 object AzureConfiguration {
   private val conf = ConfigFactory.load().getConfig("azure")
-  val azureEnvironment = AzureEnvironmentConverter.fromString(conf.as[Option[String]]("azure-environment").getOrElse("AZURE"))
+  val azureEnvironment =
+    AzureEnvironmentConverter.fromString(conf.as[Option[String]]("azure-environment").getOrElse("AZURE"))
   val azureTokenScopeManagement = conf.as[String]("token-scope-management")
 }
 

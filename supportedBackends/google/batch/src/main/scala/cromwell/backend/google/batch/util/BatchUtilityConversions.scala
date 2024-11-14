@@ -9,8 +9,9 @@ import wom.format.MemorySize
 trait BatchUtilityConversions {
 
   // construct zones string
-  def toZonesPath(zones: Vector[String]): String =
-    zones.map(zone => "zones/" + zone).mkString(" ")
+  def toZonesPath(zones: Vector[String]): Vector[String] = {
+    zones.map(zone => "zones/" + zone)
+  }
 
   // Gets first zone in vector and removes last two characters of zone to construct region
   def zonesToRegion(zones: Vector[String]): String = {

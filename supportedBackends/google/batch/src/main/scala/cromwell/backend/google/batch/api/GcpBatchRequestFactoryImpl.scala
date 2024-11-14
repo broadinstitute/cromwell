@@ -252,7 +252,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     )
     val instancePolicy =
       createInstancePolicy(cpuPlatform = cpuPlatform, spotModel, accelerators, allDisks, machineType = machineType)
-    val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
+    val locationPolicy = LocationPolicy.newBuilder.addAllAllowedLocations(zones.asJava).build
     val allocationPolicy =
       createAllocationPolicy(data, locationPolicy, instancePolicy.build, networkPolicy, gcpSa, accelerators)
     val logsPolicy = data.gcpBatchParameters.batchAttributes.logsPolicy match {

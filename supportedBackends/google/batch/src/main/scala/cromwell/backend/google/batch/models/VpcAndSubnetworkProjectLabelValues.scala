@@ -19,12 +19,11 @@ final case class VpcAndSubnetworkProjectLabelValues(vpcName: String, subnetNameO
   }
 
   /**
-   * Replaces the string `\${projectId}` in the subnet name if found.  Replace wildcard character used in terra configuration for subnetworks with appropriate region
+   * Replaces the string `\${projectId}` in the subnet name if found.
+   * Replace wildcard character used in terra configuration for subnetworks with appropriate region
    */
-  def subnetNameOption(projectId: String, region: String): Option[String] = {
-    subnetNameOpt map { _.replace(ProjectIdToken, projectId) }
-    subnetNameOpt map { _.replace(regionWildcard, "regions/"+ region) }
-  }
+  def subnetNameOption(projectId: String, region: String): Option[String] =
+    subnetNameOpt map { _.replace(ProjectIdToken, projectId) } map { _.replace(regionWildcard, "regions/" + region) }
 }
 
 object VpcAndSubnetworkProjectLabelValues {

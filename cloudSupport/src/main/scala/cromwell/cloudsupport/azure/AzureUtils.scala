@@ -33,7 +33,7 @@ object AzureUtils {
       .map(Success(_))
       .getOrElse(Failure(new Exception("Could not parse storage account")))
 
-    val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
+    val azureProfile = new AzureProfile(AzureConfiguration.azureEnvironment)
 
     def azureCredentialBuilder = new DefaultAzureCredentialBuilder()
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)

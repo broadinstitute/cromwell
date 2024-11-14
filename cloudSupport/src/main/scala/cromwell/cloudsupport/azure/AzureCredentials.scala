@@ -20,8 +20,8 @@ case object AzureCredentials {
 
   final val tokenAcquisitionTimeout = 5.seconds
 
-  val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
-  val tokenScope = "https://management.azure.com/.default"
+  val azureProfile = new AzureProfile(AzureConfiguration.azureEnvironment)
+  val tokenScope = AzureConfiguration.azureTokenScopeManagement
 
   private def tokenRequestContext: TokenRequestContext = {
     val trc = new TokenRequestContext()

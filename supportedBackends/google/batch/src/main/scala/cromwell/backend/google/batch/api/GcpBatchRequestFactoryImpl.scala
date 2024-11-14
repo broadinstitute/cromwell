@@ -57,7 +57,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setNetwork(vpcAndSubnetworkProjectLabelValues.networkName(data.createParameters.projectId))
 
     vpcAndSubnetworkProjectLabelValues
-      .subnetNameOption(projectId=data.createParameters.projectId, region=data.gcpBatchParameters.region)
+      .subnetNameOption(projectId=data.createParameters.projectId, region=zonesToRegion(data.createParameters.runtimeAttributes.zones))
       .foreach(network.setSubnetwork)
 
     network

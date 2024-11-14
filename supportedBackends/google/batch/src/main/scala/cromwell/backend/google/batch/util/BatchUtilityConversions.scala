@@ -12,6 +12,12 @@ trait BatchUtilityConversions {
   def toZonesPath(zones: Vector[String]): String =
     zones.map(zone => "zones/" + zone).mkString(" ")
 
+  // Gets first zone in vector and removes last two characters of zone to construct region
+  def zonesToRegion(zones: Vector[String]): String = {
+    val regionFromZone = zones.head.dropRight(2)
+    regionFromZone
+  }
+
   // lowercase text to match gcp label requirements
   def toLabel(text: String): String =
     text.toLowerCase

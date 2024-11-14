@@ -2,7 +2,6 @@ package cromwell.cloudsupport.azure
 
 import cats.implicits.catsSyntaxValidatedId
 import com.azure.core.credential.TokenRequestContext
-import com.azure.core.management.AzureEnvironment
 import com.azure.core.management.profile.AzureProfile
 import com.azure.identity.DefaultAzureCredentialBuilder
 import common.validation.ErrorOr.ErrorOr

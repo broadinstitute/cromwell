@@ -9,15 +9,12 @@ import wom.format.MemorySize
 trait BatchUtilityConversions {
 
   // construct zones string
-  def toZonesPath(zones: Vector[String]): Vector[String] = {
+  def toZonesPath(zones: Vector[String]): Vector[String] =
     zones.map(zone => "zones/" + zone)
-  }
 
   // Gets first zone in vector and removes last two characters of zone to construct region
-  def zonesToRegion(zones: Vector[String]): String = {
-    val regionFromZone = zones.head.dropRight(2)
-    regionFromZone
-  }
+  def zonesToRegion(zones: Vector[String]): Option[String] =
+    zones.headOption.map(_.dropRight(2))
 
   // lowercase text to match gcp label requirements
   def toLabel(text: String): String =

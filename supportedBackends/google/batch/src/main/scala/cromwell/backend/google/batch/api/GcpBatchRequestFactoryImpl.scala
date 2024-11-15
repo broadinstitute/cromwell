@@ -56,8 +56,10 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setNoExternalIpAddress(data.gcpBatchParameters.runtimeAttributes.noAddress)
       .setNetwork(vpcAndSubnetworkProjectLabelValues.networkName(data.createParameters.projectId))
 
+    val region = zonesToRegion(data.createParameters.runtimeAttributes.zones).getOrElse(data.gcpBatchParameters.region)
+
     vpcAndSubnetworkProjectLabelValues
-      .subnetNameOption(projectId=data.createParameters.projectId, region=zonesToRegion(data.createParameters.runtimeAttributes.zones))
+      .subnetNameOption(projectId = data.createParameters.projectId, region = region)
       .foreach(network.setSubnetwork)
 
     network
@@ -164,9 +166,9 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
   override def submitRequest(data: GcpBatchRequest, jobLogger: JobLogger): CreateJobRequest = {
 
-    val runtimeAttributes = data.gcpBatchParameters.runtimeAttributes
     val createParameters = data.createParameters
-    val retryCount = data.gcpBatchParameters.runtimeAttributes.preemptible
+    val runtimeAttributes = createParameters.runtimeAttributes
+    val retryCount = runtimeAttributes.preemptible
     val allDisksToBeMounted: Seq[GcpBatchAttachedDisk] =
       createParameters.disks ++ createParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
     val gcpBootDiskSizeMb = convertGbToMib(runtimeAttributes)

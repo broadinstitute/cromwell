@@ -56,6 +56,9 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .setNoExternalIpAddress(data.gcpBatchParameters.runtimeAttributes.noAddress)
       .setNetwork(vpcAndSubnetworkProjectLabelValues.networkName(data.createParameters.projectId))
 
+    // When selecting a subnet region, prefer zones set in runtime attrs, then fall back to
+    // the region the host google project is in. Note that zones in runtime attrs will always
+    // be in a single region.
     val region = zonesToRegion(data.createParameters.runtimeAttributes.zones).getOrElse(data.gcpBatchParameters.region)
 
     vpcAndSubnetworkProjectLabelValues

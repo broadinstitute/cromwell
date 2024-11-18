@@ -13,6 +13,7 @@ trait BatchUtilityConversions {
     zones.map(zone => "zones/" + zone)
 
   // Gets first zone in vector and removes last two characters of zone to construct region
+  // Ex. us-central1-a -> us-central1
   def zonesToRegion(zones: Vector[String]): Option[String] =
     zones.headOption.map(_.dropRight(2))
 

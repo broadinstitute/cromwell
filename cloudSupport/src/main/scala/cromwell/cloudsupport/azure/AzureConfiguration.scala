@@ -12,8 +12,8 @@ object AzureConfiguration {
 }
 
 object AzureEnvironmentConverter {
-  val Azure: String = "AZURE"
-  val AzureGov: String = "AZURE_GOV"
+  val Azure: String = "AzureCloud"
+  val AzureGov: String = "AzureUSGovernmentCloud"
 
   def fromString(s: String): AzureEnvironment = s match {
     case AzureGov => AzureEnvironment.AZURE_US_GOVERNMENT

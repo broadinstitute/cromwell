@@ -32,9 +32,9 @@ task get_machine_info {
 	 >>>
 
     runtime {
-        docker: "nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04"
+        docker: "nvidia/cuda:12.6.2-cudnn-devel-ubuntu24.04"
         bootDiskSizeGb: 20
-        gpuType: "nvidia-tesla-k80"
+        gpuType: "nvidia-tesla-t4"
         gpuCount: 1
         nvidiaDriverVersion: driver_version
         zones: "us-central1-c"

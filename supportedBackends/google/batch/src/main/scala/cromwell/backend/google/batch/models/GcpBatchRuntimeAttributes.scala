@@ -18,10 +18,6 @@ import wom.values.{WomArray, WomBoolean, WomInteger, WomString, WomValue}
 
 object GpuResource {
 
-  // TODO: unused variable
-  // Does GCP Batch still use driver version?
-  val DefaultNvidiaDriverVersion = "418.87.00"
-
   final case class GpuType(name: String) {
     override def toString: String = name
   }
@@ -96,10 +92,6 @@ object GcpBatchRuntimeAttributes {
   private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] =
     GpuTypeValidation.optional
 
-  val GpuDriverVersionKey = "nvidiaDriverVersion"
-  private def gpuDriverValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
-    new StringRuntimeAttributesValidation(GpuDriverVersionKey).optional
-
   private def gpuCountValidation(
     runtimeConfig: Option[Config]
   ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
@@ -150,7 +142,6 @@ object GcpBatchRuntimeAttributes {
       .withValidation(
         gpuCountValidation(runtimeConfig),
         gpuTypeValidation(runtimeConfig),
-        gpuDriverValidation(runtimeConfig),
         cpuValidation(runtimeConfig),
         cpuPlatformValidation(runtimeConfig),
         disksValidation(runtimeConfig),
@@ -181,10 +172,8 @@ object GcpBatchRuntimeAttributes {
       .extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     lazy val gpuCount: Option[Int Refined Positive] = RuntimeAttributesValidation
       .extractOption(gpuCountValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
-    lazy val gpuDriver: Option[String] =
-      RuntimeAttributesValidation.extractOption(gpuDriverValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
-    val gpuResource: Option[GpuResource] = if (gpuType.isDefined || gpuCount.isDefined || gpuDriver.isDefined) {
+    val gpuResource: Option[GpuResource] = if (gpuType.isDefined || gpuCount.isDefined) {
       Option(
         GpuResource(gpuType.getOrElse(GpuType.DefaultGpuType),
                     gpuCount

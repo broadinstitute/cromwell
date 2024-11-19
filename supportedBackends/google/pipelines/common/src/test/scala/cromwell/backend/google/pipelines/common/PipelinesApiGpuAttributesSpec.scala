@@ -9,12 +9,11 @@ import wom.values.{WomFloat, WomInteger, WomSingleFile, WomString, WomValue}
 class PipelinesApiGpuAttributesSpec extends AnyWordSpecLike with Matchers with PipelinesApiRuntimeAttributesSpecsMixin {
 
   val validGpuTypes = List(
-    (Option(WomString("nvidia-tesla-k80")), Option(GpuType.NVIDIATeslaK80)),
     (Option(WomString("nvidia-tesla-p100")), Option(GpuType.NVIDIATeslaP100)),
     (Option(WomString("custom-gpu-24601")), Option(GpuType("custom-gpu-24601"))),
     (None, None)
   )
-  val invalidGpuTypes = List(WomSingleFile("nvidia-tesla-k80"), WomInteger(100))
+  val invalidGpuTypes = List(WomSingleFile("nvidia-tesla-t4"), WomInteger(100))
 
   val validGpuCounts = List(
     (Option(WomInteger(1)), Option(1)),

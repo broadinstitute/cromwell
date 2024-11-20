@@ -28,7 +28,6 @@ task get_machine_info {
 
     output {
       String smi_check = read_string("smi_check")
-      File modprobe_content = "modprobe"
       File smi_content = "smi"
     }
 }

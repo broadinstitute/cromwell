@@ -9,7 +9,7 @@ import wom.values.{WomFloat, WomInteger, WomSingleFile, WomString, WomValue}
 class GcpBatchGpuAttributesSpec extends AnyWordSpecLike with Matchers with GcpBatchRuntimeAttributesSpecsMixin {
 
   val validGpuTypes = List(
-    (Option(WomString("nvidia-tesla-p100")), Option(GpuType.NVIDIATeslaP100)),
+    (Option(WomString("nvidia-tesla-t4")), Option(GpuType.NVIDIATeslaT4)),
     (Option(WomString("custom-gpu-24601")), Option(GpuType("custom-gpu-24601"))),
     (None, None)
   )

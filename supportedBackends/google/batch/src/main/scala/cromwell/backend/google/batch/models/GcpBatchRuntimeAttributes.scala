@@ -23,9 +23,9 @@ object GpuResource {
   }
 
   object GpuType {
-    val NVIDIATeslaP100 = GpuType("nvidia-tesla-p100")
+    val NVIDIATeslaT4 = GpuType("nvidia-tesla-t4")
 
-    val DefaultGpuType: GpuType = NVIDIATeslaP100
+    val DefaultGpuType: GpuType = NVIDIATeslaT4
     val DefaultGpuCount: Int Refined Positive = refineMV[Positive](1)
     val MoreDetailsURL = "https://cloud.google.com/compute/docs/gpus/"
   }

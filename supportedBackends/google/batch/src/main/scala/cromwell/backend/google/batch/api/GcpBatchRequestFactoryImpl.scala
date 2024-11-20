@@ -85,7 +85,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
   ): InstancePolicy.Builder = {
 
     // set GPU count to 0 if not included in workflow
-    // TODO: `setDriverVersion()` is technically available but we're using GCP's default for now
+    // `setDriverVersion()` is available but we're using the Batch default for now
     //
     // Nvidia lifecycle reference:
     // https://docs.nvidia.com/datacenter/tesla/drivers/index.html#cuda-drivers

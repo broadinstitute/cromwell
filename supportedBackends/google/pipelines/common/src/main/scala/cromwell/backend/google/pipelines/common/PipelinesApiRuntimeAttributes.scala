@@ -67,7 +67,7 @@ object PipelinesApiRuntimeAttributes {
 
   val BootDiskSizeKey = "bootDiskSizeGb"
   private val bootDiskValidationInstance = new IntRuntimeAttributesValidation(BootDiskSizeKey)
-  private val BootDiskDefaultValue = WomInteger(10)
+  private val BootDiskDefaultValue = WomInteger(20)
 
   val NoAddressKey = "noAddress"
   private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(NoAddressKey)

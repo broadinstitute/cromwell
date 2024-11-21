@@ -35,6 +35,7 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 - Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
 - Added a way to use a custom LogsPolicy for the job execution, setting `backend.providers.batch.config.batch.logs-policy` to "CLOUD_LOGGING" (default) keeps the current behavior, or, set it to "PATH" to save the logs into the the mounted disk, at the end, this log file gets copied to the google cloud storage bucket with "task.log" as the name.
 - When "CLOUD_LOGGING" is used, many more Cromwell / WDL labels for workflow, root workflow, call, shard etc. are now assigned to GCP Batch log entries.
+- Fixed subnet selection for networks that use custom subnet creation
 
 ### Improved handling of Life Sciences API quota errors
 
@@ -54,7 +55,9 @@ The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 
 The index had low cardinality and workflow pickup is faster without it. Migration time depends on workflow store size, but should be very fast for most installations. Terminal workflows are removed from the workflow store, so only running workflows contribute to the cost.
 
-### Bug fixes
+### Bug fixes and small changes
+
+ * Changed default boot disk size from 10GB to 20GB in PipelinesAPI and Google Batch backends
 
 #### Improved `size()` function performance on arrays
 

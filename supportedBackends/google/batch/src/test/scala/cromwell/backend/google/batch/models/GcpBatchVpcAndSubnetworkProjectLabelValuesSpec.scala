@@ -9,6 +9,7 @@ class GcpBatchVpcAndSubnetworkProjectLabelValuesSpec extends AnyFlatSpec with Ma
   behavior of "VpcAndSubnetworkProjectLabelValues"
 
   private val myProjectId = "my-project"
+  private val myRegion = "us-central1"
 
   private val labelsTests = Table(
     ("description", "network", "subnetOption", "networkName", "subnetNameOption"),
@@ -29,6 +30,13 @@ class GcpBatchVpcAndSubnetworkProjectLabelValuesSpec extends AnyFlatSpec with Ma
       Option(s"slashed/$${projectId}/sub"),
       "slashed/net",
       Option("slashed/my-project/sub")
+    ),
+    (
+      "a subnet with a project token and unspecified region",
+      "slashed/net",
+      Option(s"slashed/$${projectId}/regions/*/subnet"),
+      "slashed/net",
+      Option(s"slashed/my-project/regions/us-central1/subnet")
     )
   )
 
@@ -36,7 +44,7 @@ class GcpBatchVpcAndSubnetworkProjectLabelValuesSpec extends AnyFlatSpec with Ma
     it should description in {
       val labels = VpcAndSubnetworkProjectLabelValues(network, subnetOption)
       labels.networkName(myProjectId) should be(networkName)
-      labels.subnetNameOption(myProjectId) should be(subnetNameOption)
+      labels.subnetNameOption(myProjectId, myRegion) should be(subnetNameOption)
     }
   }
 }

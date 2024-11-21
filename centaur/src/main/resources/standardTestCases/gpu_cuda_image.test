@@ -15,6 +15,5 @@ files {
 
 metadata {
   status: Succeeded
-  "outputs.gpu_cuda_image.smi_check.0": "gpu_good"
-  "outputs.gpu_cuda_image.smi_check.1": "vram_good"
+  "outputs.gpu_cuda_image.smi_check": "gpu_good\nvrma_good"
 }

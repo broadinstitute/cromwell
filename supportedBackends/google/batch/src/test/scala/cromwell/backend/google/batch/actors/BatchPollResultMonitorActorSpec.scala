@@ -77,14 +77,13 @@ class BatchPollResultMonitorActorSpec
   )
   val vmInfo = InstantiatedVmInfo("europe-west9", "custom-16-32768", false)
 
-
   behavior of "BatchPollResultMonitorActor"
 
   it should "send a cost lookup request with the correct vm info after receiving a success pollResult" in {
 
     val terminalPollResult =
       RunStatus.Success(Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
-        Some(vmInfo)
+                        Some(vmInfo)
       )
     val message = ProcessThisPollResult(terminalPollResult)
 

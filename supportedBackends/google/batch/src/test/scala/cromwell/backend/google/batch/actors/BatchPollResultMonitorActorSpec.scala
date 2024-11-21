@@ -1,19 +1,3 @@
-//package cromwell.backend.google.batch.actors
-//
-//import common.mock.MockSugar
-//import cromwell.core.TestKitSuite
-//import org.scalatest.flatspec.AnyFlatSpecLike
-//import org.scalatest.matchers.should.Matchers
-//
-//class BatchPollResultMonitorActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar {
-//
-//  behavior of "BatchPollResultMonitorActor"
-//
-//  it should "set vmCostPerHour if empty" in {
-//  }
-//
-//}
-
 package cromwell.backend.google.batch.actors
 
 import akka.actor.{ActorRef, ActorSystem, Props}

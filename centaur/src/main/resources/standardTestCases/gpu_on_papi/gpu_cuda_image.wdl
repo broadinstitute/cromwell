@@ -5,8 +5,8 @@ workflow gpu_cuda_image {
     call get_machine_info
 
     output {
-      Array[String] smi_check = get_machine_info.smi_check
-      Array[File] smi_contents = get_machine_info.smi_content
+      String smi_check = get_machine_info.smi_check
+      File smi_contents = get_machine_info.smi_content
     }
 }
 

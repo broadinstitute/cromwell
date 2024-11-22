@@ -1,16 +1,15 @@
 package cromwell.backend.google.batch.api.request
 
 import com.google.api.gax.rpc.{ApiException, StatusCode}
+import com.google.cloud.batch.v1.AllocationPolicy.ProvisioningModel
 import com.google.cloud.batch.v1._
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
-  BatchAbortRequestSuccessful,
-  BatchOperationIsAlreadyTerminal
-}
+import cromwell.backend.google.batch.actors.BatchApiAbortClient.{BatchAbortRequestSuccessful, BatchOperationIsAlreadyTerminal}
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiResponse}
 import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}
 import cromwell.core.ExecutionEvent
+import cromwell.services.cost.InstantiatedVmInfo
 
 import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -136,14 +135,27 @@ object BatchRequestExecutor {
       )
       lazy val exitCode = findBatchExitCode(events)
 
+      // Get vm info for this job
+      val allocationPolicy = job.getAllocationPolicy
+
+      //Get instances that can be created with this AllocationPolicy, only instances[0] is supported
+      val instancePolicy = allocationPolicy.getInstances(0).getPolicy
+      val machineType = instancePolicy.getMachineType
+      val preemtible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE
+
+      //Each location can be a region or a zone. Only one region or multiple zones in one region is supported
+      val region = allocationPolicy.getLocation.getAllowedLocations(0)
+      val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemtible))
+
+
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
-        RunStatus.Success(events)
+        RunStatus.Success(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
-        RunStatus.Running(events)
+        RunStatus.Running(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
-        RunStatus.Failed(exitCode, events)
+        RunStatus.Failed(exitCode, events, instantiatedVmInfo)
       } else {
-        RunStatus.Initializing(events)
+        RunStatus.Initializing(events, instantiatedVmInfo)
       }
     }
 

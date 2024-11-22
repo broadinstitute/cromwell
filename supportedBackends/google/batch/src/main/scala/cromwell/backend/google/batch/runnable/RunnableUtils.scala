@@ -49,7 +49,6 @@ object RunnableUtils {
                     monitoringShutdown: List[Runnable],
                     checkpointingStart: List[Runnable],
                     checkpointingShutdown: List[Runnable],
-                    sshAccess: List[Runnable],
                     isBackground: Runnable => Boolean
   ): List[Runnable] = {
     val toBeSortedRunnables = localization ++ userRunnable ++ memoryRetryRunnable ++ deLocalization
@@ -57,6 +56,6 @@ object RunnableUtils {
       isBackground(runnable)
     }
 
-    sshAccess ++ containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedRunnables ++ checkpointingShutdown ++ monitoringShutdown
+    containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedRunnables ++ checkpointingShutdown ++ monitoringShutdown
   }
 }

@@ -231,7 +231,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val monitoringShutdown: List[Runnable] = monitoringShutdownRunnables(createParameters)
     val checkpointingStart: List[Runnable] = checkpointingSetupRunnables(createParameters, allVolumes)
     val checkpointingShutdown: List[Runnable] = checkpointingShutdownRunnables(createParameters, allVolumes)
-    val sshAccess: List[Runnable] = List.empty // sshAccessActions(createPipelineParameters, mounts)
 
     val sortedRunnables: List[Runnable] = RunnableUtils.sortRunnables(
       containerSetup = containerSetup,
@@ -243,7 +242,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       monitoringShutdown = monitoringShutdown,
       checkpointingStart = checkpointingStart,
       checkpointingShutdown = checkpointingShutdown,
-      sshAccess = sshAccess,
       isBackground = _.getBackground
     )
 

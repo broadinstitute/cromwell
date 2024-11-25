@@ -90,7 +90,15 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
   ): InstancePolicy.Builder = {
 
     // set GPU count to 0 if not included in workflow
-    val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType("")) // TODO: Driver version
+    // `setDriverVersion()` is available but we're using the Batch default for now
+    //
+    // Nvidia lifecycle reference:
+    // https://docs.nvidia.com/datacenter/tesla/drivers/index.html#cuda-drivers
+    //
+    // GCP docs:
+    // https://cloud.google.com/batch/docs/create-run-job-gpus#install-gpu-drivers
+    // https://cloud.google.com/batch/docs/reference/rest/v1/projects.locations.jobs#Accelerator.FIELDS.driver_version
+    val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
 
     val instancePolicy = InstancePolicy.newBuilder
       .setProvisioningModel(spotModel)

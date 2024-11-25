@@ -91,6 +91,12 @@ The config keys `services.HealthMonitor.config.check-gcs` and `.gcs-bucket-to-ch
 Code relating to the Google Genomics API (aka `v1Alpha`) has been removed since Google has entirely disabled that service.
 Cloud Life Sciences (aka `v2Beta`, deprecated) and Google Batch (aka `batch`, recommended) remain the two viable GCP backends.
 
+#### GPU changes
+ * Removed support for Nvidia K80 "Kepler" GPUs, which were [discontinued by GCP in May 2024](https://cloud.google.com/compute/docs/eol/k80-eol).
+   * Default GPU on Life Sciences is now Nvidia P100
+   * Default GPU on GCP Batch is now Nvidia T4
+ * Updated runtime attributes documentation to clarify that the `nvidiaDriverVersion` key is ignored on GCP Batch.
+
 ## 87 Release Notes
 
 ### GCP Batch

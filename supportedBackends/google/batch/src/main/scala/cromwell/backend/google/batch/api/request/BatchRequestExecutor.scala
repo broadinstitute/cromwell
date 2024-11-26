@@ -4,7 +4,10 @@ import com.google.api.gax.rpc.{ApiException, StatusCode}
 import com.google.cloud.batch.v1.AllocationPolicy.ProvisioningModel
 import com.google.cloud.batch.v1._
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.backend.google.batch.actors.BatchApiAbortClient.{BatchAbortRequestSuccessful, BatchOperationIsAlreadyTerminal}
+import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
+  BatchAbortRequestSuccessful,
+  BatchOperationIsAlreadyTerminal
+}
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiResponse}
 import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}
@@ -138,15 +141,15 @@ object BatchRequestExecutor {
       // Get vm info for this job
       val allocationPolicy = job.getAllocationPolicy
 
-      //Get instances that can be created with this AllocationPolicy, only instances[0] is supported
+      // Get instances that can be created with this AllocationPolicy, only instances[0] is supported
       val instancePolicy = allocationPolicy.getInstances(0).getPolicy
       val machineType = instancePolicy.getMachineType
-      val preemtible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE
+      val preemtible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber
 
-      //Each location can be a region or a zone. Only one region or multiple zones in one region is supported
-      val region = allocationPolicy.getLocation.getAllowedLocations(0)
+      // Each location can be a region or a zone. Only one region is supported, ex: "regions/us-central1"
+      val location = allocationPolicy.getLocation.getAllowedLocations(0)
+      val region = location.split("/").last
       val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemtible))
-
 
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
         RunStatus.Success(events, instantiatedVmInfo)

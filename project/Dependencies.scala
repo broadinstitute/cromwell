@@ -781,7 +781,7 @@ object Dependencies {
   )
 
   private val bouncyCastleOverrides = List(
-    "org.bouncycastle" % "bcprov-jdk15on" % "1.70",
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.79",
   )
 
   private val protobufJavaOverrides = List(

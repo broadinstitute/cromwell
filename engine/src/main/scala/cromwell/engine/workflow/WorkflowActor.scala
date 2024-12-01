@@ -462,8 +462,9 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
   // Handles workflow completion events from the WEA and abort command
   val executionResponseHandler: StateFunction = {
     // Workflow responses
-    case Event(WorkflowExecutionSucceededResponse(jobKeys, rootAndSubworklowIds, finalOutputs, allOutputs),
-               data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)
+    case Event(
+          WorkflowExecutionSucceededResponse(jobKeys, rootAndSubworklowIds, finalOutputs, allOutputs),
+          data @ WorkflowActorData(_, Some(workflowDescriptor), _, _, _, _, _, _, _)
         ) =>
       finalizeWorkflow(data, workflowDescriptor, jobKeys, finalOutputs, None, allOutputs, rootAndSubworklowIds)
     case Event(WorkflowExecutionFailedResponse(jobKeys, failures),

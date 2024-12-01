@@ -54,10 +54,10 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
     val matchError = actual match {
       case o: JsString if stripQuotes(cacheSubstitutions).startsWith("~~") =>
         val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~~")
-        (!stripQuotes(o.toString).contains(stripped)).option(s"Actual value ${o.toString()} does not contain $stripped")
+        !stripQuotes(o.toString).contains(stripped).option(s"Actual value ${o.toString()} does not contain $stripped")
       case o: JsString if stripQuotes(cacheSubstitutions).endsWith("~~") =>
         val stripped = stripQuotes(cacheSubstitutions).stripSuffix("~~")
-        (!stripQuotes(o.toString).contains(stripped))
+        !stripQuotes(o.toString).contains(stripped)
           .option(s"Actual value ${o.toString()} does not start with $stripped")
       case o: JsString =>
         (cacheSubstitutions != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")

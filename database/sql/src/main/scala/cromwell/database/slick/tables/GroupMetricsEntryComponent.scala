@@ -26,10 +26,10 @@ trait GroupMetricsEntryComponent {
        in this case the value for that column is represented as 'None'. After insertion, database assigns it an
        auto-incremented value and at this point the value for that column is represented as 'Some(value)'.
      */
-    override def * : ProvenShape[GroupMetricsEntry] = (groupId,
-                                                       quotaExhaustionDetected,
-                                                       groupMetricsEntryId.?
-    ) <> ((GroupMetricsEntry.apply _).tupled, GroupMetricsEntry.unapply)
+    override def * : ProvenShape[GroupMetricsEntry] = (groupId, quotaExhaustionDetected, groupMetricsEntryId.?) <> (
+      (GroupMetricsEntry.apply _).tupled,
+      GroupMetricsEntry.unapply
+    )
 
     def ixGroupMetricsEntryGi = index("IX_GROUP_METRICS_ENTRY_GI", groupId, unique = false)
   }

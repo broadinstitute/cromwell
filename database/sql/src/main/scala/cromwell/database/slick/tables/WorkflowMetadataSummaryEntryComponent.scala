@@ -50,7 +50,9 @@ trait WorkflowMetadataSummaryEntryComponent {
     )
 
     override def * =
-      baseProjection ~ workflowMetadataSummaryEntryId.? <> (WorkflowMetadataSummaryEntry.tupled, WorkflowMetadataSummaryEntry.unapply)
+      baseProjection ~ workflowMetadataSummaryEntryId.? <> (WorkflowMetadataSummaryEntry.tupled,
+                                                            WorkflowMetadataSummaryEntry.unapply
+      )
 
     def forUpdate = baseProjection.shaped <> (
       tuple => WorkflowMetadataSummaryEntry.tupled(tuple :+ None),

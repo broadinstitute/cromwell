@@ -14,12 +14,11 @@ object Version {
   case object Release extends BuildType
   case object Standard extends BuildType
 
-  def buildType: BuildType = {
+  def buildType: BuildType =
     if (isDebug) Debug
     else if (isRelease) Release
     else if (isSnapshot) Snapshot
     else Standard
-  }
 
   /**
     * Returns true if this project should be considered a snapshot.
@@ -43,9 +42,8 @@ object Version {
     */
   private lazy val isRelease: Boolean = getPropOrDefault("project.isRelease")
 
-  private def getPropOrDefault(prop: String, default: Boolean = false): Boolean = {
+  private def getPropOrDefault(prop: String, default: Boolean = false): Boolean =
     sys.props.get(prop).map(_.toBoolean).getOrElse(default)
-  }
 
   // Adapted from SbtGit.versionWithGit
   def cromwellVersionWithGit: Seq[Setting[_]] =

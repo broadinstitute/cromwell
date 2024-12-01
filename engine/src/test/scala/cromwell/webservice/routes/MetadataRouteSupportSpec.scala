@@ -149,7 +149,10 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         status should be(StatusCodes.OK)
 
         val responseJson = responseAs[JsObject]
-        responseJson.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        responseJson.fields.keys should contain allOf (WorkflowMetadataKeys.Id,
+                                                       WorkflowMetadataKeys.MetadataArchiveStatus,
+                                                       WorkflowMetadataKeys.Message
+        )
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
         validateArchivedMetadataResponseMessage(responseJson,
                                                 includeAvailabilityMessage = true,
@@ -222,7 +225,10 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         status should be(StatusCodes.OK)
 
         val responseJson = responseAs[JsObject]
-        responseJson.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        responseJson.fields.keys should contain allOf (WorkflowMetadataKeys.Id,
+                                                       WorkflowMetadataKeys.MetadataArchiveStatus,
+                                                       WorkflowMetadataKeys.Message
+        )
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
         validateArchivedMetadataResponseMessage(responseJson,
                                                 includeAvailabilityMessage = true,
@@ -346,7 +352,10 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         status should be(StatusCodes.OK)
 
         val responseJson = responseAs[JsObject]
-        responseJson.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        responseJson.fields.keys should contain allOf (WorkflowMetadataKeys.Id,
+                                                       WorkflowMetadataKeys.MetadataArchiveStatus,
+                                                       WorkflowMetadataKeys.Message
+        )
         responseJson.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
         validateArchivedMetadataResponseMessage(responseJson,
                                                 includeAvailabilityMessage = true,
@@ -530,7 +539,10 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status shouldBe StatusCodes.BadRequest
         val actualResult = responseAs[JsObject]
-        actualResult.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        actualResult.fields.keys should contain allOf (WorkflowMetadataKeys.Id,
+                                                       WorkflowMetadataKeys.MetadataArchiveStatus,
+                                                       WorkflowMetadataKeys.Message
+        )
         actualResult.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "Archived"
         validateArchivedMetadataResponseMessage(actualResult,
                                                 includeAvailabilityMessage = false,
@@ -555,7 +567,10 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       check {
         status shouldBe StatusCodes.BadRequest
         val actualResult = responseAs[JsObject]
-        actualResult.fields.keys should contain allOf (WorkflowMetadataKeys.Id, WorkflowMetadataKeys.MetadataArchiveStatus, WorkflowMetadataKeys.Message)
+        actualResult.fields.keys should contain allOf (WorkflowMetadataKeys.Id,
+                                                       WorkflowMetadataKeys.MetadataArchiveStatus,
+                                                       WorkflowMetadataKeys.Message
+        )
         actualResult.fields("metadataArchiveStatus").asInstanceOf[JsString].value shouldBe "ArchivedAndDeleted"
         validateArchivedMetadataResponseMessage(actualResult,
                                                 includeAvailabilityMessage = true,

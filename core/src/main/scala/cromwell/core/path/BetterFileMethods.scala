@@ -546,9 +546,9 @@ object BetterFileMethods {
 
     def cwd: Path = pwd
 
-    val `..` : Path => Path = _.parent
+    val `..`: Path => Path = _.parent
 
-    val `.` : Path => Path = identity
+    val `.`: Path => Path = identity
 
     implicit class FileDsl(file: Path) {
       def /(f: Path => Path): Path = f(file)

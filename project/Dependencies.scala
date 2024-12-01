@@ -772,7 +772,7 @@ object Dependencies {
   )
 
   private val asyncHttpClientOverrides = List(
-    "org.asynchttpclient" % "async-http-client" % "2.10.5",
+    "org.asynchttpclient" % "async-http-client" % "2.12.3",
   )
 
 

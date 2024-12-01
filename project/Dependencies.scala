@@ -68,7 +68,7 @@ object Dependencies {
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.14.0"
   private val jakartaActivationV = "1.2.1"
-  private val jakartaAnnotationV = "1.3.5"
+  private val jakartaAnnotationV = "3.0.0"
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
   private val janinoV = "3.1.7"

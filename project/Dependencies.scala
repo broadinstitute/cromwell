@@ -236,7 +236,7 @@ object Dependencies {
     "com.azure" % "azure-identity-extensions" % azureIdentityExtensionsV,
     "com.azure" % "azure-core-management" % azureCoreManagementV,
     "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
-    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
+    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.45.0",
     "net.minidev" % "json-smart" % jsonSmartV,
     "com.microsoft.azure" % "applicationinsights-logging-logback" % azureAppInsightsLogbackV,
   ) ++ azureBlobNioDependencies

@@ -785,7 +785,7 @@ object Dependencies {
   )
 
   private val protobufJavaOverrides = List(
-    "com.google.protobuf" % "protobuf-java" % "3.25.3",
+    "com.google.protobuf" % "protobuf-java" % "3.25.5",
   )
 
   val servicesDependencies: List[ModuleID] = List(

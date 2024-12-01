@@ -36,7 +36,7 @@ object Dependencies {
   private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
   private val commonsCsvV = "1.9.0"
   private val commonsIoV = "2.11.0" // via: https://commons.apache.org/proper/commons-io/
-  private val commonsLang3V = "3.12.0"
+  private val commonsLang3V = "3.17.0"
   private val commonsMathV = "3.6.1"
   private val commonNetV = "3.8.0" // via: https://commons.apache.org/proper/commons-net/
   private val commonsTextV = "1.10.0"

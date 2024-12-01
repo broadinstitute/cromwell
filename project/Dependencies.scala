@@ -33,7 +33,7 @@ object Dependencies {
   private val circeOpticsV = "0.14.1"
   private val circeV = "0.14.1"
   private val circeYamlV = "0.15.1"
-  private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
+  private val commonsCodecV = "1.17.1" // via: https://commons.apache.org/proper/commons-codec/
   private val commonsCsvV = "1.9.0"
   private val commonsIoV = "2.11.0" // via: https://commons.apache.org/proper/commons-io/
   private val commonsLang3V = "3.12.0"

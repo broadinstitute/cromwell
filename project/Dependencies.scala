@@ -789,7 +789,7 @@ object Dependencies {
   )
 
   val servicesDependencies: List[ModuleID] = List(
-    "com.google.cloud" % "google-cloud-billing" % "2.47.0",
+    "com.google.cloud" % "google-cloud-billing" % "2.54.0",
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
     "bio.terra" % "bard-client-resttemplate" % bardClientV

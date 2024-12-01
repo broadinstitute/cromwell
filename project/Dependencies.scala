@@ -62,7 +62,7 @@ object Dependencies {
   private val googleOauthClientV = "1.33.1"
   private val googleCloudResourceManagerV = "1.17.0"
   private val grpcV = "1.65.1"
-  private val guavaV = "33.2.1-jre"
+  private val guavaV = "33.3.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/

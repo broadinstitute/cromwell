@@ -102,7 +102,7 @@ object Dependencies {
   private val pact4sV = "0.9.0"
   private val postgresV = "42.4.4"
   private val pprintV = "0.7.3"
-  private val rdf4jV = "3.7.1"
+  private val rdf4jV = "3.7.7"
   private val re2jV = "1.6"
   private val refinedV = "0.10.1"
   private val rhinoV = "1.7.14"

@@ -75,7 +75,7 @@ object Dependencies {
   private val jerseyV = "2.32" // Use a jersey compatible with WSM. See notes in wsmDependencies below.
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
-  private val kindProjectorV = "0.13.2"
+  private val kindProjectorV = "0.13.3"
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
   private val logbackV = "1.2.13"

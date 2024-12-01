@@ -13,7 +13,7 @@ object Dependencies {
   // https://github.com/sbt/sbt/issues/4531
   private val azureIdentitySdkV = "1.9.1"
   private val azureIdentityExtensionsV = "1.1.4"
-  private val azureCoreManagementV = "1.7.1"
+  private val azureCoreManagementV = "1.15.6"
   // We are using the older AppInsights 2 because we want to use the
   // logback appender to send logs. AppInsights 3 does not have a standalone
   // appender, and its auto-hoovering of logs didn't meet our needs.

@@ -905,9 +905,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput,
           memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
-          logFileOutputParameter = logFileOutput
-        ),
-        List.empty
+        )
       )
 
     })

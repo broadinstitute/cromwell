@@ -28,7 +28,6 @@ object BatchRequestExecutor {
 
     def execute(groupedRequests: GcpBatchGroupedRequests)(implicit ec: ExecutionContext): Future[List[Try[Unit]]] = {
       val requests = groupedRequests.entries
-      logger.info(s"Execute ${requests.size} requests")
 
       if (requests.isEmpty) Future.successful(List.empty)
       else nonEmptyExecute(requests)
@@ -120,11 +119,11 @@ object BatchRequestExecutor {
       } catch {
         // A job can't be cancelled but deleted, which is why we consider 404 status as the job being cancelled successfully
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.NOT_FOUND =>
-          BatchApiResponse.StatusQueried(RunStatus.Aborted)
+          BatchApiResponse.StatusQueried(RunStatus.Aborted(Seq.empty))
 
         // We don't need to detect preemptible VMs because that's handled automatically by GCP
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
-          BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota)
+          BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota(Seq.empty))
       }
 
     private[request] def interpretOperationStatus(job: Job): RunStatus = {
@@ -140,11 +139,11 @@ object BatchRequestExecutor {
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
         RunStatus.Success(events)
       } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
-        RunStatus.Running
+        RunStatus.Running(events)
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
         RunStatus.Failed(exitCode, events)
       } else {
-        RunStatus.Initializing
+        RunStatus.Initializing(events)
       }
     }
 

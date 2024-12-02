@@ -19,7 +19,6 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       project = "project",
       computeServiceAccount = "computeServiceAccount",
       auths = null,
-      restrictMetadataAccess = true,
       dockerhubToken = "test",
       enableFuse = true,
       executionBucket = "executionBucket",
@@ -34,7 +33,6 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       virtualPrivateCloudConfiguration = null,
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
-      dockerImageToCacheDiskImageMappingOpt = None,
       checkpointingInterval = 1 second,
       logsPolicy = GcpBatchLogsPolicy.CloudLogging
     )

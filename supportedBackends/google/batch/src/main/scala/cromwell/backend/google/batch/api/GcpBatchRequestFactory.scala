@@ -57,8 +57,7 @@ object GcpBatchRequestFactory {
     detritusInputParameters: DetritusInputParameters,
     jobInputParameters: List[GcpBatchInput],
     jobOutputParameters: List[GcpBatchOutput],
-    detritusOutputParameters: DetritusOutputParameters,
-    literalInputParameters: List[GcpBatchLiteralInput]
+    detritusOutputParameters: DetritusOutputParameters
   ) {
     lazy val fileInputParameters: List[GcpBatchInput] = jobInputParameters ++ detritusInputParameters.all
     lazy val fileOutputParameters: List[GcpBatchOutput] = detritusOutputParameters.all ++ jobOutputParameters
@@ -101,13 +100,7 @@ object GcpBatchRequestFactory {
                                       dockerhubCredentials: (String, String),
                                       targetLogFile: Option[GcpBatchLogFile]
   ) {
-    def literalInputs = inputOutputParameters.literalInputParameters
-
-    def inputParameters = inputOutputParameters.fileInputParameters
-
     def outputParameters = inputOutputParameters.fileOutputParameters
-
-    def allParameters = inputParameters ++ outputParameters
   }
 
 }

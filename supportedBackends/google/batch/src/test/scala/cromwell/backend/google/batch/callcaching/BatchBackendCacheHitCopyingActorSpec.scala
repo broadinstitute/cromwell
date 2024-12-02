@@ -419,7 +419,6 @@ class BatchBackendCacheHitCopyingActorSpec
       project = null,
       computeServiceAccount = null,
       auths = null,
-      restrictMetadataAccess = false,
       dockerhubToken = null,
       enableFuse = false,
       executionBucket = null,
@@ -434,7 +433,6 @@ class BatchBackendCacheHitCopyingActorSpec
       virtualPrivateCloudConfiguration = VirtualPrivateCloudConfiguration(None, None),
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
-      dockerImageToCacheDiskImageMappingOpt = None,
       checkpointingInterval = 10.minutes,
       logsPolicy = GcpBatchLogsPolicy.CloudLogging
     )

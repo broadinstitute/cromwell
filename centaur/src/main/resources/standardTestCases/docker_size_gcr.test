@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 # Not testing this for GCP Batch since Batch seems to give us a 30 GiB boot volume even when we ask for 10 GiB.
 # Honestly that's fine, 30 GiB should be big enough to keep us out of trouble with large Docker images without being
 # noticeably more expensive.
-backends: [Papiv2, GCPBATCH_SKIP]
+backends: [Papiv2, GCPBATCH_BIG_ENOUGH_BOOT_VOLUME]
 
 files {
   workflow: docker_size/docker_size_gcr.wdl
@@ -11,8 +11,8 @@ files {
 
 metadata {
   status: Succeeded
-  "outputs.docker_size_gcr.large_gcr_image_with_hash.bootDiskSize": 17
-  "outputs.docker_size_gcr.large_gcr_image_with_tag.bootDiskSize": 17
+  "outputs.docker_size_gcr.large_gcr_image_with_hash.bootDiskSize": 27
+  "outputs.docker_size_gcr.large_gcr_image_with_tag.bootDiskSize": 27
 }
 
 workflowType: WDL

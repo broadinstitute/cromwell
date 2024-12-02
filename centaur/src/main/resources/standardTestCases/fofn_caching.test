@@ -1,6 +1,6 @@
 name: fofn_caching
 testFormat: runtwiceexpectingcallcaching
-backends: [Papi-Caching-No-Copy, GCPBATCH_NEEDS_ALT]
+backends: [Papi-Caching-No-Copy, GCPBATCH_ALT]
 
 files {
   workflow: fofn_caching/fofn_caching.wdl

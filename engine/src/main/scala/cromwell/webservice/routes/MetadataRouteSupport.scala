@@ -125,17 +125,8 @@ trait MetadataRouteSupport extends HttpInstrumentation {
     },
     path("workflows" / Segment / Segment / "cost") { (_, possibleWorkflowId) =>
       get {
-        parameters(
-          (Symbol("includeTaskBreakdown").as[Boolean].?, Symbol("includeSubworkflowBreakdown").as[Boolean].?)
-        ) { (includeTaskBreakdownOption, includeSubworkflowBreakdownOption) =>
-          val includeTaskBreakdown = includeTaskBreakdownOption.getOrElse(false)
-          val includeSubworkflowBreakdown = includeSubworkflowBreakdownOption.getOrElse(false)
-
-          metadataLookup(
-            possibleWorkflowId,
-            (w: WorkflowId) => GetCost(w, includeTaskBreakdown, includeSubworkflowBreakdown),
-            serviceRegistryActor
-          )
+        instrumentRequest {
+          metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetCost(w), serviceRegistryActor)
         }
       }
     },
@@ -246,7 +237,7 @@ object MetadataRouteSupport {
         case FailedToGetArchiveStatusAndEndTime(e) => Future.failed(e)
       }
 
-    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
+    validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
       /*
         for requests made to one of /metadata, /logs or /outputs endpoints, perform an additional check to see
         if metadata for the workflow has been archived and deleted or not (as they interact with metadata table)

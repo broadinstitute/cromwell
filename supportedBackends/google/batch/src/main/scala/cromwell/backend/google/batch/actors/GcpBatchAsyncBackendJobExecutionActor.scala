@@ -160,7 +160,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
    * in the state type.
    */
-  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean =
+    thiz.toString == that.toString
 
   protected lazy val cmdInput: GcpBatchFileInput =
     GcpBatchFileInput(GcpBatchJobPaths.BatchExecParamName,
@@ -904,6 +905,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput,
           memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
+          logFileOutputParameter = logFileOutput
         ),
         List.empty
       )
@@ -1014,27 +1016,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
     }
 
-  protected def sendIncrementMetricsForDockerImageCache(dockerImageCacheDiskOpt: Option[String],
-                                                        dockerImageAsSpecifiedByUser: String,
-                                                        isDockerImageCacheUsageRequested: Boolean
-  ): Unit =
-    (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
-      case (true, None) =>
-        increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
-      case (true, Some(_)) =>
-        increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
-      case (false, Some(_)) =>
-        increment(NonEmptyList("docker", List("image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser)))
-      case _ => // docker image cache not requested and image is not in cache anyway - do nothing
-    }
-
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
     // yes, we use the whole jobName as the id
     val jobNameStr = handle.pendingJob.jobId
 
     for {
       _ <- Future.unit // trick to get into a future context
-      _ = log.info(s"started polling for $jobNameStr")
       jobName = JobName.parse(jobNameStr)
       status <- pollStatus(workflowId, jobName, backendSingletonActor, initializationData.requestFactory)
     } yield status
@@ -1085,7 +1072,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     Future.fromTry {
       Try {
         runStatus match {
-          case RunStatus.Aborted => AbortedExecutionHandle
+          case RunStatus.Aborted(_) => AbortedExecutionHandle
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus)
           case unknown =>
             throw new RuntimeException(
@@ -1123,9 +1110,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   protected def fuseEnabled(descriptor: BackendWorkflowDescriptor): Boolean =
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.EnableFuse).toOption.getOrElse(batchAttributes.enableFuse)
-
-  protected def useDockerImageCache(descriptor: BackendWorkflowDescriptor): Boolean =
-    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
 
   override def cloudResolveWomFile(womFile: WomFile): WomFile =
     womFile.mapFile { value =>

@@ -90,7 +90,6 @@ object Dependencies {
   private val mockFtpServerV = "3.0.0"
   private val mockitoV = "3.12.4"
   private val mockitoInlineV = "2.8.9"
-  //private val mockitoV = "3.12.4"
   private val mockserverNettyV = "5.14.0"
   private val mouseV = "1.0.11"
 

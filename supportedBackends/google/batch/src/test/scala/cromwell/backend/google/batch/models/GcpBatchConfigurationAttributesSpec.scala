@@ -34,7 +34,6 @@ class GcpBatchConfigurationAttributesSpec
     gcpBatchAttributes.executionBucket should be("gs://myBucket")
     gcpBatchAttributes.maxPollingInterval should be(600)
     gcpBatchAttributes.computeServiceAccount should be("default")
-    gcpBatchAttributes.restrictMetadataAccess should be(false)
     gcpBatchAttributes.referenceFileToDiskImageMappingOpt.isEmpty should be(true)
     gcpBatchAttributes.logsPolicy should be(GcpBatchLogsPolicy.CloudLogging)
   }
@@ -110,15 +109,6 @@ class GcpBatchConfigurationAttributesSpec
 
     val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
     gcpBatchAttributes.computeServiceAccount should be("testing")
-  }
-
-  it should "parse restrict-metadata-access" in {
-
-    val backendConfig = ConfigFactory.parseString(configString(batch = "restrict-metadata-access = true"))
-
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
-    gcpBatchAttributes.restrictMetadataAccess should be(true)
-
   }
 
   it should "parse localization-attempts" in {

@@ -26,9 +26,8 @@ object GpuResource {
   }
   object GpuType {
     val NVIDIATeslaP100 = GpuType("nvidia-tesla-p100")
-    val NVIDIATeslaK80 = GpuType("nvidia-tesla-k80")
 
-    val DefaultGpuType: GpuType = NVIDIATeslaK80
+    val DefaultGpuType: GpuType = NVIDIATeslaP100
     val DefaultGpuCount: Int Refined Positive = refineMV[Positive](1)
     val MoreDetailsURL = "https://cloud.google.com/compute/docs/gpus/"
   }
@@ -67,7 +66,7 @@ object PipelinesApiRuntimeAttributes {
 
   val BootDiskSizeKey = "bootDiskSizeGb"
   private val bootDiskValidationInstance = new IntRuntimeAttributesValidation(BootDiskSizeKey)
-  private val BootDiskDefaultValue = WomInteger(10)
+  private val BootDiskDefaultValue = WomInteger(20)
 
   val NoAddressKey = "noAddress"
   private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(NoAddressKey)

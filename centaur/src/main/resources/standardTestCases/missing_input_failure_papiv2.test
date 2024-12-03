@@ -11,5 +11,6 @@ metadata {
     workflowName: missing_input_failure
     status: Failed
     "failures.0.message": "Workflow failed"
-    "failures.0.causedBy.0.message": "Failed to evaluate 'missing_input_failure.hello.addressee' (reason 1 of 1): Evaluating read_string(wf_hello_input) failed: [Attempted 1 time(s)] - IOException: Could not read from gs://nonexistingbucket/path/doesnt/exist: File not found: gs://nonexistingbucket/path/doesnt/exist"
+    # The GCS error message occasionally varies for unknown reasons. Do not try to assert on it, just make sure we get the right Cromwell exception. (AN-273)
+    "failures.0.causedBy.0.message": "Failed to evaluate 'missing_input_failure.hello.addressee' (reason 1 of 1): Evaluating read_string(wf_hello_input) failed: [Attempted 1 time(s)] - IOException: Could not read from gs://nonexistingbucket/path/doesnt/exist"~~
 }

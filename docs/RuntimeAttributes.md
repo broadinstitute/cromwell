@@ -395,7 +395,6 @@ Make sure to choose a zone for which the type of GPU you want to attach is avail
 
 The types of compute GPU supported are:
 
-* `nvidia-tesla-k80` 
 * `nvidia-tesla-v100`
 * `nvidia-tesla-p100`
 * `nvidia-tesla-p4`
@@ -403,11 +402,13 @@ The types of compute GPU supported are:
 
 For the latest list of supported GPU's, please visit [Google's GPU documentation](nvidia-drivers-us-public).
 
-The default driver is `418.87.00`, you may specify your own via the `nvidiaDriverVersion` key.  Make sure that driver exists in the `nvidia-drivers-us-public` beforehand, per the [Google Pipelines API documentation](https://cloud.google.com/genomics/reference/rest/Shared.Types/Metadata#VirtualMachine). 
+On Life Sciences API, the default driver is `418.87.00`. You may specify your own via the `nvidiaDriverVersion` key.  Make sure that driver exists in the `nvidia-drivers-us-public` beforehand, per the [Google Pipelines API documentation](https://cloud.google.com/genomics/reference/rest/Shared.Types/Metadata#VirtualMachine). 
+
+On GCP Batch, `nvidiaDriverVersion` is currently ignored; Batch selects the correct driver version automatically.
 
 ```
 runtime {
-    gpuType: "nvidia-tesla-k80"
+    gpuType: "nvidia-tesla-t4"
     gpuCount: 2
     nvidiaDriverVersion: "418.87.00"
     zones: ["us-central1-c"]

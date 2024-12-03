@@ -2,8 +2,20 @@ package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
-import com.google.cloud.batch.v1.{AllocationPolicy, BatchServiceClient, BatchServiceSettings, GetJobRequest, Job, JobStatus}
-import com.google.cloud.batch.v1.AllocationPolicy.{InstancePolicy, InstancePolicyOrTemplate, LocationPolicy, ProvisioningModel}
+import com.google.cloud.batch.v1.{
+  AllocationPolicy,
+  BatchServiceClient,
+  BatchServiceSettings,
+  GetJobRequest,
+  Job,
+  JobStatus
+}
+import com.google.cloud.batch.v1.AllocationPolicy.{
+  InstancePolicy,
+  InstancePolicyOrTemplate,
+  LocationPolicy,
+  ProvisioningModel
+}
 import common.mock.MockSugar
 import cromwell.backend.google.batch.api.BatchApiResponse
 import cromwell.backend.google.batch.models.RunStatus

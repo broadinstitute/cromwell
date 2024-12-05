@@ -16,9 +16,11 @@ object AzureConfiguration {
 object AzureEnvironmentConverter {
   val Azure: String = "AzureCloud"
   val AzureGov: String = "AzureUSGovernmentCloud"
+  val AzureChina: String = "AzureChinaCloud"
 
   def fromString(s: String): AzureEnvironment = s match {
     case AzureGov => AzureEnvironment.AZURE_US_GOVERNMENT
+    case AzureChina => AzureEnvironment.AZURE_CHINA
     // a bit redundant, but I want to have a explicit case for Azure for clarity, even though it's the default
     case Azure => AzureEnvironment.AZURE
     case _ => AzureEnvironment.AZURE

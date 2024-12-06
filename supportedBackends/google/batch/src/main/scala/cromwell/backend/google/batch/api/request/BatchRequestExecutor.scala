@@ -13,6 +13,7 @@ import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiRespon
 import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}
 import cromwell.core.ExecutionEvent
 import cromwell.services.cost.InstantiatedVmInfo
+import cromwell.services.metadata.CallMetadataKeys
 
 import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -146,9 +147,14 @@ object BatchRequestExecutor {
       val machineType = instancePolicy.getMachineType
       val preemtible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber
 
-      // Each location can be a region or a zone. Only one region is supported, ex: "regions/us-central1"
-      val location = allocationPolicy.getLocation.getAllowedLocations(0)
-      val region = location.split("/").last
+      // location list = [regions/us-central1, zones/us-central1-b], region is the first element
+      val location = allocationPolicy.getLocation.getAllowedLocationsList.get(0)
+      val region =
+        if (location.isEmpty)
+          "us-central1"
+        else
+          location.split("/").last
+
       val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemtible))
 
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
@@ -167,12 +173,20 @@ object BatchRequestExecutor {
         GcpBatchExitCode.fromEventMessage(e.name.toLowerCase)
       }.headOption
 
-    private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] =
+    private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] = {
+      val startedRegex = ".*SCHEDULED to RUNNING.*".r
+      val endedRegex = ".*RUNNING to.*".r // can be SUCCEEDED or FAILED
       events.map { e =>
         val time = java.time.Instant
           .ofEpochSecond(e.getEventTime.getSeconds, e.getEventTime.getNanos.toLong)
           .atOffset(java.time.ZoneOffset.UTC)
-        ExecutionEvent(name = e.getDescription, offsetDateTime = time)
+        val eventType = e.getDescription match {
+          case startedRegex() => CallMetadataKeys.VmStartTime
+          case endedRegex() => CallMetadataKeys.VmEndTime
+          case _ => e.getType
+        }
+        ExecutionEvent(name = eventType, offsetDateTime = time)
       }
+    }
   }
 }

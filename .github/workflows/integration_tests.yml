@@ -34,28 +34,28 @@ jobs:
         include:
           - build_type: centaurPapiV2beta
             build_mysql: 5.6
-            friendly_name: Centaur Papi V2 Beta with MySQL 5.6 (current Terra production)
+            friendly_name: Life Sciences MySQL 5.6 (current Terra production)
           - build_type: centaurPapiV2beta
             build_mysql: 5.7
-            friendly_name: Centaur Papi V2 Beta with MySQL 5.7
+            friendly_name: Life Sciences MySQL 5.7
           - build_type: centaurPapiV2beta
             build_mysql: 8.0
-            friendly_name: Centaur Papi V2 Beta with MySQL 8.0 (required Terra production)
+            friendly_name: Life Sciences MySQL 8.0 (required Terra production)
           - build_type: centaurPapiV2beta
             build_mysql: 8.4
-            friendly_name: Centaur Papi V2 Beta with MySQL 8.4 (aspirational Terra production)
+            friendly_name: Life Sciences MySQL 8.4 (aspirational Terra production)
           - build_type: centaurGcpBatch
             build_mysql: 5.6
-            friendly_name: Centaur GCP Batch with MySQL 5.6
+            friendly_name: GCP Batch with MySQL 5.6
           - build_type: centaurGcpBatch
             build_mysql: 5.7
-            friendly_name: Centaur GCP Batch with MySQL 5.7
+            friendly_name: GCP Batch with MySQL 5.7
           - build_type: centaurGcpBatch
             build_mysql: 8.0
-            friendly_name: Centaur GCP Batch with MySQL 8.0
+            friendly_name: GCP Batch with MySQL 8.0
           - build_type: centaurGcpBatch
             build_mysql: 8.4
-            friendly_name: Centaur GCP Batch with MySQL 8.4
+            friendly_name: GCP Batch with MySQL 8.4
           - build_type: centaurPapiV2betaRestart
             build_mysql: 5.7
             friendly_name: Centaur Papi V2 Beta (restart)

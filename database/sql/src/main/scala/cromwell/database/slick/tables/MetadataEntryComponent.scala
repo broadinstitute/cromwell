@@ -56,34 +56,24 @@ trait MetadataEntryComponent {
     ) <> (MetadataEntry.tupled, MetadataEntry.unapply)
 
     // TODO: rename index via liquibase
-    // TODO: may be possible to drop once we fully deploy the below indexes with leading UUID
     def ixMetadataEntryWeu = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
 
     /**
-      * Index designed to accelerate common key-specific queries across an entire workflow such as:
+      * Index designed to accelerate common key-specific queries across an entire workflow, such as:
       * - Get me workflow-level `outputs%` (no tasks, requireEmptyJobKey = true)
       * - Get me all `vmStartTime%`, `vmEndTime%`, `vmCostPerHour%` in the workflow (include tasks, requireEmptyJobKey = false)
       *
-      * It is NOT good, as in may make actively slower, queries that reference a specific job.
+      * It is NOT good, as in may make actively slower, queries that reference a specific job. If we do more
+      * with getting metadata for individual jobs, recommend creating this index with all 5 columns:
+      * - WORKFLOW_EXECUTION_UUID, CALL_FQN, JOB_SCATTER_INDEX, JOB_RETRY_ATTEMPT, METADATA_KEY
+      *
+      * Do NOT recommend this alternate order, as wildcards in the middle are inefficient and this can be
+      * slower than no indexes. Tested with 20M row `69e8259c` workflow in October 2024.
+      * - WORKFLOW_EXECUTION_UUID, METADATA_KEY, CALL_FQN, JOB_SCATTER_INDEX, JOB_RETRY_ATTEMPT
       *
       * @return A reference to the index
       */
     def ixMetadataEntryWeuMk = index("IX_METADATA_ENTRY_WEU_MK", (workflowExecutionUuid, metadataKey), unique = false)
-
-    /**
-      * Index designed to accelerate task/attempt level queries such as:
-      * - Get some keys for a specific attempt
-      * - Get all rows for a specific attempt
-      * - Get all rows for a specific call/scatter, across all attempts
-      * - Get unique call names in a workflow
-      *
-      * @return A reference to the index
-      */
-    def ixMetadataEntryWeuCfJsiJraMk =
-      index("IX_METADATA_ENTRY_WEU_CF_JSI_JRA_MK",
-            (workflowExecutionUuid, callFullyQualifiedName, jobIndex, jobAttempt, metadataKey),
-            unique = false
-      )
   }
 
   val metadataEntries = TableQuery[MetadataEntries]

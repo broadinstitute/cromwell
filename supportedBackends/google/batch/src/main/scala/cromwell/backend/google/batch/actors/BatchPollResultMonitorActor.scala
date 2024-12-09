@@ -47,9 +47,6 @@ class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
       case event if event.name == CallMetadataKeys.VmEndTime => event.offsetDateTime
     }
 
-  override def extractVmInfoFromRunState(pollStatus: RunStatus): Option[InstantiatedVmInfo] =
-    pollStatus.instantiatedVmInfo
-
   override def handleVmCostLookup(vmInfo: InstantiatedVmInfo) = {
     val request = GcpCostLookupRequest(vmInfo, self)
     params.serviceRegistry ! request
@@ -72,7 +69,6 @@ class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
     }
 
   override def receive: Receive = {
-    case costResponse: GcpCostLookupResponse => handleCostResponse(costResponse)
     case message: PollResultMessage =>
       message match {
         case ProcessThisPollResult(pollResult: RunStatus) => processPollResult(pollResult)
@@ -97,4 +93,5 @@ class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
 
   override def params: PollMonitorParameters = pollMonitorParameters
 
+  override def extractVmInfoFromRunState(pollStatus: RunStatus): Option[InstantiatedVmInfo] = Option.empty // TODO
 }

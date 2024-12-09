@@ -19,7 +19,6 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       project = "project",
       computeServiceAccount = "computeServiceAccount",
       auths = null,
-      restrictMetadataAccess = true,
       dockerhubToken = "test",
       enableFuse = true,
       executionBucket = "executionBucket",

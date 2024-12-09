@@ -130,11 +130,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     } yield ()
   }
 
-  override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Future[Boolean] = {
-    val action = dataAccess.metadataEntryExistsForWorkflowExecutionUuid(workflowExecutionUuid).result
-    runTransaction(action)
-  }
-
   override def metadataSummaryEntryExists(
     workflowExecutionUuid: String
   )(implicit ec: ExecutionContext): Future[Boolean] = {

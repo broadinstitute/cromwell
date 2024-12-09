@@ -1,14 +1,19 @@
 name: gpu_cuda_image
 testFormat: workflowsuccess
 backends: [Papi, GCPBATCH]
-ignore: true
 
 files {
   workflow: gpu_on_papi/gpu_cuda_image.wdl
 }
 
+# As of November 2024, GCP Batch was using driver 550 and Life Sciences 535.
+# Neither was on the 418 version that used to be specified in this test.
+#
+# On Life Sciences it seems to be straight up ignored by the API.
+#
+# In Batch it is not wired through Cromwell, and we may not do so if we don't find a reason to.
+
 metadata {
   status: Succeeded
-  "outputs.gpu_cuda_image.modprobe_check.0": "good"
-  "outputs.gpu_cuda_image.smi_check.0": "good"
+  "outputs.gpu_cuda_image.smi_check": "gpu_good\nvram_good"
 }

@@ -137,6 +137,33 @@ backend {
 
 `token` is the standard base64-encoded username:password for the appropriate Docker Hub account.
 
+GCP Batch also supports the use of Google Secret Manager for storing private Docker Hub credentials as described in
+Google Batch documentation
+[here](https://cloud.google.com/batch/docs/create-run-job-secret-manager#use-secrets-for-docker-registry). In the
+Cromwell GCP Batch backend, the usage of this feature is very similar to the regular
+base64-encoded `username:password` token, except that it is the GSM paths of username and password that are separated by
+a colon and base64
+encoded:
+
+```
+backend {
+  default = GCPBATCH
+  providers {
+    GCPBATCH {
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
+      config {
+        dockerhub {
+          token = "base64-encoded-GSM-path-to-docker-hub-username:GSM-path-to-docker-hub-password"
+        }
+      }
+    }
+  }
+}
+```
+
+Note that as per the Google Secret Manager docs, the compute service account for the project in which the GCP Batch
+jobs will run will need to be assigned the `Secret Manager Secret Accessor` IAM role.
+
 **Monitoring**
 
 In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.
@@ -226,14 +253,17 @@ backend {
 ```
 
 The `network-name` and `subnetwork-name` should reference the name of your private network and subnetwork within that
-network respectively. The `subnetwork-name` is an optional config. Note that in the
-PAPI v2 backend `subnetwork-name` was an optional configuration parameter which accepted a `*` wildcard for choosing the
-appropriate subnetwork region, but in GCP Batch the `subnetwork-name` specification can be omitted
-and GCP Batch will choose the appropriate subnetwork automatically.
+network respectively. For example, if your `virtual-private-cloud` config looks like the one above, then Cromwell will 
+use the value of the configuration key, which is `vpc-network` here, as the name of private network and run the jobs on 
+this network. If the network name is not present in the config Cromwell will fall back to trying to run jobs on the 
+default network.
 
-For example, if your `virtual-private-cloud` config looks like the one above, then Cromwell will use the value of the
-configuration key, which is `vpc-network` here, as the name of private network and run the jobs on this network.
-If the network name is not present in the config Cromwell will fall back to trying to run jobs on the default network.
+`subnetwork-name` is an optional configuration parameter which accepts a `*` wildcard for choosing the appropriate 
+subnetwork region. If your network is using "auto" subnet creation, `subnetwork-name`specification can be omitted and 
+GCP Batch will choose the appropriate subnetwork automatically. If the network's subnet creation strategy is "custom," 
+the full subnetwork name (with `*` for region) must be supplied (ex. `"projects/${projectId}/regions/*/subnetworks/subnetwork"`).
+Note that wildcard regions are not supported by GCP Batch, Cromwell will replace `*` with the correct region at job
+creation time.
 
 If the `network-name` or `subnetwork-name` values contain the string `${projectId}` then that value will be replaced
 by Cromwell with the name of the project running GCP Batch.

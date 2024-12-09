@@ -249,18 +249,18 @@ class GcpCostCatalogServiceSpec
     // Create BigDecimals from strings to avoid inequality due to floating point shenanigans
     val lookupRows = Table(
       ("instantiatedVmInfo", "costPerHour"),
-      (InstantiatedVmInfo("us-central1", "custom-4-4096", true), BigDecimal(".361")),
-      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", true), BigDecimal(".42544000000000004")),
-      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", true), BigDecimal(".2371600000000000024")),
-      (InstantiatedVmInfo("us-central1", "custom-4-4096", false), BigDecimal("1.43392")),
-      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", false), BigDecimal("1.50561600000000012")),
-      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", false), BigDecimal("1.309896")),
-      (InstantiatedVmInfo("europe-west9", "custom-4-4096", true), BigDecimal(".3501808")),
-      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4096", true), BigDecimal("0.49532")),
-      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", true), BigDecimal("0.30608")),
-      (InstantiatedVmInfo("europe-west9", "custom-4-4096", false), BigDecimal("1.663347200000000016")),
-      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4352", false), BigDecimal("1.75941630500000012")),
-      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", false), BigDecimal("1.51947952"))
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", true), BigDecimal(".0361")),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", true), BigDecimal(".04254400000000000480")),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", true), BigDecimal(".02371600000000000040")),
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", false), BigDecimal(".143392")),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", false), BigDecimal(".150561600")),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", false), BigDecimal(".130989600000000012")),
+      (InstantiatedVmInfo("europe-west9", "custom-4-4096", true), BigDecimal(".035018080000000004")),
+      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4096", true), BigDecimal("0.049532000000000004")),
+      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", true), BigDecimal("0.030608000000000004")),
+      (InstantiatedVmInfo("europe-west9", "custom-4-4096", false), BigDecimal(".1663347200000000040")),
+      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4352", false), BigDecimal(".17594163050")),
+      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", false), BigDecimal(".151947952"))
     )
 
     forAll(lookupRows) { case (instantiatedVmInfo: InstantiatedVmInfo, expectedCostPerHour: BigDecimal) =>

@@ -1,7 +1,6 @@
 name: google_labels_bad
 testFormat: workflowfailure
-# possible error message discrepancy
-backends: [Papiv2, GCPBATCH_FAIL]
+backends: [Papiv2, GCPBATCH_ALT]
 
 files {
   workflow: google_labels/google_labels.wdl

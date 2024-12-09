@@ -607,6 +607,32 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         // not the `stderr` file contained memory retry error keys
         val retryWithMoreMemoryKeys: Option[List[String]] = memoryRetryFactor.flatMap(_ => memoryRetryErrorKeys)
 
+        val targetLogFile = batchAttributes.logsPolicy match {
+          case GcpBatchLogsPolicy.CloudLogging => None
+          case GcpBatchLogsPolicy.Path =>
+            DefaultPathBuilder.build(
+              gcpBatchLogPath.pathAsString.replace(
+                gcpBatchLogPath.root.pathAsString,
+                GcpBatchAttachedDisk.GcsMountPoint + "/"
+              )
+            ) match {
+              case Failure(exception) =>
+                throw new RuntimeException(
+                  "Unable to use GcpBatchLogsPolicy.Path because the destination path could not be built, this is likely a programming error and a bug must be reported",
+                  exception
+                )
+              case Success(path) =>
+                // remove trailing slash
+                val bucket = workflowPaths.workflowRoot.root.pathWithoutScheme.replace("/", "")
+
+                log.info(s"Batch logs for workflow $workflowId will be streamed to GCS at: $gcpBatchLogPath")
+
+                Some(
+                  GcpBatchLogFile(gcsBucket = bucket, mountPath = GcpBatchAttachedDisk.GcsMountPoint, diskPath = path)
+                )
+            }
+        }
+
         CreateBatchJobParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -614,7 +640,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           cloudWorkflowRoot = workflowPaths.workflowRoot,
           cloudCallRoot = callRootPath,
           commandScriptContainerPath = cmdInput.containerPath,
-          logGcsPath = gcpBatchLogPath,
           inputOutputParameters = inputOutputParameters,
           projectId = googleProject(jobDescriptor.workflowDescriptor),
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
@@ -632,7 +657,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           checkpointingConfiguration,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
-          dockerhubCredentials = dockerhubCredentials
+          dockerhubCredentials = dockerhubCredentials,
+          targetLogFile = targetLogFile
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -838,16 +864,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         contentType = plainTextContentType
       )
 
-      val logFileOutput = GcpBatchFileOutput(
-        logFilename,
-        logGcsPath,
-        DefaultPathBuilder.get(logFilename),
-        workingDisk,
-        optional = true,
-        secondary = false,
-        contentType = plainTextContentType
-      )
-
       val memoryRetryRCFileOutput = GcpBatchFileOutput(
         memoryRetryRCFilename,
         memoryRetryRCGcsPath,
@@ -888,8 +904,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput,
-          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput,
-          logFileOutputParameter = logFileOutput
+          memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
         )
       )
 
@@ -907,10 +922,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         runtimeAttributes = runtimeAttributes,
         batchAttributes = batchAttributes,
         projectId = batchAttributes.project,
-        region = batchAttributes.location,
-        logfile = createParameters.commandScriptContainerPath.sibling(
-          batchParameters.detritusOutputParameters.logFileOutputParameter.name
-        )
+        region = batchAttributes.location
       )
 
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
@@ -1008,11 +1020,22 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     for {
       _ <- Future.unit // trick to get into a future context
-      _ = log.info(s"started polling for $jobNameStr")
       jobName = JobName.parse(jobNameStr)
       status <- pollStatus(workflowId, jobName, backendSingletonActor, initializationData.requestFactory)
     } yield status
   }
+
+  override val pollingResultMonitorActor: Option[ActorRef] = Option(
+    context.actorOf(
+      BatchPollResultMonitorActor.props(serviceRegistryActor,
+                                        workflowDescriptor,
+                                        jobDescriptor,
+                                        validatedRuntimeAttributes,
+                                        platform,
+                                        jobLogger
+      )
+    )
+  )
 
   override def isTerminal(runStatus: RunStatus): Boolean =
     runStatus match {
@@ -1059,7 +1082,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     Future.fromTry {
       Try {
         runStatus match {
-          case RunStatus.Aborted(_) => AbortedExecutionHandle
+          case RunStatus.Aborted(_, _) => AbortedExecutionHandle
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus)
           case unknown =>
             throw new RuntimeException(

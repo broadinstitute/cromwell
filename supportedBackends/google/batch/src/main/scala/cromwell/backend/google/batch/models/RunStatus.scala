@@ -1,32 +1,24 @@
 package cromwell.backend.google.batch.models
 
 import cromwell.core.ExecutionEvent
-import cromwell.services.cost.InstantiatedVmInfo
 
 sealed trait RunStatus {
   def eventList: Seq[ExecutionEvent]
   def toString: String
-
-  val instantiatedVmInfo: Option[InstantiatedVmInfo]
 }
 
 object RunStatus {
 
-  case class Initializing(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
-      extends RunStatus { override def toString = "Initializing" }
-  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent],
-                                instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
-  ) extends RunStatus {
+  case class Initializing(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Initializing" }
+  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent]) extends RunStatus {
     override def toString = "AwaitingCloudQuota"
   }
 
-  case class Running(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
-      extends RunStatus { override def toString = "Running" }
+  case class Running(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Running" }
 
   sealed trait TerminalRunStatus extends RunStatus
 
-  case class Success(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
-      extends TerminalRunStatus {
+  case class Success(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
     override def toString = "Success"
   }
 
@@ -37,8 +29,7 @@ object RunStatus {
 
   final case class Failed(
     exitCode: Option[GcpBatchExitCode],
-    eventList: Seq[ExecutionEvent],
-    instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
+    eventList: Seq[ExecutionEvent]
   ) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
 
@@ -67,9 +58,7 @@ object RunStatus {
       }
   }
 
-  final case class Aborted(eventList: Seq[ExecutionEvent],
-                           instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
-  ) extends UnsuccessfulRunStatus {
+  final case class Aborted(eventList: Seq[ExecutionEvent]) extends UnsuccessfulRunStatus {
     override def toString = "Aborted"
 
     override val exitCode: Option[GcpBatchExitCode] = None

@@ -88,6 +88,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
   private val mockitoV = "3.12.4"
+  private val mockitoInlineV = "2.8.9"
   private val mockserverNettyV = "5.14.0"
   private val mouseV = "1.0.11"
 
@@ -625,7 +626,8 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
     // See also scaladoc in common.mock.MockSugar and that trait's various usages.
-    "org.mockito" % "mockito-core" % mockitoV
+    "org.mockito" % "mockito-core" % mockitoV,
+    "org.mockito" % "mockito-inline" % mockitoInlineV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full

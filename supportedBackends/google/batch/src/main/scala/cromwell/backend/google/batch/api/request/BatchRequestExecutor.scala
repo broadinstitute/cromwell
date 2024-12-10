@@ -183,7 +183,7 @@ object BatchRequestExecutor {
         val eventType = e.getDescription match {
           case startedRegex() => CallMetadataKeys.VmStartTime
           case endedRegex() => CallMetadataKeys.VmEndTime
-          case _ => e.getType
+          case _ => e.getDescription
         }
         ExecutionEvent(name = eventType, offsetDateTime = time)
       }

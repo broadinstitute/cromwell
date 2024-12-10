@@ -11,5 +11,5 @@ metadata {
   "calls.required_files.check_it.executionStatus": "Done"
   "calls.required_files.do_it.executionStatus": "Failed"
   "calls.required_files.do_it.retryableFailure": "false"
-  "calls.required_files.do_it.failures.0.message": ~~"Job failed due to task failure. Specifically, task with index 0 failed due to the following task event: \"Task state is updated from RUNNING to FAILED"
+  "calls.required_files.do_it.failures.1.message": ~~"Job failed due to task failure. Specifically, task with index 0 failed due to the following task event: \"Task state is updated from RUNNING to FAILED"
 }

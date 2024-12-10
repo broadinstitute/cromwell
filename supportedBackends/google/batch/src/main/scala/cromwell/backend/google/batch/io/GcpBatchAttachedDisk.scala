@@ -13,6 +13,9 @@ import wom.values._
 import scala.util.Try
 
 object GcpBatchAttachedDisk {
+  // The mount point for the Cloud Storage bucket
+  val GcsMountPoint = "/mnt/disks/gcs"
+
   def parse(s: String): Try[GcpBatchAttachedDisk] = {
 
     def sizeGbValidation(sizeGbString: String): ErrorOr[Int] = validateLong(sizeGbString).map(_.toInt)

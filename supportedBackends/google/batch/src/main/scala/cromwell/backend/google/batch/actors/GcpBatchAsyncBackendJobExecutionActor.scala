@@ -1025,18 +1025,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     } yield status
   }
 
-  override val pollingResultMonitorActor: Option[ActorRef] = Option(
-    context.actorOf(
-      BatchPollResultMonitorActor.props(serviceRegistryActor,
-                                        workflowDescriptor,
-                                        jobDescriptor,
-                                        validatedRuntimeAttributes,
-                                        platform,
-                                        jobLogger
-      )
-    )
-  )
-
   override def isTerminal(runStatus: RunStatus): Boolean =
     runStatus match {
       case _: RunStatus.TerminalRunStatus => true
@@ -1082,7 +1070,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     Future.fromTry {
       Try {
         runStatus match {
-          case RunStatus.Aborted(_, _) => AbortedExecutionHandle
+          case RunStatus.Aborted(_) => AbortedExecutionHandle
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus)
           case unknown =>
             throw new RuntimeException(

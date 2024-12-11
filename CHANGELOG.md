@@ -55,6 +55,10 @@ The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
 
 The index had low cardinality and workflow pickup is faster without it. Migration time depends on workflow store size, but should be very fast for most installations. Terminal workflows are removed from the workflow store, so only running workflows contribute to the cost.
 
+#### Index additions
+
+The `IX_METADATA_ENTRY_WEU_MK` index is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.
+
 ### Bug fixes and small changes
 
  * Changed default boot disk size from 10GB to 20GB in PipelinesAPI and Google Batch backends

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="metadata_index_add_workflow_key" author="anichols" dbms="hsqldb,mariadb,mysql,postgresql">
+        <!--
+            This index creates at about 3M rows per minute on MySQL.
+            That would be an impossible multi-day downtime in Terra, so we manually pre-create the index asynchronously.
+            This changeset detects environments where this has been done and immediately marks itself as applied.
+        -->
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <indexExists indexName="IX_METADATA_ENTRY_WEU_MK"/>
+            </not>
+        </preConditions>
+        <createIndex indexName="IX_METADATA_ENTRY_WEU_MK" tableName="METADATA_ENTRY">
+            <column name="WORKFLOW_EXECUTION_UUID"/>
+            <column name="METADATA_KEY"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

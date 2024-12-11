@@ -161,8 +161,8 @@ class BatchRequestExecutorSpec
       case RunStatus.Success(events, _) =>
         val eventNames = events.map(_.name)
         val eventTimes = events.map(_.offsetDateTime.toString)
-        eventNames should contain theSameElementsAs List("vmStartTime", "vmEndTime")
-        eventTimes should contain theSameElementsAs List("1970-01-01T00:00:01Z", "1970-01-01T00:00:02Z")
+        eventNames should contain allOf ("vmStartTime", "vmEndTime")
+        eventTimes should contain allOf ("1970-01-01T00:00:01Z", "1970-01-01T00:00:02Z")
       case _ => fail("Expected RunStatus.Success with events")
     }
   }

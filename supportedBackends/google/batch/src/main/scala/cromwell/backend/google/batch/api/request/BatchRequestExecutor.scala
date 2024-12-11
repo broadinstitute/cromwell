@@ -189,7 +189,7 @@ object BatchRequestExecutor {
 
         // Add an additional ExecutionEvent to capture other info if the event is a VmStartTime or VmEndTime
         if (eventType == CallMetadataKeys.VmStartTime || eventType == CallMetadataKeys.VmEndTime) {
-          ExecutionEvent(name = e.getDescription, offsetDateTime = time) +: executionEvents
+          executionEvents :+ ExecutionEvent(name = e.getDescription, offsetDateTime = time)
         } else {
           executionEvents
         }

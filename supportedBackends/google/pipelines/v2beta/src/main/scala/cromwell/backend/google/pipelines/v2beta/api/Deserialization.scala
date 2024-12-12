@@ -125,10 +125,14 @@ private[api] object Deserialization {
         // provide similar support for other numeric types in case Google adds new fields represented in a similar way
         // in the future. If a field of a numeric type has a string value that cannot be parsed to the correct numeric
         // type, it will be skipped (see comment below for rationale).
-        case (Some(f), string: String) if f.getType == classOf[java.lang.Integer] => string.toIntOption.foreach(intValue => newT.set(key, intValue))
-        case (Some(f), string: String) if f.getType == classOf[java.lang.Double] => string.toDoubleOption.foreach(doubleValue => newT.set(key, doubleValue))
-        case (Some(f), string: String) if f.getType == classOf[java.lang.Float] => string.toFloatOption.foreach(floatValue => newT.set(key, floatValue))
-        case (Some(f), string: String) if f.getType == classOf[java.lang.Long] => string.toLongOption.foreach(longValue => newT.set(key, longValue))
+        case (Some(f), string: String) if f.getType == classOf[java.lang.Integer] =>
+          string.toIntOption.foreach(intValue => newT.set(key, intValue))
+        case (Some(f), string: String) if f.getType == classOf[java.lang.Double] =>
+          string.toDoubleOption.foreach(doubleValue => newT.set(key, doubleValue))
+        case (Some(f), string: String) if f.getType == classOf[java.lang.Float] =>
+          string.toFloatOption.foreach(floatValue => newT.set(key, floatValue))
+        case (Some(f), string: String) if f.getType == classOf[java.lang.Long] =>
+          string.toLongOption.foreach(longValue => newT.set(key, longValue))
         // If either the key is not an attribute of T, or we can't assign it - just skip it
         // The only effect is that an attribute might not be populated and would be null.
         // We would only notice if we do look at this attribute though, which we only do with the purpose of populating metadata

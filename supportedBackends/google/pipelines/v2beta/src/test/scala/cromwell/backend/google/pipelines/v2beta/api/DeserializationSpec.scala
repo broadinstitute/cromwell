@@ -85,7 +85,13 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
           "projectId" -> "project",
           "virtualMachine" -> Map[String, Any](
             "machineType" -> "custom-1-1024",
-            "preemptible" -> false
+            "preemptible" -> false,
+            "accelerators" -> List[java.util.Map[String, String]](
+              Map[String, String](
+                "type" -> "nvidia-tesla-t4",
+                "count" -> "2"
+              ).asJava
+            ).asJava
           ).asJava
         ).asJava
       ).asJava
@@ -100,6 +106,7 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     val virtualMachine = deserializedPipeline.getResources.getVirtualMachine
     virtualMachine.getMachineType shouldBe "custom-1-1024"
     virtualMachine.getPreemptible shouldBe false
+    virtualMachine.getAccelerators.get(0).getCount shouldBe 2
   }
 
   // https://github.com/broadinstitute/cromwell/issues/4772
@@ -192,4 +199,31 @@ class DeserializationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
     }
   }
 
+  it should "deserialize numbers represented as strings while skipping invalid string values" in {
+    val numericFieldsToStringsMap = Map[String, Object](
+      "validIntegerValue" -> "5",
+      "validDoubleValue" -> "6",
+      "validFloatValue" -> "7",
+      "validLongValue" -> "8",
+      "invalidIntegerValue" -> "5!",
+      "invalidDoubleValue" -> "pi",
+      "invalidFloatValue" -> "3 point 1 4",
+      "invalidLongValue" -> "looooooooooong"
+    ).asJava
+
+    val deserialized = Deserialization.deserializeTo[StringToNumberDeserializationTestClass](numericFieldsToStringsMap)
+    deserialized match {
+      case Success(deserializedSuccess) =>
+        deserializedSuccess.validIntegerValue shouldBe 5
+        deserializedSuccess.validDoubleValue shouldBe 6d
+        deserializedSuccess.validFloatValue shouldBe 7f
+        deserializedSuccess.validLongValue shouldBe 8L
+        deserializedSuccess.invalidIntegerValue shouldBe null
+        deserializedSuccess.invalidDoubleValue shouldBe null
+        deserializedSuccess.invalidFloatValue shouldBe null
+        deserializedSuccess.invalidLongValue shouldBe null
+      case Failure(f) =>
+        fail("Bad deserialization", f)
+    }
+  }
 }

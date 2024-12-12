@@ -115,18 +115,18 @@ trait GetRequestHandler { this: RequestHandler =>
           if (lastDashIndex != -1) zoneString.substring(0, lastDashIndex) else zoneString
         }
 
-        val gpusListOption = for {
+        val gpusOption: Option[Accelerator] = for {
           pipelineValue <- pipeline
           resources <- Option(pipelineValue.getResources)
           virtualMachine <- Option(resources.getVirtualMachine)
-          accelerators <- Option(virtualMachine.getAccelerators)
-        } yield accelerators
-        val gpusOption: Option[Accelerator] = gpusListOption.flatMap(gpus => {
-          if (gpus.size > 1) {
-            logger.warn("Multiple GPU types present for a single task. Only the first will be used for cost calculations")
+          gpusList <- Option(virtualMachine.getAccelerators)
+          gpus <- {
+            if (gpusList.size > 1) {
+              logger.warn("Multiple GPU types present for a single task. Only the first will be used for cost calculations")
+            }
+            gpusList.asScala.headOption
           }
-          gpus.asScala.headOption
-        })
+        } yield gpus
         // temp
         logger.error("GPUs option: " + gpusOption.toString)
 

@@ -9,20 +9,14 @@ import common.validation.Validation._
 import cromwell.backend.google.pipelines.common.action.ActionLabels._
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager._
 import cromwell.backend.google.pipelines.common.api.RunStatus
-import cromwell.backend.google.pipelines.common.api.RunStatus.{
-  AwaitingCloudQuota,
-  Initializing,
-  Running,
-  Success,
-  UnsuccessfulRunStatus
-}
+import cromwell.backend.google.pipelines.common.api.RunStatus.{AwaitingCloudQuota, Initializing, Running, Success, UnsuccessfulRunStatus}
 import cromwell.backend.google.pipelines.common.errors.isQuotaMessage
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import cromwell.backend.google.pipelines.v2beta.api.request.ErrorReporter._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.ExecutionEvent
-import cromwell.services.cost.InstantiatedVmInfo
+import cromwell.services.cost.{GpuInfo, InstantiatedVmInfo}
 import cromwell.services.metadata.CallMetadataKeys
 import io.grpc.Status
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -30,7 +24,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import scala.jdk.CollectionConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.postfixOps
-import scala.util.{Failure, Success => TrySuccess, Try}
+import scala.util.{Failure, Try, Success => TrySuccess}
 
 trait GetRequestHandler { this: RequestHandler =>
   // the Genomics batch endpoint doesn't seem to be able to handle get requests on V2 operations at the moment
@@ -115,7 +109,7 @@ trait GetRequestHandler { this: RequestHandler =>
           if (lastDashIndex != -1) zoneString.substring(0, lastDashIndex) else zoneString
         }
 
-        val gpusOption: Option[Accelerator] = for {
+        val gpuInfo: Option[GpuInfo] = for {
           pipelineValue <- pipeline
           resources <- Option(pipelineValue.getResources)
           virtualMachine <- Option(resources.getVirtualMachine)
@@ -126,9 +120,9 @@ trait GetRequestHandler { this: RequestHandler =>
             }
             gpusList.asScala.headOption
           }
-        } yield gpus
+        } yield GpuInfo(gpus.getCount, gpus.getType)
         // temp
-        logger.error("GPUs option: " + gpusOption.toString)
+        logger.error("GPUs option: " + gpuInfo.toString)
 
         val instantiatedVmInfo: Option[InstantiatedVmInfo] = (region, machineType) match {
           case (Some(instantiatedRegion), Some(instantiatedMachineType)) =>

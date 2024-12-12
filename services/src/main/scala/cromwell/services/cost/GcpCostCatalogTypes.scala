@@ -6,6 +6,8 @@ import common.validation.ErrorOr.ErrorOr
 
 import java.util.regex.{Matcher, Pattern}
 
+case class GpuInfo(count: Long, gpuType: String)
+
 /*
  * Case class that contains information retrieved from Google about a VM that cromwell has started
  */

@@ -176,7 +176,7 @@ object BatchRequestExecutor {
     private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] = {
       val startedRegex = ".*SCHEDULED to RUNNING.*".r
       val endedRegex = ".*RUNNING to.*".r // can be SUCCEEDED or FAILED
-      events.map { e =>
+      events.flatMap { e =>
         val time = java.time.Instant
           .ofEpochSecond(e.getEventTime.getSeconds, e.getEventTime.getNanos.toLong)
           .atOffset(java.time.ZoneOffset.UTC)
@@ -185,7 +185,14 @@ object BatchRequestExecutor {
           case endedRegex() => CallMetadataKeys.VmEndTime
           case _ => e.getType
         }
-        ExecutionEvent(name = eventType, offsetDateTime = time)
+        val executionEvents = List(ExecutionEvent(name = eventType, offsetDateTime = time))
+
+        // Add an additional ExecutionEvent to capture other info if the event is a VmStartTime or VmEndTime
+        if (eventType == CallMetadataKeys.VmStartTime || eventType == CallMetadataKeys.VmEndTime) {
+          executionEvents :+ ExecutionEvent(name = e.getDescription, offsetDateTime = time)
+        } else {
+          executionEvents
+        }
       }
     }
   }

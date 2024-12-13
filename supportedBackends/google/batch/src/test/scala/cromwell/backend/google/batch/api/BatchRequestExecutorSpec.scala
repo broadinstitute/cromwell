@@ -161,13 +161,13 @@ class BatchRequestExecutorSpec
       case RunStatus.Success(events, _) =>
         val eventNames = events.map(_.name)
         val eventTimes = events.map(_.offsetDateTime.toString)
-        eventNames should contain theSameElementsAs List("vmStartTime", "vmEndTime")
-        eventTimes should contain theSameElementsAs List("1970-01-01T00:00:01Z", "1970-01-01T00:00:02Z")
+        eventNames should contain allOf ("vmStartTime", "vmEndTime")
+        eventTimes should contain allOf ("1970-01-01T00:00:01Z", "1970-01-01T00:00:02Z")
       case _ => fail("Expected RunStatus.Success with events")
     }
   }
 
-  it should "send vmStartTime and vmEndTime metadata info when a workflow fails" in {
+  it should "send vmStartTime and vmEndTime metadata info along with other events when a workflow fails" in {
     val mockClient = setupBatchClient(jobState = JobStatus.State.FAILED)
 
     // Create the BatchRequestExecutor
@@ -182,8 +182,10 @@ class BatchRequestExecutorSpec
       case RunStatus.Failed(_, events, _) =>
         val eventNames = events.map(_.name)
         val eventTimes = events.map(_.offsetDateTime.toString)
-        eventNames should contain theSameElementsAs List("vmStartTime", "vmEndTime")
-        eventTimes should contain theSameElementsAs List("1970-01-01T00:00:01Z", "1970-01-01T00:00:02Z")
+        println(eventNames)
+        eventNames should contain allOf ("vmStartTime", "vmEndTime")
+        eventNames should contain allOf ("Job state is set from RUNNING to SOME_OTHER_STATUS for job...", "Job state is set from SCHEDULED to RUNNING for job...")
+        eventTimes should contain allOf ("1970-01-01T00:00:01Z", "1970-01-01T00:00:02Z")
       case _ => fail("Expected RunStatus.Success with events")
     }
   }

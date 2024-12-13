@@ -122,8 +122,12 @@ trait GetRequestHandler { this: RequestHandler =>
           gpusList <- Option(virtualMachine.getAccelerators)
           gpus <- {
             if (gpusList.size > 1) {
+              // TODO: Improve this warning
+              // - Log appears repeatedly while task is running
+              // - Improve formatting of accelerator info
+              // - Include workflow/task ID?
               logger.warn(
-                "Multiple GPU types present for a single task. Only the first will be used for cost calculations"
+                s"Multiple GPU types present ($gpusList) for a single task. Only the first will be used for cost calculations."
               )
             }
             gpusList.asScala.headOption

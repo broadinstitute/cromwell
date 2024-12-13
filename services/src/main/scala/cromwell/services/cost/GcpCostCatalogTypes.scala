@@ -11,7 +11,7 @@ case class GpuInfo(count: Long, gpuType: String)
 /*
  * Case class that contains information retrieved from Google about a VM that cromwell has started
  */
-case class InstantiatedVmInfo(region: String, machineType: String, preemptible: Boolean)
+case class InstantiatedVmInfo(region: String, machineType: String, gpuInfo: Option[GpuInfo], preemptible: Boolean)
 
 /*
  * These types reflect hardcoded strings found in a google cost catalog.

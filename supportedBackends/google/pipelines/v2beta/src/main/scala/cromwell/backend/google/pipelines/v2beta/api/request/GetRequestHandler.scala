@@ -129,12 +129,12 @@ trait GetRequestHandler { this: RequestHandler =>
             gpusList.asScala.headOption
           }
         } yield GpuInfo(gpus.getCount, gpus.getType)
-        // temp
-        logger.error("GPUs option: " + gpuInfo.toString)
 
+        // Unlike with region and machineType, gpuInfo's being None does not indicate an invalid
+        // result - it just means no GPUs are being used by the VM
         val instantiatedVmInfo: Option[InstantiatedVmInfo] = (region, machineType) match {
           case (Some(instantiatedRegion), Some(instantiatedMachineType)) =>
-            Option(InstantiatedVmInfo(instantiatedRegion, instantiatedMachineType, preemptible))
+            Option(InstantiatedVmInfo(instantiatedRegion, instantiatedMachineType, gpuInfo, preemptible))
           case _ => Option.empty
         }
         if (operation.getDone) {

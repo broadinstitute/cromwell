@@ -7,6 +7,7 @@ import com.google.cloud.billing.v1._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.util.StringUtil.EnhancedToStringable
+import common.validation.ErrorOr
 import common.validation.ErrorOr._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.services.ServiceRegistryActor.ServiceRegistryMessage
@@ -18,9 +19,9 @@ import scala.jdk.CollectionConverters.IterableHasAsScala
 import java.time.temporal.ChronoUnit.SECONDS
 import scala.util.Using
 
-case class CostCatalogKey(machineType: MachineType,
+case class CostCatalogKey(resourceInfo: ResourceInfo,
                           usageType: UsageType,
-                          machineCustomization: MachineCustomization,
+                          machineCustomization: Option[MachineCustomization],
                           resourceType: ResourceType,
                           region: String
 )
@@ -38,28 +39,47 @@ object CostCatalogKey {
   final val expectedSku =
     (".*?N1 Predefined Instance (Core|Ram) .*|" +
       ".*?N2 Custom Instance (Core|Ram) .*|" +
-      ".*?N2D AMD Custom Instance (Core|Ram) .*").r
+      ".*?N2D AMD Custom Instance (Core|Ram) .*|" +
+      "Nvidia Tesla V100 GPU .*|" +
+      "Nvidia Tesla P100 GPU .*|" +
+      "Nvidia Tesla P4 GPU .*|" +
+      "Nvidia Tesla T4 GPU .*").r
+  // TODO: seems like it will probably still match GPU strings with extra stuff in front -
+  // it just won't take any of those preceding characters
+  // What is the point of the .*? ??
 
   def apply(sku: Sku): List[CostCatalogKey] =
     for {
       _ <- expectedSku.findFirstIn(sku.getDescription).toList
-      machineType <- MachineType.fromSku(sku).toList
+      resourceInfo <- ResourceInfo.fromSku(sku).toList
       resourceType <- ResourceType.fromSku(sku).toList
       usageType <- UsageType.fromSku(sku).toList
-      machineCustomization <- MachineCustomization.fromSku(sku).toList
       region <- sku.getServiceRegionsList.asScala.toList
-    } yield CostCatalogKey(machineType, usageType, machineCustomization, resourceType, region)
+      machineCustomization = if (resourceType == Gpu) None else Some(MachineCustomization.fromCpuOrRamSku(sku))
+    } yield CostCatalogKey(resourceInfo, usageType, machineCustomization, resourceType, region)
 
   def apply(instantiatedVmInfo: InstantiatedVmInfo, resourceType: ResourceType): ErrorOr[CostCatalogKey] =
-    MachineType.fromGoogleMachineTypeString(instantiatedVmInfo.machineType).map { mType =>
-      CostCatalogKey(
-        mType,
+    if (resourceType == Gpu)
+      for {
+        gpuInfo <- ErrorOr(instantiatedVmInfo.gpuInfo.get) // TODO: improve error message (default: "None.get")
+        gpuType <- GpuType.fromGpuInfo(gpuInfo)
+      } yield CostCatalogKey(
+        gpuType,
         UsageType.fromBoolean(instantiatedVmInfo.preemptible),
-        MachineCustomization.fromMachineTypeString(instantiatedVmInfo.machineType),
-        resourceType,
+        None,
+        Gpu,
         instantiatedVmInfo.region
       )
-    }
+    else
+      MachineType.fromGoogleMachineTypeString(instantiatedVmInfo.machineType).map { mType =>
+        CostCatalogKey(
+          mType,
+          UsageType.fromBoolean(instantiatedVmInfo.preemptible),
+          Some(MachineCustomization.fromMachineTypeString(instantiatedVmInfo.machineType)),
+          resourceType,
+          instantiatedVmInfo.region
+        )
+      }
 }
 
 case class GcpCostLookupRequest(vmInfo: InstantiatedVmInfo, replyTo: ActorRef) extends ServiceRegistryMessage {
@@ -116,6 +136,9 @@ object GcpCostCatalogService {
       s"Expected usage units of RAM to be 'GiBy.h'. Got ${usageUnit}".invalidNel
     }
   }
+
+  // TODO: implement this
+  def calculateGpuPricePerHour(gpuSku: Sku, gpuCount: Long): ErrorOr[BigDecimal] = BigDecimal(1).validNel
 }
 
 /**
@@ -200,8 +223,8 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
       // As of Sept 2024 the cost catalog does not contain entries for custom N1 machines. If we're using N1, attempt
       // to fall back to predefined.
       lazy val n1PredefinedKey =
-        (key.machineType, key.machineCustomization) match {
-          case (N1, Custom) => Option(key.copy(machineCustomization = Predefined))
+        (key.resourceInfo, key.machineCustomization) match {
+          case (N1, Some(Custom)) => Option(key.copy(machineCustomization = Some(Predefined)))
           case _ => None
         }
       val sku = getSku(key).orElse(n1PredefinedKey.flatMap(getSku)).map(_.catalogObject)
@@ -212,23 +235,47 @@ class GcpCostCatalogService(serviceConfig: Config, globalConfig: Config, service
     }
 
   // TODO consider caching this, answers won't change until we reload the SKUs
-  def calculateVmCostPerHour(instantiatedVmInfo: InstantiatedVmInfo): ErrorOr[BigDecimal] =
-    for {
+  def calculateVmCostPerHour(instantiatedVmInfo: InstantiatedVmInfo): ErrorOr[BigDecimal] = {
+    val cpuPricingInfoErrorOr = for {
       cpuSku <- lookUpSku(instantiatedVmInfo, Cpu)
       coreCount <- MachineType.extractCoreCountFromMachineTypeString(instantiatedVmInfo.machineType)
       cpuPricePerHour <- GcpCostCatalogService.calculateCpuPricePerHour(cpuSku, coreCount)
+    } yield (cpuSku, coreCount, cpuPricePerHour)
+
+    val ramPricingInfoErrorOr = for {
       ramSku <- lookUpSku(instantiatedVmInfo, Ram)
       ramMbCount <- MachineType.extractRamMbFromMachineTypeString(instantiatedVmInfo.machineType)
       ramGbCount = ramMbCount / 1024d // need sub-integer resolution
       ramPricePerHour <- GcpCostCatalogService.calculateRamPricePerHour(ramSku, ramGbCount)
-      totalCost = cpuPricePerHour + ramPricePerHour
+    } yield (ramSku, ramGbCount, ramPricePerHour)
+
+    val gpuPricingInfoErrorOr = instantiatedVmInfo.gpuInfo match {
+      case None => (None, 0, BigDecimal(0)).validNel
+      case Some(gpuInfo) =>
+        for {
+          gpuSku <- lookUpSku(instantiatedVmInfo, Gpu)
+          gpuCount = gpuInfo.count
+          gpuPricePerHour <- GcpCostCatalogService.calculateGpuPricePerHour(gpuSku, gpuCount)
+        } yield (Some(gpuSku), gpuCount, gpuPricePerHour)
+    }
+
+    for {
+      cpuPricingInfo <- cpuPricingInfoErrorOr
+      (cpuSku, coreCount, cpuPricePerHour) = cpuPricingInfo
+      ramPricingInfo <- ramPricingInfoErrorOr
+      (ramSku, ramGbCount, ramPricePerHour) = ramPricingInfo
+      gpuPricingInfo <- gpuPricingInfoErrorOr
+      (gpuSku, gpuCount, gpuPricePerHour) = gpuPricingInfo
+      totalCost = cpuPricePerHour + ramPricePerHour + gpuPricePerHour
       _ = logger.info(
         s"Calculated vmCostPerHour of ${totalCost} " +
           s"(CPU ${cpuPricePerHour} for ${coreCount} cores [${cpuSku.getDescription}], " +
-          s"RAM ${ramPricePerHour} for ${ramGbCount} Gb [${ramSku.getDescription}]) " +
+          s"RAM ${ramPricePerHour} for ${ramGbCount} Gb [${ramSku.getDescription}], " +
+          s"GPU ${gpuPricePerHour} for ${gpuCount} GPUs [${gpuSku.map(_.getDescription)}]) " +
           s"for ${instantiatedVmInfo}"
       )
     } yield totalCost
+  }
 
   def serviceRegistryActor: ActorRef = serviceRegistry
   override def receive: Receive = {

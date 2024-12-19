@@ -80,9 +80,9 @@ class GcpCostCatalogServiceSpec
 
   it should "cache catalogs properly" in {
     val testLookupKey = CostCatalogKey(
-      machineType = N2,
+      resourceInfo = N2,
       usageType = Preemptible,
-      machineCustomization = Predefined,
+      machineCustomization = Some(Predefined),
       resourceType = Cpu,
       region = "europe-west9"
     )
@@ -110,30 +110,30 @@ class GcpCostCatalogServiceSpec
   it should "find CPU and RAM skus for all supported machine types" in {
     val lookupRows = Table(
       ("machineType", "usage", "customization", "resource", "region", "exists"),
-      (N1, Preemptible, Predefined, Cpu, "us-west1", true),
-      (N1, Preemptible, Predefined, Ram, "us-west1", true),
-      (N1, OnDemand, Predefined, Cpu, "us-west1", true),
-      (N1, OnDemand, Predefined, Ram, "us-west1", true),
-      (N1, Preemptible, Custom, Cpu, "us-west1", false),
-      (N1, Preemptible, Custom, Ram, "us-west1", false),
-      (N1, OnDemand, Custom, Cpu, "us-west1", false),
-      (N1, OnDemand, Custom, Ram, "us-west1", false),
-      (N2, Preemptible, Predefined, Cpu, "us-west1", false),
-      (N2, Preemptible, Predefined, Ram, "us-west1", false),
-      (N2, OnDemand, Predefined, Cpu, "us-west1", false),
-      (N2, OnDemand, Predefined, Ram, "us-west1", false),
-      (N2, Preemptible, Custom, Cpu, "us-west1", true),
-      (N2, Preemptible, Custom, Ram, "us-west1", true),
-      (N2, OnDemand, Custom, Cpu, "us-west1", true),
-      (N2, OnDemand, Custom, Ram, "us-west1", true),
-      (N2d, Preemptible, Predefined, Cpu, "us-west1", false),
-      (N2d, Preemptible, Predefined, Ram, "us-west1", false),
-      (N2d, OnDemand, Predefined, Cpu, "us-west1", false),
-      (N2d, OnDemand, Predefined, Ram, "us-west1", false),
-      (N2d, Preemptible, Custom, Cpu, "us-west1", true),
-      (N2d, Preemptible, Custom, Ram, "us-west1", true),
-      (N2d, OnDemand, Custom, Cpu, "us-west1", true),
-      (N2d, OnDemand, Custom, Ram, "us-west1", true)
+      (N1, Preemptible, Some(Predefined), Cpu, "us-west1", true),
+      (N1, Preemptible, Some(Predefined), Ram, "us-west1", true),
+      (N1, OnDemand, Some(Predefined), Cpu, "us-west1", true),
+      (N1, OnDemand, Some(Predefined), Ram, "us-west1", true),
+      (N1, Preemptible, Some(Custom), Cpu, "us-west1", false),
+      (N1, Preemptible, Some(Custom), Ram, "us-west1", false),
+      (N1, OnDemand, Some(Custom), Cpu, "us-west1", false),
+      (N1, OnDemand, Some(Custom), Ram, "us-west1", false),
+      (N2, Preemptible, Some(Predefined), Cpu, "us-west1", false),
+      (N2, Preemptible, Some(Predefined), Ram, "us-west1", false),
+      (N2, OnDemand, Some(Predefined), Cpu, "us-west1", false),
+      (N2, OnDemand, Some(Predefined), Ram, "us-west1", false),
+      (N2, Preemptible, Some(Custom), Cpu, "us-west1", true),
+      (N2, Preemptible, Some(Custom), Ram, "us-west1", true),
+      (N2, OnDemand, Some(Custom), Cpu, "us-west1", true),
+      (N2, OnDemand, Some(Custom), Ram, "us-west1", true),
+      (N2d, Preemptible, Some(Predefined), Cpu, "us-west1", false),
+      (N2d, Preemptible, Some(Predefined), Ram, "us-west1", false),
+      (N2d, OnDemand, Some(Predefined), Cpu, "us-west1", false),
+      (N2d, OnDemand, Some(Predefined), Ram, "us-west1", false),
+      (N2d, Preemptible, Some(Custom), Cpu, "us-west1", true),
+      (N2d, Preemptible, Some(Custom), Ram, "us-west1", true),
+      (N2d, OnDemand, Some(Custom), Cpu, "us-west1", true),
+      (N2d, OnDemand, Some(Custom), Ram, "us-west1", true)
     )
 
     forAll(lookupRows) { case (machineType, usage, customization, resource, region, exists: Boolean) =>

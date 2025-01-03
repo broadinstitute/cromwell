@@ -154,13 +154,13 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
        */
       val adjustedBootDiskSize = {
         val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize
-        // Compute the decompressed size based on the information available
-        val userCommandImageSizeInBytes = createPipelineParameters.jobDescriptor.dockerSize
+        // Compute the decompressed size based on the information available. If we couldn't get the image size,
+        // default to 30GB. Defaulting to 0 can cause task to run out of disk. (more in AN-300)
+        val userCommandImageSizeInGB = createPipelineParameters.jobDescriptor.dockerSize
           .map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor))
-          .getOrElse(0L)
-        val userCommandImageSizeInGB =
-          MemorySize(userCommandImageSizeInBytes.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB).amount
-        val userCommandImageSizeRoundedUpInGB = userCommandImageSizeInGB.ceil.toInt
+          .map(s => MemorySize(s.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB))
+          .getOrElse(MemorySize(30, MemoryUnit.GB))
+        val userCommandImageSizeRoundedUpInGB = userCommandImageSizeInGB.amount.ceil.toInt
 
         val totalSize = fromRuntimeAttributes +
           createPipelineParameters.dockerImageCacheDiskOpt

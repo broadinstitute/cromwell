@@ -154,12 +154,16 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
        */
       val adjustedBootDiskSize = {
         val fromRuntimeAttributes = createPipelineParameters.runtimeAttributes.bootDiskSize
+
         // Compute the decompressed size based on the information available. If we couldn't get the image size,
         // default to 30GB. Defaulting to 0 can cause task to run out of disk. (more in AN-300)
-        val userCommandImageSizeInGB = createPipelineParameters.jobDescriptor.dockerSize
+        val maybeUserCommandImageSizeInGB = createPipelineParameters.jobDescriptor.dockerSize
           .map(_.toFullSize(DockerConfiguration.instance.sizeCompressionFactor))
           .map(s => MemorySize(s.toDouble, MemoryUnit.Bytes).to(MemoryUnit.GB))
-          .getOrElse(MemorySize(30, MemoryUnit.GB))
+        val (userCommandImageSizeInGB, userImageLogString) = maybeUserCommandImageSizeInGB match {
+          case Some(imageSize) => (imageSize, "user command image")
+          case None => (MemorySize(30, MemoryUnit.GB), "failed to obtain user command image size, using safe default")
+        }
         val userCommandImageSizeRoundedUpInGB = userCommandImageSizeInGB.amount.ceil.toInt
 
         val totalSize = fromRuntimeAttributes +
@@ -171,7 +175,7 @@ case class LifeSciencesFactory(applicationName: String, authMode: GoogleAuthMode
 
         if (totalSize != fromRuntimeAttributes) {
           jobLogger.info(
-            s"Adjusting boot disk size to $totalSize GB: $fromRuntimeAttributes GB (runtime attributes) + $userCommandImageSizeRoundedUpInGB GB (user command image) + ${ActionUtils.cromwellImagesSizeRoundedUpInGB} GB (Cromwell support images)"
+            s"Adjusting boot disk size to $totalSize GB: $fromRuntimeAttributes GB (runtime attributes) + $userCommandImageSizeRoundedUpInGB GB ($userImageLogString) + ${ActionUtils.cromwellImagesSizeRoundedUpInGB} GB (Cromwell support images)"
           )
         }
 

@@ -69,7 +69,8 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     false,
     ContinueOnReturnCodeSet(Set(0)),
     false,
-    "my-stuff"
+    "my-stuff",
+    1,
   )
 
   val expectedDefaultsLocalFS = new AwsBatchRuntimeAttributes(
@@ -83,6 +84,7 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     ContinueOnReturnCodeSet(Set(0)),
     false,
     "",
+    0,
     "local"
   )
 
@@ -495,7 +497,7 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
         runtimeAttributes
       )
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
-    AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig, configuration.fileSystem)
+    AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration)
   }
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get

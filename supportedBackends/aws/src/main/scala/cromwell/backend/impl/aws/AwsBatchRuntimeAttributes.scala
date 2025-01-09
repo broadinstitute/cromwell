@@ -71,7 +71,8 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      noAddress: Boolean,
                                      scriptS3BucketName: String,
-                                     fileSystem: String = "s3"
+                                     batchRetry: Int,
+                                     fileSystem: String = "s3",
 )
 
 object AwsBatchRuntimeAttributes {
@@ -92,6 +93,8 @@ object AwsBatchRuntimeAttributes {
   private val DisksDefaultValue = WomString(s"${AwsBatchWorkingDisk.Name}")
 
   private val MemoryDefaultValue = "2 GB"
+
+  private val DftBatchRetry = WomInteger(0)
 
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] =
     CpuValidation.instance
@@ -135,8 +138,15 @@ object AwsBatchRuntimeAttributes {
         (throw new RuntimeException("queueArn is required"))
     )
 
+  private def batchRetryValidation(runtimeConfig: Option[Config],
+                                   awsAttrs: AwsBatchAttributes): RuntimeAttributesValidation[Int] =
+    new MaxRetriesValidation("batchRetry").withDefault(
+      MaxRetriesValidation.configDefaultWomValue(runtimeConfig) getOrElse WomInteger(awsAttrs.batchRetry.value))
+
   def runtimeAttributesBuilder(configuration: AwsBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = configuration.runtimeConfig
+    val batchAttributes = configuration.batchAttributes
+    val batchRetryValidator = batchRetryValidation(runtimeConfig, batchAttributes)
     def validationsS3backend = StandardValidatedRuntimeAttributesBuilder
       .default(runtimeConfig)
       .withValidation(
@@ -146,6 +156,7 @@ object AwsBatchRuntimeAttributes {
         memoryValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
+        batchRetryValidator,
         queueArnValidation(runtimeConfig),
         scriptS3BucketNameValidation(runtimeConfig)
       )
@@ -158,6 +169,7 @@ object AwsBatchRuntimeAttributes {
         memoryValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
+        batchRetryValidator,
         queueArnValidation(runtimeConfig)
       )
 
@@ -169,9 +181,10 @@ object AwsBatchRuntimeAttributes {
   }
 
   def apply(validatedRuntimeAttributes: ValidatedRuntimeAttributes,
-            runtimeAttrsConfig: Option[Config],
-            fileSystem: String
+            configuration: AwsBatchConfiguration
   ): AwsBatchRuntimeAttributes = {
+    val runtimeAttrsConfig = configuration.runtimeConfig
+    val fileSystem: String = configuration.fileSystem
     val cpu: Int Refined Positive =
       RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
@@ -182,6 +195,9 @@ object AwsBatchRuntimeAttributes {
     val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
     val queueArn: String =
       RuntimeAttributesValidation.extract(queueArnValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val batchRetry: Int =
+        RuntimeAttributesValidation.extract(
+          batchRetryValidation(runtimeAttrsConfig, configuration.batchAttributes), validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(
@@ -209,6 +225,7 @@ object AwsBatchRuntimeAttributes {
       continueOnReturnCode,
       noAddress,
       scriptS3BucketName,
+      batchRetry,
       fileSystem
     )
   }

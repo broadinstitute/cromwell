@@ -432,12 +432,17 @@ final case class AwsBatchJob(
           // See:
           //
           // http://aws-java-sdk-javadoc.s3-website-us-west-2.amazonaws.com/latest/software/amazon/awssdk/services/batch/model/RegisterJobDefinitionRequest.Builder.html
-          val definitionRequest = RegisterJobDefinitionRequest.builder
+          val definitionBuilder = RegisterJobDefinitionRequest.builder
             .containerProperties(jobDefinition.containerProperties)
             .jobDefinitionName(jobDefinitionName)
             // See https://stackoverflow.com/questions/24349517/scala-method-named-type
             .`type`(JobDefinitionType.CONTAINER)
-            .build
+          if (jobDefinitionContext.runtimeAttributes.batchRetry > 0) {
+           definitionBuilder.retryStrategy(
+              RetryStrategy.builder.attempts(jobDefinitionContext.runtimeAttributes.batchRetry).build
+            )
+          }
+          val definitionRequest = definitionBuilder.build
 
           Log.debug(s"Submitting definition request: $definitionRequest")
 

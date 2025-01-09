@@ -61,6 +61,7 @@ case class AwsBatchAttributes(fileSystem: String,
                               executionBucket: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
+                              batchRetry: Int Refined NonNegative,
                               createDefinitionAttempts: Int Refined Positive
 )
 
@@ -68,6 +69,7 @@ object AwsBatchAttributes {
   lazy val Logger = LoggerFactory.getLogger(this.getClass)
 
   private val availableConfigKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
+    "default-runtime-attributes.batchRetry",
     "concurrent-job-limit",
     "root",
     "filesystems",
@@ -138,6 +140,7 @@ object AwsBatchAttributes {
       executionBucket,
       duplicationStrategy,
       backendConfig.as[ErrorOr[Int Refined Positive]]("numSubmitAttempts"),
+      backendConfig.as[ErrorOr[Int Refined NonNegative]]("default-runtime-attributes.batchRetry"),
       backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts")
     ).tupled.map((AwsBatchAttributes.apply _).tupled) match {
       case Valid(r) => r
@@ -154,6 +157,14 @@ object AwsBatchAttributes {
       override def read(config: Config, path: String): ErrorOr[Refined[Int, Positive]] = {
         val int = config.getInt(path)
         refineV[Positive](int).toValidatedNel
+      }
+    }
+
+  implicit val ficusNonNegativeInt: ValueReader[ErrorOr[Int Refined NonNegative]] =
+    new ValueReader[ErrorOr[Refined[Int, NonNegative]]] {
+      override def read(config: Config, path: String): ErrorOr[Refined[Int, NonNegative]] = {
+        val int = if (config.hasPath(path)) config.getInt(path) else 0
+        refineV[NonNegative](int).toValidatedNel
       }
     }
 }

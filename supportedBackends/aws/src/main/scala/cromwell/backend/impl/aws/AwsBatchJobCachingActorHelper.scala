@@ -53,7 +53,7 @@ trait AwsBatchJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val callPaths: AwsBatchJobPaths = jobPaths.asInstanceOf[AwsBatchJobPaths]
 
   lazy val runtimeAttributes: AwsBatchRuntimeAttributes =
-    AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration.runtimeConfig, configuration.fileSystem)
+    AwsBatchRuntimeAttributes(validatedRuntimeAttributes, configuration)
 
   lazy val workingDisk: AwsBatchVolume = runtimeAttributes.disks
     .find(x =>

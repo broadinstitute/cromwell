@@ -132,12 +132,13 @@ trait AwsBatchJobDefinitionBuilder {
       )
 
     def buildName(imageName: String,
+                  batchRetries: Int,
                   packedCommand: String,
                   volumes: List[Volume],
                   mountPoints: List[MountPoint],
                   env: Seq[KeyValuePair]
     ): String = {
-      val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints
+      val str = s"$imageName:$batchRetries:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints
           .map(_.toString)
           .mkString(",")}:${env.map(_.toString).mkString(",")}"
 
@@ -161,6 +162,7 @@ trait AwsBatchJobDefinitionBuilder {
     val mountPoints = buildMountPoints(context.runtimeAttributes.disks)
     val jobDefinitionName = buildName(
       context.runtimeAttributes.dockerImage,
+      context.runtimeAttributes.batchRetry,
       packedCommand.mkString(","),
       volumes,
       mountPoints,

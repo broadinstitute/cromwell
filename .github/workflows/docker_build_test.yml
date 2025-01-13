@@ -25,6 +25,7 @@ jobs:
           repository: broadinstitute/cromwell
           token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
           path: cromwell
+      - uses: sbt/setup-sbt@v1
       - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'

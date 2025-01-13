@@ -13,104 +13,44 @@ trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase {
 
   import dataAccess.driver.api._
 
-//  private val mutex = new Object
-
   override def recordGroupMetricsEntry(
     groupMetricsEntry: GroupMetricsEntry
   )(implicit ec: ExecutionContext): Future[Unit] = {
+    def updateGroupMetricsEntry(): Future[Unit] = {
+      val updateAction = for {
+        _ <- dataAccess
+          .quotaExhaustionForGroupId(groupMetricsEntry.groupId)
+          .update(groupMetricsEntry.quotaExhaustionDetected)
+      } yield ()
+      runTransaction(updateAction, TransactionIsolation.ReadCommitted)
+    }
 
-    // original code
-//    val action = for {
-//      updateCount <- dataAccess
-//        .quotaExhaustionForGroupId(groupMetricsEntry.groupId)
-//        .update(groupMetricsEntry.quotaExhaustionDetected)
-//      _ <- updateCount match {
-//        case 0 => dataAccess.groupMetricsEntryIdsAutoInc += groupMetricsEntry
-//        case _ => assertUpdateCount("recordGroupMetricsEntry", updateCount, 1)
-//      }
-//    } yield ()
+    /* The approach here is to try and insert the record into database in 1 transaction and if that fails, because
+       a record with that group_id already exists, then it will update that record with new quota_exhaustion_detected
+       timestamp in a separate transaction. The reason for 2 separate transactions are because when manual upsert or
+       Slick's insertOrUpdate is performed in a single transaction, and there are threads trying to update the table
+       concurrently it results in a deadlock (even with stricter transaction isolation level Serializable). This
+       happens because it gets a gap lock on index IX_GROUP_METRICS_ENTRY_GI which locks the gaps between index records
+       within the page and as a result it runs into a deadlock when there are transactions trying to insert/update for
+       same group ID or for group IDs that exist in the locked records.
+       See https://broadworkbench.atlassian.net/browse/AN-286 and https://broadworkbench.atlassian.net/browse/WX-1847.
 
-//    val action = for {
-//      groupMetricsEntries <- dataAccess
-//        .entryForGroupIdForUpdate(groupMetricsEntry.groupId)
-//        .result
-//      _ <- groupMetricsEntries.map {entry =>
-//        for {
-//          updateCount <- dataAccess.quotaExhaustionForGroupId(entry.groupId).update(groupMetricsEntry.quotaExhaustionDetected)
-//          _ <- assertUpdateCount("recordGroupMetricsEntry", updateCount, 1)
-//        } yield ()
-//      }
-//
-//    } yield ()
-
-//    mutex.synchronized {
-
-    // working forUpdate but still deadlocks
-//    val action = for {
-//      _ <- dataAccess.entryForGroupIdForUpdate(groupMetricsEntry.groupId).result
-//      updateCount <- dataAccess.quotaExhaustionForGroupId(groupMetricsEntry.groupId)
-//        .update(groupMetricsEntry.quotaExhaustionDetected)
-//      _ <- updateCount match {
-//        case 0 => dataAccess.groupMetricsEntryIdsAutoInc += groupMetricsEntry
-//        case _ => assertUpdateCount("recordGroupMetricsEntry", updateCount, 1)
-//      }
-//    } yield ()
-
-    // uses upsert
-//    val action = if(useSlickUpserts) {
-//      for {
-//        existingRow <- dataAccess.entryForGroupIdForUpdate(groupMetricsEntry.groupId).result.headOption
-//        row = existingRow.map(_.copy(quotaExhaustionDetected = groupMetricsEntry.quotaExhaustionDetected)) getOrElse GroupMetricsEntry(groupMetricsEntry.groupId, groupMetricsEntry.quotaExhaustionDetected)
-//        _ <- dataAccess.groupMetricsEntryIdsAutoInc.insertOrUpdate(row)
-//      } yield ()
-//    } else {
-//      for {
-//              updateCount <- dataAccess
-//                .quotaExhaustionForGroupId(groupMetricsEntry.groupId)
-//                .update(groupMetricsEntry.quotaExhaustionDetected)
-//              _ <- updateCount match {
-//                case 0 => dataAccess.groupMetricsEntryIdsAutoInc += groupMetricsEntry
-//                case _ => assertUpdateCount("recordGroupMetricsEntry", updateCount, 1)
-//              }
-//            } yield ()
-//    }
-
-    // insert first; if it fails try update
-    val action = for {
+       Note: a unique constraint on group_id also exists in database.
+     */
+    val insertAction = for {
       _ <- dataAccess.groupMetricsEntryIdsAutoInc += groupMetricsEntry
     } yield ()
 
-    runTransaction(action, TransactionIsolation.ReadCommitted).flatMap { _ =>
-      Future.successful(())
-    }.recoverWith {
-      case _: SQLIntegrityConstraintViolationException =>
-        println(s"#### FIND ME: matched with SQLIntegrityConstraintViolationException")
-        val updateAction = for {
-          _ <- dataAccess
-            .quotaExhaustionForGroupId(groupMetricsEntry.groupId)
-            .update(groupMetricsEntry.quotaExhaustionDetected)
-        } yield ()
-        runTransaction(updateAction, TransactionIsolation.ReadCommitted)
-
-      case e: PSQLException if e.getMessage.contains("duplicate key value violates unique constraint \"UC_GROUP_METRICS_ENTRY_GI\"") =>
-        println(s"#### FIND ME: matched with PSQLException")
-        val updateAction = for {
-          _ <- dataAccess
-            .quotaExhaustionForGroupId(groupMetricsEntry.groupId)
-            .update(groupMetricsEntry.quotaExhaustionDetected)
-        } yield ()
-        runTransaction(updateAction, TransactionIsolation.ReadCommitted)
-
-      case e =>  Future.failed(e)
-    }
-
-
-
-
-//      runTransaction(action, TransactionIsolation.ReadCommitted) // handles deadlock but doesn't keep group ID unique; inserts multiple rows for same group id in parallel case
-//    runTransaction(action, TransactionIsolation.Serializable) // doesn't handle deadlock in all MySql and Postgres versions
-//    runTransaction(action, TransactionIsolation.RepeatableRead) // doesn't handle deadlock in MySQL 5.6, and both Postgres versions (MySql 8 works fine)
-//    }
+    runTransaction(insertAction, TransactionIsolation.ReadCommitted)
+      .recoverWith {
+        case ex
+            if ex.isInstanceOf[SQLIntegrityConstraintViolationException] || (ex
+              .isInstanceOf[PSQLException] && ex.getMessage.contains(
+              "duplicate key value violates unique constraint \"UC_GROUP_METRICS_ENTRY_GI\""
+            )) =>
+          updateGroupMetricsEntry()
+        case e => Future.failed(e)
+      }
   }
 
   override def countGroupMetricsEntries(groupId: String)(implicit ec: ExecutionContext): Future[Int] = {

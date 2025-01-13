@@ -116,13 +116,15 @@ class GroupMetricsSlickDatabaseSpec extends AnyFlatSpec with Matchers with Scala
       val group4 = "rocket-group-2"
 
       // simulate parallel upsert for 4 different hog groups
-      // 4 * 25 => 100 parallel transactions
-      val inputGroups =  (0 until 25).flatMap(_ => List(group1, group2, group3, group4))
-
-      println(s"### FIND ME: size ${inputGroups.size}")
+      // 4 * 25 => 100 parallel upserts
+      val inputGroups = (0 until 25).flatMap(_ => List(group1, group2, group3, group4))
 
       (for {
-        _ <- Future.sequence(inputGroups.map(r => dataAccess.recordGroupMetricsEntry(GroupMetricsEntry(r, OffsetDateTime.now.toSystemTimestamp))))
+        _ <- Future.sequence(
+          inputGroups.map(r =>
+            dataAccess.recordGroupMetricsEntry(GroupMetricsEntry(r, OffsetDateTime.now.toSystemTimestamp))
+          )
+        )
         rowCountGroup1 <- dataAccess.countGroupMetricsEntries(group1)
         rowCountGroup2 <- dataAccess.countGroupMetricsEntries(group2)
         rowCountGroup3 <- dataAccess.countGroupMetricsEntries(group3)

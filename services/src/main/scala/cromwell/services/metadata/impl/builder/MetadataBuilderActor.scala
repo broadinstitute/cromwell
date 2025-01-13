@@ -35,17 +35,38 @@ object MetadataBuilderActor {
   case object IdleData extends MetadataBuilderActorData
   final case class HasWorkData(target: ActorRef, originalRequest: BuildMetadataJsonAction)
       extends MetadataBuilderActorData
+
+  sealed trait EventsCollectorData extends MetadataBuilderActorData {
+    val target: ActorRef
+    val originalRequest: BuildMetadataJsonAction
+    val originalQuery: MetadataQuery
+    val originalEvents: Seq[MetadataEvent]
+    val subWorkflowsMetadata: Map[String, JsValue]
+    val waitFor: Int
+
+    def isComplete = subWorkflowsMetadata.size == waitFor
+  }
   final case class HasReceivedEventsData(target: ActorRef,
                                          originalRequest: BuildMetadataJsonAction,
                                          originalQuery: MetadataQuery,
                                          originalEvents: Seq[MetadataEvent],
                                          subWorkflowsMetadata: Map[String, JsValue],
                                          waitFor: Int
-  ) extends MetadataBuilderActorData {
+  ) extends EventsCollectorData {
     def withSubWorkflow(id: String, metadata: JsValue) =
       this.copy(subWorkflowsMetadata = subWorkflowsMetadata + ((id, metadata)))
+  }
 
-    def isComplete = subWorkflowsMetadata.size == waitFor
+  final case class HasReceivedCostEventsData(target: ActorRef,
+                                             originalRequest: BuildMetadataJsonAction,
+                                             originalQuery: MetadataQuery,
+                                             originalEvents: Seq[MetadataEvent],
+                                             originalStatus: WorkflowState,
+                                             subWorkflowsMetadata: Map[String, JsValue],
+                                             waitFor: Int
+  ) extends EventsCollectorData {
+    def withSubWorkflow(id: String, metadata: JsValue) =
+      this.copy(subWorkflowsMetadata = subWorkflowsMetadata + ((id, metadata)))
   }
 
   def props(readMetadataWorkerMaker: () => Props,
@@ -432,7 +453,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
   }
 
   when(WaitingForSubWorkflowCost) {
-    case Event(mbr: MetadataJsonResponse, data: HasReceivedEventsData) =>
+    case Event(mbr: MetadataJsonResponse, data: HasReceivedCostEventsData) =>
       processSubWorkflowCost(mbr, data)
     case Event(failure: MetadataServiceFailure, data: HasReceivedEventsData) =>
       data.target ! FailedMetadataJsonResponse(data.originalRequest, failure.reason)
@@ -482,7 +503,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
         failAndDie(new Exception(message), data.target, data.originalRequest)
     }
 
-  def processSubWorkflowCost(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) =
+  def processSubWorkflowCost(metadataResponse: MetadataJsonResponse, data: HasReceivedCostEventsData) =
     metadataResponse match {
       case SuccessfulMetadataJsonResponse(GetCost(workflowId), js) =>
         val subId: WorkflowId = workflowId
@@ -491,7 +512,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
         if (newData.isComplete) {
           buildCostAndStop(
             data.originalQuery.workflowId,
-            extractFromJsAs[JsString](js, "status").map(_.value).getOrElse(""), // should never be empty
+            data.originalStatus,
             data.originalEvents,
             newData.subWorkflowsMetadata,
             data.target,
@@ -579,7 +600,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
 
     if (subWorkflowIds.isEmpty)
       // If no subworkflows found, just build cost data
-      buildCostAndStop(id, status.toString, metadataResponse.eventList, Map.empty, target, originalRequest)
+      buildCostAndStop(id, status, metadataResponse.eventList, Map.empty, target, originalRequest)
     else {
       // Otherwise spin up a metadata builder actor for each sub workflow
       subWorkflowIds foreach { subId =>
@@ -591,18 +612,19 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
         )
         subMetadataBuilder ! GetCost(WorkflowId.fromString(subId))
       }
-      goto(WaitingForSubWorkflowCost) using HasReceivedEventsData(target,
-                                                                  originalRequest,
-                                                                  metadataResponse.query,
-                                                                  metadataResponse.eventList,
-                                                                  Map.empty,
-                                                                  subWorkflowIds.size
+      goto(WaitingForSubWorkflowCost) using HasReceivedCostEventsData(target,
+                                                                      originalRequest,
+                                                                      metadataResponse.query,
+                                                                      metadataResponse.eventList,
+                                                                      status,
+                                                                      Map.empty,
+                                                                      subWorkflowIds.size
       )
     }
   }
 
   def buildCostAndStop(id: WorkflowId,
-                       status: String,
+                       status: WorkflowState,
                        eventsList: Seq[MetadataEvent],
                        expandedValues: Map[String, JsValue],
                        target: ActorRef,
@@ -644,7 +666,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
     val resp = JsObject(
       Map(
         WorkflowMetadataKeys.Id -> JsString(id.toString),
-        WorkflowMetadataKeys.Status -> JsString(status),
+        WorkflowMetadataKeys.Status -> JsString(status.toString),
         "currency" -> JsString(DefaultCurrency.getCurrencyCode),
         "cost" -> JsNumber(callCost + subworkflowCost),
         "errors" -> JsArray(costErrors ++ subworkflowErrors)

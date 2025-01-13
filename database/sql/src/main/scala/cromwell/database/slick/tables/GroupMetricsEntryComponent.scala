@@ -2,6 +2,7 @@ package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.GroupMetricsEntry
 import slick.lifted.ProvenShape
+//import shapeless.syntax.std.tuple._
 
 import java.sql.Timestamp
 
@@ -31,6 +32,13 @@ trait GroupMetricsEntryComponent {
                                                        groupMetricsEntryId.?
     ) <> ((GroupMetricsEntry.apply _).tupled, GroupMetricsEntry.unapply)
 
+//    def baseProjection = (groupId, quotaExhaustionDetected)
+//
+//    def forUpdate = baseProjection.shaped <> (
+//      tuple => GroupMetricsEntry.tupled(tuple :+ None),
+//      GroupMetricsEntry.unapply(_: GroupMetricsEntry).map(_.reverse.tail.reverse)
+//    )
+
     def ixGroupMetricsEntryGi = index("IX_GROUP_METRICS_ENTRY_GI", groupId, unique = false)
   }
 
@@ -38,12 +46,51 @@ trait GroupMetricsEntryComponent {
 
   val groupMetricsEntryIdsAutoInc = groupMetricsEntries returning groupMetricsEntries.map(_.groupMetricsEntryId)
 
-  val quotaExhaustionForGroupId = Compiled((groupId: Rep[String]) =>
-    for {
+//  val quotaExhaustionForGroupId = Compiled((groupId: Rep[String]) =>
+//    for {
+//      groupMetricsEntry <- groupMetricsEntries
+//      if groupMetricsEntry.groupId === groupId
+//    } yield groupMetricsEntry.quotaExhaustionDetected
+//  )
+
+//  val quotaExhaustionForGroupId = Compiled((groupId: Rep[String]) =>
+//    for {
+//      groupMetricsEntry <- groupMetricsEntries
+//      if groupMetricsEntry.groupId === groupId
+//    } yield groupMetricsEntry.forUpdate
+//  )
+
+  val entryForGroupIdForUpdate = Compiled { (groupId: Rep[String]) =>
+    val entryToUpdate = for {
       groupMetricsEntry <- groupMetricsEntries
       if groupMetricsEntry.groupId === groupId
-    } yield groupMetricsEntry.quotaExhaustionDetected
-  )
+    } yield groupMetricsEntry
+
+    entryToUpdate.forUpdate
+  }
+
+  val quotaExhaustionForGroupId = Compiled((groupId: Rep[String]) =>
+      for {
+        groupMetricsEntry <- groupMetricsEntries
+        if groupMetricsEntry.groupId === groupId
+      } yield groupMetricsEntry.quotaExhaustionDetected
+    )
+
+//  val doEverything = Compiled { (groupId: Rep[String], newQuotaExhaustion: Timestamp) =>
+//    val entryToUpdate = for {
+//      rowsAffected <- groupMetricsEntries.filter(r => r.groupId === groupId).map(_.quotaExhaustionDetected).update(newQuotaExhaustion)
+//    } yield groupMetricsEntry
+//  }
+
+//  val updateQuotaExhaustionForGroup = Compiled { (groupId: Rep[String], newTimestamp: Timestamp) =>
+//    val entryToUpdate = for {
+//      groupMetricsEntry <- groupMetricsEntries
+//      if groupMetricsEntry.groupId === groupId
+//    } yield groupMetricsEntry.quotaExhaustionDetected
+//
+//    entryToUpdate.update(newTimestamp)
+//  }
+
 
   val countGroupMetricsEntriesForGroupId = Compiled((groupId: Rep[String]) =>
     {

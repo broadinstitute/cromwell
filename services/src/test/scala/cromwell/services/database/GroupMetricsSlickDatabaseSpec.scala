@@ -4,13 +4,13 @@ import com.dimafeng.testcontainers.Container
 import cromwell.core.Tags.DbmsTest
 import cromwell.database.sql.SqlConverters.OffsetDateTimeToSystemTimestamp
 import cromwell.database.sql.tables.GroupMetricsEntry
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.time.{Millis, Seconds, Span}
 
 import java.time.OffsetDateTime
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 
 class GroupMetricsSlickDatabaseSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
@@ -106,6 +106,32 @@ class GroupMetricsSlickDatabaseSpec extends AnyFlatSpec with Matchers with Scala
           OffsetDateTime.now.minusMinutes(15).toSystemTimestamp
         )
         _ = quotaExhaustedGroups shouldBe empty
+      } yield ()).futureValue
+    }
+
+    it should "handle parallel upserts to database" taggedAs DbmsTest in {
+      val group1 = "groot-group-1"
+      val group2 = "groot-group-2"
+      val group3 = "rocket-group-1"
+      val group4 = "rocket-group-2"
+
+      // simulate parallel upsert for 4 different hog groups
+      // 4 * 25 => 100 parallel transactions
+      val inputGroups =  (0 until 25).flatMap(_ => List(group1, group2, group3, group4))
+
+      println(s"### FIND ME: size ${inputGroups.size}")
+
+      (for {
+        _ <- Future.sequence(inputGroups.map(r => dataAccess.recordGroupMetricsEntry(GroupMetricsEntry(r, OffsetDateTime.now.toSystemTimestamp))))
+        rowCountGroup1 <- dataAccess.countGroupMetricsEntries(group1)
+        rowCountGroup2 <- dataAccess.countGroupMetricsEntries(group2)
+        rowCountGroup3 <- dataAccess.countGroupMetricsEntries(group3)
+        rowCountGroup4 <- dataAccess.countGroupMetricsEntries(group4)
+        // only 1 row for each hog group should exist in table
+        _ = rowCountGroup1 shouldBe 1
+        _ = rowCountGroup2 shouldBe 1
+        _ = rowCountGroup3 shouldBe 1
+        _ = rowCountGroup4 shouldBe 1
       } yield ()).futureValue
     }
 

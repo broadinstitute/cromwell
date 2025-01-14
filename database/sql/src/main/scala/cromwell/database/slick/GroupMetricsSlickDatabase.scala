@@ -22,6 +22,10 @@ trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase {
           .quotaExhaustionForGroupId(groupMetricsEntry.groupId)
           .update(groupMetricsEntry.quotaExhaustionDetected)
       } yield ()
+
+      // The transaction level is set to 'ReadCommitted' to avoid Postgres returning error `could not serialize
+      // access due to concurrent update` which happens in 'RepeatableRead' or higher isolation levels.
+      // See https://stackoverflow.com/questions/50797097/postgres-could-not-serialize-access-due-to-concurrent-update
       runTransaction(updateAction, TransactionIsolation.ReadCommitted)
     }
 
@@ -43,7 +47,7 @@ trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase {
       _ <- dataAccess.groupMetricsEntryIdsAutoInc += groupMetricsEntry
     } yield ()
 
-    runTransaction(insertAction, TransactionIsolation.ReadCommitted)
+    runTransaction(insertAction)
       .recoverWith {
         case ex
             if ex.isInstanceOf[SQLIntegrityConstraintViolationException] || (ex

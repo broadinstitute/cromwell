@@ -25,17 +25,19 @@ trait GroupMetricsSlickDatabase extends GroupMetricsSqlDatabase {
       runTransaction(updateAction, TransactionIsolation.ReadCommitted)
     }
 
-    /* The approach here is to try and insert the record into database in 1 transaction and if that fails, because
-       a record with that group_id already exists, then it will update that record with new quota_exhaustion_detected
-       timestamp in a separate transaction. The reason for 2 separate transactions are because when manual upsert or
-       Slick's insertOrUpdate is performed in a single transaction, and there are threads trying to update the table
-       concurrently it results in a deadlock (even with stricter transaction isolation level Serializable). This
-       happens because it gets a gap lock on index IX_GROUP_METRICS_ENTRY_GI which locks the gaps between index records
-       within the page and as a result it runs into a deadlock when there are transactions trying to insert/update for
-       same group ID or for group IDs that exist in the locked records.
-       See https://broadworkbench.atlassian.net/browse/AN-286 and https://broadworkbench.atlassian.net/browse/WX-1847.
+    /*
+      The approach here is to try and insert the record into the table and if that fails because a record with that
+      group_id already exists, then it will update that record with new quota_exhaustion_detected timestamp.
+      The insert and update happen in 2 different transactions. Using 2 separate transactions avoids deadlocks that
+      occur during upserts or when using Slick's insertOrUpdate in a single transaction. Deadlocks occur in scenarios
+      with concurrent threads trying to update the table, even under the stricter Serializable transaction isolation
+      level. This is caused by a gap lock on the IX_GROUP_METRICS_ENTRY_GI index, which locks gaps between index
+      records on a page, leading to deadlocks for transactions involving the same or nearby group_id values.
+      See https://broadworkbench.atlassian.net/browse/AN-286 and https://broadworkbench.atlassian.net/browse/WX-1847.
 
-       Note: a unique constraint on group_id also exists in database.
+      This approach should have minimal performance impact since the table has only 3 columns and low cardinality.
+
+      Note: a unique constraint on group_id also exists in database.
      */
     val insertAction = for {
       _ <- dataAccess.groupMetricsEntryIdsAutoInc += groupMetricsEntry

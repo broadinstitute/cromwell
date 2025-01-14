@@ -543,6 +543,8 @@ cromwell::private::pip_install() {
 
 cromwell::private::upgrade_pip() {
     sudo apt-get install -y python3-pip
+    # as of ubuntu 23 need to pass --user flag
+    # https://mail.openvswitch.org/pipermail/ovs-dev/2024-June/414969.html
     cromwell::private::pip_install pip --upgrade --user pip
     cromwell::private::pip_install requests[security] --ignore-installed
 }

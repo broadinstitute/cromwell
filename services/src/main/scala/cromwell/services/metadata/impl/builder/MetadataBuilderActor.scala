@@ -36,6 +36,10 @@ object MetadataBuilderActor {
   final case class HasWorkData(target: ActorRef, originalRequest: BuildMetadataJsonAction)
       extends MetadataBuilderActorData
 
+  // Classes extending this trait are used to track state when the actor has launched child
+  // actors to collect metadata for subworkflows. This class aggregates data as it comes in,
+  // and builds the complete output when all subworkflow data is present. There's one child
+  // class for plain metadata queries and one for cost queries.
   sealed trait EventsCollectorData extends MetadataBuilderActorData {
     val target: ActorRef
     val originalRequest: BuildMetadataJsonAction
@@ -46,6 +50,7 @@ object MetadataBuilderActor {
 
     def isComplete = subWorkflowsMetadata.size == waitFor
   }
+
   final case class HasReceivedEventsData(target: ActorRef,
                                          originalRequest: BuildMetadataJsonAction,
                                          originalQuery: MetadataQuery,

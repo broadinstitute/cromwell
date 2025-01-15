@@ -1,17 +1,13 @@
 codecov:
-  branch: develop
-
-coverage:
-  range: 0..100
-
   status:
     project:
       default:
         base: pr
-        target: 0%
+        target: 10%
+        threshold: 5%
     patch:
       default:
         base: pr
-        target: 0%
-
+        target: 10%
+        threshold: 5%
 comment: off

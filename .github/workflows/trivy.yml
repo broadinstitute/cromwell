@@ -17,6 +17,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - uses: sbt/setup-sbt@v1
 
       # fetch SBT package
       - uses: actions/setup-java@v4

@@ -347,7 +347,8 @@ class MetadataBuilderActorSpec
     val subWorkflow1aId = WorkflowId(UUID.fromString("1a1a1a1a-f76d-4af3-b371-5ba580916729"))
     val subWorkflow1bId = WorkflowId(UUID.fromString("1b1b1b1b-f76d-4af3-b371-5ba580916729"))
 
-    val workflowState = WorkflowSucceeded
+    val workflowSucceededState = WorkflowSucceeded
+    val workflowRunningState = WorkflowRunning
 
     val mainEvents = List(
       MetadataEvent(MetadataKey(mainWorkflowId, Option(MetadataJobKey("wfMain", None, 1)), "subWorkflowId"),
@@ -391,19 +392,25 @@ class MetadataBuilderActorSpec
     class TestReadDatabaseMetadataWorkerActorForCost extends ReadDatabaseMetadataWorkerActor(defaultTimeout, 1000000) {
       override def receive: Receive = {
         case GetCost(wfId) if wfId == mainWorkflowId =>
-          sender() ! CostResponse(mainWorkflowId, workflowState, MetadataLookupResponse(mainQuery, mainEvents))
+          sender() ! CostResponse(mainWorkflowId, workflowRunningState, MetadataLookupResponse(mainQuery, mainEvents))
           ()
         case GetCost(wfId) if wfId == subWorkflow1Id =>
-          sender() ! CostResponse(subWorkflow1Id, workflowState, MetadataLookupResponse(sub1Query, sub1Events))
+          sender() ! CostResponse(subWorkflow1Id, workflowSucceededState, MetadataLookupResponse(sub1Query, sub1Events))
           ()
         case GetCost(wfId) if wfId == subWorkflow2Id =>
-          sender() ! CostResponse(subWorkflow2Id, workflowState, MetadataLookupResponse(sub2Query, sub2Events))
+          sender() ! CostResponse(subWorkflow2Id, workflowSucceededState, MetadataLookupResponse(sub2Query, sub2Events))
           ()
         case GetCost(wfId) if wfId == subWorkflow1aId =>
-          sender() ! CostResponse(subWorkflow1aId, workflowState, MetadataLookupResponse(sub1aQuery, sub1aEvents))
+          sender() ! CostResponse(subWorkflow1aId,
+                                  workflowSucceededState,
+                                  MetadataLookupResponse(sub1aQuery, sub1aEvents)
+          )
           ()
         case GetCost(wfId) if wfId == subWorkflow1bId =>
-          sender() ! CostResponse(subWorkflow1bId, workflowState, MetadataLookupResponse(sub1bQuery, sub1bEvents))
+          sender() ! CostResponse(subWorkflow1bId,
+                                  workflowSucceededState,
+                                  MetadataLookupResponse(sub1bQuery, sub1bEvents)
+          )
           ()
         case _ => ()
       }
@@ -414,7 +421,7 @@ class MetadataBuilderActorSpec
          |"cost": 7,
          |"currency": "USD",
          |"id": "${mainWorkflowId}",
-         |"status": "${workflowState.toString}",
+         |"status": "${workflowRunningState.toString}",
          |"errors": ["Couldn't find valid vmCostPerHour for call1aA.-1.1"]
          |}""".stripMargin
 

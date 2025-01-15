@@ -6,18 +6,6 @@ import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.core.DockerCredentials
-import spray.json.{JsString, JsValue}
-
-/**
- * Interface for Authentication information that can be included as a json object in the file uploaded to GCS
- * upon workflow creation and used in the VM.
- */
-sealed trait PipelinesApiAuthObject {
-  def context: String
-  def map: Map[String, JsValue]
-
-  def toMap: Map[String, Map[String, JsValue]] = Map(context -> map)
-}
 
 object PipelinesApiDockerCredentials {
 
@@ -53,10 +41,3 @@ case class PipelinesApiDockerCredentials(override val token: String,
                                          override val keyName: Option[String],
                                          override val authName: Option[String]
 ) extends DockerCredentials(token = token, keyName = keyName, authName = authName)
-    with PipelinesApiAuthObject {
-
-  override val context = "docker"
-  override val map = Map(
-    "token" -> JsString(token)
-  )
-}

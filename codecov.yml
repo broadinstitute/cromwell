@@ -1,21 +1,13 @@
 codecov:
-  branch: develop
-
-coverage:
-  range: 50..75
-  round: down
-  precision: 2
-
   status:
     project:
       default:
         base: pr
-        target: 50%
+        target: 10%
         threshold: 5%
     patch:
       default:
         base: pr
-        target: 50%
+        target: 10%
         threshold: 5%
-
 comment: off

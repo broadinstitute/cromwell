@@ -47,6 +47,7 @@ ReturnToService=1
 SelectType=select/cons_res
 SelectTypeParameters=CR_CPU
 SlurmctldDebug=3
+StateSaveLocation=/var/spool/slurmd
 SLURM_CONF
 
     # Start the slurm master

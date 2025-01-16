@@ -31,6 +31,7 @@ cromwell::build::slurm::setup_slurm_environment() {
     # Create various directories used by slurm
     sudo mkdir -p /var/run/munge
     sudo mkdir -p /var/spool/slurmd
+    sudo chown slurm:slurm /var/spool/slurmd
 
     # A mash of configure-until-it-runs. Feel free to PR suggestions/fixes.
     # https://slurm.schedmd.com/tutorials.html
@@ -44,7 +45,7 @@ NodeName=localhost
 PartitionName=localpartition Nodes=localhost Default=YES
 ProctrackType=proctrack/pgid
 ReturnToService=1
-SelectType=select/cons_res
+SelectType=select/cons_tres
 SelectTypeParameters=CR_CPU
 SlurmctldDebug=3
 StateSaveLocation=/var/spool/slurmd

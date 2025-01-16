@@ -61,10 +61,10 @@ case class GcsUriDownloader(gcsUrl: String,
       backoff foreach { b => Thread.sleep(b.backoffMillis) }
       logger.warn(s"Attempting download retry $downloadAttempt of $downloadRetries for a GCS url")
       downloadWithRetries(downloadRetries,
-        backoff map {
-          _.next
-        },
-        downloadAttempt + 1
+                          backoff map {
+                            _.next
+                          },
+                          downloadAttempt + 1
       )
     } else {
       IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries resolution retries to download GCS file"))

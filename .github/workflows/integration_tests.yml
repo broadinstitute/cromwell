@@ -118,21 +118,16 @@ jobs:
     - uses: actions/checkout@v3 # checkout the cromwell repo
       with:
         ref: ${{ inputs.target-branch }}
-    - name: Setup upterm session
-      uses: lhotari/action-upterm@v1
-      with:
-        ## limits ssh access and adds the ssh public key for the user which triggered the workflow
-        limit-access-to-actor: true
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
     # Activate SSH and idle for 30 minutes
-#    - name: Setup tmate session
-#      uses: mxschmitt/action-tmate@v3
-#      timeout-minutes: 30
-#      with:
-#        limit-access-to-actor: true
-#        detached: true
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      timeout-minutes: 30
+      with:
+        limit-access-to-actor: true
+        detached: true
     #This script bascially just looks up another script to run, assuming that the other script's filename is:
     #src/ci/bin/test${BUILD_TYPE}.sh. The first letter of the BUILD_TYPE is automatically capitalized when looking.
     - name: Run Integration Test

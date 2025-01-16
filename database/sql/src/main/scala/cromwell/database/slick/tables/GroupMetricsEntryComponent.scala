@@ -31,8 +31,6 @@ trait GroupMetricsEntryComponent {
                                                        groupMetricsEntryId.?
     ) <> ((GroupMetricsEntry.apply _).tupled, GroupMetricsEntry.unapply)
 
-    def ixGroupMetricsEntryGi = index("IX_GROUP_METRICS_ENTRY_GI", groupId, unique = false)
-
     def ucGroupMetricsEntryGi = index("UC_GROUP_METRICS_ENTRY_GI", groupId, unique = true)
   }
 

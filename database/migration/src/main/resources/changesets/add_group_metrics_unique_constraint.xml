@@ -5,9 +5,13 @@
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
 <changeSet id="add_unique_constraint_group_metrics" author="sshah" dbms="mysql,hsqldb,mariadb,postgresql">
-        <addUniqueConstraint
-                tableName="GROUP_METRICS_ENTRY"
-                columnNames="GROUP_ID"
-                constraintName="UC_GROUP_METRICS_ENTRY_GI"/>
+    <dropIndex
+            tableName="GROUP_METRICS_ENTRY"
+            indexName="IX_GROUP_METRICS_ENTRY_GI" />
+
+    <addUniqueConstraint
+            tableName="GROUP_METRICS_ENTRY"
+            columnNames="GROUP_ID"
+            constraintName="UC_GROUP_METRICS_ENTRY_GI"/>
     </changeSet>
 </databaseChangeLog>

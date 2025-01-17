@@ -55,7 +55,7 @@ EOF
     cat <<SLURM_CONF | sudo tee /etc/slurm/slurm.conf >/dev/null
 ClusterName=localhost
 ControlMachine=localhost
-NodeName=localhost
+NodeName=localhost CPUs=4 Sockets=1 CoresPerSocket=2 ThreadsPerCore=2
 PartitionName=localpartition Nodes=localhost Default=YES
 ProctrackType=proctrack/pgid
 ReturnToService=1

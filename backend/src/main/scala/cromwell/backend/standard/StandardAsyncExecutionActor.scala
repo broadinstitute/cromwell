@@ -451,6 +451,8 @@ trait StandardAsyncExecutionActor
       .getOrElse(s"""(
                     |# add a .file in every empty directory to facilitate directory delocalization on the cloud
                     |cd $cwd
+                    |echo "I am..."
+                    |whoami
                     |find . -type d -exec sh -c '[ -z "$$(ls -A '"'"'{}'"'"')" ] && touch '"'"'{}'"'"'/.file' \\;
                     |)""".stripMargin)
 

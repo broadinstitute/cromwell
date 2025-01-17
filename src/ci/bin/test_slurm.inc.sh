@@ -33,17 +33,18 @@ cromwell::build::slurm::setup_slurm_environment() {
     sudo mkdir -p /var/spool/slurmd
     sudo chown slurm:slurm /var/spool/slurmd
 
-    # Set up an AppArmor profile for singularity to allow non-root users to use it.
+    # Set up an AppArmor profile for Apptainer to allow non-root users to use it.
     # This became required in Ubuntu 24.04
-    sudo tee /etc/apparmor.d/singularity << 'EOF'
+    sudo tee /etc/apparmor.d/apptainer << 'EOF'
 abi <abi/4.0>,
 include <tunables/global>
 
-profile singularity /usr/bin/singularity{,-suid} flags=(unconfined) {
+profile apptainer /usr/bin/apptainer{,-suid} flags=(unconfined) {
   userns,
 }
 EOF
 
+    # Reload to get new profile created above
     sudo systemctl reload apparmor
 
     # A mash of configure-until-it-runs. Feel free to PR suggestions/fixes.

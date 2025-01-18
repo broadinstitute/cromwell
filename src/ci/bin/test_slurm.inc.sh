@@ -56,7 +56,7 @@ EOF
 ClusterName=localhost
 ControlMachine=localhost
 NodeName=localhost CPUs=4 Sockets=1 CoresPerSocket=2 ThreadsPerCore=2
-PartitionName=localpartition Nodes=localhost Default=YES
+PartitionName=localpartition Nodes=localhost Default=YES Oversubscribe=Force
 ProctrackType=proctrack/pgid
 ReturnToService=1
 SelectType=select/cons_tres

@@ -59,6 +59,10 @@ The index had low cardinality and workflow pickup is faster without it. Migratio
 
 The `IX_METADATA_ENTRY_WEU_MK` index is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.
 
+#### Unique constraint addition
+
+The `UC_GROUP_METRICS_ENTRY_GI` constraint has been added to column `GROUP_ID` in `GROUP_METRICS_ENTRY` table. This additionally enforces at database level that the `GROUP_ID` column always contains unique values.
+
 ### Reduce errors from boot disk filling up on Google Lifesciences API
 
  * If Cromwell can't determine the size of the user command Docker image, it will increase Lifesciences API boot disk size by 30GB rather than 0. This should reduce incidence of tasks failing due to boot disk filling up.

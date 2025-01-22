@@ -31,6 +31,21 @@ cromwell::build::slurm::setup_slurm_environment() {
     # Create various directories used by slurm
     sudo mkdir -p /var/run/munge
     sudo mkdir -p /var/spool/slurmd
+    sudo chown slurm:slurm /var/spool/slurmd
+
+    # Set up an AppArmor profile for Apptainer to allow non-root users to use it.
+    # This became required in Ubuntu 24.04
+    sudo tee /etc/apparmor.d/apptainer << 'EOF'
+abi <abi/4.0>,
+include <tunables/global>
+
+profile apptainer /usr/bin/apptainer{,-suid} flags=(unconfined) {
+  userns,
+}
+EOF
+
+    # Reload to get new profile created above
+    sudo systemctl reload apparmor
 
     # A mash of configure-until-it-runs. Feel free to PR suggestions/fixes.
     # https://slurm.schedmd.com/tutorials.html
@@ -40,13 +55,14 @@ cromwell::build::slurm::setup_slurm_environment() {
     cat <<SLURM_CONF | sudo tee /etc/slurm/slurm.conf >/dev/null
 ClusterName=localhost
 ControlMachine=localhost
-NodeName=localhost
-PartitionName=localpartition Nodes=localhost Default=YES
+NodeName=localhost CPUs=4 Sockets=1 CoresPerSocket=2 ThreadsPerCore=2
+PartitionName=localpartition Nodes=localhost Default=YES Oversubscribe=Force
 ProctrackType=proctrack/pgid
 ReturnToService=1
-SelectType=select/cons_res
+SelectType=select/cons_tres
 SelectTypeParameters=CR_CPU
 SlurmctldDebug=3
+StateSaveLocation=/var/spool/slurmd
 SLURM_CONF
 
     # Start the slurm master

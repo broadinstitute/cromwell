@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+<changeSet id="add_unique_constraint_group_metrics" author="sshah" dbms="mysql,hsqldb,mariadb,postgresql">
+    <dropIndex
+            tableName="GROUP_METRICS_ENTRY"
+            indexName="IX_GROUP_METRICS_ENTRY_GI" />
+
+    <addUniqueConstraint
+            tableName="GROUP_METRICS_ENTRY"
+            columnNames="GROUP_ID"
+            constraintName="UC_GROUP_METRICS_ENTRY_GI"/>
+    </changeSet>
+</databaseChangeLog>

@@ -61,10 +61,9 @@ case class GcsUriDownloader(gcsUrl: String,
     def handleDownloadFailure(t: Throwable): IO[DownloadResult] =
       downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
 
-    logger.info(s"Attempting download attempt $downloadAttempt of $downloadRetries for a GCS url")
-
     if (downloadAttempt < downloadRetries) {
       backoff foreach { b => Thread.sleep(b.backoffMillis) }
+      logger.info(s"Attempting download attempt $downloadAttempt of $downloadRetries for a GCS url")
       runDownloadCommand.redeemWith(
         recover = handleDownloadFailure,
         bind = {

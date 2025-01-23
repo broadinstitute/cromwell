@@ -100,12 +100,14 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
 
   it should "fail to download GCS URL after 5 attempts" in {
     val gcsUrl = "gs://foo/bar.bam"
-    val downloader = spy(new GcsUriDownloader(
-      gcsUrl = gcsUrl,
-      downloadLoc = fakeDownloadLocation,
-      requesterPaysProjectIdOption = Option(fakeRequesterPaysId),
-      serviceAccountJson = None
-    ))
+    val downloader = spy(
+      new GcsUriDownloader(
+        gcsUrl = gcsUrl,
+        downloadLoc = fakeDownloadLocation,
+        requesterPaysProjectIdOption = Option(fakeRequesterPaysId),
+        serviceAccountJson = None
+      )
+    )
 
     val result = downloader.downloadWithRetries(5, None).attempt.unsafeRunSync()
 

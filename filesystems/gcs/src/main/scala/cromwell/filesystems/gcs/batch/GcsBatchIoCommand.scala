@@ -175,11 +175,10 @@ object GcsBatchSizeCommand {
     file.objectBlobId.map(GcsBatchSizeCommand(file, _))
 }
 
-// TODO rename
-case class GcsBatchCrc32Command(override val file: GcsPath,
-                                override val hashStrategy: AsyncFileHashingStrategy,
-                                val blob: BlobId,
-                                setUserProject: Boolean = false
+case class GcsBatchHashCommand(override val file: GcsPath,
+                               override val hashStrategy: AsyncFileHashingStrategy,
+                               val blob: BlobId,
+                               setUserProject: Boolean = false
 ) extends IoHashCommand(file, hashStrategy)
     with GcsBatchGetCommand[String] {
   override def mapGoogleResponse(response: StorageObject): ErrorOr[String] =
@@ -205,14 +204,14 @@ case class GcsBatchCrc32Command(override val file: GcsPath,
     case Some(id) => id.validNel
   }
 
-  override def withUserProject: GcsBatchCrc32Command = this.copy(setUserProject = true)
+  override def withUserProject: GcsBatchHashCommand = this.copy(setUserProject = true)
 
   override def commandDescription: String = s"GcsBatchCrc32Command file '$file' setUserProject '$setUserProject'"
 }
 
-object GcsBatchCrc32Command {
-  def forPath(file: GcsPath, hashStrategy: AsyncFileHashingStrategy): Try[GcsBatchCrc32Command] =
-    file.objectBlobId.map(GcsBatchCrc32Command(file, hashStrategy, _))
+object GcsBatchHashCommand {
+  def forPath(file: GcsPath, hashStrategy: AsyncFileHashingStrategy): Try[GcsBatchHashCommand] =
+    file.objectBlobId.map(GcsBatchHashCommand(file, hashStrategy, _))
 }
 
 case class GcsBatchTouchCommand(override val file: GcsPath, override val blob: BlobId, setUserProject: Boolean = false)

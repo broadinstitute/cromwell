@@ -88,7 +88,7 @@ class IoActorProxyGcsBatchSpec
 
     val copyCommand = GcsBatchCopyCommand.forPaths(src, dst).get
     val sizeCommand = GcsBatchSizeCommand.forPath(src).get
-    val hashCommand = GcsBatchCrc32Command.forPath(src).get
+    val hashCommand = GcsBatchHashCommand.forPath(src).get
     // Should return true
     val isDirectoryCommand = GcsBatchIsDirectoryCommand.forPath(directory).get
     // Should return false
@@ -112,7 +112,7 @@ class IoActorProxyGcsBatchSpec
       fileSize shouldBe 5
     }
 
-    received1 collect { case IoSuccess(_: GcsBatchCrc32Command, hash: String) =>
+    received1 collect { case IoSuccess(_: GcsBatchHashCommand, hash: String) =>
       hash shouldBe "mnG7TA=="
     }
 

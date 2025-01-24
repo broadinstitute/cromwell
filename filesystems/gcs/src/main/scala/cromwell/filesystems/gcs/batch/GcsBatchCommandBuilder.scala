@@ -20,9 +20,9 @@ private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilde
     case (gcsSrc: GcsPath, gcsDest: GcsPath) => GcsBatchCopyCommand.forPaths(gcsSrc, gcsDest)
   }
 
-  override def hashCommand: PartialFunction[(Path, AsyncFileHashingStrategy), Try[GcsBatchCrc32Command]] = {
+  override def hashCommand: PartialFunction[(Path, AsyncFileHashingStrategy), Try[GcsBatchHashCommand]] = {
     case (gcsPath: GcsPath, s) =>
-      GcsBatchCrc32Command.forPath(gcsPath, s)
+      GcsBatchHashCommand.forPath(gcsPath, s)
   }
 
   override def touchCommand: PartialFunction[Path, Try[GcsBatchTouchCommand]] = { case gcsPath: GcsPath =>

@@ -111,7 +111,6 @@ case class S3BatchSizeCommand(override val file: S3Path) extends IoSizeCommand(f
   * `IoCommand` to find the hash of an s3 object (the `Etag`)
   * @param file the path to the object
   */
-// TODO rename
 case class S3BatchEtagCommand(override val file: S3Path, override val hashStrategy: AsyncFileHashingStrategy)
     extends IoHashCommand(file, hashStrategy)
     with S3BatchHeadCommand[String] {

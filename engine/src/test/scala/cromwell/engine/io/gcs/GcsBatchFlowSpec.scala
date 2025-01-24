@@ -7,7 +7,7 @@ import common.assertion.CromwellTimeoutSpec
 import cromwell.core.TestKitSuite
 import cromwell.engine.io.IoCommandContext
 import cromwell.filesystems.gcs.GcsPath
-import cromwell.filesystems.gcs.batch.GcsBatchCrc32Command
+import cromwell.filesystems.gcs.batch.GcsBatchHashCommand
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -85,7 +85,7 @@ class GcsBatchFlowSpec
       projectId = "GcsBatchFlowSpec-project"
     )
     val gcsBatchCommandContext =
-      GcsBatchCommandContext(GcsBatchCrc32Command.forPath(mockGcsPath).get, TestProbe().ref, 5)
+      GcsBatchCommandContext(GcsBatchHashCommand.forPath(mockGcsPath).get, TestProbe().ref, 5)
     val recoverCommandPrivateMethod =
       PrivateMethod[PartialFunction[Throwable, Future[GcsBatchResponse[_]]]](Symbol("recoverCommand"))
     val partialFuncAcceptingThrowable = gcsBatchFlow invokePrivate recoverCommandPrivateMethod(gcsBatchCommandContext)

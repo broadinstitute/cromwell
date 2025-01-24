@@ -53,9 +53,9 @@ private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder
     case (src: S3Path, dest: S3Path) => Try(S3BatchCopyCommand(src, dest))
   }
 
-  override def hashCommand: PartialFunction[(Path, AsyncFileHashingStrategy), Try[S3BatchEtagCommand]] = {
+  override def hashCommand: PartialFunction[(Path, AsyncFileHashingStrategy), Try[S3BatchHashCommand]] = {
     case (path: S3Path, s) =>
-      Try(S3BatchEtagCommand(path, s))
+      Try(S3BatchHashCommand(path, s))
   }
 
   override def touchCommand: PartialFunction[Path, Try[S3BatchTouchCommand]] = { case path: S3Path =>

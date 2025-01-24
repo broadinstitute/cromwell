@@ -30,7 +30,11 @@
  */
 package cromwell.backend.impl.aws.callcaching
 
-import cromwell.backend.standard.callcaching.{StandardFileHashingActor, StandardFileHashingActorParams}
+import cromwell.backend.standard.callcaching.{
+  AsyncFileHashingStrategy,
+  StandardFileHashingActor,
+  StandardFileHashingActorParams
+}
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.backend.BackendInitializationData
 import cromwell.backend.impl.aws.AwsBatchBackendInitializationData
@@ -39,6 +43,10 @@ import cromwell.core.io.DefaultIoCommandBuilder
 
 class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorParams)
     extends StandardFileHashingActor(standardParams) {
+
+  override val defaultHashingStrategies: Map[String, AsyncFileHashingStrategy] = Map(
+    ("s3", AsyncFileHashingStrategy.ETag)
+  )
 
   override val ioCommandBuilder = BackendInitializationData
     .as[AwsBatchBackendInitializationData](standardParams.backendInitializationDataOption)

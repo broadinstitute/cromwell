@@ -52,6 +52,10 @@ case class FileHashContext(hashKey: HashKey, file: String)
 class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams)
     extends StandardFileHashingActor(standardParams) {
   override val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+
+  override val defaultHashingStrategies: Map[String, AsyncFileHashingStrategy] = Map(
+    ("drs", AsyncFileHashingStrategy.Crc32c)
+  )
 }
 
 object StandardFileHashingActor {

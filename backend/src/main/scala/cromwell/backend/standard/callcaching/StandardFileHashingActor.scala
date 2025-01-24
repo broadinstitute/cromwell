@@ -1,17 +1,21 @@
 package cromwell.backend.standard.callcaching
 
 import java.util.concurrent.TimeoutException
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Timers}
 import akka.event.LoggingAdapter
+import cats.derived.auto.iterable.kittensMkIterable
+import com.typesafe.config.Config
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.IoHashCommandWithContext
 import cromwell.backend.standard.callcaching.StandardFileHashingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.JobKey
 import cromwell.core.callcaching._
+import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.Path
+import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
 import scala.util.{Failure, Success, Try}
@@ -80,9 +84,39 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
 
+  // Child classes can override to set per-filesystem defaults
+  val defaultHashingStrategies: Map[String, AsyncFileHashingStrategy] = Map.empty
+
+  // Hashing strategy to use if none is configured.
+  val fallbackHashingStrategy: AsyncFileHashingStrategy = AsyncFileHashingStrategy.Md5
+
+  // Combines defaultHashingStrategies with user-provided configuration
+  lazy val hashingStrategies: Map[String, AsyncFileHashingStrategy] = {
+
+    val configuredHashingStrategies = for {
+      fsConfigs <- configurationDescriptor.backendConfig.as[Option[Config]]("filesystems").toList
+      fsKey <- fsConfigs.entrySet.map(_.getKey)
+      fileHashStrategyName <- fsConfigs.as[Option[String]](s"fileSystems.${fsKey}.caching.hash-strategy")
+      fileHashStrategy <- AsyncFileHashingStrategy(fileHashStrategyName)
+      _ = log.info(s"Call caching hash strategy for ${fsKey} files will be ${fileHashStrategy}")
+    } yield (fsKey, fileHashStrategy)
+
+    val strats = defaultHashingStrategies ++ configuredHashingStrategies
+    val stratsReport = strats.keys.toList.sorted.map(k => s"$k -> ${strats.get(k)}").mkString(", ")
+    log.info(
+      s"Call caching configured with per-filesystem file hashing strategies: $stratsReport. " +
+        "Others will use $fallbackHashingStrategy."
+    )
+    strats
+  }
+
   protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
+  // Used by ConfigBackend for synchronous hashing of local files
   def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = None
+
+  def hashStrategyForPath(p: Path): AsyncFileHashingStrategy =
+    hashingStrategies.getOrElse(p.filesystemTypeKey, fallbackHashingStrategy)
 
   def fileHashingReceive: Receive = {
     // Hash Request
@@ -115,8 +149,8 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
   def asyncHashing(fileRequest: SingleFileHashRequest, replyTo: ActorRef): Unit = {
     val fileAsString = fileRequest.file.value
     val ioHashCommandTry = for {
-      gcsPath <- getPath(fileAsString)
-      command <- ioCommandBuilder.hashCommand(gcsPath)
+      path <- getPath(fileAsString)
+      command <- ioCommandBuilder.hashCommand(path)
     } yield command
     lazy val fileHashContext = FileHashContext(fileRequest.hashKey, fileRequest.file.value)
 

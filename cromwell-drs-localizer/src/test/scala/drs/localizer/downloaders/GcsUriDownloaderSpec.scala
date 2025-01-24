@@ -1,6 +1,7 @@
 package drs.localizer.downloaders
 
 import common.assertion.CromwellTimeoutSpec
+import org.mockito.Mockito.{spy, times, verify}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -95,5 +96,28 @@ class GcsUriDownloaderSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
          |""".stripMargin
 
     downloader.generateDownloadScript(gcsUrl, Option(fakeSAJsonPath)) shouldBe expectedDownloadScript
+  }
+
+  it should "fail to download GCS URL after 5 attempts" in {
+    val gcsUrl = "gs://foo/bar.bam"
+    val downloader = spy(
+      new GcsUriDownloader(
+        gcsUrl = gcsUrl,
+        downloadLoc = fakeDownloadLocation,
+        requesterPaysProjectIdOption = Option(fakeRequesterPaysId),
+        serviceAccountJson = None
+      )
+    )
+
+    val result = downloader.downloadWithRetries(5, None).attempt.unsafeRunSync()
+
+    result.isLeft shouldBe true
+    // attempts to download the 1st time and the 5th time, but doesn't attempt a 6th
+    verify(downloader, times(1)).downloadWithRetries(5, None, 1)
+    verify(downloader, times(1)).downloadWithRetries(5, None, 5)
+    verify(downloader, times(0)).downloadWithRetries(5, None, 6)
+    // attempts the actual download command 5 times
+    verify(downloader, times(5)).runDownloadCommand
+
   }
 }

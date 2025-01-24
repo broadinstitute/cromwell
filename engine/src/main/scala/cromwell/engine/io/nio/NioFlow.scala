@@ -173,7 +173,7 @@ class NioFlow(parallelism: Int,
     }
 
   private def hash(hash: IoHashCommand): IO[String] =
-    NioHashing.hash(hash.file)
+    NioHashing.hash(hash.file, hash.hashStrategy)
 
   private def touch(touch: IoTouchCommand) = IO {
     touch.file.touch()

@@ -3,6 +3,7 @@ package cromwell.engine.io.nio
 import cats.effect.IO
 import cloud.nio.spi.{FileHash, HashType}
 import common.util.StringUtil.EnhancedString
+import cromwell.core.callcaching.AsyncFileHashingStrategy
 import cromwell.core.path.Path
 import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.DrsPath
@@ -15,7 +16,8 @@ import scala.util.Try
 
 object NioHashing {
 
-  def hash(file: Path): IO[String] =
+  // TODO update logic to respect hashStrategy
+  def hash(file: Path, hashStrategy: AsyncFileHashingStrategy): IO[String] =
     // If there is no hash accessible from the file storage system,
     // we'll read the file and generate the hash ourselves if we can.
     getStoredHash(file)

@@ -8,6 +8,7 @@ import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageO
 import com.google.cloud.storage.BlobId
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
+import cromwell.core.callcaching.AsyncFileHashingStrategy
 import cromwell.core.io._
 import cromwell.filesystems.gcs._
 import mouse.all._
@@ -174,14 +175,35 @@ object GcsBatchSizeCommand {
     file.objectBlobId.map(GcsBatchSizeCommand(file, _))
 }
 
-case class GcsBatchCrc32Command(override val file: GcsPath, override val blob: BlobId, setUserProject: Boolean = false)
-    extends IoHashCommand(file)
+// TODO rename
+case class GcsBatchCrc32Command(override val file: GcsPath,
+                                override val hashStrategy: AsyncFileHashingStrategy,
+                                val blob: BlobId,
+                                setUserProject: Boolean = false
+) extends IoHashCommand(file, hashStrategy)
     with GcsBatchGetCommand[String] {
   override def mapGoogleResponse(response: StorageObject): ErrorOr[String] =
-    Option(response.getCrc32c) match {
-      case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null CRC32C checksum".invalidNel
-      case Some(crc32c) => crc32c.validNel
+    hashStrategy match {
+      case AsyncFileHashingStrategy.Crc32c => getCrc32c(response)
+      case AsyncFileHashingStrategy.Md5 => getMd5(response)
+      case AsyncFileHashingStrategy.Md5ThenIdentity => getMd5(response).orElse(getIdentity(response))
+      case _ => s"Hash strategy $hashStrategy is not supported by GCS".invalidNel
     }
+
+  private def getCrc32c(response: StorageObject): ErrorOr[String] = Option(response.getCrc32c) match {
+    case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null CRC32C checksum".invalidNel
+    case Some(crc32c) => crc32c.validNel
+  }
+
+  private def getMd5(response: StorageObject): ErrorOr[String] = Option(response.getMd5Hash) match {
+    case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null MD5 checksum".invalidNel
+    case Some(md5) => md5.validNel
+  }
+
+  private def getIdentity(response: StorageObject): ErrorOr[String] = Option(response.getId) match {
+    case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null identity".invalidNel
+    case Some(id) => id.validNel
+  }
 
   override def withUserProject: GcsBatchCrc32Command = this.copy(setUserProject = true)
 
@@ -189,8 +211,8 @@ case class GcsBatchCrc32Command(override val file: GcsPath, override val blob: B
 }
 
 object GcsBatchCrc32Command {
-  def forPath(file: GcsPath): Try[GcsBatchCrc32Command] =
-    file.objectBlobId.map(GcsBatchCrc32Command(file, _))
+  def forPath(file: GcsPath, hashStrategy: AsyncFileHashingStrategy): Try[GcsBatchCrc32Command] =
+    file.objectBlobId.map(GcsBatchCrc32Command(file, hashStrategy, _))
 }
 
 case class GcsBatchTouchCommand(override val file: GcsPath, override val blob: BlobId, setUserProject: Boolean = false)

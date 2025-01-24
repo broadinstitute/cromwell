@@ -3,7 +3,6 @@ package cromwell.backend.standard.callcaching
 import java.util.concurrent.TimeoutException
 import akka.actor.{Actor, ActorLogging, ActorRef, Timers}
 import akka.event.LoggingAdapter
-import cats.derived.auto.iterable.kittensMkIterable
 import com.typesafe.config.Config
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.IoHashCommandWithContext
@@ -11,13 +10,13 @@ import cromwell.backend.standard.callcaching.StandardFileHashingActor._
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.JobKey
 import cromwell.core.callcaching._
-import cromwell.core.filesystem.CromwellFileSystems
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -99,7 +98,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
 
     val configuredHashingStrategies = for {
       fsConfigs <- configurationDescriptor.backendConfig.as[Option[Config]]("filesystems").toList
-      fsKey <- fsConfigs.entrySet.map(_.getKey)
+      fsKey <- fsConfigs.entrySet.asScala.map(_.getKey)
       fileHashStrategyName <- fsConfigs.as[Option[String]](s"fileSystems.${fsKey}.caching.hash-strategy")
       fileHashStrategy <- AsyncFileHashingStrategy(fileHashStrategyName)
       _ = log.info(s"Call caching hash strategy for ${fsKey} files will be ${fileHashStrategy}")
@@ -109,7 +108,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     val stratsReport = strats.keys.toList.sorted.map(k => s"$k -> ${strats.get(k)}").mkString(", ")
     log.info(
       s"Call caching configured with per-filesystem file hashing strategies: $stratsReport. " +
-        "Others will use $fallbackHashingStrategy."
+        s"Others will use $fallbackHashingStrategy."
     )
     strats
   }
@@ -154,7 +153,8 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     val fileAsString = fileRequest.file.value
     val ioHashCommandTry = for {
       path <- getPath(fileAsString)
-      command <- ioCommandBuilder.hashCommand(path)
+      hashStrategy = hashStrategyForPath(path)
+      command <- ioCommandBuilder.hashCommand(path, hashStrategy)
     } yield command
     lazy val fileHashContext = FileHashContext(fileRequest.hashKey, fileRequest.file.value)
 

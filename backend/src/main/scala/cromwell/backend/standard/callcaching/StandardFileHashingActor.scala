@@ -52,8 +52,8 @@ class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorPa
     extends StandardFileHashingActor(standardParams) {
   override val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
-  override val defaultHashingStrategies: Map[String, AsyncFileHashingStrategy] = Map(
-    ("drs", AsyncFileHashingStrategy.Crc32c)
+  override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
+    ("drs", FileHashStrategy.Crc32c)
   )
 }
 
@@ -88,19 +88,19 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
 
   // Child classes can override to set per-filesystem defaults
-  val defaultHashingStrategies: Map[String, AsyncFileHashingStrategy] = Map.empty
+  val defaultHashingStrategies: Map[String, FileHashStrategy] = Map.empty
 
   // Hashing strategy to use if none is configured.
-  val fallbackHashingStrategy: AsyncFileHashingStrategy = AsyncFileHashingStrategy.Md5
+  val fallbackHashingStrategy: FileHashStrategy = FileHashStrategy.Md5
 
   // Combines defaultHashingStrategies with user-provided configuration
-  lazy val hashingStrategies: Map[String, AsyncFileHashingStrategy] = {
+  lazy val hashingStrategies: Map[String, FileHashStrategy] = {
 
     val configuredHashingStrategies = for {
       fsConfigs <- configurationDescriptor.backendConfig.as[Option[Config]]("filesystems").toList
       fsKey <- fsConfigs.entrySet.asScala.map(_.getKey)
       fileHashStrategyName <- fsConfigs.as[Option[String]](s"fileSystems.${fsKey}.caching.hash-strategy")
-      fileHashStrategy <- AsyncFileHashingStrategy(fileHashStrategyName)
+      fileHashStrategy <- FileHashStrategy(fileHashStrategyName)
       _ = log.info(s"Call caching hash strategy for ${fsKey} files will be ${fileHashStrategy}")
     } yield (fsKey, fileHashStrategy)
 
@@ -118,7 +118,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
   // Used by ConfigBackend for synchronous hashing of local files
   def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = None
 
-  def hashStrategyForPath(p: Path): AsyncFileHashingStrategy =
+  def hashStrategyForPath(p: Path): FileHashStrategy =
     hashingStrategies.getOrElse(p.filesystemTypeKey, fallbackHashingStrategy)
 
   def fileHashingReceive: Receive = {

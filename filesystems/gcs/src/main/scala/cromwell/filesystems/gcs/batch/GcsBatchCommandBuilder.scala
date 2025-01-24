@@ -1,6 +1,6 @@
 package cromwell.filesystems.gcs.batch
 
-import cromwell.core.callcaching.AsyncFileHashingStrategy
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsPath
@@ -20,7 +20,7 @@ private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilde
     case (gcsSrc: GcsPath, gcsDest: GcsPath) => GcsBatchCopyCommand.forPaths(gcsSrc, gcsDest)
   }
 
-  override def hashCommand: PartialFunction[(Path, AsyncFileHashingStrategy), Try[GcsBatchHashCommand]] = {
+  override def hashCommand: PartialFunction[(Path, FileHashStrategy), Try[GcsBatchHashCommand]] = {
     case (gcsPath: GcsPath, s) =>
       GcsBatchHashCommand.forPath(gcsPath, s)
   }

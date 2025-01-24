@@ -30,7 +30,7 @@
  */
 package cromwell.filesystems.s3.batch
 
-import cromwell.core.callcaching.AsyncFileHashingStrategy
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.{IoCommandBuilder, PartialIoCommandBuilder}
 import cromwell.core.path.Path
 import cromwell.filesystems.s3.S3Path
@@ -53,7 +53,7 @@ private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder
     case (src: S3Path, dest: S3Path) => Try(S3BatchCopyCommand(src, dest))
   }
 
-  override def hashCommand: PartialFunction[(Path, AsyncFileHashingStrategy), Try[S3BatchHashCommand]] = {
+  override def hashCommand: PartialFunction[(Path, FileHashStrategy), Try[S3BatchHashCommand]] = {
     case (path: S3Path, s) =>
       Try(S3BatchHashCommand(path, s))
   }

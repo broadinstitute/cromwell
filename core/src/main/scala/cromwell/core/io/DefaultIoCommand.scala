@@ -1,7 +1,7 @@
 package cromwell.core.io
 
 import better.files.File.OpenOptions
-import cromwell.core.callcaching.AsyncFileHashingStrategy
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 
@@ -43,7 +43,7 @@ object DefaultIoCommand {
       s"DefaultIoDeleteCommand file '$file' swallowIOExceptions '$swallowIOExceptions'"
   }
 
-  case class DefaultIoHashCommand(override val file: Path, override val hashStrategy: AsyncFileHashingStrategy)
+  case class DefaultIoHashCommand(override val file: Path, override val hashStrategy: FileHashStrategy)
       extends IoHashCommand(file, hashStrategy) {
     override def commandDescription: String = s"DefaultIoHashCommand file '$file' hashStrategy '$hashStrategy'"
   }

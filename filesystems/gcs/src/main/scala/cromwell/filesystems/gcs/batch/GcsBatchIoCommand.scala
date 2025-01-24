@@ -8,7 +8,7 @@ import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageO
 import com.google.cloud.storage.BlobId
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
-import cromwell.core.callcaching.AsyncFileHashingStrategy
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io._
 import cromwell.filesystems.gcs._
 import mouse.all._
@@ -176,16 +176,16 @@ object GcsBatchSizeCommand {
 }
 
 case class GcsBatchHashCommand(override val file: GcsPath,
-                               override val hashStrategy: AsyncFileHashingStrategy,
+                               override val hashStrategy: FileHashStrategy,
                                val blob: BlobId,
                                setUserProject: Boolean = false
 ) extends IoHashCommand(file, hashStrategy)
     with GcsBatchGetCommand[String] {
   override def mapGoogleResponse(response: StorageObject): ErrorOr[String] =
     hashStrategy match {
-      case AsyncFileHashingStrategy.Crc32c => getCrc32c(response)
-      case AsyncFileHashingStrategy.Md5 => getMd5(response)
-      case AsyncFileHashingStrategy.Md5ThenIdentity => getMd5(response).orElse(getIdentity(response))
+      case FileHashStrategy.Crc32c => getCrc32c(response)
+      case FileHashStrategy.Md5 => getMd5(response)
+      case FileHashStrategy.Md5ThenIdentity => getMd5(response).orElse(getIdentity(response))
       case _ => s"Hash strategy $hashStrategy is not supported by GCS".invalidNel
     }
 
@@ -210,7 +210,7 @@ case class GcsBatchHashCommand(override val file: GcsPath,
 }
 
 object GcsBatchHashCommand {
-  def forPath(file: GcsPath, hashStrategy: AsyncFileHashingStrategy): Try[GcsBatchHashCommand] =
+  def forPath(file: GcsPath, hashStrategy: FileHashStrategy): Try[GcsBatchHashCommand] =
     file.objectBlobId.map(GcsBatchHashCommand(file, hashStrategy, _))
 }
 

@@ -12,7 +12,7 @@ import com.google.common.io.BaseEncoding
 import com.google.common.primitives.Longs
 import common.util.StringUtil.EnhancedToStringable
 import common.util.TimeUtil.EnhancedOffsetDateTime
-import cromwell.core.callcaching.AsyncFileHashingStrategy
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.{AsyncIo, DefaultIoCommandBuilder}
 import cromwell.core.path.{Path, PathFactory}
 import cromwell.core.instrumentation.InstrumentationPrefixes.ServicesPrefix
@@ -315,7 +315,7 @@ class ArchiveMetadataSchedulerActor(archiveMetadataConfig: ArchiveMetadataConfig
                      ServicesPrefix
       )
       expectedChecksum = crc32cStream.checksumString
-      uploadedChecksum <- asyncIo.hashAsync(path, AsyncFileHashingStrategy.Crc32c)
+      uploadedChecksum <- asyncIo.hashAsync(path, FileHashStrategy.Crc32c)
       checksumValidatedTime = OffsetDateTime.now()
       _ = sendTiming(archiverStreamTimingMetricsBasePath :+ "checksum_validation",
                      calculateTimeDifference(streamingCompleteTime, checksumValidatedTime),

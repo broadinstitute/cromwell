@@ -6,7 +6,7 @@ import better.files.File.OpenOptions
 import com.google.api.client.util.ExponentialBackOff
 import common.util.Backoff
 import common.util.StringUtil.EnhancedToStringable
-import cromwell.core.callcaching.AsyncFileHashingStrategy
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -161,7 +161,7 @@ abstract class IoDeleteCommand(val file: Path, val swallowIOExceptions: Boolean)
 /**
   * Get Hash value for file
   */
-abstract class IoHashCommand(val file: Path, val hashStrategy: AsyncFileHashingStrategy)
+abstract class IoHashCommand(val file: Path, val hashStrategy: FileHashStrategy)
     extends SingleFileIoCommand[String] {
   override def toString = s"get $hashStrategy hash of ${file.pathAsString}"
   override lazy val name = "hash"

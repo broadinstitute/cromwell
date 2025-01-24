@@ -35,14 +35,14 @@ import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.backend.BackendInitializationData
 import cromwell.backend.impl.aws.AwsBatchBackendInitializationData
 import cromwell.backend.impl.aws.AWSBatchStorageSystems
-import cromwell.core.callcaching.AsyncFileHashingStrategy
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.DefaultIoCommandBuilder
 
 class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorParams)
     extends StandardFileHashingActor(standardParams) {
 
-  override val defaultHashingStrategies: Map[String, AsyncFileHashingStrategy] = Map(
-    ("s3", AsyncFileHashingStrategy.ETag)
+  override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
+    ("s3", FileHashStrategy.ETag)
   )
 
   override val ioCommandBuilder = BackendInitializationData

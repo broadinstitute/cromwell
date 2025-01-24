@@ -2,7 +2,7 @@ package cromwell.core.io
 
 import akka.actor.ActorRef
 import com.typesafe.config.{Config, ConfigFactory}
-import cromwell.core.callcaching.AsyncFileHashingStrategy
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.IoPromiseProxyActor.IoCommandWithPromise
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.Path
@@ -48,7 +48,7 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
   def sizeAsync(path: Path): Future[Long] =
     asyncCommand(ioCommandBuilder.sizeCommand(path))
 
-  def hashAsync(path: Path, hashStrategy: AsyncFileHashingStrategy): Future[String] =
+  def hashAsync(path: Path, hashStrategy: FileHashStrategy): Future[String] =
     asyncCommand(ioCommandBuilder.hashCommand(path, hashStrategy))
 
   def deleteAsync(path: Path, swallowIoExceptions: Boolean = false): Future[Unit] =

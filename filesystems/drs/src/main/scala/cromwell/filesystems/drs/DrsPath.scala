@@ -8,6 +8,8 @@ import java.io.IOException
 
 case class DrsPath(drsPath: CloudNioPath, requesterPaysProjectIdOption: Option[String]) extends Path {
 
+  val filesystemTypeKey = "drs"
+
   override def nioPath: NioPath = drsPath
 
   override protected def newPath(nioPath: NioPath): Path =

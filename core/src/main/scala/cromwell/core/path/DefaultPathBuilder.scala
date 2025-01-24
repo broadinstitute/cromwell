@@ -51,6 +51,9 @@ case object DefaultPathBuilder extends PathBuilder {
 }
 
 case class DefaultPath private[path] (nioPath: NioPath) extends Path {
+
+  val filesystemTypeKey = "local"
+
   override protected def newPath(nioPath: NioPath): DefaultPath = DefaultPath(nioPath)
 
   override def pathAsString: String = nioPath.toString

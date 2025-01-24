@@ -167,6 +167,9 @@ case class GcsPath private[gcs] (nioPath: NioPath,
                                  cloudStorage: com.google.cloud.storage.Storage,
                                  projectId: String
 ) extends Path {
+
+  val filesystemTypeKey = "gcs"
+
   lazy val objectBlobId: Try[BlobId] = Try {
     val bucketName = cloudStoragePath.bucket
     val objectName = cloudStoragePath.toRealPath().toString

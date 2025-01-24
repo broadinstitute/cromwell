@@ -1,4 +1,4 @@
-package cromwell.backend.standard.callcaching
+package cromwell.core.callcaching
 
 sealed trait AsyncFileHashingStrategy
 

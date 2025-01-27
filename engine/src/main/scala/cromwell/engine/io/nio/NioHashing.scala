@@ -4,6 +4,7 @@ import cats.effect.IO
 import cloud.nio.spi.{FileHash, HashType}
 import common.util.StringUtil.EnhancedString
 import cromwell.core.callcaching.FileHashStrategy
+import cromwell.core.callcaching.FileHashStrategy.Md5
 import cromwell.core.path.Path
 import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.DrsPath
@@ -12,7 +13,7 @@ import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource.tryWithResource
 
-import scala.util.Try
+import scala.util.{Success, Try}
 
 object NioHashing {
 
@@ -20,7 +21,7 @@ object NioHashing {
   def hash(file: Path, hashStrategy: FileHashStrategy): IO[String] =
     // If there is no hash accessible from the file storage system,
     // we'll read the file and generate the hash ourselves if we can.
-    getStoredHash(file)
+    getStoredHash(file, hashStrategy)
       .flatMap {
         case Some(storedHash) => IO.pure(storedHash)
         case None =>
@@ -35,20 +36,17 @@ object NioHashing {
       }
       .map(_.hash)
 
-  def getStoredHash(file: Path): IO[Option[FileHash]] =
+  def getStoredHash(file: Path, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
     file match {
-      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath).map(Option(_))
-      case blobPath: BlobPath => getFileHashForBlobPath(blobPath)
+      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath, hashStrategy).map(Option(_))
+      case blobPath: BlobPath => getFileHashForBlobPath(blobPath, hashStrategy)
       case drsPath: DrsPath =>
         IO {
           // We assume all DRS files have a stored hash; this will throw
           // if the file does not.
           drsPath.getFileHash
         }.map(Option(_))
-      case s3Path: S3Path =>
-        IO {
-          Option(FileHash(HashType.S3Etag, s3Path.eTag))
-        }
+      case s3Path: S3Path => getFileHashForS3Path(s3Path(s3Path, hashStrategy))
       case _ => IO.pure(None)
     }
 
@@ -76,13 +74,36 @@ object NioHashing {
     }
   }
 
-  private def getFileHashForGcsPath(gcsPath: GcsPath): IO[FileHash] = delayedIoFromTry {
-    gcsPath.objectBlobId.map(id => FileHash(HashType.GcsCrc32c, gcsPath.cloudStorage.get(id).getCrc32c))
-  }
+  private def getFileHashForGcsPath(gcsPath: GcsPath, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
+    delayedIoFromTry {
+      val cloudFile = gcsPath.objectBlobId.map(id => gcsPath.cloudStorage.get(id))
+      cloudFile.map(f =>
+        hashStrategy match {
+          case FileHashStrategy.Crc32c => Option(f.getCrc32c).map(FileHash(HashType.GcsCrc32c, _))
+          case FileHashStrategy.Md5 => Option(f.getMd5).map(FileHash(HashType.Md5, _))
+          // TODO check whether this blob id toString is the same as GcsBatch id, I don't think it is
+          case FileHashStrategy.Md5ThenIdentity =>
+            Option(f.getMd5).map(FileHash(HashType.Md5, _)).orElse(Option(FileHash(HashType.Md5, f.getBlobId.toString)))
+          case _ => None
+        }
+      )
+    }
 
-  private def getFileHashForBlobPath(blobPath: BlobPath): IO[Option[FileHash]] = delayedIoFromTry {
-    blobPath.md5HexString.map(md5 => md5.map(FileHash(HashType.Md5, _)))
-  }
+  private def getFileHashForBlobPath(blobPath: BlobPath, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
+    delayedIoFromTry {
+      hashStrategy match {
+        case FileHashStrategy.Md5 => blobPath.md5HexString.map(md5 => md5.map(FileHash(HashType.Md5, _)))
+        case _ => Success(None)
+      }
+    }
+
+  private def getFileHashForS3Path(s3Path: S3Path, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
+    IO {
+      hashStrategy match {
+        case FileHashStrategy.ETag => Option(FileHash(HashType.S3Etag, s3Path.eTag))
+        case _ => None
+      }
+    }
 
   /**
     * Lazy evaluation of a Try in a delayed IO. This avoids accidentally eagerly evaluating the Try.

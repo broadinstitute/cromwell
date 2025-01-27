@@ -13,6 +13,7 @@ object HashType extends Enumeration {
   // GCS crc32c, which is base64-encoded instead of a hex string
   val GcsCrc32c: HashType.Value = Value
   val Md5: HashType.Value = Value
+  val Identity: HashType.Value = Value
   // AWS S3 etag
   val S3Etag: HashType.Value = Value
   val Sha256: HashType.Value = Value
@@ -31,6 +32,7 @@ object HashType extends Enumeration {
         Base64.getEncoder.encodeToString(byteBuffer.array)
       case Md5 =>
         org.apache.commons.codec.digest.DigestUtils.md5Hex(s)
+      case Identity => s
       case S3Etag =>
         val chunkSize = 8 * 1024 * 1024
         val numChunks = (s.length.toDouble / chunkSize).ceil.toInt

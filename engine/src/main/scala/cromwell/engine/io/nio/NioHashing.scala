@@ -1,10 +1,10 @@
 package cromwell.engine.io.nio
 
 import cats.effect.IO
-import cloud.nio.spi.{FileHash, HashType}
+import com.google.cloud.storage.Blob
 import common.util.StringUtil.EnhancedString
-import cromwell.core.callcaching.FileHashStrategy
-import cromwell.core.callcaching.FileHashStrategy.Md5
+import cromwell.core.callcaching.HashType.HashType
+import cromwell.core.callcaching.{FileHash, FileHashStrategy, HashType}
 import cromwell.core.path.Path
 import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.DrsPath
@@ -13,11 +13,10 @@ import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.s3.S3Path
 import cromwell.util.TryWithResource.tryWithResource
 
-import scala.util.{Success, Try}
+import scala.util.Try
 
 object NioHashing {
 
-  // TODO update logic to respect hashStrategy
   def hash(file: Path, hashStrategy: FileHashStrategy): IO[String] =
     // If there is no hash accessible from the file storage system,
     // we'll read the file and generate the hash ourselves if we can.
@@ -38,7 +37,7 @@ object NioHashing {
 
   def getStoredHash(file: Path, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
     file match {
-      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath, hashStrategy).map(Option(_))
+      case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath, hashStrategy)
       case blobPath: BlobPath => getFileHashForBlobPath(blobPath, hashStrategy)
       case drsPath: DrsPath => getFileHashForDrsPath(drsPath, hashStrategy)
       case s3Path: S3Path => getFileHashForS3Path(s3Path, hashStrategy)
@@ -59,7 +58,10 @@ object NioHashing {
   private def canHashLocally(file: Path) =
     file match {
       case _: HttpPath => false
+      case _: GcsPath => false
       case _: BlobPath => false
+      case _: DrsPath => false
+      case _: S3Path => false
       case _ => true
     }
 
@@ -72,46 +74,53 @@ object NioHashing {
   private def getFileHashForGcsPath(gcsPath: GcsPath, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
     delayedIoFromTry {
       val cloudFile = gcsPath.objectBlobId.map(id => gcsPath.cloudStorage.get(id))
-      cloudFile.map(f =>
-        hashStrategy match {
-          case FileHashStrategy.Crc32c => Option(f.getCrc32c).map(FileHash(HashType.Crc32c, _))
-          case FileHashStrategy.Md5 => Option(f.getMd5).map(FileHash(HashType.Md5, _))
-          // TODO check whether this blob id toString is the same as GcsBatch id, I don't think it is
-          case FileHashStrategy.Md5ThenIdentity =>
-            Option(f.getMd5).map(FileHash(HashType.Md5, _)).orElse(Option(FileHash(HashType.Md5, f.getBlobId.toString)))
-          case _ => None
-        }
+      cloudFile.map(file =>
+        hashStrategy.getFileHash(
+          file,
+          (f: Blob, hashType: HashType) =>
+            hashType match {
+              case HashType.Crc32c => Option(f.getCrc32c)
+              case HashType.Md5 => Option(f.getMd5)
+              // TODO check whether this blob id toString is the same as GcsBatch id, I don't think it is
+              case HashType.Identity => Option(f.getBlobId.toString)
+              case _ => None
+            }
+        )
       )
     }
 
   private def getFileHashForBlobPath(blobPath: BlobPath, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
-    delayedIoFromTry {
-      hashStrategy match {
-        case FileHashStrategy.Md5 => blobPath.md5HexString.map(md5 => md5.map(FileHash(HashType.Md5, _)))
-        case _ => Success(None)
-      }
+    IO {
+      hashStrategy.getFileHash(
+        blobPath,
+        (f: BlobPath, hashType: HashType) =>
+          hashType match {
+            case HashType.Md5 => blobPath.md5HexString.toOption.flatten
+            case _ => None
+          }
+      )
     }
 
   private def getFileHashForDrsPath(drsPath: DrsPath, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
     IO {
       // TODO this is also used for checksumming local engine downloads!
-      // TODO need to use multiple hash strategies for DRS (etag for s3, md5 for google, etc)
       val drsHashes = drsPath.getFileHashes
-      hashStrategy match {
-        case FileHashStrategy.Crc32c => drsHashes.find(_.hashType == HashType.Crc32c)
-        case FileHashStrategy.Md5 => drsHashes.find(_.hashType == HashType.Md5)
-        case FileHashStrategy.Sha256 => drsHashes.find(_.hashType == HashType.Sha256)
-        case FileHashStrategy.ETag => drsHashes.find(_.hashType == HashType.S3Etag)
-        case _ => None
-      }
+      hashStrategy.getFileHash(
+        drsPath,
+        (f: DrsPath, hashType: HashType) => drsHashes.get(hashType.toString.toLowerCase)
+      )
     }
 
   private def getFileHashForS3Path(s3Path: S3Path, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
     IO {
-      hashStrategy match {
-        case FileHashStrategy.ETag => Option(FileHash(HashType.S3Etag, s3Path.eTag))
-        case _ => None
-      }
+      hashStrategy.getFileHash(
+        s3Path,
+        (f: S3Path, hashType: HashType) =>
+          hashType match {
+            case HashType.Etag => Option(s3Path.eTag)
+            case _ => None
+          }
+      )
     }
 
   /**

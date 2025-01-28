@@ -30,7 +30,8 @@
  */
 package cromwell.filesystems.s3.batch
 
-import cromwell.core.callcaching.FileHashStrategy
+import cromwell.core.callcaching.HashType.HashType
+import cromwell.core.callcaching.{FileHashStrategy, HashType}
 import software.amazon.awssdk.core.exception.SdkException
 import software.amazon.awssdk.services.s3.model.{CopyObjectResponse, HeadObjectResponse, NoSuchKeyException}
 import cromwell.core.io.{
@@ -114,10 +115,20 @@ case class S3BatchSizeCommand(override val file: S3Path) extends IoSizeCommand(f
 case class S3BatchHashCommand(override val file: S3Path, override val hashStrategy: FileHashStrategy)
     extends IoHashCommand(file, hashStrategy)
     with S3BatchHeadCommand[String] {
-  // TODO handle other hash strategies
-  override def mapResponse(response: HeadObjectResponse): String = hashStrategy match {
-    case FileHashStrategy.ETag => response.eTag
-  }
+
+  override def mapResponse(response: HeadObjectResponse): String =
+    hashStrategy
+      .getFileHash(
+        response,
+        (resp: HeadObjectResponse, hashType: HashType) =>
+          hashType match {
+            case HashType.Etag => Option(response.eTag())
+            case _ => None
+          }
+      )
+      .map(_.hash)
+      .get // TODO uuuggghhhsadifouwesiuhwei come on
+
   override def commandDescription: String = s"S3BatchEtagCommand file '$file' with hashStrategy '$hashStrategy'"
 }
 

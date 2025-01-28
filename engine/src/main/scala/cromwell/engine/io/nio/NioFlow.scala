@@ -3,10 +3,10 @@ package cromwell.engine.io.nio
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
 import cats.effect._
-
-import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess, FileHash}
+import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess}
 import com.typesafe.config.Config
 import common.util.IORetry
+import cromwell.core.callcaching.{FileHash, FileHashStrategy}
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
@@ -130,7 +130,7 @@ class NioFlow(parallelism: Int,
 
     def readFileAndChecksum: IO[String] =
       for {
-        fileHash <- NioHashing.getStoredHash(command.file)
+        fileHash <- NioHashing.getStoredHash(command.file, FileHashStrategy.Md5) // TODO how to we choose strat here?
         uncheckedValue <- readFile
         checksumResult <- fileHash match {
           case Some(hash) => checkHash(uncheckedValue, hash)

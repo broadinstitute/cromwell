@@ -53,7 +53,7 @@ class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorPa
   override val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
 
   override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
-    ("drs", FileHashStrategy.Crc32c)
+    ("drs", FileHashStrategy.Drs)
   )
 }
 
@@ -99,10 +99,9 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     val configuredHashingStrategies = for {
       fsConfigs <- configurationDescriptor.backendConfig.as[Option[Config]]("filesystems").toList
       fsKey <- fsConfigs.entrySet.asScala.map(_.getKey)
-      fileHashStrategyName <- fsConfigs.as[Option[String]](s"fileSystems.${fsKey}.caching.hash-strategy")
-      fileHashStrategy <- FileHashStrategy(fileHashStrategyName)
-      _ = log.info(s"Call caching hash strategy for ${fsKey} files will be ${fileHashStrategy}")
-    } yield (fsKey, fileHashStrategy)
+      // TODO this allows users to override with an empty list to prevent caching, is that desirable or a footgun?
+      fileHashStrategyStrings <- fsConfigs.as[Option[List[String]]](s"fileSystems.${fsKey}.caching.hash-strategy")
+    } yield (fsKey, FileHashStrategy.of(fileHashStrategyStrings))
 
     val strats = defaultHashingStrategies ++ configuredHashingStrategies
     val stratsReport = strats.keys.toList.sorted.map(k => s"$k -> ${strats.get(k)}").mkString(", ")

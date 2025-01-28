@@ -12,6 +12,7 @@ import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import common.mock.MockSugar
+import cromwell.core.callcaching.FileHashStrategy
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContextExecutor, Future}
@@ -85,7 +86,7 @@ class GcsBatchFlowSpec
       projectId = "GcsBatchFlowSpec-project"
     )
     val gcsBatchCommandContext =
-      GcsBatchCommandContext(GcsBatchHashCommand.forPath(mockGcsPath).get, TestProbe().ref, 5)
+      GcsBatchCommandContext(GcsBatchHashCommand.forPath(mockGcsPath, FileHashStrategy.Crc32c).get, TestProbe().ref, 5)
     val recoverCommandPrivateMethod =
       PrivateMethod[PartialFunction[Throwable, Future[GcsBatchResponse[_]]]](Symbol("recoverCommand"))
     val partialFuncAcceptingThrowable = gcsBatchFlow invokePrivate recoverCommandPrivateMethod(gcsBatchCommandContext)

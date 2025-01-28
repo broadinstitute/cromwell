@@ -1,21 +1,75 @@
 package cromwell.core.callcaching
 
+import cromwell.core.callcaching.HashType.HashType
+
+import java.nio.{ByteBuffer, ByteOrder}
+import java.security.MessageDigest
+import java.util.Base64
+import java.util.zip.CRC32C
+
 // File hashing strategies used by IoHashCommand, primarily when obtaining file hashes
 // for call caching purposes.
-sealed trait FileHashStrategy
+case class FileHashStrategy(priorityHashList: List[HashType]) {
+  override def toString = s"FileHashStrategy(${priorityHashList.map(_.toString).mkString(", ")})"
+
+  def getFileHash[A](fileToHash: A, hashFunc: (A, HashType) => Option[String]): Option[FileHash] =
+    priorityHashList.flatMap(ht => hashFunc(fileToHash, ht).map(FileHash(ht, _))).headOption
+
+}
 
 object FileHashStrategy {
-  case object Crc32c extends FileHashStrategy
-  case object Md5 extends FileHashStrategy
-  case object Md5ThenIdentity extends FileHashStrategy
-  case object ETag extends FileHashStrategy
+  val Crc32c: FileHashStrategy = FileHashStrategy(List(HashType.Crc32c))
+  val Md5: FileHashStrategy = FileHashStrategy(List(HashType.Md5))
+  val ETag: FileHashStrategy = FileHashStrategy(List(HashType.Etag))
+  val Drs: FileHashStrategy = FileHashStrategy(List(HashType.Crc32c, HashType.Md5, HashType.Sha256, HashType.Etag))
 
+  // TODO alert about bad hashes from config
   // TODO validate fs type here?
-  def apply(s: String): Option[FileHashStrategy] = s.toLowerCase() match {
-    case "md5" => Some(Md5)
-    case "crc32c" => Some(Crc32c)
-    case "md5+identity" => Some(Md5ThenIdentity)
-    case "etag" => Some(ETag)
-    case _ => None
+  def of(hashes: List[String]): FileHashStrategy = FileHashStrategy(hashes.flatMap(HashType(_)))
+}
+
+object HashType extends Enumeration {
+  type HashType = Value
+
+  // crc32c as a hex string
+  val Crc32c: HashType.Value = Value
+  // GCS crc32c, which is base64-encoded instead of a hex string
+  val GcsCrc32c: HashType.Value = Value // TODO do we need this?
+  val Md5: HashType.Value = Value
+  val Identity: HashType.Value = Value
+  val Etag: HashType.Value = Value
+  val Sha256: HashType.Value = Value
+
+  def apply(s: String): Option[HashType] = values.find(_.toString.toLowerCase == s.toLowerCase)
+
+  implicit class HashTypeValue(hashType: Value) {
+    def calculateHash(s: String): String = hashType match {
+      case Crc32c =>
+        val crc32c = new CRC32C()
+        crc32c.update(s.getBytes)
+        crc32c.getValue.toHexString
+      case GcsCrc32c =>
+        val crc32c = new CRC32C()
+        crc32c.update(s.getBytes)
+        val byteBuffer = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
+        byteBuffer.putInt(crc32c.getValue.toInt)
+        Base64.getEncoder.encodeToString(byteBuffer.array)
+      case Md5 =>
+        org.apache.commons.codec.digest.DigestUtils.md5Hex(s)
+      case Identity => s
+      case Etag =>
+        val chunkSize = 8 * 1024 * 1024
+        val numChunks = (s.length.toDouble / chunkSize).ceil.toInt
+        val parts = s.getBytes.grouped(chunkSize).map(org.apache.commons.codec.digest.DigestUtils.md5Hex)
+        numChunks match {
+          case 1 => parts.next()
+          case _ =>
+            s"${org.apache.commons.codec.digest.DigestUtils.md5Hex(parts.mkString)}-${numChunks}"
+        }
+      case Sha256 =>
+        MessageDigest.getInstance("SHA-256").digest(s.getBytes).map("%02x" format _).mkString
+    }
   }
 }
+
+case class FileHash(hashType: HashType, hash: String)

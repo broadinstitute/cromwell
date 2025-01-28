@@ -4,7 +4,7 @@ import java.net.URI
 import java.nio.channels.ReadableByteChannel
 import java.nio.file.FileAlreadyExistsException
 import cloud.nio.impl.ftp.FtpUtil.FtpIoException
-import cloud.nio.spi.{CloudNioRegularFileAttributes, CloudNioRetry, FileHash}
+import cloud.nio.spi.{CloudNioRegularFileAttributes, CloudNioRetry}
 import com.typesafe.config.ConfigFactory
 import common.assertion.CromwellTimeoutSpec
 import common.mock.MockSugar
@@ -58,7 +58,7 @@ class FtpCloudNioFileSystemProviderSpec
         override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] =
           Option(
             new CloudNioRegularFileAttributes {
-              override def fileHashes(): List[FileHash] = throw new UnsupportedOperationException()
+              override def fileHashes: Map[String, String] = throw new UnsupportedOperationException()
               override def lastModifiedTime() = throw new UnsupportedOperationException()
               override def size(): Long = mockSizeFunction()
               override def fileKey() = throw new UnsupportedOperationException()

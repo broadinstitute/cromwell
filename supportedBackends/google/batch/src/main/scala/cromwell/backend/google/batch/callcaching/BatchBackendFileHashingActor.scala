@@ -10,6 +10,6 @@ class BatchBackendFileHashingActor(standardParams: StandardFileHashingActorParam
 
   override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
     ("gcs", FileHashStrategy.Crc32c),
-    ("drs", FileHashStrategy.Crc32c)
+    ("drs", FileHashStrategy.Drs)
   )
 }

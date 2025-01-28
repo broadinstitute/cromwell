@@ -8,7 +8,8 @@ import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageO
 import com.google.cloud.storage.BlobId
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
-import cromwell.core.callcaching.FileHashStrategy
+import cromwell.core.callcaching.HashType.HashType
+import cromwell.core.callcaching.{FileHashStrategy, HashType}
 import cromwell.core.io._
 import cromwell.filesystems.gcs._
 import mouse.all._
@@ -181,27 +182,23 @@ case class GcsBatchHashCommand(override val file: GcsPath,
                                setUserProject: Boolean = false
 ) extends IoHashCommand(file, hashStrategy)
     with GcsBatchGetCommand[String] {
-  override def mapGoogleResponse(response: StorageObject): ErrorOr[String] =
-    hashStrategy match {
-      case FileHashStrategy.Crc32c => getCrc32c(response)
-      case FileHashStrategy.Md5 => getMd5(response)
-      case FileHashStrategy.Md5ThenIdentity => getMd5(response).orElse(getIdentity(response))
-      case _ => s"Hash strategy $hashStrategy is not supported by GCS".invalidNel
+  override def mapGoogleResponse(response: StorageObject): ErrorOr[String] = {
+    val fileHash = hashStrategy
+      .getFileHash(
+        response,
+        (resp: StorageObject, hashType: HashType) =>
+          hashType match {
+            case HashType.Crc32c => Option(response.getCrc32c)
+            case HashType.Md5 => Option(response.getMd5Hash)
+            case HashType.Identity => Option(response.getId)
+            case _ => None
+          }
+      )
+    fileHash match {
+      case Some(hash) => hash.hash.validNel
+      case None =>
+        s"${hashStrategy} yielded no hashes for file '${file.pathAsString}' in project '${file.projectId}'".invalidNel
     }
-
-  private def getCrc32c(response: StorageObject): ErrorOr[String] = Option(response.getCrc32c) match {
-    case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null CRC32C checksum".invalidNel
-    case Some(crc32c) => crc32c.validNel
-  }
-
-  private def getMd5(response: StorageObject): ErrorOr[String] = Option(response.getMd5Hash) match {
-    case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null MD5 checksum".invalidNel
-    case Some(md5) => md5.validNel
-  }
-
-  private def getIdentity(response: StorageObject): ErrorOr[String] = Option(response.getId) match {
-    case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null identity".invalidNel
-    case Some(id) => id.validNel
   }
 
   override def withUserProject: GcsBatchHashCommand = this.copy(setUserProject = true)

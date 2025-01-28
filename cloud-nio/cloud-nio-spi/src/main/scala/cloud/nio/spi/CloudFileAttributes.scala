@@ -6,7 +6,7 @@ import cloud.nio.spi.CloudNioFileAttributes._
 import cloud.nio.spi.HashType.HashType
 
 trait CloudNioFileAttributes extends BasicFileAttributes {
-  def fileHash: Option[FileHash]
+  def fileHashes: List[FileHash]
 }
 
 object CloudNioFileAttributes {
@@ -53,5 +53,5 @@ final case class CloudNioDirectoryAttributes(path: CloudNioPath) extends CloudNi
 
   override val fileKey: AnyRef = path
 
-  override val fileHash: Option[FileHash] = None
+  override val fileHashes: List[FileHash] = List.empty
 }

@@ -3,13 +3,14 @@ package cloud.nio.impl.drs
 import java.nio.file.attribute.FileTime
 import java.time.{LocalDateTime, OffsetDateTime, ZoneOffset}
 import cats.effect.IO
-import cloud.nio.spi.HashType.HashType
+import cloud.nio.spi.HashType._
 import cloud.nio.spi.{CloudNioRegularFileAttributes, FileHash, HashType}
+import io.netty.util.HashingStrategy
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 class DrsCloudNioRegularFileAttributes(drsPath: String,
                                        sizeOption: Option[Long],
-                                       hashOption: Option[FileHash],
+                                       var fileHashes: List[FileHash],
                                        timeCreatedOption: Option[FileTime],
                                        timeUpdatedOption: Option[FileTime]
 ) extends CloudNioRegularFileAttributes {
@@ -18,29 +19,28 @@ class DrsCloudNioRegularFileAttributes(drsPath: String,
 
   override def size(): Long = sizeOption.getOrElse(0)
 
-  override def fileHash: Option[FileHash] = hashOption
-
   override def creationTime(): FileTime = timeCreatedOption.getOrElse(lastModifiedTime())
 
   override def lastModifiedTime(): FileTime = timeUpdatedOption.getOrElse(FileTime.fromMillis(0))
 }
 
 object DrsCloudNioRegularFileAttributes {
-  private val priorityHashList: Seq[(String, HashType)] = Seq(
+  private val priorityHashList: List[(String, HashType)] = List(
     ("crc32c", HashType.Crc32c),
     ("md5", HashType.Md5),
     ("sha256", HashType.Sha256),
     ("etag", HashType.S3Etag)
   )
 
-  def getPreferredHash(hashesOption: Option[Map[String, String]]): Option[FileHash] =
+  def getHashOptions(hashesOption: Option[Map[String, String]]): Seq[FileHash] =
     hashesOption match {
       case Some(hashes: Map[String, String]) if hashes.nonEmpty =>
-        priorityHashList collectFirst {
+        priorityHashList collect {
           case (key, hashType) if hashes.contains(key) => FileHash(hashType, hashes(key))
         }
-      // if no preferred hash was found, go ahead and return none because we don't support anything that the DRS object is offering
-      case _ => None
+      // if no preferred hash was found, go ahead and return an empty seq because we don't support anything that the
+      // DRS object is offering
+      case _ => List.empty
     }
 
   private def convertToOffsetDateTime(timeInString: String): IO[OffsetDateTime] =

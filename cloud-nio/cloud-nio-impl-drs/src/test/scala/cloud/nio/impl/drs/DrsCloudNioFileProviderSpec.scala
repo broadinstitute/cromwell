@@ -145,7 +145,7 @@ class DrsCloudNioFileProviderSpec extends AnyFlatSpecLike with CromwellTimeoutSp
     drsFileAttributes.creationTime().toMillis should be(123L)
     drsFileAttributes.lastModifiedTime().toMillis should be(456L)
     drsFileAttributes.size() should be(789L)
-    drsFileAttributes.fileHash should be(Option(FileHash(HashType.Md5, "gg0217869")))
+    drsFileAttributes.fileHashes should be(Option(FileHash(HashType.Md5, "gg0217869")))
   }
 
   it should "throw exceptions for unsupported methods" in {

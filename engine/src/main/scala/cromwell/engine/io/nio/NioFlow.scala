@@ -6,7 +6,7 @@ import cats.effect._
 import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess}
 import com.typesafe.config.Config
 import common.util.IORetry
-import cromwell.core.callcaching.{FileHash, FileHashStrategy}
+import cromwell.core.callcaching.{FileHash, FileHashStrategy, HashType}
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
@@ -116,7 +116,7 @@ class NioFlow(parallelism: Int,
       // overflow, but we don't know that here.
       if (!command.options.failOnOverflow) return IO.pure(ChecksumSkipped())
 
-      val hash = fileHash.hashType.calculateHash(value)
+      val hash = fileHash.computeHashOf(value)
       if (hash.toLowerCase == fileHash.hash.toLowerCase) IO.pure(ChecksumSuccess())
       else IO.pure(ChecksumFailure(hash))
     }
@@ -128,9 +128,9 @@ class NioFlow(parallelism: Int,
       )
     }
 
-    def readFileAndChecksum: IO[String] =
+    def readFileAndChecksum(hashStrategy: FileHashStrategy): IO[String] =
       for {
-        fileHash <- NioHashing.getStoredHash(command.file, FileHashStrategy.Md5) // TODO how to we choose strat here?
+        fileHash <- NioHashing.getStoredHash(command.file, hashStrategy)
         uncheckedValue <- readFile
         checksumResult <- fileHash match {
           case Some(hash) => checkHash(uncheckedValue, hash)
@@ -157,7 +157,7 @@ class NioFlow(parallelism: Int,
       } yield verifiedValue
 
     val fileContentIo = command.file match {
-      case _: DrsPath => readFileAndChecksum
+      case _: DrsPath => readFileAndChecksum(FileHashStrategy.Drs)
       // Temporarily disable since our hashing algorithm doesn't match the stored hash
       // https://broadworkbench.atlassian.net/browse/WX-1257
       case _: BlobPath => readFile // readFileAndChecksum

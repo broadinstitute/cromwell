@@ -33,8 +33,6 @@ object HashType extends Enumeration {
 
   // crc32c as a hex string
   val Crc32c: HashType.Value = Value
-  // GCS crc32c, which is base64-encoded instead of a hex string
-  val GcsCrc32c: HashType.Value = Value // TODO do we need this?
   val Md5: HashType.Value = Value
   val Identity: HashType.Value = Value
   val Etag: HashType.Value = Value
@@ -43,12 +41,12 @@ object HashType extends Enumeration {
   def apply(s: String): Option[HashType] = values.find(_.toString.toLowerCase == s.toLowerCase)
 
   implicit class HashTypeValue(hashType: Value) {
-    def calculateHash(s: String): String = hashType match {
-      case Crc32c =>
+    def calculateHash(s: String, hexCrc32c: Boolean = false): String = hashType match {
+      case Crc32c if hexCrc32c =>
         val crc32c = new CRC32C()
         crc32c.update(s.getBytes)
         crc32c.getValue.toHexString
-      case GcsCrc32c =>
+      case Crc32c =>
         val crc32c = new CRC32C()
         crc32c.update(s.getBytes)
         val byteBuffer = ByteBuffer.allocate(4).order(ByteOrder.BIG_ENDIAN)
@@ -72,4 +70,14 @@ object HashType extends Enumeration {
   }
 }
 
-case class FileHash(hashType: HashType, hash: String)
+case class FileHash(hashType: HashType, hash: String) {
+
+  // GCS uses base64-encoded crc32c hashes (8 chars), other systems use hex (16)
+  def isHexCrc32c = hashType == HashType.Crc32c && hash.length == 16
+
+  /*
+   * Compute the hash of the input string using a method equivalent to the one that produced this hash.
+   */
+  def computeHashOf(value: String): String =
+    hashType.calculateHash(value, isHexCrc32c)
+}

@@ -1083,7 +1083,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // returnCode is provided by cromwell, so far, this is empty for all the tests I ran
   override def handleExecutionFailure(runStatus: RunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
-    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus): ExecutionHandle = {
+    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus): ExecutionHandle =
       runStatus.exitCode match {
         case Some(GcpBatchExitCode.VMPreemption) =>
           FailedRetryableExecutionHandle(
@@ -1092,7 +1092,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
             Option(
               Seq(
                 KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey),
-                  "0"
+                       "0"
                 )
               )
             )
@@ -1104,7 +1104,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
             None
           )
       }
-    }
 
     Future.fromTry {
       Try {

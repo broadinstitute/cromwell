@@ -138,7 +138,7 @@ class FtpCloudNioFileProviderSpec extends AnyFlatSpec with CromwellTimeoutSpec w
     attributes.size() shouldBe 6L
     attributes.isDirectory shouldBe false
     attributes.isRegularFile shouldBe true
-    attributes.fileHashes shouldBe None
+    attributes.fileHashes shouldBe Map()
     attributes.fileKey shouldBe "localhost/root/fileAttributes/file"
     attributes.lastModifiedTime() should not be null
   }

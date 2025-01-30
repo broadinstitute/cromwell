@@ -2,6 +2,7 @@ package cromwell.backend.standard.callcaching
 
 import akka.actor.{ActorRef, Props}
 import akka.testkit._
+import com.typesafe.config.ConfigFactory
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.TestKitSuite
@@ -128,13 +129,15 @@ class StandardFileHashingActorSpec
 
 object StandardFileHashingActorSpec {
   private def testing: Nothing = throw new UnsupportedOperationException("should not be run during tests")
+  private val emptyBackendConfig = BackendConfigurationDescriptor(ConfigFactory.empty, ConfigFactory.empty)
 
-  def defaultParams(): StandardFileHashingActorParams = defaultParams(testing, testing, testing, testing, testing)
+  def defaultParams(): StandardFileHashingActorParams =
+    defaultParams(testing, emptyBackendConfig, testing, testing, testing)
 
   def ioActorParams(ioActor: ActorRef): StandardFileHashingActorParams =
     defaultParams(
       withJobDescriptor = testing,
-      withConfigurationDescriptor = testing,
+      withConfigurationDescriptor = emptyBackendConfig,
       withIoActor = ioActor,
       withServiceRegistryActor = testing,
       withBackendInitializationDataOption = testing

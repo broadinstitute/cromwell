@@ -178,14 +178,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
 
-  override lazy val preemptible: Int = jobDescriptor.prefetchedKvStoreEntries.get(GcpBatchBackendLifecycleActorFactory.preemptionCountKey) match {
+  override lazy val preemptible: Int =
+    jobDescriptor.prefetchedKvStoreEntries.get(GcpBatchBackendLifecycleActorFactory.preemptionCountKey) match {
       case Some(KvPair(_, v)) =>
         Try(v.toInt) match {
           case Success(m) => m
-	  case Failure(_) => 0
+          case Failure(_) => 0
         }
       case _ => runtimeAttributes.preemptible
-   }
+    }
 
   override def tryAbort(job: StandardAsyncJob): Unit =
     abortJob(workflowId = workflowId,
@@ -1085,17 +1086,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus): ExecutionHandle =
       if (runStatus.exitCode == Some(GcpBatchExitCode.VMPreemption)) {
         FailedRetryableExecutionHandle(
-          StandardException(
-            message = runStatus.prettyPrintedError,
-            jobTag = jobTag),
-            returnCode,
-            Option(Seq(KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey), "0")))
+          StandardException(message = runStatus.prettyPrintedError, jobTag = jobTag),
+          returnCode,
+          Option(
+            Seq(
+              KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey),
+                     "0"
+              )
+            )
+          )
         )
       } else {
         FailedNonRetryableExecutionHandle(
-          StandardException(
-          message = runStatus.prettyPrintedError,
-          jobTag = jobTag),
+          StandardException(message = runStatus.prettyPrintedError, jobTag = jobTag),
           returnCode,
           None
         )

@@ -7,9 +7,7 @@ import com.google.cloud.batch.v1.BatchServiceSettings
 import com.google.common.collect.ImmutableMap
 import com.typesafe.scalalogging.StrictLogging
 import cromwell.backend._
-import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{
-  preemptionCountKey
-}
+import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.preemptionCountKey
 import cromwell.backend.google.batch.actors._
 import cromwell.backend.google.batch.api.request.{BatchRequestExecutor, RequestHandler}
 import cromwell.backend.google.batch.authentication.GcpBatchDockerCredentials

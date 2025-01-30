@@ -12,8 +12,9 @@ import java.util.zip.CRC32C
 case class FileHashStrategy(priorityHashList: List[HashType]) {
   override def toString = s"FileHashStrategy(${priorityHashList.map(_.toString).mkString(", ")})"
 
+  // Lazily evaluate hashes from `priorityList` until we find one that exists
   def getFileHash[A](fileToHash: A, hashFunc: (A, HashType) => Option[String]): Option[FileHash] =
-    priorityHashList.flatMap(ht => hashFunc(fileToHash, ht).map(FileHash(ht, _))).headOption
+    priorityHashList.to(LazyList).flatMap(ht => hashFunc(fileToHash, ht).map(FileHash(ht, _))).headOption
 
 }
 
@@ -73,11 +74,9 @@ object HashType extends Enumeration {
 case class FileHash(hashType: HashType, hash: String) {
 
   // GCS uses base64-encoded crc32c hashes (8 chars), other systems use hex (16)
-  def isHexCrc32c = hashType == HashType.Crc32c && hash.length == 16
+  private val isHexCrc32c = hashType == HashType.Crc32c && hash.length == 16
 
-  /*
-   * Compute the hash of the input string using a method equivalent to the one that produced this hash.
-   */
+  // Compute the hash of the input string using a method equivalent to the one that produced this hash.
   def computeHashOf(value: String): String =
     hashType.calculateHash(value, isHexCrc32c)
 }

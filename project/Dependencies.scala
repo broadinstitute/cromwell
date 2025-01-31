@@ -46,7 +46,6 @@ object Dependencies {
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
   private val googleApiClientV = "2.1.4"
-  private val googleCloudBigQueryV = "2.25.0"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20230421-2.0.0"
   private val googleCloudMonitoringV = "3.2.5"
@@ -89,6 +88,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
   private val mockitoV = "3.12.4"
+  private val mockitoInlineV = "2.8.9"
   private val mockserverNettyV = "5.14.0"
   private val mouseV = "1.0.11"
 
@@ -557,7 +557,6 @@ object Dependencies {
   val centaurDependencies: List[ModuleID] = List(
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
-    "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
     "org.gnieh" %% "diffson-spray-json" % diffsonSprayJsonV
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
@@ -627,7 +626,8 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
     // See also scaladoc in common.mock.MockSugar and that trait's various usages.
-    "org.mockito" % "mockito-core" % mockitoV
+    "org.mockito" % "mockito-core" % mockitoV,
+    "org.mockito" % "mockito-inline" % mockitoInlineV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full

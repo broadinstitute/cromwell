@@ -1,6 +1,7 @@
 package cromwell.backend.google.batch.api.request
 
 import com.google.api.gax.rpc.{ApiException, StatusCode}
+import com.google.cloud.batch.v1.AllocationPolicy.ProvisioningModel
 import com.google.cloud.batch.v1._
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
@@ -12,6 +13,8 @@ import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiRespon
 import cromwell.backend.google.batch.models.RunStatus
 import cromwell.core.ExecutionEvent
 import io.grpc.Status
+import cromwell.services.cost.InstantiatedVmInfo
+import cromwell.services.metadata.CallMetadataKeys
 
 import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -136,24 +139,50 @@ object BatchRequestExecutor {
           .getOrElse(List.empty)
       )
 
+      // Get vm info for this job
+      val allocationPolicy = job.getAllocationPolicy
+
+      // Get instances that can be created with this AllocationPolicy, only instances[0] is supported
+      val instancePolicy = allocationPolicy.getInstances(0).getPolicy
+      val machineType = instancePolicy.getMachineType
+      val preemtible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber
+
+      // location list = [regions/us-central1, zones/us-central1-b], region is the first element
+      val location = allocationPolicy.getLocation.getAllowedLocationsList.get(0)
+      val region =
+        if (location.isEmpty)
+          "us-central1"
+        else
+          location.split("/").last
+
+      val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemtible))
+
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
-        RunStatus.Success(events)
+        RunStatus.Success(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
-        RunStatus.Running(events)
+        RunStatus.Running(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
         // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
-        RunStatus.Failed(Status.OK, events)
+        RunStatus.Failed(Status.OK, events, instantiatedVmInfo)
       } else {
-        RunStatus.Initializing(events)
+        RunStatus.Initializing(events, instantiatedVmInfo)
       }
     }
 
-    private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] =
+    private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] = {
+      val startedRegex = ".*SCHEDULED to RUNNING.*".r
+      val endedRegex = ".*RUNNING to.*".r // can be SUCCEEDED or FAILED
       events.map { e =>
         val time = java.time.Instant
           .ofEpochSecond(e.getEventTime.getSeconds, e.getEventTime.getNanos.toLong)
           .atOffset(java.time.ZoneOffset.UTC)
-        ExecutionEvent(name = e.getDescription, offsetDateTime = time)
+        val eventType = e.getDescription match {
+          case startedRegex() => CallMetadataKeys.VmStartTime
+          case endedRegex() => CallMetadataKeys.VmEndTime
+          case _ => e.getType
+        }
+        ExecutionEvent(name = eventType, offsetDateTime = time)
       }
+    }
   }
 }

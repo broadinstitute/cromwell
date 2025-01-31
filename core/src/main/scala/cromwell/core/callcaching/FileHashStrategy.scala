@@ -71,12 +71,23 @@ object HashType extends Enumeration {
   }
 }
 
+sealed trait ChecksumResult
+case class ChecksumSkipped() extends ChecksumResult
+case class ChecksumSuccess() extends ChecksumResult
+case class ChecksumFailure(calculatedHash: String) extends ChecksumResult
+
 case class FileHash(hashType: HashType, hash: String) {
-
-  // GCS uses base64-encoded crc32c hashes (8 chars), other systems use hex (16)
-  private val isHexCrc32c = hashType == HashType.Crc32c && hash.length == 16
-
-  // Compute the hash of the input string using a method equivalent to the one that produced this hash.
-  def computeHashOf(value: String): String =
-    hashType.calculateHash(value, isHexCrc32c)
+  // Compute the hash of the input string using a method equivalent to the one that produced this hash,
+  // and check whether it matches this hash. We need special handling for crc32c, which some systems (GCS)
+  // b64-encode and some hex-encode.
+  def matches(value: String): ChecksumResult = {
+    val computedHashes = hashType match {
+      case HashType.Crc32c =>
+        List(hashType.calculateHash(value, hexCrc32c = true), hashType.calculateHash(value, hexCrc32c = false))
+      case _ => List(hashType.calculateHash(value))
+    }
+    if (computedHashes.map(_.toLowerCase).contains(hash.toLowerCase))
+      ChecksumSuccess()
+    else ChecksumFailure(computedHashes.mkString(" or "))
+  }
 }

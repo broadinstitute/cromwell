@@ -12,11 +12,6 @@ object CloudNioFileAttributes {
   val FileTimeZero: FileTime = FileTime.fromMillis(0)
 }
 
-sealed trait ChecksumResult
-case class ChecksumSkipped() extends ChecksumResult
-case class ChecksumSuccess() extends ChecksumResult
-case class ChecksumFailure(calculatedHash: String) extends ChecksumResult
-
 trait CloudNioRegularFileAttributes extends CloudNioFileAttributes {
   override def lastAccessTime(): FileTime = FileTimeZero
 

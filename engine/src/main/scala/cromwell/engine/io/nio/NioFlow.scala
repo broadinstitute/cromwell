@@ -6,7 +6,14 @@ import cats.effect._
 import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess}
 import com.typesafe.config.Config
 import common.util.IORetry
-import cromwell.core.callcaching.{FileHash, FileHashStrategy, HashType}
+import cromwell.core.callcaching.{
+  ChecksumFailure,
+  ChecksumSkipped,
+  ChecksumSuccess,
+  FileHash,
+  FileHashStrategy,
+  HashType
+}
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
@@ -115,10 +122,7 @@ class NioFlow(parallelism: Int,
       // Ideally, we would only disable checksum validation if there was an actual
       // overflow, but we don't know that here.
       if (!command.options.failOnOverflow) return IO.pure(ChecksumSkipped())
-
-      val hash = fileHash.computeHashOf(value)
-      if (hash.toLowerCase == fileHash.hash.toLowerCase) IO.pure(ChecksumSuccess())
-      else IO.pure(ChecksumFailure(hash))
+      IO.pure(fileHash.matches(value))
     }
 
     def readFile: IO[String] = IO {

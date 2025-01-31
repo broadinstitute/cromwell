@@ -3,16 +3,15 @@ package cromwell.engine.io.nio
 import akka.actor.ActorSystem
 import akka.stream.scaladsl.Flow
 import cats.effect._
-import cloud.nio.spi.{ChecksumFailure, ChecksumResult, ChecksumSkipped, ChecksumSuccess}
 import com.typesafe.config.Config
 import common.util.IORetry
 import cromwell.core.callcaching.{
   ChecksumFailure,
+  ChecksumResult,
   ChecksumSkipped,
   ChecksumSuccess,
   FileHash,
-  FileHashStrategy,
-  HashType
+  FileHashStrategy
 }
 import cromwell.core.io._
 import cromwell.core.path.Path

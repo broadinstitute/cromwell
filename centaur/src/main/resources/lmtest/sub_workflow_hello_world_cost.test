@@ -1,5 +1,4 @@
-name: sub_
-workflow_hello_world
+name: sub_workflow_hello_world
 testFormat: workflowsuccess
 tags: [subworkflow]
 
@@ -15,5 +14,3 @@ metadata {
   status: Succeeded
   "outputs.main_workflow.main_output": "Hello sub world!"
 }
-
-cost: 0.011111

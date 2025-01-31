@@ -77,6 +77,9 @@ metadata {
   "failures.0.causedBy": "BetweenKeyboardAndChairException"
 }
 
+// Optional, the expected cost of running the workflow
+cost: 0.0000
+
 filesystemcheck: "local" // possible values: "local", "gcs". Used in conjunction with outputExpectations to define files we expect to exist after running this workflow.
 outputExpectations: {
     "/path/to/my/output/file1": 1
@@ -106,6 +109,9 @@ In case the absolute path the cromwell root is used (for example: `/home/my_user
 
 In case testing of the caching is required `<<CACHE_HIT_UUID>>` can be used. 
 The testFormat should be `runtwiceexpectingcallcaching`.
+
+The cost is optional. If supplied, Centaur will retrieve the cost of the successfully completed workflow and compare it to the cost supplied. 
+The expected range is within 20% of the estimated cost.
 
 
 ## Centaur Test Types

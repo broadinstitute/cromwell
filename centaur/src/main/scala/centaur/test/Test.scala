@@ -1060,4 +1060,39 @@ object Operations extends StrictLogging {
           IO.raiseError(CentaurTestException(message, workflow))
         }
     }
+
+  def getExpectedCost(workflowCost: Option[BigDecimal]): IO[BigDecimal] =
+    workflowCost match {
+      case Some(cost) if cost == 0 =>  IO.raiseError(new Exception("Expected cost is cannot be 0"))
+      case Some(cost) => IO.pure(cost)
+      case None =>
+        IO.raiseError(new Exception("Expected 'cost' is required in the test config to validate the workflow cost"))
+    }
+
+  /**
+    * Validate that the actual cost is within 20% of the expected cost
+    */
+  def validateCost(actualCost: BigDecimal, expectedCost: BigDecimal): IO[Unit] = {
+    val costDiff = (actualCost - expectedCost).abs / expectedCost
+    if (costDiff > 0.2) {
+      println(s"costDiff: $costDiff is greater than 20%!")
+      IO.raiseError(
+        new Exception(s"Expected cost $expectedCost but got $actualCost, which is outside the 20% threshold")
+      )
+    } else {
+      IO.unit
+    }
+  }
+
+  def fetchAndValidateCost(workflowSpec: Workflow, submittedWorkflow: SubmittedWorkflow): Test[Unit] =
+    new Test[Unit] {
+
+      override def run: IO[Unit] =
+        for {
+          actualCost <- CentaurCromwellClient.cost(submittedWorkflow)
+          expectedCost <- getExpectedCost(workflowSpec.cost)
+         _ <- validateCost(actualCost.cost, expectedCost)
+        } yield ()
+    }
+
 }

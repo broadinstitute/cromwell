@@ -337,6 +337,15 @@ object TestFormulas extends StrictLogging {
       case _ => Test.invalidTestDefinition("Configuration not supported by PapiUpgradeTest", workflowDefinition)
     }
 
+  def runSuccessfulWorkflowAndVerifyCost(
+    workflowSpec: Workflow
+  ): Test[SubmitResponse] = for {
+    _ <- checkDescription(workflowSpec, validityExpectation = Option(true))
+    _ <- timingVerificationNotSupported(workflowSpec.maximumAllowedTime)
+    submittedWorkflow <- runSuccessfulWorkflow(workflowSpec)
+    _ <- fetchAndValidateCost(workflowSpec, submittedWorkflow)
+  } yield SubmitResponse(submittedWorkflow)
+
   implicit class EnhancedCromwellTracker(val tracker: Option[CromwellTracker]) extends AnyVal {
     def track(metadata: WorkflowMetadata): Unit = tracker foreach { _.track(metadata) }
   }

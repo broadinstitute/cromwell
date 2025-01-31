@@ -2,6 +2,12 @@
 
 ## 88 Release Notes
 
+### New feature: Prevent Job start during Cloud Quota exhaustion
+
+This optional feature prevents Cromwell from starting new jobs in a group that is currently experiencing 
+cloud quota exhaustion. Jobs will be started once the group's quota becomes available. To enable this feature, 
+set `quota-exhaustion-job-start-control.enabled` to true.
+
 ### Java 17
 
 As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
@@ -24,9 +30,11 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 - Fixes the preemption error handling, now, the correct error message is printed, this also handles the other potential exit codes.
 - Fixes error message reporting for failed jobs.
 - Fixes the "retry with more memory" feature.
+- Fixes the reference disk feature.
 - Fixes pulling Docker image metadata from private GCR repositories.
 - Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
 - Added a way to use a custom LogsPolicy for the job execution, setting `backend.providers.batch.config.batch.logs-policy` to "CLOUD_LOGGING" (default) keeps the current behavior, or, set it to "PATH" to save the logs into the the mounted disk, at the end, this log file gets copied to the google cloud storage bucket with "task.log" as the name.
+- When "CLOUD_LOGGING" is used, many more Cromwell / WDL labels for workflow, root workflow, call, shard etc. are now assigned to GCP Batch log entries.
 
 ### Improved handling of Life Sciences API quota errors
 

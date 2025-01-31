@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.tokens.large
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import cromwell.core.JobToken.JobTokenType
@@ -15,6 +13,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 
 class LargeScaleJobTokenDispenserActorSpec
@@ -44,7 +43,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyToTest + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 None
       ),
       "tokenDispenserUnderTest1"
     )
@@ -103,7 +103,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyExpected + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 None
       ),
       "tokenDispenserUnderTest2"
     )
@@ -162,7 +163,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyOverall + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 None
       ),
       "tokenDispenserUnderTest3"
     )
@@ -221,7 +223,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyOverall + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 None
       ),
       "tokenDispenserUnderTest4"
     )
@@ -274,7 +277,8 @@ class LargeScaleJobTokenDispenserActorSpec
                                  Rate(maxConcurrencyOverall + 1, 100.millis),
                                  None,
                                  dispenserType = "execution",
-                                 tokenAllocatedDescription = "Running"
+                                 tokenAllocatedDescription = "Running",
+                                 None
       ),
       "tokenDispenserUnderTest5"
     )

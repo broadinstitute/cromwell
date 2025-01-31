@@ -6,14 +6,13 @@ import cromwell.backend.{
   BackendInitializationData,
   BackendLifecycleActorFactory
 }
-import cromwell.core.CallOutputs
 import cromwell.core.WorkflowOptions.UseRelativeOutputPaths
 import cromwell.core.path.{Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
 import wom.values.{WomSingleFile, WomValue}
 
-trait OutputsLocationHelper extends PathFactory {
+trait OutputsLocationHelper {
 
   private def findFiles(values: Seq[WomValue]): Seq[WomSingleFile] =
     values flatMap {
@@ -22,20 +21,19 @@ trait OutputsLocationHelper extends PathFactory {
       }
     }
 
-  protected def getOutputFilePaths(outputsDir: String,
-                                   descriptor: EngineWorkflowDescriptor,
-                                   backendInitData: AllBackendInitializationData,
-                                   workflowOutputs: CallOutputs
-  ): List[(Path, Path)] = {
-    PathFactory.buildPath(outputsDir, descriptor.pathBuilders)
-    val workflowOutputsPath = buildPath(outputsDir)
+  protected def outputFilePathMapping(outputsDir: String,
+                                      descriptor: EngineWorkflowDescriptor,
+                                      backendInitData: AllBackendInitializationData,
+                                      workflowOutputs: Seq[WomValue]
+  ): Map[Path, Path] = {
+    val workflowOutputsPath = PathFactory.buildPath(outputsDir, descriptor.pathBuilders)
     val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
     val rootAndFiles = for {
       // NOTE: Without .toSeq, outputs in arrays only yield the last output
       backend <- descriptor.backendAssignments.values.toSeq
       config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
       rootPath <- getBackendRootPath(backend, config, descriptor, backendInitData).toSeq
-      outputFiles = findFiles(workflowOutputs.outputs.values.toSeq).map(_.value)
+      outputFiles = findFiles(workflowOutputs).map(_.value)
     } yield (rootPath, outputFiles)
 
     // This regex will make sure the path is relative to the execution folder.
@@ -56,7 +54,7 @@ trait OutputsLocationHelper extends PathFactory {
         }
       }
     }
-    outputFileDestinations.distinct.toList
+    outputFileDestinations.distinct.toMap
   }
 
   private def getBackendRootPath(backend: String,

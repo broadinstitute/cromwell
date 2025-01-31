@@ -66,5 +66,4 @@ In [Run](Modes#run) mode, a sample command to run _workflow.wdl_ would be:
 $ java -jar cromwell.jar run workflow.wdl --imports imports.zip
 ```
 
-In [Server](Modes#server) mode, pass in a ZIP file using the parameter `workflowDependencies` via the [Submit](api/RESTAPI#submit-a-workflow-for-execution) endpoint.
-
+In [Server](Modes#server) mode, pass in a ZIP file using the parameter `workflowDependencies` via the Submit endpoint.

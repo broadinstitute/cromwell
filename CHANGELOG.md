@@ -19,6 +19,8 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 ### GCP Batch
 
 - The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+- Fixes a bug with not being able to recover jobs on Cromwell restart.
+- Fixes the preemption error handling, now, the correct error message is printed, this also handles the other potential exit codes.
 - Fixes pulling Docker image metadata from private GCR repositories.
 - Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
 

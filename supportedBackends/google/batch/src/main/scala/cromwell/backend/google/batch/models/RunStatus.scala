@@ -3,19 +3,21 @@ package cromwell.backend.google.batch.models
 import cromwell.core.ExecutionEvent
 import io.grpc.Status
 
-sealed trait RunStatus
+sealed trait RunStatus {
+  def eventList: Seq[ExecutionEvent]
+  def toString: String
+}
 
 object RunStatus {
 
-  case object Initializing extends RunStatus
-
-  case object AwaitingCloudQuota extends RunStatus
-
-  case object Running extends RunStatus
-
-  sealed trait TerminalRunStatus extends RunStatus {
-    def eventList: Seq[ExecutionEvent]
+  case class Initializing(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Initializing" }
+  case class AwaitingCloudQuota(eventList: Seq[ExecutionEvent]) extends RunStatus {
+    override def toString = "AwaitingCloudQuota"
   }
+
+  case class Running(eventList: Seq[ExecutionEvent]) extends RunStatus { override def toString = "Running" }
+
+  sealed trait TerminalRunStatus extends RunStatus
 
   case class Success(eventList: Seq[ExecutionEvent]) extends TerminalRunStatus {
     override def toString = "Success"

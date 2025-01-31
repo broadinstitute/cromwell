@@ -125,7 +125,7 @@ object BatchRequestExecutor {
 
         // We don't need to detect preemptible VMs because that's handled automatically by GCP
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
-          BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota)
+          BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota(Seq.empty))
       }
 
     private[request] def interpretOperationStatus(job: Job): RunStatus = {
@@ -140,12 +140,12 @@ object BatchRequestExecutor {
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
         RunStatus.Success(events)
       } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
-        RunStatus.Running
+        RunStatus.Running(events)
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
         // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
         RunStatus.Failed(Status.OK, events)
       } else {
-        RunStatus.Initializing
+        RunStatus.Initializing(events)
       }
     }
 

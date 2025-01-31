@@ -24,12 +24,7 @@ import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.runnable.RunnableUtils.MountPoint
 import cromwell.backend.google.batch.util.BatchExpressionFunctions
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{
-  DefaultStandardAsyncExecutionActorParams,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob,
-  StandardExpressionFunctionsParams
-}
+import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
@@ -41,6 +36,10 @@ import cromwell.services.instrumentation.InstrumentationService.InstrumentationS
 import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
+import cromwell.services.metadata.CallMetadataKeys
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metrics.bard.BardEventing.BardEventRequest
+import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.mockito.Mockito._
@@ -198,6 +197,18 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     }
 
     override lazy val backendEngineFunctions: BatchExpressionFunctions = functions
+
+    override val pollingResultMonitorActor: Option[ActorRef] = Some(
+      context.actorOf(
+        BatchPollResultMonitorActor.props(serviceRegistryActor,
+                                          workflowDescriptor,
+                                          jobDescriptor,
+                                          validatedRuntimeAttributes,
+                                          platform,
+                                          jobLogger
+        )
+      )
+    )
   }
 
   private val runtimeAttributesBuilder = GcpBatchRuntimeAttributes.runtimeAttributesBuilder(gcpBatchConfiguration)
@@ -1550,36 +1561,213 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         "stdout" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye/stdout"
       )
     )
-
   }
 
-  private def setupBackend: TestableGcpBatchJobExecutionActor = {
-    val womFile = WomSingleFile("gs://blah/b/c.txt")
-    val workflowInputs = Map("file_passing.f" -> womFile)
-    val callInputs = Map(
-      "in" -> womFile, // how does one programmatically map the wf inputs to the call inputs?
-      "out_name" -> WomString("out") // is it expected that this isn't using the default?
+  private def buildJobDescriptor(): BackendJobDescriptor = {
+    val attempt = 1
+    val preemptible = 1
+    val wdlNamespace = WdlNamespaceWithWorkflow
+      .load(YoSup.replace("[PREEMPTIBLE]", s"preemptible: $preemptible"), Seq.empty[Draft2ImportResolver])
+      .get
+    val womDefinition = wdlNamespace.workflow
+      .toWomWorkflowDefinition(isASubworkflow = false)
+      .getOrElse(fail("failed to get WomDefinition from WdlWorkflow"))
+
+    wdlNamespace.toWomExecutable(Option(Inputs.toJson.compactPrint), NoIoFunctionSet, strictValidation = true) match {
+      case Right(womExecutable) =>
+        val inputs = for {
+          combined <- womExecutable.resolvedExecutableInputs
+          (port, resolvedInput) = combined
+          value <- resolvedInput.select[WomValue]
+        } yield port -> value
+
+        val workflowDescriptor = BackendWorkflowDescriptor(
+          WorkflowId.randomId(),
+          womDefinition,
+          inputs,
+          NoOptions,
+          Labels.empty,
+          HogGroup("foo"),
+          List.empty,
+          None
+        )
+        val job = workflowDescriptor.callable.taskCallNodes.head
+        val key = BackendJobDescriptorKey(job, None, attempt)
+        val runtimeAttributes = makeRuntimeAttributes(job)
+
+        BackendJobDescriptor(workflowDescriptor,
+                             key,
+                             runtimeAttributes,
+                             fqnWdlMapToDeclarationMap(Inputs),
+                             NoDocker,
+                             None,
+                             Map()
+        )
+      case Left(badtimes) => fail(badtimes.toList.mkString(", "))
+    }
+  }
+
+  def buildTestActorRef(
+    jobDescriptor: BackendJobDescriptor,
+    serviceRegistryActor: Option[TestProbe] = None
+  ): TestActorRef[TestableGcpBatchJobExecutionActor] = {
+    val props = Props(
+      new TestableGcpBatchJobExecutionActor(
+        jobDescriptor,
+        Promise(),
+        gcpBatchConfiguration,
+        TestableGcpBatchExpressionFunctions,
+        emptyActor,
+        failIoActor,
+        serviceRegistryActor.map(actor => actor.ref).getOrElse(kvService)
+      )
     )
-    makeBatchActorRef(SampleWdl.FilePassingWorkflow, workflowInputs, "a", callInputs).underlyingActor
+    TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
   }
 
-  it should "not try to extract start, cpu start, and end times from terminal run statuses" in {
-    val jesBackend = setupBackend
+  it should "emit expected timing metadata as task executes" in {
+    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val expectedVmEnd = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
 
-    val start = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.HOURS), None)
-    val middle = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(30, ChronoUnit.MINUTES), None)
-    val end = ExecutionEvent(UUID.randomUUID().toString, OffsetDateTime.now().minus(1, ChronoUnit.MINUTES), None)
-    val successStatus = RunStatus.Success(Seq(middle, end, start))
+    val pollResult0 = RunStatus.Initializing(Seq.empty)
+    val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
+    val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
+    val pollResult3 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, expectedVmEnd)))
+    val terminalPollResult =
+      RunStatus.Success(Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))))
 
-    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
+    val serviceRegistryProbe = TestProbe()
+
+    val jobDescriptor = buildJobDescriptor()
+    val job = StandardAsyncJob(UUID.randomUUID().toString)
+    val run = Run(job)
+    val handle = new GcpBatchPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
+    val testActorRef = buildTestActorRef(jobDescriptor, Option(serviceRegistryProbe))
+
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult0)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult1)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult2)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case action: PutMetadataAction =>
+        action.events.exists(event => event.key.key.equals(CallMetadataKeys.VmStartTime))
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult3)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case action: PutMetadataAction => action.events.exists(event => event.key.key.equals(CallMetadataKeys.VmEndTime))
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, terminalPollResult)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
   }
 
-  it should "return None trying to get start and end times from a status containing no events" in {
-    val jesBackend = setupBackend
+  it should "send bard metrics message on task success" in {
+    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val expectedVmEnd = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
 
-    val successStatus = RunStatus.Success(Seq())
+    val pollResult0 = RunStatus.Initializing(Seq.empty)
+    val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
+    val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
+    val pollResult3 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, expectedVmEnd)))
+    val terminalPollResult =
+      RunStatus.Success(Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))))
 
-    jesBackend.getStartAndEndTimes(successStatus) shouldBe None
+    val serviceRegistryProbe = TestProbe()
+
+    val jobDescriptor = buildJobDescriptor()
+    val job = StandardAsyncJob(jobDescriptor.workflowDescriptor.id.id.toString)
+    val run = Run(job)
+    val handle = new GcpBatchPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
+    val testActorRef = buildTestActorRef(jobDescriptor, Option(serviceRegistryProbe))
+
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult0)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult1)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult2)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult3)
+    testActorRef.underlyingActor.handlePollSuccess(handle, terminalPollResult)
+
+    val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
+      case _: BardEventRequest => true
+      case _ => false
+    }
+    val taskSummary = bardMessage.asInstanceOf[BardEventRequest].event.asInstanceOf[TaskSummaryEvent]
+    taskSummary.workflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.parentWorkflowId should be(None)
+    taskSummary.rootWorkflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.jobTag should be(jobDescriptor.key.tag)
+    taskSummary.jobFullyQualifiedName should be(jobDescriptor.key.call.fullyQualifiedName)
+    taskSummary.jobIndex should be(None)
+    taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
+    taskSummary.terminalState shouldBe a[String]
+    taskSummary.platform should be(Some("gcp"))
+    taskSummary.dockerImage should be(Some("ubuntu:latest"))
+    taskSummary.cpuCount should be(1)
+    taskSummary.memoryBytes should be(2.147483648e9)
+    taskSummary.startTime should not be empty
+    taskSummary.cpuStartTime should be(Option(expectedVmStart.toString))
+    taskSummary.endTime should not be empty
+    taskSummary.jobSeconds should be(7200)
+    taskSummary.cpuSeconds should be(Option(3600))
+  }
+
+  it should "send bard metrics message on task failure" in {
+    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+
+    val pollResult0 = RunStatus.Initializing(Seq.empty)
+    val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
+    val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
+    val abortStatus = RunStatus.Aborted(Status.NOT_FOUND)
+
+    val serviceRegistryProbe = TestProbe()
+
+    val jobDescriptor = buildJobDescriptor()
+    val job = StandardAsyncJob(jobDescriptor.workflowDescriptor.id.id.toString)
+    val run = Run(job)
+    val handle = new GcpBatchPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
+    val testActorRef = buildTestActorRef(jobDescriptor, Option(serviceRegistryProbe))
+
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult0)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult1)
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult2)
+    testActorRef.underlyingActor.handlePollSuccess(handle, abortStatus)
+
+    val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
+      case _: BardEventRequest => true
+      case _ => false
+    }
+
+    val taskSummary = bardMessage.asInstanceOf[BardEventRequest].event.asInstanceOf[TaskSummaryEvent]
+    taskSummary.workflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.parentWorkflowId should be(None)
+    taskSummary.rootWorkflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.jobTag should be(jobDescriptor.key.tag)
+    taskSummary.jobFullyQualifiedName should be(jobDescriptor.key.call.fullyQualifiedName)
+    taskSummary.jobIndex should be(None)
+    taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
+    taskSummary.terminalState shouldBe a[String]
+    taskSummary.platform should be(Some("gcp"))
+    taskSummary.dockerImage should be(Some("ubuntu:latest"))
+    taskSummary.cpuCount should be(1)
+    taskSummary.memoryBytes should be(2.147483648e9)
+    taskSummary.startTime should not be empty
+    taskSummary.cpuStartTime should be(Option(expectedVmStart.toString))
+    taskSummary.endTime should not be empty
+    taskSummary.jobSeconds should be > 0.toLong
+    taskSummary.cpuSeconds.get should be > 0.toLong
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

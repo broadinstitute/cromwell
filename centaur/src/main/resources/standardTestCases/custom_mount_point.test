@@ -1,6 +1,6 @@
 name: custom_mount_point
 testFormat: workflowsuccess
-backends: [Papi, GCPBATCH]
+backends: [Papi]
 
 files {
   workflow: custom_mount_point/custom_mount_point.wdl

@@ -111,13 +111,15 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                                       initializationDataOption: Option[BackendInitializationData],
                                       serviceRegistryActor: ActorRef,
                                       ioActor: ActorRef,
-                                      backendSingletonActorOption: Option[ActorRef]
+                                      backendSingletonActorOption: Option[ActorRef],
+                                      groupMetricsActor: ActorRef
   ): Props = {
     val params = jobExecutionActorParams(jobDescriptor,
                                          initializationDataOption,
                                          serviceRegistryActor,
                                          ioActor,
-                                         backendSingletonActorOption
+                                         backendSingletonActorOption,
+                                         groupMetricsActor
     )
     Props(new StandardSyncExecutionActor(params)).withDispatcher(Dispatcher.BackendDispatcher)
   }
@@ -126,7 +128,8 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
                               initializationDataOption: Option[BackendInitializationData],
                               serviceRegistryActor: ActorRef,
                               ioActor: ActorRef,
-                              backendSingletonActorOption: Option[ActorRef]
+                              backendSingletonActorOption: Option[ActorRef],
+                              groupMetricsActor: ActorRef
   ): StandardSyncExecutionActorParams =
     DefaultStandardSyncExecutionActorParams(
       jobIdKey,
@@ -137,6 +140,7 @@ trait StandardLifecycleActorFactory extends BackendLifecycleActorFactory {
       initializationDataOption,
       backendSingletonActorOption,
       asyncExecutionActorClass,
+      groupMetricsActor,
       MinimumRuntimeSettings()
     )
 

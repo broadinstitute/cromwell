@@ -49,6 +49,7 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLik
       Option(initializationData),
       jesBackendSingletonActor,
       classOf[PipelinesApiAsyncBackendJobExecutionActor],
+      groupMetricsActor = system.actorOf(Props.empty, "groupMetricsActor-initialization"),
       MinimumRuntimeSettings()
     )
     val testJJEA = TestActorRef[TestPipelinesApiJobExecutionActor](
@@ -92,6 +93,7 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLik
       Option(initializationData),
       jesBackendSingletonActor,
       classOf[PipelinesApiAsyncBackendJobExecutionActor],
+      groupMetricsActor = system.actorOf(Props.empty, "groupMetricsActor-random"),
       MinimumRuntimeSettings()
     )
     val testJJEA = TestActorRef[TestPipelinesApiJobExecutionActor](

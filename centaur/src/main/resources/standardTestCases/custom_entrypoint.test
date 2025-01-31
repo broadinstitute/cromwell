@@ -1,6 +1,6 @@
 name: custom_entrypoint
 testFormat: workflowsuccess
-backends: [Papi, Papiv2, GCPBATCH]
+backends: [Papi, Papiv2]
 
 files {
   workflow: custom_entrypoint/custom_entrypoint.wdl

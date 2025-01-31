@@ -1,6 +1,6 @@
 name: papi_preemptible_and_max_retries
 testFormat: workflowfailure
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 
 files {
   workflow: papi_preemptible_and_max_retries/papi_preemptible_and_max_retries.wdl

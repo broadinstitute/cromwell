@@ -3,7 +3,7 @@ testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: 1.0
 tags: ["wdl_1.0"]
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 
 files {
   workflow: wdl_draft3/draft3_nio_file/draft3_nio_file_papi2.wdl

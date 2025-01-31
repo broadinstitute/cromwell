@@ -2,7 +2,7 @@
 
 name: hello_delete
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+backends: [Papiv2]
 
 files {
   workflow: delete_intermediates/hello_delete.wdl

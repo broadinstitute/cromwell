@@ -1,0 +1,21 @@
+# Uses the GCPBATCH backend which does not specify a parallel composite upload threshold, so parallel
+# composite uploads should be off.
+
+name: gcpbatch_parallel_composite_uploads_off_by_default
+testFormat: workflowsuccess
+# needs alt, hardcodes backend in library WDL
+backends: [GCPBATCH]
+
+files {
+  workflow: parallel_composite_uploads/gcpbatch_parallel_composite_uploads_off.wdl
+  imports: [
+    "parallel_composite_uploads/gcpbatch_parallel_composite_uploads_lib.wdl"
+  ]
+  options: "parallel_composite_uploads/caching_off.options"
+}
+
+metadata {
+  workflowName: composite_status
+  status: Succeeded
+  "outputs.composite_status.check.composite" = "false"
+}

@@ -317,13 +317,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         ) {
       override def executeOrRecover(mode: ExecutionMode)(implicit ec: ExecutionContext): Future[ExecutionHandle] = {
         sendIncrementMetricsForReferenceFiles(referenceInputFilesOpt)
-        dockerImageCacheTestingParamsOpt.foreach { dockerImageCacheTestingParams =>
-          sendIncrementMetricsForDockerImageCache(
-            dockerImageCacheTestingParams.dockerImageCacheDiskOpt,
-            dockerImageCacheTestingParams.dockerImageAsSpecifiedByUser,
-            dockerImageCacheTestingParams.isDockerImageCacheUsageRequested
-          )
-        }
 
         if (preemptible == shouldBePreemptible) Future.successful(handle)
         else Future.failed(new Exception(s"Test expected preemptible to be $shouldBePreemptible but got $preemptible"))

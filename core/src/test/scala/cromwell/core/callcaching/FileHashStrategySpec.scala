@@ -3,7 +3,9 @@ package cromwell.core.callcaching
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class HashTypeSpec extends AnyFlatSpecLike with Matchers {
+// TODO more tests
+
+class FileHashStrategySpec extends AnyFlatSpecLike with Matchers {
 
   behavior of "HashType.calculateHash"
 
@@ -11,7 +13,7 @@ class HashTypeSpec extends AnyFlatSpecLike with Matchers {
     HashType.Crc32c.calculateHash("hello", true) shouldBe "9a71bb4c"
   }
 
-  it should "calculate a GCS crc32c hash" in {
+  it should "calculate a base64-encoded crc32c hash" in {
     HashType.Crc32c.calculateHash("hello") shouldBe "mnG7TA=="
   }
 

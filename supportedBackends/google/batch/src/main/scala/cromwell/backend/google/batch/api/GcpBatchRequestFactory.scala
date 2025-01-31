@@ -75,6 +75,7 @@ object GcpBatchRequestFactory {
                                       projectId: String,
                                       computeServiceAccount: String,
                                       googleLabels: Seq[GcpLabel],
+                                      preemptible: Boolean,
                                       batchTimeout: FiniteDuration,
                                       jobShell: String,
                                       privateDockerKeyAndEncryptedToken: Option[CreateBatchDockerKeyAndToken],

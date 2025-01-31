@@ -79,7 +79,9 @@ case class ChecksumFailure(calculatedHash: String) extends ChecksumResult
 case class FileHash(hashType: HashType, hash: String) {
   // Compute the hash of the input string using a method equivalent to the one that produced this hash,
   // and check whether it matches this hash. We need special handling for crc32c, which some systems (GCS)
-  // b64-encode and some hex-encode.
+  // b64-encode and some hex-encode. We can't know for sure which encoding we have, so we'll compare with both.
+  // This is reasonably safe because the comparison is used to validate individual file downloads, not search
+  // for matches across many files (no birthday problem).
   def matches(value: String): ChecksumResult = {
     val computedHashes = hashType match {
       case HashType.Crc32c =>

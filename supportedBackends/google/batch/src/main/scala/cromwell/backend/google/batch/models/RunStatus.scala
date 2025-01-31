@@ -43,9 +43,8 @@ object RunStatus {
     override def toString = "Failed"
   }
 
-  final case class Aborted(errorCode: Status,
-                           instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
-  ) extends UnsuccessfulRunStatus {
+  final case class Aborted(errorCode: Status, instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
+      extends UnsuccessfulRunStatus {
     override def toString = "Aborted"
 
     override def eventList: Seq[ExecutionEvent] = List.empty

@@ -21,6 +21,7 @@ import cromwell.backend.google.batch.actors.GcpBatchAsyncBackendJobExecutionActo
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models._
+import cromwell.backend.google.batch.runnable.RunnableUtils.MountPoint
 import cromwell.backend.google.batch.util.BatchExpressionFunctions
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.{
@@ -423,7 +424,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     )
 
     GcpBatchAsyncBackendJobExecutionActor.generateDrsLocalizerManifest(inputs) shouldEqual
-      "drs://drs.example.org/aaa,/mnt/disks/cromwell_root/path/to/aaa.bai\r\ndrs://drs.example.org/bbb,/mnt/disks/cromwell_root/path/to/bbb.bai\r\n"
+      s"drs://drs.example.org/aaa,$MountPoint/path/to/aaa.bai\r\ndrs://drs.example.org/bbb,$MountPoint/path/to/bbb.bai\r\n"
   }
 
   it should "send proper value for \"number of reference files used gauge\" metric, or don't send anything if reference disks feature is disabled" in {
@@ -710,7 +711,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         }
 
         mappedInputs(gcsFileKey) match {
-          case wdlFile: WomSingleFile => wdlFile.value shouldBe "/mnt/disks/cromwell_root/blah/abc"
+          case wdlFile: WomSingleFile => wdlFile.value shouldBe s"$MountPoint/blah/abc"
           case _ => fail("test setup error")
         }
       case Left(badtimes) => fail(badtimes.toList.mkString(", "))
@@ -1181,54 +1182,54 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val batchOutputs = Set(
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file1",
+        s"$MountPoint/path/to/file1",
         gcsPath("gs://path/to/file1"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file1"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file1"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file2",
+        s"$MountPoint/path/to/file2",
         gcsPath("gs://path/to/file2"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file2"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file2"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file3",
+        s"$MountPoint/path/to/file3",
         gcsPath("gs://path/to/file3"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file3"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file3"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file4",
+        s"$MountPoint/path/to/file4",
         gcsPath("gs://path/to/file4"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file4"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file4"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        "/cromwell_root/path/to/file5",
+        s"$MountPoint/path/to/file5",
         gcsPath("gs://path/to/file5"),
-        DefaultPathBuilder.get("/cromwell_root/path/to/file5"),
+        DefaultPathBuilder.get(s"$MountPoint/path/to/file5"),
         workingDisk,
         optional = false,
         secondary = false
       )
     )
     val outputValues = Seq(
-      WomSingleFile("/cromwell_root/path/to/file1"),
+      WomSingleFile(s"$MountPoint/path/to/file1"),
       WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile("/cromwell_root/path/to/file2"), WomSingleFile("/cromwell_root/path/to/file3"))
+               Seq(WomSingleFile(s"$MountPoint/path/to/file2"), WomSingleFile(s"$MountPoint/path/to/file3"))
       ),
       WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
              Map(
-               WomSingleFile("/cromwell_root/path/to/file4") -> WomSingleFile("/cromwell_root/path/to/file5")
+               WomSingleFile(s"$MountPoint/path/to/file4") -> WomSingleFile(s"$MountPoint/path/to/file5")
              )
       )
     )

@@ -1,5 +1,4 @@
-name: sub_
-workflow_hello_world
+name: sub_workflow_hello_world
 testFormat: workflowsuccess
 tags: [subworkflow]
 

@@ -1,7 +1,7 @@
 package cromwell.engine
 
 import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.core.WorkflowOptions.{FinalWorkflowOutputsDir, FinalWorkflowOutputsMode, WorkflowOption}
+import cromwell.core.WorkflowOptions.{FinalWorkflowOutputsDir, FinalWorkflowOutputsDirMetadata, WorkflowOption}
 import cromwell.core.callcaching.CallCachingMode
 import cromwell.core.path.PathBuilder
 import wom.callable.Callable
@@ -35,6 +35,6 @@ case class EngineWorkflowDescriptor(topLevelCallable: Callable,
   def finalWorkflowOutputsDir: Option[String] =
     getWorkflowOption(FinalWorkflowOutputsDir)
 
-  def finalWorkflowOutputsMode: FinalWorkflowOutputsMode =
-    FinalWorkflowOutputsMode.fromString(getWorkflowOption(FinalWorkflowOutputsMode))
+  def finalWorkflowOutputsDirMetadata: FinalWorkflowOutputsDirMetadata =
+    FinalWorkflowOutputsDirMetadata.fromString(getWorkflowOption(FinalWorkflowOutputsDirMetadata))
 }

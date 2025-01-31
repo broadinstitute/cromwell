@@ -1,10 +1,10 @@
-name: docker_hash_dockerhub_private_config_usa_wf_options
+name: gcpbatch_docker_hash_dockerhub_private_config_usa_wf_options
 testFormat: workflowsuccess
 # see https://github.com/broadinstitute/cromwell/pull/7515
-backends: [Papiv2USADockerhub, GCPBATCH_ALT]
+backends: [GCPBATCHUSADockerhub]
 
 files {
-  workflow: docker_hash/docker_hash_dockerhub_private_usa_dockerhub.wdl
+  workflow: docker_hash/gcpbatch_docker_hash_dockerhub_private_usa_dockerhub.wdl
   # Updated the options to read_from_cache: false for
   # https://github.com/broadinstitute/cromwell/issues/3998
   options-dir: "Error: BA-6546 The environment variable CROMWELL_BUILD_RESOURCES_DIRECTORY must be set/export pointing to a valid path such as '${YOUR_CROMWELL_DIR}/target/ci/resources'"

@@ -2,6 +2,15 @@
 
 ## 88 Release Notes
 
+### Java 17
+
+As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
+containerized using [Eclipse Temurin](https://adoptium.net/temurin/releases/?version=17).
+
+### Fixed Optional and String Concatenation Bug
+
+As outlined in the [WDL Spec](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter), concatenating a string with an empty optional now correctly evaluates to the empty string.
+
 ### Improved status reporting behavior
 
 When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure. 
@@ -23,6 +32,7 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 
 - The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
 - Fixes pulling Docker image metadata from private GCR repositories.
+- Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
 
 ### Improved handling of Life Sciences API quota errors
 

@@ -50,7 +50,7 @@ add-apt-repository \
 # install packages that required setup
 apt-get update
 apt-get install -y \
-    temurin-11-jdk \
+    temurin-17-jdk \
     containerd.io \
     docker-ce \
     docker-ce-cli \

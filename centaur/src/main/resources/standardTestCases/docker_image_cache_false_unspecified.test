@@ -1,6 +1,7 @@
 name: docker_image_cache_false_unspecified
 testFormat: workflowsuccess
-backends: [Papiv2-Docker-Image-Cache]
+# if Docker image caches
+backends: [Papiv2-Docker-Image-Cache, GCPBATCH_NEEDS_ALT]
 
 files {
   workflow: docker_image_cache/docker_image_cache_false.wdl

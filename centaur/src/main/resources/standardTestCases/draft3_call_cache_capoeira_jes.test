@@ -1,7 +1,7 @@
 name: draft3_call_cache_capoeira_jes
 testFormat: workflowsuccess
 backendsMode: all
-backends: [Papi, Local]
+backends: [Papi, Local, GCPBATCH]
 workflowType: WDL
 workflowTypeVersion: 1.0
 tags: ["wdl_1.0"]

@@ -38,6 +38,9 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
   lazy val memoryRetryRCFilename: String = gcpBatchCallPaths.memoryRetryRCFilename
   lazy val memoryRetryRCGcsPath: Path = gcpBatchCallPaths.memoryRetryRC
 
+  lazy val logFilename: String = "task.log"
+  lazy val logGcsPath: Path = gcpBatchCallPaths.callExecutionRoot.resolve(logFilename)
+
   lazy val batchAttributes: GcpBatchConfigurationAttributes = batchConfiguration.batchAttributes
 
   lazy val defaultLabels: Labels = {

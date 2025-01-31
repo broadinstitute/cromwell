@@ -4,7 +4,7 @@ workflowType: WDL
 workflowTypeVersion: draft-2
 tags: [localdockertest, "draft-2"]
 backendsMode: "only"
-backends: [Local, LocalNoDocker, Papi]
+backends: [Local, LocalNoDocker, Papi, GCPBATCH]
 
 files {
   workflow: wdl_draft2/read_write_functions/read_write_functions.wdl

@@ -1063,7 +1063,7 @@ object Operations extends StrictLogging {
 
   def getExpectedCost(workflowCost: Option[BigDecimal]): IO[BigDecimal] =
     workflowCost match {
-      case Some(cost) if cost == 0 =>  IO.raiseError(new Exception("Expected cost is cannot be 0"))
+      case Some(cost) if cost == 0 => IO.raiseError(new Exception("Expected cost is cannot be 0"))
       case Some(cost) => IO.pure(cost)
       case None =>
         IO.raiseError(new Exception("Expected 'cost' is required in the test config to validate the workflow cost"))
@@ -1091,7 +1091,7 @@ object Operations extends StrictLogging {
         for {
           actualCost <- CentaurCromwellClient.cost(submittedWorkflow)
           expectedCost <- getExpectedCost(workflowSpec.cost)
-         _ <- validateCost(actualCost.cost, expectedCost)
+          _ <- validateCost(actualCost.cost, expectedCost)
         } yield ()
     }
 

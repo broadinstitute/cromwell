@@ -27,7 +27,10 @@ import cromwell.services.{FailedMetadataJsonResponse, SuccessfulMetadataJsonResp
 import cromwell.webservice.PartialWorkflowSources
 import cromwell.webservice.WebServiceUtils.{completeResponse, materializeFormData, EnhancedThrowable}
 import cromwell.webservice.routes.CromwellApiService
-import cromwell.webservice.routes.CromwellApiService.{validateWorkflowIdInMetadata, UnrecognizedWorkflowException}
+import cromwell.webservice.routes.CromwellApiService.{
+  validateWorkflowIdInMetadataSummaries,
+  UnrecognizedWorkflowException
+}
 import cromwell.webservice.routes.MetadataRouteSupport.{metadataBuilderActorRequest, metadataQueryRequest}
 import cromwell.webservice.routes.wes.WesResponseJsonSupport._
 import cromwell.webservice.routes.wes.WesRouteSupport.{respondWithWesError, _}
@@ -94,9 +97,10 @@ trait WesRouteSupport extends HttpInstrumentation {
               }
             },
             path("runs" / Segment / "status") { possibleWorkflowId =>
-              val response = validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor).flatMap(w =>
-                serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse]
-              )
+              val response =
+                validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor).flatMap(w =>
+                  serviceRegistryActor.ask(GetStatus(w)).mapTo[MetadataServiceResponse]
+                )
               // WES can also return a 401 or a 403 but that requires user auth knowledge which Cromwell doesn't currently have
               onComplete(response) {
                 case Success(SuccessfulMetadataJsonResponse(_, jsObject)) =>

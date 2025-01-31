@@ -1034,7 +1034,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     for {
       _ <- Future.unit // trick to get into a future context
-      _ = log.info(s"started polling for $jobNameStr")
       jobName = JobName.parse(jobNameStr)
       status <- pollStatus(workflowId, jobName, backendSingletonActor, initializationData.requestFactory)
     } yield status

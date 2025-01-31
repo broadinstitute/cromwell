@@ -6,13 +6,14 @@ import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
 import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.monitoring.{CheckpointingConfiguration, MonitoringImage}
+import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
 import wom.runtime.WomOutputRuntimeExtractor
 
 import scala.concurrent.duration.FiniteDuration
 
 trait GcpBatchRequestFactory {
-  def submitRequest(data: GcpBatchRequest): CreateJobRequest
+  def submitRequest(data: GcpBatchRequest, jobLogger: JobLogger): CreateJobRequest
 
   def queryRequest(jobName: JobName): GetJobRequest
 

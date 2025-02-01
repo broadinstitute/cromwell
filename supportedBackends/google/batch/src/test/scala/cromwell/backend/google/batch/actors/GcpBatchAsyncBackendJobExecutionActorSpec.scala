@@ -24,7 +24,12 @@ import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.runnable.RunnableUtils.MountPoint
 import cromwell.backend.google.batch.util.BatchExpressionFunctions
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
+import cromwell.backend.standard.{
+  DefaultStandardAsyncExecutionActorParams,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob,
+  StandardExpressionFunctionsParams
+}
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
@@ -290,19 +295,12 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     }
   }
 
-  private case class DockerImageCacheTestingParameters(dockerImageCacheDiskOpt: Option[String],
-                                                       dockerImageAsSpecifiedByUser: String,
-                                                       isDockerImageCacheUsageRequested: Boolean
-  )
-
   private def executionActor(jobDescriptor: BackendJobDescriptor,
                              promise: Promise[BackendJobExecutionResponse],
                              batchSingletonActor: ActorRef,
                              shouldBePreemptible: Boolean,
                              serviceRegistryActor: ActorRef,
-                             referenceInputFilesOpt: Option[Set[GcpBatchInput]] = None,
-                             dockerImageCacheTestingParamsOpt: Option[DockerImageCacheTestingParameters] = None
-  ): ActorRef = {
+                             referenceInputFilesOpt: Option[Set[GcpBatchInput]]): ActorRef = {
 
     val job = generateStandardAsyncJob
     val run = Run(job)
@@ -482,102 +480,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       referenceInputFilesOpt = None
     )
     backend2 ! Execute
-    serviceRegistryProbe.expectNoMessage(timeout)
-  }
-
-  it should "sends proper metrics for docker image cache feature" in {
-
-    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
-    val serviceRegistryProbe = TestProbe()
-    val madeUpDockerImageName = "test_madeup_docker_image_name"
-
-    val expectedMessageWhenRequestedNotFound = InstrumentationServiceMessage(
-      CromwellIncrement(
-        CromwellBucket(List.empty,
-                       NonEmptyList("docker", List("image", "cache", "image_not_in_cache", madeUpDockerImageName))
-        )
-      )
-    )
-    val backendDockerCacheRequestedButNotFound = executionActor(
-      jobDescriptor,
-      Promise[BackendJobExecutionResponse](),
-      TestProbe().ref,
-      shouldBePreemptible = false,
-      serviceRegistryActor = serviceRegistryProbe.ref,
-      dockerImageCacheTestingParamsOpt = Option(
-        DockerImageCacheTestingParameters(
-          None,
-          "test_madeup_docker_image_name",
-          isDockerImageCacheUsageRequested = true
-        )
-      )
-    )
-    backendDockerCacheRequestedButNotFound ! Execute
-    serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedNotFound)
-
-    val expectedMessageWhenRequestedAndFound = InstrumentationServiceMessage(
-      CromwellIncrement(
-        CromwellBucket(List.empty,
-                       NonEmptyList("docker", List("image", "cache", "used_image_from_cache", madeUpDockerImageName))
-        )
-      )
-    )
-    val backendDockerCacheRequestedAndFound = executionActor(
-      jobDescriptor,
-      Promise[BackendJobExecutionResponse](),
-      TestProbe().ref,
-      shouldBePreemptible = false,
-      serviceRegistryActor = serviceRegistryProbe.ref,
-      dockerImageCacheTestingParamsOpt = Option(
-        DockerImageCacheTestingParameters(
-          Option("test_madeup_disk_image_name"),
-          "test_madeup_docker_image_name",
-          isDockerImageCacheUsageRequested = true
-        )
-      )
-    )
-    backendDockerCacheRequestedAndFound ! Execute
-    serviceRegistryProbe.expectMsg(expectedMessageWhenRequestedAndFound)
-
-    val expectedMessageWhenNotRequestedButFound = InstrumentationServiceMessage(
-      CromwellIncrement(
-        CromwellBucket(List.empty,
-                       NonEmptyList("docker", List("image", "cache", "cached_image_not_used", madeUpDockerImageName))
-        )
-      )
-    )
-    val backendDockerCacheNotRequestedButFound = executionActor(
-      jobDescriptor,
-      Promise[BackendJobExecutionResponse](),
-      TestProbe().ref,
-      shouldBePreemptible = false,
-      serviceRegistryActor = serviceRegistryProbe.ref,
-      dockerImageCacheTestingParamsOpt = Option(
-        DockerImageCacheTestingParameters(
-          Option("test_madeup_disk_image_name"),
-          "test_madeup_docker_image_name",
-          isDockerImageCacheUsageRequested = false
-        )
-      )
-    )
-    backendDockerCacheNotRequestedButFound ! Execute
-    serviceRegistryProbe.expectMsg(expectedMessageWhenNotRequestedButFound)
-
-    val backendDockerCacheNotRequestedNotFound = executionActor(
-      jobDescriptor,
-      Promise[BackendJobExecutionResponse](),
-      TestProbe().ref,
-      shouldBePreemptible = false,
-      serviceRegistryActor = serviceRegistryProbe.ref,
-      dockerImageCacheTestingParamsOpt = Option(
-        DockerImageCacheTestingParameters(
-          None,
-          "test_madeup_docker_image_name",
-          isDockerImageCacheUsageRequested = false
-        )
-      )
-    )
-    backendDockerCacheNotRequestedNotFound ! Execute
     serviceRegistryProbe.expectNoMessage(timeout)
   }
 

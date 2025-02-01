@@ -300,7 +300,8 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
                              batchSingletonActor: ActorRef,
                              shouldBePreemptible: Boolean,
                              serviceRegistryActor: ActorRef,
-                             referenceInputFilesOpt: Option[Set[GcpBatchInput]]): ActorRef = {
+                             referenceInputFilesOpt: Option[Set[GcpBatchInput]]
+  ): ActorRef = {
 
     val job = generateStandardAsyncJob
     val run = Run(job)

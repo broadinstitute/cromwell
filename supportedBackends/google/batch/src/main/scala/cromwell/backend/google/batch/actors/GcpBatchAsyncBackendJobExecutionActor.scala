@@ -68,6 +68,7 @@ import java.io.OutputStreamWriter
 import java.net.SocketTimeoutException
 import java.nio.charset.Charset
 import java.util.Base64
+import java.util.regex.Pattern
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.io.Source
@@ -76,6 +77,10 @@ import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
 
 object GcpBatchAsyncBackendJobExecutionActor {
+
+  private val VM_PREEMPTION_PATTERN = Pattern.compile(
+    "failed due to the following task event: \"Task state is updated from RUNNING to FAILED on zones/\\S+ due to Spot VM preemption with exit code 50001.\""
+  )
 
   def StandardException(errorCode: GrpcStatus,
                         message: String,
@@ -1112,12 +1117,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         None
       )
 
+    def isPreemption(maybePreemption: RunStatus.UnsuccessfulRunStatus): Boolean =
+      maybePreemption match {
+        case _: RunStatus.Failed =>
+          maybePreemption.eventList.exists(e => VM_PREEMPTION_PATTERN.matcher(e.name).find())
+        case _ => false
+      }
+
     Future.fromTry {
       Try {
         runStatus match {
-          case preemptedStatus: RunStatus.Preempted if preemptible =>
-            handlePreemption(preemptedStatus, returnCode, prettyPrintedError)
           case _: RunStatus.Aborted => AbortedExecutionHandle
+          case maybePreemption: RunStatus.UnsuccessfulRunStatus if preemptible && isPreemption(maybePreemption) =>
+            handlePreemption(maybePreemption, returnCode, prettyPrintedError)
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
           case unknown =>
             throw new RuntimeException(
@@ -1137,7 +1149,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
 
   private def handlePreemption(
-    runStatus: RunStatus.Preempted,
+    runStatus: RunStatus.UnsuccessfulRunStatus,
     jobReturnCode: Option[Int],
     prettyPrintedError: String
   ): ExecutionHandle = {

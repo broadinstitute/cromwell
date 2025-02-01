@@ -1,9 +1,9 @@
-name: checkpointing
+name: gcpbatch_checkpointing
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH_ALT]
+backends: [GCPBATCH]
 
 files {
-  workflow: checkpointing/checkpointing.wdl
+  workflow: checkpointing/gcpbatch_checkpointing.wdl
 }
 
 metadata {

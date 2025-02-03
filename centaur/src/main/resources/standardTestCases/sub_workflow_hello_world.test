@@ -15,4 +15,3 @@ metadata {
   "outputs.main_workflow.main_output": "Hello sub world!"
 }
 
-cost: 0.011111

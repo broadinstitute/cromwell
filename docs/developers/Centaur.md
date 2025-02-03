@@ -111,7 +111,7 @@ In case testing of the caching is required `<<CACHE_HIT_UUID>>` can be used.
 The testFormat should be `runtwiceexpectingcallcaching`.
 
 The cost is optional. If supplied, Centaur will retrieve the cost of the successfully completed workflow and compare it to the cost supplied. 
-The expected range is within 20% of the estimated cost.
+The expected range is within 10% of the estimated cost.
 
 
 ## Centaur Test Types

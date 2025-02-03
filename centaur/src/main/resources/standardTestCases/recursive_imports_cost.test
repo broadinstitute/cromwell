@@ -1,0 +1,20 @@
+name: recursive_imports
+testFormat: workflowsuccessandverifycost
+
+files {
+  workflow: recursive_imports/recursive_imports.wdl
+  imports: [
+    forkjoin/forkjoin.wdl,
+    sub_workflow_hello_world/sub_workflow_hello_world.wdl,
+    sub_workflow_hello_world/sub_workflow_hello_world_import.wdl,
+    sub_workflow_interactions/sub_workflow_interactions_import.wdl,
+    sub_workflow_interactions/sub_workflow_interactions.wdl
+  ]
+}
+
+metadata {
+  workflowName: recursive_imports
+  status: Succeeded
+}
+
+cost: 0.011111

@@ -4,8 +4,6 @@ import cromwell.core.callcaching.HashType.HashType
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-// TODO more tests
-
 class FileHashStrategySpec extends AnyFlatSpecLike with Matchers {
 
   behavior of "FileHashStrategy.getFileHash"

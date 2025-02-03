@@ -7,8 +7,7 @@ import java.security.MessageDigest
 import java.util.Base64
 import java.util.zip.CRC32C
 
-// File hashing strategies used by IoHashCommand, primarily when obtaining file hashes
-// for call caching purposes.
+// File hashing strategies used by IoHashCommand, primarily when obtaining file hashes for call caching purposes.
 case class FileHashStrategy(priorityHashList: List[HashType]) {
   override def toString = s"FileHashStrategy(${priorityHashList.map(_.toString).mkString(", ")})"
 
@@ -24,8 +23,11 @@ object FileHashStrategy {
   val ETag: FileHashStrategy = FileHashStrategy(List(HashType.Etag))
   val Drs: FileHashStrategy = FileHashStrategy(List(HashType.Crc32c, HashType.Md5, HashType.Sha256, HashType.Etag))
 
-  // TODO alert about bad hashes from config
-  // TODO validate fs type here?
+  // No effort is made here to validate which has strategies are supported by which filesystems.
+  // Developers who want to see the code that actually computes hashes should look in:
+  // * cromwell.engine.io.nio.NioHashing
+  // * cromwell.filesystems.gcs.batch.GcsBatchIoCommand
+  // * cromwell.filesystems.s3.batch.S3BatchIoCommand
   def of(hashes: List[String]): FileHashStrategy = FileHashStrategy(hashes.flatMap(HashType(_)))
 }
 
@@ -77,6 +79,7 @@ case class ChecksumSuccess() extends ChecksumResult
 case class ChecksumFailure(calculatedHash: String) extends ChecksumResult
 
 case class FileHash(hashType: HashType, hash: String) {
+
   // Compute the hash of the input string using a method equivalent to the one that produced this hash,
   // and check whether it matches this hash. We need special handling for crc32c, which some systems (GCS)
   // b64-encode and some hex-encode. We can't know for sure which encoding we have, so we'll compare with both.

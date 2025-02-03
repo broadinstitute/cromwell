@@ -103,7 +103,6 @@ object NioHashing {
 
   private def getFileHashForDrsPath(drsPath: DrsPath, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
     IO {
-      // TODO this is also used for checksumming local engine downloads!
       val drsHashes = drsPath.getFileHashes
       hashStrategy.getFileHash(
         drsPath,

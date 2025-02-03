@@ -161,8 +161,7 @@ abstract class IoDeleteCommand(val file: Path, val swallowIOExceptions: Boolean)
 /**
   * Get Hash value for file
   */
-abstract class IoHashCommand(val file: Path, val hashStrategy: FileHashStrategy)
-    extends SingleFileIoCommand[String] {
+abstract class IoHashCommand(val file: Path, val hashStrategy: FileHashStrategy) extends SingleFileIoCommand[String] {
   override def toString = s"get $hashStrategy hash of ${file.pathAsString}"
   override lazy val name = "hash"
 }

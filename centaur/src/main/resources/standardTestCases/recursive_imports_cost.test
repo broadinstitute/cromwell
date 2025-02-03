@@ -1,4 +1,4 @@
-name: recursive_imports
+name: recursive_imports_cost
 testFormat: workflowsuccessandverifycost
 
 files {
@@ -13,7 +13,7 @@ files {
 }
 
 metadata {
-  workflowName: recursive_imports
+  workflowName: recursive_imports_cost
   status: Succeeded
 }
 

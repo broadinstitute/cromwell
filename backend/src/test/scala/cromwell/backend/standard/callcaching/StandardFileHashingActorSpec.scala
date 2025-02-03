@@ -154,7 +154,8 @@ class StandardFileHashingActorSpec
     val ioActorProbe = TestProbe("ioActorProbe")
     val backendConfig = ConfigFactory.parseString(
       """filesystems.gcs.caching.hashing-strategy = ["md5", "identity"]
-        |filesystems.s3.caching.hashing-strategy = ["etag"]
+        |filesystems.s3.caching.hashing-strategy = "etag"
+        |filesystems.http.some-other-config = "foobar"
         |filesystems.ftp.caching.hashing-strategy = []""".stripMargin
     )
     val config = BackendConfigurationDescriptor(backendConfig, ConfigFactory.empty)
@@ -188,6 +189,7 @@ class StandardFileHashingActorSpec
     checkHashStrategy("s3", FileHashStrategy.ETag)
     checkHashStrategy("ftp", FileHashStrategy(List()))
     checkHashStrategy("drs", FileHashStrategy.Drs)
+    checkHashStrategy("http", FileHashStrategy(List(HashType.Sha256)))
     checkHashStrategy("blob", FileHashStrategy(List(HashType.Sha256)))
   }
 

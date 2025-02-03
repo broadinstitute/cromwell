@@ -6,7 +6,7 @@ import com.typesafe.config.ConfigFactory
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendJobDescriptor}
 import cromwell.core.TestKitSuite
-import cromwell.core.callcaching.HashingFailedMessage
+import cromwell.core.callcaching.{FileHashStrategy, HashingFailedMessage, HashType, SuccessfulHashResultMessage}
 import cromwell.core.io.{IoCommand, IoCommandBuilder, IoHashCommand, IoSuccess, PartialIoCommandBuilder}
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -17,7 +17,7 @@ import wom.values.WomSingleFile
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 class StandardFileHashingActorSpec
     extends TestKitSuite
@@ -99,7 +99,7 @@ class StandardFileHashingActorSpec
     }
   }
 
-  it should "handle string hash responses" in {
+  it should "handle non-string hash responses" in {
     val parentProbe = TestProbe("testParentHashString")
     val params = StandardFileHashingActorSpec.ioActorParams(ActorRef.noSender)
     val props = Props(new StandardFileHashingActor(params) {
@@ -125,19 +125,87 @@ class StandardFileHashingActorSpec
     }
   }
 
+  it should "handle string hash responses" in {
+    val parentProbe = TestProbe("testParentHashString")
+    val params = StandardFileHashingActorSpec.ioActorParams(ActorRef.noSender)
+    val props = Props(new StandardFileHashingActor(params) {
+      override lazy val defaultIoTimeout: FiniteDuration = 1.second.dilated
+
+      override def getPath(str: String): Try[Path] = Try(DefaultPathBuilder.get(str))
+    })
+    val standardFileHashingActorRef = parentProbe.childActorOf(props, "testStandardFileHashingActorHashString")
+
+    val fileHashContext = mock[FileHashContext]
+    fileHashContext.file returns "/expected/failure/path"
+    val command = mock[IoCommand[String]]
+    val message: (FileHashContext, IoSuccess[String]) = (fileHashContext, IoSuccess(command, "a_nice_hash"))
+
+    standardFileHashingActorRef ! message
+
+    parentProbe.expectMsgPF(10.seconds.dilated) {
+      case succeeded: SuccessfulHashResultMessage =>
+        succeeded.hashes.map(_.hashValue.value).headOption shouldBe Some("a_nice_hash")
+      case unexpected => fail(s"received unexpected message $unexpected")
+    }
+  }
+
+  it should "use the right hashing strategies" in {
+    val parentProbe = TestProbe("testParentHashStrategies")
+    val ioActorProbe = TestProbe("ioActorProbe")
+    val backendConfig = ConfigFactory.parseString(
+      """filesystems.gcs.caching.hashing-strategy = ["md5", "identity"]
+        |filesystems.s3.caching.hashing-strategy = ["etag"]
+        |filesystems.ftp.caching.hashing-strategy = []""".stripMargin
+    )
+    val config = BackendConfigurationDescriptor(backendConfig, ConfigFactory.empty)
+
+    val props =
+      Props(new StandardFileHashingActor(StandardFileHashingActorSpec.ioActorParams(ioActorProbe.ref, config)) {
+        override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
+          "gcs" -> FileHashStrategy.Crc32c,
+          "drs" -> FileHashStrategy.Drs
+        )
+        override val fallbackHashingStrategy: FileHashStrategy = FileHashStrategy(List(HashType.Sha256))
+
+        override def getPath(str: String): Try[Path] = {
+          val p = mock[Path]
+          p.filesystemTypeKey returns str
+          Success(p)
+        }
+      })
+    val standardFileHashingActorRef = parentProbe.childActorOf(props, "testStandardFileHashingActorHashStrategy")
+
+    def checkHashStrategy(filesystemKey: String, expectedStrategy: FileHashStrategy): Unit = {
+      val request = SingleFileHashRequest(null, null, WomSingleFile(filesystemKey), None)
+      standardFileHashingActorRef ! request
+      ioActorProbe.expectMsgPF(10.seconds.dilated) {
+        case (_: FileHashContext, cmd: IoHashCommand) if cmd.hashStrategy == expectedStrategy =>
+        case unexpected => fail(s"received unexpected ${filesystemKey} message $unexpected")
+      }
+    }
+
+    checkHashStrategy("gcs", FileHashStrategy(List(HashType.Md5, HashType.Identity)))
+    checkHashStrategy("s3", FileHashStrategy.ETag)
+    checkHashStrategy("ftp", FileHashStrategy(List()))
+    checkHashStrategy("drs", FileHashStrategy.Drs)
+    checkHashStrategy("blob", FileHashStrategy(List(HashType.Sha256)))
+  }
+
 }
 
 object StandardFileHashingActorSpec {
   private def testing: Nothing = throw new UnsupportedOperationException("should not be run during tests")
   private val emptyBackendConfig = BackendConfigurationDescriptor(ConfigFactory.empty, ConfigFactory.empty)
 
-  def defaultParams(): StandardFileHashingActorParams =
+  def defaultParams(config: BackendConfigurationDescriptor = emptyBackendConfig): StandardFileHashingActorParams =
     defaultParams(testing, emptyBackendConfig, testing, testing, testing)
 
-  def ioActorParams(ioActor: ActorRef): StandardFileHashingActorParams =
+  def ioActorParams(ioActor: ActorRef,
+                    config: BackendConfigurationDescriptor = emptyBackendConfig
+  ): StandardFileHashingActorParams =
     defaultParams(
       withJobDescriptor = testing,
-      withConfigurationDescriptor = emptyBackendConfig,
+      withConfigurationDescriptor = config,
       withIoActor = ioActor,
       withServiceRegistryActor = testing,
       withBackendInitializationDataOption = testing
@@ -162,6 +230,15 @@ object StandardFileHashingActorSpec {
       withBackendInitializationDataOption
 
     override def fileHashCachingActor: Option[ActorRef] = None
+  }
+
+  class StrategyTestFileHashingActor(standardParams: StandardFileHashingActorParams)
+      extends StandardFileHashingActor(standardParams) {
+    override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
+      "gcs" -> FileHashStrategy.Crc32c,
+      "drs" -> FileHashStrategy.Drs
+    )
+    override val fallbackHashingStrategy: FileHashStrategy = FileHashStrategy(List(HashType.Sha256))
   }
 
 }

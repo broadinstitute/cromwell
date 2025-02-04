@@ -106,13 +106,14 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       fileHashStrategy <- fileHashStrategyFromList.orElse(fileHashStrategyFromString)
     } yield (fsKey, FileHashStrategy.of(fileHashStrategy))
 
-    val strats = defaultHashingStrategies ++ configuredHashingStrategies
-    val stratsReport = strats.keys.toList.sorted.map(k => s"$k -> ${strats.get(k)}").mkString(", ")
+    val strategies = defaultHashingStrategies ++ configuredHashingStrategies
+    val strategiesReport = strategies.keys.toList.sorted.map(k => s"$k -> ${strategies.get(k)}").mkString(", ")
+    // TODO this gets printed for every... task? workflow? too much.
     log.info(
-      s"Call caching configured with per-filesystem file hashing strategies: $stratsReport. " +
+      s"Call caching configured with per-filesystem file hashing strategies: $strategiesReport. " +
         s"Others will use $fallbackHashingStrategy."
     )
-    strats
+    strategies
   }
 
   protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder

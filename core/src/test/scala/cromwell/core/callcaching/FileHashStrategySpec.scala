@@ -87,7 +87,7 @@ class FileHashStrategySpec extends AnyFlatSpecLike with Matchers {
   }
 
   it should "not blow up when the strategy is empty" in {
-    val strategy = FileHashStrategy(List())
+    val strategy = FileHashStrategy.Empty
     val returnedHash = strategy.getFileHash(
       "my nice input",
       (input: String, hashType: HashType) =>

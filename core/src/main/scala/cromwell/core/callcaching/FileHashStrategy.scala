@@ -1,5 +1,6 @@
 package cromwell.core.callcaching
 
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.core.callcaching.HashType.HashType
 
 import java.nio.{ByteBuffer, ByteOrder}
@@ -8,33 +9,43 @@ import java.util.Base64
 import java.util.zip.CRC32C
 
 // File hashing strategies used by IoHashCommand, primarily when obtaining file hashes for call caching purposes.
+// When obtaining the hash for a file we try each of the hash types in priorityHashList, in the order they appear
+// in the list.
 case class FileHashStrategy(priorityHashList: List[HashType]) {
   override def toString = s"FileHashStrategy(${priorityHashList.map(_.toString).mkString(", ")})"
 
   // Lazily evaluate hashes from `priorityList` until we find one that exists
   def getFileHash[A](fileToHash: A, hashFunc: (A, HashType) => Option[String]): Option[FileHash] =
     priorityHashList.to(LazyList).flatMap(ht => hashFunc(fileToHash, ht).map(FileHash(ht, _))).headOption
-
 }
 
-object FileHashStrategy {
+object FileHashStrategy extends LazyLogging {
+  // Define some commonly-used strategies so they're easier to refer to
   val Crc32c: FileHashStrategy = FileHashStrategy(List(HashType.Crc32c))
   val Md5: FileHashStrategy = FileHashStrategy(List(HashType.Md5))
   val ETag: FileHashStrategy = FileHashStrategy(List(HashType.Etag))
   val Drs: FileHashStrategy = FileHashStrategy(List(HashType.Crc32c, HashType.Md5, HashType.Sha256, HashType.Etag))
+  val Empty: FileHashStrategy = FileHashStrategy(List.empty)
 
   // No effort is made here to validate which has strategies are supported by which filesystems.
   // Developers who want to see the code that actually computes hashes should look in:
   // * cromwell.engine.io.nio.NioHashing
   // * cromwell.filesystems.gcs.batch.GcsBatchIoCommand
   // * cromwell.filesystems.s3.batch.S3BatchIoCommand
-  def of(hashes: List[String]): FileHashStrategy = FileHashStrategy(hashes.flatMap(HashType(_)))
+  def of(hashTypes: List[String]): FileHashStrategy = {
+    val typedHashTypes = hashTypes.flatMap { h =>
+      HashType(h) match {
+        case Some(t) => Some(t)
+        case None => logger.warn(s"Found invalid call caching hash type: $h"); None
+      }
+    }
+    FileHashStrategy(typedHashTypes)
+  }
 }
 
 object HashType extends Enumeration {
   type HashType = Value
 
-  // crc32c as a hex string
   val Crc32c: HashType.Value = Value
   val Md5: HashType.Value = Value
   val Identity: HashType.Value = Value
@@ -84,7 +95,7 @@ case class FileHash(hashType: HashType, hash: String) {
   // and check whether it matches this hash. We need special handling for crc32c, which some systems (GCS)
   // b64-encode and some hex-encode. We can't know for sure which encoding we have, so we'll compare with both.
   // This is reasonably safe because the comparison is used to validate individual file downloads, not search
-  // for matches across many files (no birthday problem).
+  // for matches across many files (birthday problem not applicable).
   def matches(value: String): ChecksumResult = {
     val computedHashes = hashType match {
       case HashType.Crc32c =>

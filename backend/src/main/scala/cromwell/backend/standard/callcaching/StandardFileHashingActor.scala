@@ -90,12 +90,11 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
   // Child classes can override to set per-filesystem defaults
   val defaultHashingStrategies: Map[String, FileHashStrategy] = Map.empty
 
-  // Hashing strategy to use if none is configured.
+  // Hashing strategy to use if none is specified.
   val fallbackHashingStrategy: FileHashStrategy = FileHashStrategy.Md5
 
   // Combines defaultHashingStrategies with user-provided configuration
   lazy val hashingStrategies: Map[String, FileHashStrategy] = {
-
     val configuredHashingStrategies = for {
       fsConfigs <- configurationDescriptor.backendConfig.as[Option[Config]]("filesystems").toList
       fsKey <- fsConfigs.root.keySet().asScala
@@ -106,14 +105,8 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       fileHashStrategy <- fileHashStrategyFromList.orElse(fileHashStrategyFromString)
     } yield (fsKey, FileHashStrategy.of(fileHashStrategy))
 
-    val strategies = defaultHashingStrategies ++ configuredHashingStrategies
-    val strategiesReport = strategies.keys.toList.sorted.map(k => s"$k -> ${strategies.get(k)}").mkString(", ")
-    // TODO this gets printed for every... task? workflow? too much.
-    log.info(
-      s"Call caching configured with per-filesystem file hashing strategies: $strategiesReport. " +
-        s"Others will use $fallbackHashingStrategy."
-    )
-    strategies
+    defaultHashingStrategies ++ configuredHashingStrategies
+
   }
 
   protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder

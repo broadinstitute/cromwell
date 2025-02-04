@@ -10,6 +10,8 @@ files {
     sub_workflow_interactions/sub_workflow_interactions_import.wdl,
     sub_workflow_interactions/sub_workflow_interactions.wdl
   ]
+  # Adds option to disable call-caching
+   options: recursive_imports/recursive_imports_cost.options
 }
 
 metadata {
@@ -17,4 +19,4 @@ metadata {
   status: Succeeded
 }
 
-cost: 0.011111
+cost: 0.0016

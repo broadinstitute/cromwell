@@ -11,17 +11,9 @@ import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
 import cromwell.backend.google.batch._
 import cromwell.backend.google.batch.authentication.GcpBatchAuths
-import cromwell.backend.google.batch.callcaching.{
-  BatchCacheHitDuplicationStrategy,
-  CopyCachedOutputs,
-  UseOriginalCachedOutputs
-}
+import cromwell.backend.google.batch.callcaching.{BatchCacheHitDuplicationStrategy, CopyCachedOutputs, UseOriginalCachedOutputs}
 import cromwell.backend.google.batch.io.GcpBatchReferenceFilesDisk
-import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{
-  BatchRequestTimeoutConfiguration,
-  GcsTransferConfiguration,
-  VirtualPrivateCloudConfiguration
-}
+import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, ImageMirrorConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.batch.util.GcpBatchReferenceFilesMappingOperations
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -49,6 +41,7 @@ case class GcpBatchConfigurationAttributes(
   cacheHitDuplicationStrategy: BatchCacheHitDuplicationStrategy,
   requestWorkers: Int Refined Positive,
   batchTimeout: FiniteDuration,
+  mirrorConfiguration: ImageMirrorConfiguration,
   logFlushPeriod: Option[FiniteDuration],
   gcsTransferConfiguration: GcsTransferConfiguration,
   virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
@@ -76,6 +69,8 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive],
                                                     connectTimeoutMillis: Option[Int Refined Positive]
   )
+
+  final case class ImageMirrorConfiguration(mirrorAddress: String, mirrorAllowlist: List[String], mirrorAll: Boolean)
 
   lazy val Logger: Logger = LoggerFactory.getLogger("BatchConfiguration")
 
@@ -109,6 +104,9 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     "concurrent-job-limit",
     "request-workers",
     "batch-timeout",
+    "mirror.address",
+    "mirror.allowlist",
+    "mirror.all",
     "batch-requests.timeouts.read",
     "batch-requests.timeouts.connect",
     "default-runtime-attributes.bootDiskSizeGb",
@@ -247,6 +245,10 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
 
     val batchTimeout: FiniteDuration = backendConfig.getOrElse("batch-timeout", 7.days)
 
+    val mirrorAddress: String = backendConfig.as[Option[String]]("mirror.address").getOrElse("mirror.gcr.io")
+    val mirrorAllowlist: List[String] = backendConfig.as[Option[List[String]]]("mirror.allowlist").getOrElse(List.empty)
+    val mirrorAll: Boolean = backendConfig.as[Option[Boolean]]("mirror.all").getOrElse(false)
+
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
       case Some(duration) if duration.isFinite => Option(duration)
       // "Inf" disables upload
@@ -335,6 +337,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
           cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
           requestWorkers = requestWorkers,
           batchTimeout = batchTimeout,
+          mirrorConfiguration = ImageMirrorConfiguration(mirrorAddress, mirrorAllowlist, mirrorAll),
           logFlushPeriod = logFlushPeriod,
           gcsTransferConfiguration = gcsTransferConfiguration,
           virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,

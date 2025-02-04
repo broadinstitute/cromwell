@@ -7,7 +7,7 @@ import wom.expression.{NoIoFunctionSet, WomExpression}
 
 import scala.util.control.NoStackTrace
 
-abstract class KnownJobFailureException extends Exception  with NoStackTrace {
+abstract class KnownJobFailureException extends Exception with NoStackTrace {
   def stderrPath: Option[Path]
 }
 

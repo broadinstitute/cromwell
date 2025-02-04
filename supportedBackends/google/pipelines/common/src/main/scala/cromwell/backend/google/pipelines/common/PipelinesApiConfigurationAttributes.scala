@@ -9,17 +9,9 @@ import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.backend.CommonBackendConfigurationAttributes
-import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{
-  BatchRequestTimeoutConfiguration,
-  GcsTransferConfiguration,
-  VirtualPrivateCloudConfiguration
-}
+import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.{BatchRequestTimeoutConfiguration, GcsTransferConfiguration, ImageMirrorConfiguration, VirtualPrivateCloudConfiguration}
 import cromwell.backend.google.pipelines.common.authentication.PipelinesApiAuths
-import cromwell.backend.google.pipelines.common.callcaching.{
-  CopyCachedOutputs,
-  PipelinesCacheHitDuplicationStrategy,
-  UseOriginalCachedOutputs
-}
+import cromwell.backend.google.pipelines.common.callcaching.{CopyCachedOutputs, PipelinesCacheHitDuplicationStrategy, UseOriginalCachedOutputs}
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
@@ -51,6 +43,7 @@ case class PipelinesApiConfigurationAttributes(
   cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
   requestWorkers: Int Refined Positive,
   pipelineTimeout: FiniteDuration,
+  mirrorConfiguration: ImageMirrorConfiguration,
   quotaAttempts: Int,
   logFlushPeriod: Option[FiniteDuration],
   gcsTransferConfiguration: GcsTransferConfiguration,
@@ -79,6 +72,8 @@ object PipelinesApiConfigurationAttributes
   final case class BatchRequestTimeoutConfiguration(readTimeoutMillis: Option[Int Refined Positive],
                                                     connectTimeoutMillis: Option[Int Refined Positive]
   )
+
+  final case class ImageMirrorConfiguration(mirrorAddress: String, mirrorAllowlist: List[String], mirrorAll: Boolean)
 
   lazy val Logger: Logger = LoggerFactory.getLogger("PipelinesApiConfiguration")
 
@@ -112,6 +107,9 @@ object PipelinesApiConfigurationAttributes
     "concurrent-job-limit",
     "request-workers",
     "pipeline-timeout",
+    "mirror.address",
+    "mirror.allowlist",
+    "mirror.all",
     "quota-attempts",
     "batch-requests.timeouts.read",
     "batch-requests.timeouts.connect",
@@ -230,6 +228,10 @@ object PipelinesApiConfigurationAttributes
 
     val quotaAttempts: Int = backendConfig.as[Option[Int]]("quota-attempts").getOrElse(20)
 
+    val mirrorAddress: String = backendConfig.as[Option[String]]("mirror.address").getOrElse("mirror.gcr.io")
+    val mirrorAllowlist: List[String] = backendConfig.as[Option[List[String]]]("mirror.allowlist").getOrElse(List.empty)
+    val mirrorAll: Boolean = backendConfig.as[Option[Boolean]]("mirror.all").getOrElse(false)
+
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
       case Some(duration) if duration.isFinite => Option(duration)
       // "Inf" disables upload
@@ -324,6 +326,7 @@ object PipelinesApiConfigurationAttributes
           cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
           requestWorkers = requestWorkers,
           pipelineTimeout = pipelineTimeout,
+          mirrorConfiguration = ImageMirrorConfiguration(mirrorAddress, mirrorAllowlist, mirrorAll),
           quotaAttempts = quotaAttempts,
           logFlushPeriod = logFlushPeriod,
           gcsTransferConfiguration = gcsTransferConfiguration,

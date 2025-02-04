@@ -5,7 +5,9 @@ import common.exception.ThrowableAggregation
 import cromwell.core.path.Path
 import wom.expression.{NoIoFunctionSet, WomExpression}
 
-abstract class KnownJobFailureException extends Exception {
+import scala.util.control.NoStackTrace
+
+abstract class KnownJobFailureException extends Exception  with NoStackTrace {
   def stderrPath: Option[Path]
 }
 

@@ -1,3 +1,4 @@
+ignore: true # GCP seems to have fixed the quota handling bug, which makes this test unnecessary
 name: quota_fail_retry
 testFormat: workflowfailure
 # In PAPI v2 there seems to be a quota exhaustion message in a reasonably timely manner, while in GCP Batch the job

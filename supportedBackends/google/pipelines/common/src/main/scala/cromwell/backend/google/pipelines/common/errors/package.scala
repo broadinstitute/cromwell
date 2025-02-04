@@ -7,7 +7,8 @@ package object errors {
     "usage too high",
     "no available zones",
     "resource_exhausted",
-    "quota too low"
+    "quota too low",
+    "waiting for quota"
   )
 
   def isQuotaMessage(msg: String): Boolean =

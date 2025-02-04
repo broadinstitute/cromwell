@@ -127,7 +127,11 @@ case class S3BatchHashCommand(override val file: S3Path, override val hashStrate
           }
       )
       .map(_.hash)
-      .get // TODO uuuggghhhsadifouwesiuhwei come on
+      .get
+  // This ^^ unprotected .get is here because of a need to join the theoretical optionality of hashes
+  // (codified in AN-380) with this class's lack of ability to handle optionality. Refactoring this class
+  // isn't in scope right now. The .get replaced an unprotected response.eTag(), so we aren't creating any
+  // new error cases. --jdewar 02-2025
 
   override def commandDescription: String = s"S3BatchEtagCommand file '$file' with hashStrategy '$hashStrategy'"
 }

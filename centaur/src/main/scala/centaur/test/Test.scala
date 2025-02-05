@@ -1070,7 +1070,7 @@ object Operations extends StrictLogging {
     }
 
   /**
-    * Validate that the actual cost is within 20% of the expected cost
+    * Validate that the actual cost is within 10% of the expected cost
     */
   def validateCost(actualCost: BigDecimal, expectedCost: BigDecimal): IO[Unit] = {
     val costDiff = (actualCost - expectedCost).abs / expectedCost

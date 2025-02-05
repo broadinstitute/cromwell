@@ -5,7 +5,7 @@ Google Cloud Batch is a fully managed service that lets you schedule, queue, and
 
 This section offers detailed configuration instructions for using Cromwell with the Google Cloud Batch in all supported
 authentication modes. Before reading further in this section please see the
-[Getting started on Google Cloud Batch](../tutorials/Batch101) for instructions common to all authentication modes
+[Getting started on Google Cloud Batch](../tutorials/GcpBatch101) for instructions common to all authentication modes
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
 

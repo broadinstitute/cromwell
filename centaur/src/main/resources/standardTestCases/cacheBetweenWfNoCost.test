@@ -1,0 +1,16 @@
+name: cacheBetweenWF
+testFormat: runtwiceexpectingcallcachingnocost
+
+files {
+  workflow: cacheBetweenWF/cacheBetweenWF.wdl
+  options: common_options/cache_read_off_write_on.options
+  second-options: common_options/cache_read_on_write_on.options
+}
+
+metadata {
+  workflowName: cacheBetweenWF
+  status: Succeeded
+  "calls.cacheBetweenWF.getAverage.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWF.getAverage:-1"
+  "calls.cacheBetweenWF.heightProduct.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWF.heightProduct:-1"
+  "outputs.cacheBetweenWF.heightProduct.trapezoidalArea": 406.0
+}

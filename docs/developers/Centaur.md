@@ -15,7 +15,8 @@ You can now run the tests from another terminal.
 There are two ways to invoke the integration tests:
 
 * `sbt "centaur / IntegrationTest / test"` - compiles Centaur and runs all tests via sbt directly. 
-Tests are expected to be in the `centaur/src/main/standardTestCases` directory. In order to run a set of specific tests, you can create a new subdirectory that contains the tests you would like to run, then change the path by modifying the centaur `reference.conf`.
+*  Can also just run `centaur/ IntegrationTest / test` from the sbt terminal.
+Tests are expected to be in the `centaur/src/main/standardTestCases` directory. In order to run a set of specific tests, create a new subdirectory that contains the tests to run, then modify the path in the centaur `reference.conf`.
 
 * `src/ci/bin/testCentaurLocal.sh` - runs the same tests using the continuous integration pipeline configuration.
 
@@ -95,6 +96,7 @@ The `basePath` field is optional, but if supplied all paths will be resolved fro
 The `testFormat` field can be one of the following, case insensitive:
 * `workflowsuccess`: The workflow being supplied is expected to successfully complete
 * `workflowfailure`: The workflow being supplied is expected to fail
+* `workflowsuccessandverifycost`: The workflow being supplied is expected to complete and the expected cost will be verified
 
 The `metadata` is optional. If supplied, Centaur will retrieve the metadata from the successfully completed workflow and compare the values retrieved to those supplied. At the moment the only fields supported are strings, numbers and booleans.
 
@@ -109,10 +111,10 @@ In case the absolute path the cromwell root is used (for example: `/home/my_user
 * `"calls.hello.hello.exit_code": "<<WORKFLOW_ROOT>>/call-hello/execution/exit_code"`
 
 In case testing of the caching is required `<<CACHE_HIT_UUID>>` can be used. 
-The testFormat should be `runtwiceexpectingcallcaching`.
+The testFormat should be `runtwiceexpectingcallcaching`. To verify that the cost is 0 when using call-caching the testFormat should be `runtwiceexpectingcallcachingnocost`
 
 The cost is optional. If supplied, Centaur will retrieve the cost of the successfully completed workflow and compare it to the cost supplied. 
-The expected range is within 10% of the estimated cost.
+The expected range is within 10% of the estimated cost. If evaluating the cost, the test format must be `WorkflowSuccessAndVerifyCost` and the call-caching option must be disabled for that test (example can be found in the `recursive_imports_cost.test`)
 
 
 ## Centaur Test Types

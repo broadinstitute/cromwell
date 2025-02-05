@@ -16,6 +16,7 @@ sealed abstract class CentaurTestFormat(val name: String) {
     case WorkflowSuccessAndVerifyCostTest => "successfully run and verify cost"
     case WorkflowFailureTest => "fail during execution"
     case RunTwiceExpectingCallCachingTest => "call cache the second run of"
+    case RunTwiceExpectingCallCachingNoCostTest => "call cache the second run and verify no cost of"
     case RunThriceExpectingCallCachingTest => "call cache the third run of"
     case RunTwiceExpectingNoCallCachingTest => "NOT call cache the second run of"
     case RunFailingTwiceExpectingNoCallCachingTest => "Fail the first run and NOT call cache the second run of"
@@ -53,6 +54,7 @@ object CentaurTestFormat {
   case object WorkflowSuccessAndVerifyCostTest extends CentaurTestFormat("WorkflowSuccessAndVerifyCost")
   case object WorkflowFailureTest extends CentaurTestFormat("WorkflowFailure")
   case object RunTwiceExpectingCallCachingTest extends CentaurTestFormat("RunTwiceExpectingCallCaching")
+  case object RunTwiceExpectingCallCachingNoCostTest extends CentaurTestFormat("RunTwiceExpectingCallCachingNoCost")
   case object RunThriceExpectingCallCachingTest extends CentaurTestFormat(name = "RunThriceExpectingCallCaching")
   case object RunTwiceExpectingNoCallCachingTest extends CentaurTestFormat("RunTwiceExpectingNoCallCaching")
   case object RunFailingTwiceExpectingNoCallCachingTest
@@ -132,6 +134,7 @@ object CentaurTestFormat {
       WorkflowSuccessAndVerifyCostTest,
       WorkflowFailureTest,
       RunTwiceExpectingCallCachingTest,
+      RunTwiceExpectingCallCachingNoCostTest,
       RunThriceExpectingCallCachingTest,
       RunTwiceExpectingNoCallCachingTest,
       RunFailingTwiceExpectingNoCallCachingTest,

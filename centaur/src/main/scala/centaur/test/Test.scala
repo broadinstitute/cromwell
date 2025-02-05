@@ -1094,4 +1094,15 @@ object Operations extends StrictLogging {
         } yield ()
     }
 
+  def validateNoCost(submittedWorkflow: SubmittedWorkflow): Test[Unit] =
+    new Test[Unit] {
+
+      override def run: IO[Unit] =
+        for {
+          actualCost <- CentaurCromwellClient.cost(submittedWorkflow)
+          _ = if (actualCost.cost != 0) IO.raiseError(new Exception(s"When using call caching, the cost must be 0, not ${actualCost.cost}"))
+          else IO.unit
+        } yield ()
+    }
+
 }

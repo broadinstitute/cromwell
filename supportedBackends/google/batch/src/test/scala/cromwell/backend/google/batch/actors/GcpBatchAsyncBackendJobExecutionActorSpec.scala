@@ -857,7 +857,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
   // TODO: FIXME
   // Cause: com.google.api.client.googleapis.json.GoogleJsonResponseException: 403 Forbidden
-  // For some reason this invokes GCP but it should not
+  // Will be addressed by another ticket
   it should "convert local Paths back to corresponding GCS paths in BatchOutputs" in {
     pending
 

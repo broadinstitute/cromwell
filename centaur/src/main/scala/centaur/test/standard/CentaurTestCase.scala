@@ -28,6 +28,7 @@ case class CentaurTestCase(workflow: Workflow,
     case WorkflowSuccessAndVerifyCostTest => TestFormulas.runSuccessfulWorkflowAndVerifyCost(workflow)
     case WorkflowFailureTest => TestFormulas.runFailingWorkflowAndVerifyMetadata(workflow)
     case RunTwiceExpectingCallCachingTest => TestFormulas.runWorkflowTwiceExpectingCaching(workflow)
+    case RunTwiceExpectingCallCachingNoCostTest => TestFormulas.runWorkflowTwiceExpectingCachingNoCost(workflow)
     case RunThriceExpectingCallCachingTest => TestFormulas.runWorkflowThriceExpectingCaching(workflow)
     case RunTwiceExpectingNoCallCachingTest => TestFormulas.runWorkflowTwiceExpectingNoCaching(workflow)
     case RunFailingTwiceExpectingNoCallCachingTest => TestFormulas.runFailingWorkflowTwiceExpectingNoCaching(workflow)

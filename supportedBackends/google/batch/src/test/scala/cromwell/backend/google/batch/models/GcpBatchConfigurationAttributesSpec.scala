@@ -29,7 +29,7 @@ class GcpBatchConfigurationAttributesSpec
   it should "parse correct Batch config" in {
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
     gcpBatchAttributes.project should be("myProject")
     gcpBatchAttributes.executionBucket should be("gs://myBucket")
     gcpBatchAttributes.maxPollingInterval should be(600)
@@ -42,7 +42,7 @@ class GcpBatchConfigurationAttributesSpec
 
     val backendConfig = ConfigFactory.parseString(configString(customContent = "preemptible = 3"))
 
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
     gcpBatchAttributes.project should be("myProject")
     gcpBatchAttributes.executionBucket should be("gs://myBucket")
     gcpBatchAttributes.maxPollingInterval should be(600)
@@ -61,7 +61,7 @@ class GcpBatchConfigurationAttributesSpec
       """.stripMargin
 
     val backendConfig = ConfigFactory.parseString(configString(customContent = customContent))
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
 
     gcpBatchAttributes.batchRequestTimeoutConfiguration.readTimeoutMillis.get.value should be(100.hours.toMillis.toInt)
     gcpBatchAttributes.batchRequestTimeoutConfiguration.connectTimeoutMillis.get.value should be(
@@ -82,7 +82,7 @@ class GcpBatchConfigurationAttributesSpec
       """.stripMargin
 
     val backendConfig = ConfigFactory.parseString(configString(customContent = customContent))
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
 
     gcpBatchAttributes.batchRequestTimeoutConfiguration should be(BatchRequestTimeoutConfiguration(None, None))
   }
@@ -90,7 +90,7 @@ class GcpBatchConfigurationAttributesSpec
   it should "parse batch-timeout" in {
 
     val backendConfig = ConfigFactory.parseString(configString(customContent = "batch-timeout = 3 days"))
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
 
     gcpBatchAttributes.batchTimeout should be(3.days)
   }
@@ -98,7 +98,7 @@ class GcpBatchConfigurationAttributesSpec
   it should "parse an undefined batch-timeout" in {
 
     val backendConfig = ConfigFactory.parseString(configString())
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
 
     gcpBatchAttributes.batchTimeout should be(7.days)
   }
@@ -107,7 +107,7 @@ class GcpBatchConfigurationAttributesSpec
 
     val backendConfig = ConfigFactory.parseString(configString(batch = """compute-service-account = "testing" """))
 
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
     gcpBatchAttributes.computeServiceAccount should be("testing")
   }
 
@@ -115,19 +115,19 @@ class GcpBatchConfigurationAttributesSpec
 
     val backendConfig = ConfigFactory.parseString(configString(batch = "localization-attempts = 31380"))
 
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
     gcpBatchAttributes.gcsTransferConfiguration.transferAttempts.value should be(31380)
   }
 
   it should "parse logs-policy = CLOUD_LOGGING" in {
     val backendConfig = ConfigFactory.parseString(configString(batch = "logs-policy = CLOUD_LOGGING"))
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
     gcpBatchAttributes.logsPolicy should be(GcpBatchLogsPolicy.CloudLogging)
   }
 
   it should "parse logs-policy = PATH" in {
     val backendConfig = ConfigFactory.parseString(configString(batch = "logs-policy = PATH"))
-    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
     gcpBatchAttributes.logsPolicy should be(GcpBatchLogsPolicy.Path)
   }
 
@@ -136,7 +136,7 @@ class GcpBatchConfigurationAttributesSpec
       "Google Cloud Batch configuration is not valid: Errors:\nUnrecognized logs policy entry: INVALID. Supported strategies are CLOUD_LOGGING and PATH."
     val backendConfig = ConfigFactory.parseString(configString(batch = "logs-policy = INVALID"))
     val ex = intercept[IllegalArgumentException] {
-      GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+      GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
     }
 
     ex.getMessage should be(expected)
@@ -238,7 +238,7 @@ class GcpBatchConfigurationAttributesSpec
     it should s"parse virtual-private-cloud $description" in {
 
       val backendConfig = ConfigFactory.parseString(configString(customConfig))
-      val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+      val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
       gcpBatchAttributes.virtualPrivateCloudConfiguration should be(vpcConfig)
     }
   }
@@ -248,7 +248,7 @@ class GcpBatchConfigurationAttributesSpec
 
       val backendConfig = ConfigFactory.parseString(configString(customConfig))
       val exception = intercept[IllegalArgumentException with MessageAggregation] {
-        GcpBatchConfigurationAttributes(googleConfig, backendConfig, "batch")
+        GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
       }
       exception.errorMessages.toList should be(errorMessages)
     }
@@ -266,7 +266,7 @@ class GcpBatchConfigurationAttributesSpec
         """.stripMargin)
 
     val exception = intercept[IllegalArgumentException with MessageAggregation] {
-      GcpBatchConfigurationAttributes(googleConfig, nakedConfig, "batch")
+      GcpBatchConfigurationAttributes(googleConfig, nakedConfig, "GCPBATCH")
     }
     val errorsList = exception.errorMessages.toList
     errorsList should contain("String: 2: No configuration setting found for key 'project'")
@@ -287,7 +287,6 @@ class GcpBatchConfigurationAttributesSpec
        |     // Pipelines and manipulate auth JSONs.
        |     auth = "mock"
        |    $batch
-       |     endpoint-url = "http://myEndpoint"
        |     location = "us-central1"
        |   }
        |
@@ -325,7 +324,7 @@ class GcpBatchConfigurationAttributesSpec
 
     val backendConfig = ConfigFactory.parseString(configString())
 
-    val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "batch")
+    val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "GCPBATCH")
 
     validation shouldBe None.validNel
   }
@@ -336,7 +335,7 @@ class GcpBatchConfigurationAttributesSpec
 
     val backendConfig = ConfigFactory.parseString(configString(customContent = manifestConfig))
 
-    val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "batch")
+    val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "GCPBATCH")
 
     validation shouldBe Option(List.empty).validNel
   }
@@ -373,7 +372,7 @@ class GcpBatchConfigurationAttributesSpec
         |]
         |""".stripMargin
     val backendConfig = ConfigFactory.parseString(configString(manifestConfig))
-    val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "batch")
+    val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "GCPBATCH")
     val manifests: List[ManifestFile] = validation.toEither.toOption.get.get
 
     manifests shouldBe List(
@@ -442,7 +441,7 @@ class GcpBatchConfigurationAttributesSpec
     badValues foreach { badValue =>
       val customContent = s""""reference-disk-localization-manifests" = $badValue"""
       val backendConfig = ConfigFactory.parseString(configString(customContent))
-      val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "batch")
+      val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "GCPBATCH")
       validation.isInvalid shouldBe true
     }
   }

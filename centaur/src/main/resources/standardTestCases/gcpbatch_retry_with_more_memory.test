@@ -1,5 +1,5 @@
 name: gcpbatch_retry_with_more_memory
-testFormat: workflowfailure
+testFormat: workflowsuccess
 backends: [GCPBATCH]
 
 files {
@@ -9,13 +9,10 @@ files {
 
 metadata {
   workflowName: retry_with_more_memory
-  status: Failed
-  "failures.0.message": "Workflow failed"
-  "failures.0.causedBy.0.message": "stderr for job `retry_with_more_memory.imitate_oom_error:NA:3` contained one of the `memory-retry-error-keys: [OutOfMemory,Killed]` specified in the Cromwell config. Job might have run out of memory."
+  status: Succeeded
   "retry_with_more_memory.imitate_oom_error.-1.1.executionStatus": "RetryableFailure"
   "retry_with_more_memory.imitate_oom_error.-1.1.runtimeAttributes.memory": "1 GB"
   "retry_with_more_memory.imitate_oom_error.-1.2.executionStatus": "RetryableFailure"
   "retry_with_more_memory.imitate_oom_error.-1.2.runtimeAttributes.memory": "1.1 GB"
-  "retry_with_more_memory.imitate_oom_error.-1.3.executionStatus": "Failed"
-  "retry_with_more_memory.imitate_oom_error.-1.3.runtimeAttributes.memory": "1.2100000000000002 GB"
+  "outputs.retry_with_more_memory.memory_output": "1.2100000000000002 GB"
 }

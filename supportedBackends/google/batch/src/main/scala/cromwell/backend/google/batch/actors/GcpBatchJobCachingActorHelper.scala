@@ -25,6 +25,8 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
     batchConfiguration.runtimeConfig
   )
 
+  val preemptible: Int
+
   lazy val workingDisk: GcpBatchAttachedDisk = runtimeAttributes.disks.find(_.name == GcpBatchWorkingDisk.Name).get
 
   lazy val callRootPath: Path = gcpBatchCallPaths.callExecutionRoot
@@ -71,9 +73,10 @@ trait GcpBatchJobCachingActorHelper extends StandardCachingActorHelper {
       .get(WorkflowOptionKeys.GoogleProject)
       .getOrElse(batchAttributes.project)
 
-    Map[String, String](
+    Map[String, Any](
       GcpBatchMetadataKeys.GoogleProject -> googleProject,
-      GcpBatchMetadataKeys.ExecutionBucket -> initializationData.workflowPaths.executionRootString
+      GcpBatchMetadataKeys.ExecutionBucket -> initializationData.workflowPaths.executionRootString,
+      "preemptible" -> preemptible
     ) ++ originalLabelEvents
   }
 

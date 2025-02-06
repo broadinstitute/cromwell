@@ -16,6 +16,7 @@ import io.grpc.Status
 import cromwell.services.cost.InstantiatedVmInfo
 import cromwell.services.metadata.CallMetadataKeys
 
+import java.util.regex.Pattern
 import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -27,6 +28,9 @@ trait BatchRequestExecutor {
 }
 
 object BatchRequestExecutor {
+  private val VM_PREEMPTION_PATTERN = Pattern.compile(
+    "failed due to the following task event: \"Task state is updated from RUNNING to FAILED on zones/\\S+ due to Spot VM preemption with exit code 50001.\""
+  )
 
   class CloudImpl(batchSettings: BatchServiceSettings) extends BatchRequestExecutor with LazyLogging {
 
@@ -131,6 +135,9 @@ object BatchRequestExecutor {
       }
 
     private[request] def interpretOperationStatus(job: Job): RunStatus = {
+      def isPreemption(events: List[ExecutionEvent]): Boolean =
+        events.exists(e => VM_PREEMPTION_PATTERN.matcher(e.name).find())
+
       lazy val events = getEventList(
         Option(job)
           .flatMap(e => Option(e.getStatus))
@@ -162,8 +169,12 @@ object BatchRequestExecutor {
       } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
         RunStatus.Running(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
-        // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
-        RunStatus.Failed(Status.OK, events, instantiatedVmInfo)
+        if (isPreemption(events)) {
+          RunStatus.Preempted(Status.OK, events, instantiatedVmInfo)
+        } else {
+          // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
+          RunStatus.Failed(Status.OK, events, instantiatedVmInfo)
+        }
       } else {
         RunStatus.Initializing(events, instantiatedVmInfo)
       }

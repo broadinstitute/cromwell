@@ -29,58 +29,44 @@ import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.monitoring.{BatchInstrumentation, CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
 import cromwell.backend.google.batch.util.{GcpBatchReferenceFilesMappingOperations, RuntimeOutputMapping}
-import cromwell.filesystems.gcs.GcsPathBuilder
-import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
-
-import java.io.FileNotFoundException
-import cromwell.backend.standard.{
-  ScriptPreambleData,
-  StandardAdHocValue,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob
-}
+import cromwell.backend.standard._
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
+import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.services.instrumentation.CromwellInstrumentation
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
-import shapeless.Coproduct
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import org.apache.commons.io.output.ByteArrayOutputStream
+import shapeless.Coproduct
+import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
-import wom.callable.AdHocValue
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.values._
 
-import java.io.OutputStreamWriter
+import java.io.{FileNotFoundException, OutputStreamWriter}
 import java.net.SocketTimeoutException
 import java.nio.charset.Charset
 import java.util.Base64
-import java.util.regex.Pattern
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
+import scala.util.{Failure, Success, Try}
 
 object GcpBatchAsyncBackendJobExecutionActor {
-
-  private val VM_PREEMPTION_PATTERN = Pattern.compile(
-    "failed due to the following task event: \"Task state is updated from RUNNING to FAILED on zones/\\S+ due to Spot VM preemption with exit code 50001.\""
-  )
 
   def StandardException(errorCode: GrpcStatus,
                         message: String,
@@ -1117,19 +1103,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         None
       )
 
-    def isPreemption(maybePreemption: RunStatus.UnsuccessfulRunStatus): Boolean =
-      maybePreemption match {
-        case _: RunStatus.Failed =>
-          maybePreemption.eventList.exists(e => VM_PREEMPTION_PATTERN.matcher(e.name).find())
-        case _ => false
-      }
-
     Future.fromTry {
       Try {
         runStatus match {
           case _: RunStatus.Aborted => AbortedExecutionHandle
-          case maybePreemption: RunStatus.UnsuccessfulRunStatus if preemptible && isPreemption(maybePreemption) =>
-            handlePreemption(maybePreemption, returnCode, prettyPrintedError)
+          case preemption: RunStatus.Preempted if preemptible =>
+            handlePreemption(preemption, returnCode, prettyPrintedError)
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
           case unknown =>
             throw new RuntimeException(

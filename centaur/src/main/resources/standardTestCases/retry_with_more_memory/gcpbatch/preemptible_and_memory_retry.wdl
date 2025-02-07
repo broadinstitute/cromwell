@@ -12,13 +12,14 @@ task imitate_oom_error_on_preemptible {
 
     preemptible=$(curl -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/scheduling/preemptible")
 
-    # Delete self if running on a preemptible VM
+    # Simulate a maintenance event on ourselves if running on a preemptible VM
     # Since `preemptible: 1` the job should be restarted on a non-preemptible VM.
     if [ "$preemptible" = "TRUE" ]; then
       fully_qualified_zone=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/zone)
       zone=$(basename "$fully_qualified_zone")
 
-      gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=$zone -q
+      gcloud beta compute instances simulate-maintenance-event $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=$zone -q
+      sleep 60
     fi
 
     # Should reach here on the second attempt

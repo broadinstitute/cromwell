@@ -36,10 +36,8 @@ trait BatchUtilityConversions {
     (memory.amount * 1024).toLong
 
   // set Standard or Spot instances
-  def toProvisioningModel(preemption: Int): ProvisioningModel = preemption compare 0 match {
-    case 0 => ProvisioningModel.STANDARD
-    case 1 => ProvisioningModel.SPOT
-  }
+  def toProvisioningModel(preemptible: Boolean): ProvisioningModel =
+    if (preemptible) ProvisioningModel.SPOT else ProvisioningModel.STANDARD
 
   def toDisks(disks: Seq[GcpBatchAttachedDisk]): List[AttachedDisk] = disks.map(toDisk).toList
 

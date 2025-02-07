@@ -1,7 +1,7 @@
 name: papi_preemptible_and_max_retries
 testFormat: workflowfailure
-# faking own preemption doesn't work on GCP Batch
-backends: [Papiv2, GCPBATCH_TESTING_PAPIV2_QUIRKS]
+# Faking own preemption has to be done differently on GCP Batch
+backends: [Papiv2, GCPBATCH_ALT]
 
 files {
   workflow: papi_preemptible_and_max_retries/papi_preemptible_and_max_retries.wdl

@@ -51,7 +51,6 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
 object GcpBatchRuntimeAttributes {
 
   val ZonesKey = "zones"
-
   private val ZonesDefaultValue = WomString("us-central1-b")
 
   val PreemptibleKey = "preemptible"

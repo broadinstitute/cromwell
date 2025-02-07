@@ -14,10 +14,7 @@ You can now run the tests from another terminal.
 
 There are two ways to invoke the integration tests:
 
-* `sbt "centaur / IntegrationTest / test"` - compiles Centaur and runs all tests via sbt directly. 
-*  Can also just run `centaur/ IntegrationTest / test` from the sbt terminal.
-Tests are expected to be in the `centaur/src/main/standardTestCases` directory. In order to run a set of specific tests, create a new subdirectory that contains the tests to run, then modify the path in the centaur `reference.conf`.
-
+* `sbt "centaur / IntegrationTest / test"` - compiles Centaur and runs all tests via sbt directly. Tests are expected to be in the `centaur/src/main/standardTestCases` directory. This can be changed by modifying `reference.conf`.
 * `src/ci/bin/testCentaurLocal.sh` - runs the same tests using the continuous integration pipeline configuration.
 
 * Tests that require different Cromwell and Centaur configurations can be invoked by calling the various scripts in `src/ci/bin`.

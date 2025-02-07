@@ -10,7 +10,7 @@ files {
 metadata {
   workflowName: cacheBetweenWFNoCost
   status: Succeeded
-  "calls.cacheBetweenWFNoCost.one.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWFNoCost.semiVertAxis:-1"
-  "calls.cacheBetweenWFNoCost.two.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWFNoCost.semiHorAxis:-1"
+  "calls.cacheBetweenWFNoCost.one.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWFNoCost.one:-1"
+  "calls.cacheBetweenWFNoCost.two.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWFNoCost.two:-1"
   "outputs.cacheBetweenWFNoCost.area.ellipseArea": 18.849539999999998
 }

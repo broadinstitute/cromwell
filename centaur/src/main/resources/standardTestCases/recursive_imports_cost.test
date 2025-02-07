@@ -15,7 +15,7 @@ files {
 }
 
 metadata {
-  workflowName: recursive_imports_cost
+  workflowName: recursive_imports
   status: Succeeded
 }
 

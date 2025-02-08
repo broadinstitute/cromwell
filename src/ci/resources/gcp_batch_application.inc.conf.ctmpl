@@ -60,9 +60,10 @@ services {
   }
    GcpCostCatalogService {
       class = "cromwell.services.cost.GcpCostCatalogService"
-      config {
-        enabled = true
-        catalogExpirySeconds = 86400
+          config {
+            enabled = true
+            catalogExpirySeconds = 86400
+          }
       }
 }
 

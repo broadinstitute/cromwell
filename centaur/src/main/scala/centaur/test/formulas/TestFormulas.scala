@@ -113,25 +113,6 @@ object TestFormulas extends StrictLogging {
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
   } yield SubmitResponse(submittedWorkflow)
 
-  def runWorkflowTwiceAndCache(
-    workflowDefinition: Workflow
-  )(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmittedWorkflow] =
-    for {
-      _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
-      _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
-      firstWF <- runSuccessfulWorkflow(workflowDefinition)
-      secondWf <- runSuccessfulWorkflow(workflowDefinition.secondRun)
-      _ <- printHashDifferential(firstWF, secondWf)
-      metadata <- fetchAndValidateNonSubworkflowMetadata(secondWf, workflowDefinition, Option(firstWF.id.id))
-      _ <- fetchAndValidateJobManagerStyleMetadata(secondWf,
-                                                   workflowDefinition,
-                                                   prefetchedOriginalNonSubWorkflowMetadata = None
-      )
-      _ = cromwellTracker.track(metadata)
-      _ <- validateNoCacheMisses(secondWf, metadata, workflowDefinition)
-      _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf, metadata)
-    } yield secondWf
-
   def runWorkflowTwiceExpectingCaching(
     workflowDefinition: Workflow,
     checkCost: Boolean = false

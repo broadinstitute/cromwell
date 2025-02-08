@@ -1061,22 +1061,21 @@ object Operations extends StrictLogging {
         }
     }
 
-  def getExpectedCost(workflowCost: Option[BigDecimal]): IO[BigDecimal] =
+  def getExpectedCost(workflowCost: Option[List[BigDecimal]]): IO[List[BigDecimal]] =
     workflowCost match {
-      case Some(cost) if cost == 0 => IO.raiseError(new Exception("Expected cost cannot be 0"))
+      case Some(cost) if cost(0) > cost(1) => IO.raiseError(new Exception(s"Lower bound of expected cost cannot be higher than the upper bound (${cost(0)} - ${cost(1)})"))
       case Some(cost) => IO.pure(cost)
       case None =>
-        IO.raiseError(new Exception("Expected 'cost' is required in the test config to validate the workflow cost"))
+        IO.raiseError(new Exception("Expected cost range is required in the test config to validate the workflow cost"))
     }
 
   /**
-    * Validate that the actual cost is within 10% of the expected cost
+    * Validate that the actual cost is within the expected range
     */
-  def validateCost(actualCost: BigDecimal, expectedCost: BigDecimal): IO[Unit] = {
-    val costDiff = (actualCost - expectedCost).abs / expectedCost
-    if (costDiff > 0.1) {
+  def validateCost(actualCost: BigDecimal, expectedCost: List[BigDecimal]): IO[Unit] = {
+    if (expectedCost(0) > actualCost || actualCost > expectedCost(1)) {
       IO.raiseError(
-        new Exception(s"Expected cost $expectedCost but got $actualCost, which is outside the 10% threshold")
+        new Exception(s"Expected cost within range ${expectedCost(0)} - ${expectedCost(1)} but got $actualCost")
       )
     } else {
       IO.unit

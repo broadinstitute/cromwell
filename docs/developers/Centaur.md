@@ -76,8 +76,8 @@ metadata {
   "failures.0.causedBy": "BetweenKeyboardAndChairException"
 }
 
-// Optional, the expected cost of running the workflow
-cost: 0.0000
+// Optional, the expected cost range of running the workflow
+cost:[ 0.0000, 0.0001 ]
 
 filesystemcheck: "local" // possible values: "local", "gcs". Used in conjunction with outputExpectations to define files we expect to exist after running this workflow.
 outputExpectations: {
@@ -110,8 +110,8 @@ In case the absolute path the cromwell root is used (for example: `/home/my_user
 In case testing of the caching is required `<<CACHE_HIT_UUID>>` can be used. 
 The testFormat should be `runtwiceexpectingcallcaching`. To verify that the cost is 0 when using call-caching the testFormat should be `runtwiceexpectingcallcachingnocost`
 
-The cost is optional. If supplied, Centaur will retrieve the cost of the successfully completed workflow and compare it to the cost supplied. 
-The expected range is within 10% of the estimated cost. If evaluating the cost, the test format must be `WorkflowSuccessAndVerifyCost` and the call-caching option must be disabled for that test (example can be found in the `recursive_imports_cost.test`)
+The cost is optional. If supplied, Centaur will retrieve the cost of the successfully completed workflow and compare it to the cost range supplied. 
+If evaluating the cost, the test format must be `WorkflowSuccessAndVerifyCost` and the call-caching option must be disabled for that test (example can be found in the `recursive_imports_cost.test`)
 
 
 ## Centaur Test Types

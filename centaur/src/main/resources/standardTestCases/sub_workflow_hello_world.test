@@ -14,4 +14,3 @@ metadata {
   status: Succeeded
   "outputs.main_workflow.main_output": "Hello sub world!"
 }
-

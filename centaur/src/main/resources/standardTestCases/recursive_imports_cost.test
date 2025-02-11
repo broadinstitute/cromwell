@@ -1,5 +1,6 @@
 name: recursive_imports_cost
 testFormat: workflowsuccessandverifycost
+backends: [Papi, GCPBATCH]
 
 files {
   workflow: recursive_imports/recursive_imports.wdl

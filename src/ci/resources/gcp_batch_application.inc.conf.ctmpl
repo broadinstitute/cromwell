@@ -44,6 +44,10 @@ google {
       name = "user_service_account"
       scheme = "user_service_account"
     }
+    {
+       name = "application-default"
+        scheme = "application_default"
+    }
   ]
 }
 

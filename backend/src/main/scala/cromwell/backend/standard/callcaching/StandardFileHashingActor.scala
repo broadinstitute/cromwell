@@ -99,11 +99,12 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       fsConfigs <- configurationDescriptor.backendConfig.as[Option[Config]]("filesystems").toList
       fsKey <- fsConfigs.root.keySet().asScala
       configKey = s"${fsKey}.caching.hashing-strategy"
-      fileHashStrategyFromList = Try(fsConfigs.as[List[String]](configKey)).toOption
-      fileHashStrategyFromString = Try(fsConfigs.as[String](configKey)).toOption.map(List(_))
-      fileHashStrategy <- fileHashStrategyFromList.orElse(fileHashStrategyFromString)
-      nonEmptyFileHashStrategy <- if (fileHashStrategy.nonEmpty) Option(fileHashStrategy) else None
-    } yield (fsKey, FileHashStrategy.of(nonEmptyFileHashStrategy))
+      fileHashStrategyConfigFromList = Try(fsConfigs.as[List[String]](configKey)).toOption
+      fileHashStrategyConfigFromString = Try(fsConfigs.as[String](configKey)).toOption.map(List(_))
+      fileHashStrategyConfig <- fileHashStrategyConfigFromList.orElse(fileHashStrategyConfigFromString)
+      fileHashStrategy = FileHashStrategy.of(fileHashStrategyConfig)
+      nonEmptyFileHashStrategy <- if (fileHashStrategy.isEmpty) None else Option(fileHashStrategy)
+    } yield (fsKey, nonEmptyFileHashStrategy)
 
     defaultHashingStrategies ++ configuredHashingStrategies
 

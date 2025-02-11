@@ -14,6 +14,8 @@ import java.util.zip.CRC32C
 case class FileHashStrategy(priorityHashList: List[HashType]) {
   override def toString = s"FileHashStrategy(${priorityHashList.map(_.toString).mkString(", ")})"
 
+  def isEmpty: Boolean = priorityHashList.isEmpty
+
   // Lazily evaluate hashes from `priorityList` until we find one that exists
   def getFileHash[A](fileToHash: A, hashFunc: (A, HashType) => Option[String]): Option[FileHash] =
     priorityHashList.to(LazyList).flatMap(ht => hashFunc(fileToHash, ht).map(FileHash(ht, _))).headOption

@@ -28,8 +28,9 @@ trait BatchRequestExecutor {
 }
 
 object BatchRequestExecutor {
+  // The "from" state is *usually* RUNNING, but if a VM is quickly preempted it could be an earlier state like PENDING.
   private val VM_PREEMPTION_PATTERN = Pattern.compile(
-    "failed due to the following task event: \"Task state is updated from RUNNING to FAILED on zones/\\S+ due to Spot VM preemption with exit code 50001.\""
+    "failed due to the following task event: \"Task state is updated from \\S+ to FAILED on zones/\\S+ due to Spot VM preemption with exit code 50001.\""
   )
 
   class CloudImpl(batchSettings: BatchServiceSettings) extends BatchRequestExecutor with LazyLogging {

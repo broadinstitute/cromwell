@@ -31,7 +31,7 @@ be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional
 - The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
 - Fixes a bug with not being able to recover jobs on Cromwell restart.
 - Fixes machine type selection to match the Google Cloud Life Sciences backend, including default n1 non shared-core machine types and correct handling of `cpuPlatform` to select n2 or n2d machine types as appropriate.
-- Fixes the preemption error handling, now, the correct error message is printed, this also handles the other potential exit codes.
+- Fixes preemption and maxRetries behavior. In particular, once a task has exhausted its allowed preemptible attempts, the task will be scheduled again on a non-preemptible VM.
 - Fixes error message reporting for failed jobs.
 - Fixes the "retry with more memory" feature.
 - Fixes the reference disk feature.

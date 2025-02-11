@@ -328,7 +328,13 @@ runtime {
 }
 ```
 
-
+In GCP Batch, preempted jobs can be identified in job metadata (`gcloud batch jobs describe`) by a `statusEvent` with a description that looks like:
+```
+Job state is set from RUNNING to FAILED for job projects/abc/locations/us-central1/jobs/job-abc.Job
+failed due to task failure. Specifically, task with index 0 failed due to the
+following task event: "Task state is updated from RUNNING to FAILED on zones/us-central1-b/instances/8675309
+due to Spot VM preemption with exit code 50001."
+```
 
 
 ### `bootDiskSizeGb`

@@ -556,7 +556,7 @@ will be used. See Local Filesystem Options below for additional configuration th
       It is much more lightweight than the hash based options while still unique enough that collisions are unlikely. This
       strategy works well for workflows that generate multi-gigabyte files and where hashing these files on the
       cromwell instance provides CPU or I/O problems.
-      NOTE: This strategy requires hard-linking as a dupliation strategy, as copying changes the last modified time.
+      NOTE: This strategy requires hard-linking as a duplication strategy, as copying changes the last modified time.
 
 (*) The `fingerprint` and `xxh64` strategies are features that are community supported by Cromwell's HPC community. There
 is no official support from the core Cromwell team.

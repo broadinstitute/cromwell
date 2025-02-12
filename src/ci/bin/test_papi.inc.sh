@@ -37,6 +37,7 @@ cromwell::private::papi::setup_papi_gcloud() {
     cromwell::build::add_exit_function cromwell::private::papi::teardown_papi_gcloud
 
     gcloud auth activate-service-account --key-file="${CROMWELL_BUILD_PAPI_AUTH_JSON}"
+    export GOOGLE_APPLICATION_CREDENTIALS="${CROMWELL_BUILD_BATCH_AUTH_JSON}"
     gcloud config set account "${CROMWELL_BUILD_PAPI_CLIENT_EMAIL}"
     gcloud config set project "${CROMWELL_BUILD_PAPI_PROJECT_ID}"
 }

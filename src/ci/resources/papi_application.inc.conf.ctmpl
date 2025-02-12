@@ -46,7 +46,7 @@ google {
     }
     {
        name = "application-default"
-        scheme = "application_default"
+       scheme = "application_default"
     }
   ]
 }

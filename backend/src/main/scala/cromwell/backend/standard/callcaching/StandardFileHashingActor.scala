@@ -3,6 +3,7 @@ package cromwell.backend.standard.callcaching
 import java.util.concurrent.TimeoutException
 import akka.actor.{Actor, ActorLogging, ActorRef, Timers}
 import akka.event.LoggingAdapter
+import cats.data.NonEmptyList
 import com.typesafe.config.Config
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.IoHashCommandWithContext
@@ -13,6 +14,7 @@ import cromwell.core.callcaching._
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
 import cromwell.core.path.Path
+import cromwell.services.instrumentation.CromwellInstrumentation
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
@@ -79,7 +81,8 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     with JobLogging
     with IoClientHelper
     with StandardCachingActorHelper
-    with Timers {
+    with Timers
+    with CromwellInstrumentation {
   override lazy val ioActor: ActorRef = standardParams.ioActor
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] =
@@ -145,12 +148,16 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       log.warning(s"Async File hashing actor received unexpected message: $other")
   }
 
+  private def metricsCallback: Set[NonEmptyList[String]] => Unit = { pathsToIncrement =>
+    pathsToIncrement.foreach(increment(_))
+  }
+
   def asyncHashing(fileRequest: SingleFileHashRequest, replyTo: ActorRef): Unit = {
     val fileAsString = fileRequest.file.value
     val ioHashCommandTry = for {
       path <- getPath(fileAsString)
       hashStrategy = hashStrategyForPath(path)
-      command <- ioCommandBuilder.hashCommand(path, hashStrategy)
+      command <- ioCommandBuilder.hashCommand(path, hashStrategy, metricsCallback)
     } yield command
     lazy val fileHashContext = FileHashContext(fileRequest.hashKey, fileRequest.file.value)
 

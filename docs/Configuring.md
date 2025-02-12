@@ -199,7 +199,7 @@ database {
 }
 ```
 
-Note: Cromwell currently only officially supports MySQL version 8.4
+Note: Cromwell currently only officially supports MySQL versions 8.0 ands 8.4
 
 To see the full list of possible parameters and values for the `db` stanza see [the slick documentation](http://slick.lightbend.com/doc/3.2.0/api/index.html#slick.jdbc.JdbcBackend$DatabaseFactoryDef@forConfig(String,Config,Driver):Database).
 

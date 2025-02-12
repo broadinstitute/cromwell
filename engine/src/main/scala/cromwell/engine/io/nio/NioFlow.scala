@@ -5,21 +5,11 @@ import akka.stream.scaladsl.Flow
 import cats.effect._
 import com.typesafe.config.Config
 import common.util.IORetry
-import cromwell.core.callcaching.{
-  ChecksumFailure,
-  ChecksumResult,
-  ChecksumSkipped,
-  ChecksumSuccess,
-  FileHash,
-  FileHashStrategy
-}
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.engine.io.IoActor._
 import cromwell.engine.io.RetryableRequestSupport.{isInfinitelyRetryable, isRetryable}
 import cromwell.engine.io.{IoAttempts, IoCommandContext, IoCommandStalenessBackpressuring}
-import cromwell.filesystems.blob.BlobPath
-import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.http.HttpPath
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
@@ -114,59 +104,11 @@ class NioFlow(parallelism: Int,
     ()
   }
 
-  private def readAsString(command: IoContentAsStringCommand): IO[String] = {
-    def checkHash(value: String, fileHash: FileHash): IO[ChecksumResult] = {
-      // Disable checksum validation if failOnOverflow is false. We might not read
-      // the entire stream, in which case the checksum will definitely fail.
-      // Ideally, we would only disable checksum validation if there was an actual
-      // overflow, but we don't know that here.
-      if (!command.options.failOnOverflow) return IO.pure(ChecksumSkipped())
-      IO.pure(fileHash.matches(value))
-    }
-
-    def readFile: IO[String] = IO {
-      new String(
-        command.file.limitFileContent(command.options.maxBytes, command.options.failOnOverflow),
-        StandardCharsets.UTF_8
-      )
-    }
-
-    def readFileAndChecksum(hashStrategy: FileHashStrategy): IO[String] =
-      for {
-        fileHash <- NioHashing.getStoredHash(command.file, hashStrategy)
-        uncheckedValue <- readFile
-        checksumResult <- fileHash match {
-          case Some(hash) => checkHash(uncheckedValue, hash)
-          // If there is no stored checksum, don't attempt to validate.
-          // If the missing checksum is itself an error condition, that
-          // should be detected by the code that gets the FileHash.
-          case None => IO.pure(ChecksumSkipped())
-        }
-        verifiedValue <- checksumResult match {
-          case _: ChecksumSkipped => IO.pure(uncheckedValue)
-          case _: ChecksumSuccess => IO.pure(uncheckedValue)
-          case failure: ChecksumFailure =>
-            IO.raiseError(
-              ChecksumFailedException(
-                fileHash match {
-                  case Some(hash) =>
-                    s"Failed checksum for '${command.file}'. Expected '${hash.hashType}' hash of '${hash.hash}'. Calculated hash '${failure.calculatedHash}'"
-                  case None =>
-                    s"Failed checksum for '${command.file}'. Couldn't find stored file hash." // This should never happen
-                }
-              )
-            )
-        }
-      } yield verifiedValue
-
-    val fileContentIo = command.file match {
-      case _: DrsPath => readFileAndChecksum(FileHashStrategy.Drs)
-      // Temporarily disable since our hashing algorithm doesn't match the stored hash
-      // https://broadworkbench.atlassian.net/browse/WX-1257
-      case _: BlobPath => readFile // readFileAndChecksum
-      case _ => readFile
-    }
-    fileContentIo.map(_.replaceAll("\\r\\n", "\\\n"))
+  private def readAsString(command: IoContentAsStringCommand): IO[String] = IO {
+    new String(
+      command.file.limitFileContent(command.options.maxBytes, command.options.failOnOverflow),
+      StandardCharsets.UTF_8
+    ).replaceAll("\\r\\n", "\\\n")
   }
 
   private def size(size: IoSizeCommand) =

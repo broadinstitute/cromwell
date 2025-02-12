@@ -5,6 +5,8 @@ import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.effect.IO
 import com.google.cloud.storage.StorageException
+import common.mock.MockSugar
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.DefaultIoCommandBuilder._
 import cromwell.core.io._
 import cromwell.core.path.DefaultPathBuilder
@@ -12,23 +14,21 @@ import cromwell.core.{CromwellFatalExceptionMarker, TestKitSuite}
 import cromwell.engine.io.IoActor.DefaultCommandContext
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.io.IoCommandContext
+import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.gcs.GcsPath
+import cromwell.filesystems.http.HttpPathBuilder
 import org.mockito.ArgumentMatchers._
 import org.mockito.Mockito.when
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import common.mock.MockSugar
-import cromwell.core.callcaching.FileHashStrategy
-import cromwell.filesystems.blob.BlobPath
-import cromwell.filesystems.http.HttpPathBuilder
 
 import java.nio.file.NoSuchFileException
 import java.util.UUID
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
+import scala.util.{Failure, Success, Try}
 
 class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockSugar {
 
@@ -173,54 +173,6 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
         fail(s"read returned an unexpected message:\n$ack\n\n")
     }
   }
-
-//  it should "fail if DrsPath hash doesn't match checksum" in {
-//    val testPath = mock[DrsPath]
-//    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])).thenReturn("hello".getBytes)
-//    when(testPath.getFileHash).thenReturn(
-//      FileHash(HashType.Crc32c, "boom")
-//    ) // correct Base64-encoded crc32c checksum is "9a71bb4c"
-//
-//    val context =
-//      DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
-//    val testSource = Source.single(context)
-//
-//    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-//
-//    stream.run() map {
-//      case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
-//        receivedException.getMessage should include("Failed checksum")
-//      case (ack, _) => fail(s"read returned an unexpected message:\n$ack\n\n")
-//    }
-//  }
-
-//  it should "retry if DrsPath hash check fails, then succeed if the second check passes" in {
-//    val testPath = mock[DrsPath]
-//    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext]))
-//      .thenReturn("hola".getBytes)
-//      .thenReturn("hello".getBytes)
-//      .thenReturn("hello".getBytes)
-//    when(testPath.getFileHash)
-//      .thenReturn(FileHash(HashType.Crc32c, "9a71bb4c"))
-//      .thenReturn(FileHash(HashType.Crc32c, "boom"))
-//      .thenReturn(FileHash(HashType.Crc32c, "9a71bb4c"))
-//
-//    val context =
-//      DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
-//    val testSource = Source.single(context)
-//
-//    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-//
-//    stream.run() map { result =>
-//      verify(testPath, times(3)).limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext])
-//      verify(testPath, times(3)).getFileHash
-//      result match {
-//        case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello")
-//        case (ack, _) =>
-//          fail(s"read returned an unexpected message:\n$ack\n\n")
-//      }
-//    }
-//  }
 
   it should "succeed if a BlobPath is missing a stored hash" in {
     val testPath = mock[BlobPath]

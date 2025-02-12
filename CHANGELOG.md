@@ -2,9 +2,9 @@
 
 ## 88 Release Notes
 
-###  Mysql 8.4
+###  Mysql 8 & 8.4
 
-Cromwell now supports MySQL 8.4 and 8.4-compatible databases. Older versions of MySQL are no longer officially supported or tested, but they are not explicitly forbidden from use.
+Cromwell now supports MySQL 8.0 and 8.4 and 8.0 and 8.4-compatible databases. Older versions of MySQL are no longer officially supported or tested, but they are not explicitly forbidden from use.
 
 ### New feature: Prevent Job start during Cloud Quota exhaustion
 

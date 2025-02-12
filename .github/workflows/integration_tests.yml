@@ -33,8 +33,14 @@ jobs:
         # Batch test fixes to land later
         include:
           - build_type: centaurPapiV2beta
+            build_mysql: 8.0
+            friendly_name: Life Sciences, MySQL 8.0
+          - build_type: centaurPapiV2beta
             build_mysql: 8.4
             friendly_name: Life Sciences, MySQL 8.4 (current Terra production)
+          - build_type: centaurGcpBatch
+            build_mysql: 8.0
+            friendly_name: GCP Batch, MySQL 8.0
           - build_type: centaurGcpBatch
             build_mysql: 8.4
             friendly_name: GCP Batch, MySQL 8.4

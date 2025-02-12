@@ -7,7 +7,7 @@ import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
 
 object GcpBatchJobPaths {
-
+ val BatchLogPathKey = "log"
   val BatchMonitoringKey = "monitoring"
   val BatchMonitoringImageKey = "monitoringImage"
   val BatchExecParamName = "exec"
@@ -47,6 +47,10 @@ case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths,
     workflowPaths.monitoringScriptPath map { p =>
       Map(GcpBatchMetadataKeys.MonitoringScript -> p, GcpBatchMetadataKeys.MonitoringLog -> jesMonitoringLogPath)
     } getOrElse Map.empty
+  )
+
+  override lazy val customLogPaths: Map[String, Path] = Map(
+    GcpBatchJobPaths.BatchLogPathKey -> batchLogPath
   )
 
   override def standardOutputAndErrorPaths: Map[String, Path] =

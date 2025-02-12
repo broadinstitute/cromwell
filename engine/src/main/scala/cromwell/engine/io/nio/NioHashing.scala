@@ -81,15 +81,7 @@ object NioHashing {
             hashType match {
               case HashType.Crc32c => Option(f.getCrc32c)
               case HashType.Md5 => Option(f.getMd5)
-              // For identity, construct a string from BlobId, structured the same as the one we get
-              // from StorageObject.getId: "{bucket}/{name}/{generation}"  Only valid if all three fields are present.
-              case HashType.Identity =>
-                for {
-                  bucket <- Option(f.getBlobId.getBucket)
-                  name <- Option(f.getBlobId.getName)
-                  generation <- Option(f.getBlobId.getGeneration)
-                  id = List(bucket, name, generation).mkString("/")
-                } yield id
+              case HashType.Identity => GcsPath.getBlobFingerprint(f)
               case _ => None
             }
         )

@@ -1,6 +1,7 @@
 In order to run a Cromwell instance locally, there are the some prerequisites:
 - Have docker and IntelliJ installed
 - Start a local mysql instance by running the `start_publish_mysql_docker.sh` script
+- Run renderCiResources.sh to generate the configuration files
 
 To run the backend locally, set up your preferred run configuration. 
 More information on backends can be found [here](Backend.md)

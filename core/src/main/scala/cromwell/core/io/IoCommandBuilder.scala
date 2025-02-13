@@ -27,14 +27,6 @@ abstract class PartialIoCommandBuilder {
   def readLinesCommand: PartialFunction[Path, Try[IoReadLinesCommand]] = PartialFunction.empty
 }
 
-object IoCommandBuilder {
-  def apply(partialBuilders: PartialIoCommandBuilder*): IoCommandBuilder =
-    new IoCommandBuilder(partialBuilders.toList)
-
-  def apply: IoCommandBuilder =
-    new IoCommandBuilder(List.empty)
-}
-
 /**
   * A command builder is a way to build an IoCommand for a specific I/O action.
   * The default IO command builder can execute all IoCommand and therefore can always be used.

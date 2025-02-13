@@ -52,10 +52,12 @@ class StandardFileHashingActorSpec
     val parentProbe = TestProbe("parentProbe")
     val params = StandardFileHashingActorSpec.defaultParams()
     val props = Props(new StandardFileHashingActor(params) {
-      override val ioCommandBuilder: IoCommandBuilder = IoCommandBuilder(
-        new PartialIoCommandBuilder {
-          override def hashCommand = throw new RuntimeException("I am expected during tests")
-        }
+      override val ioCommandBuilder: IoCommandBuilder = new IoCommandBuilder(
+        List(
+          new PartialIoCommandBuilder {
+            override def hashCommand = throw new RuntimeException("I am expected during tests")
+          }
+        )
       )
       override def getPath(str: String): Try[Path] = Try(DefaultPathBuilder.get(str))
     })

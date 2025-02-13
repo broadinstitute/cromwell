@@ -112,7 +112,11 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
 
   }
 
-  protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+  private def metricsCallback: Set[NonEmptyList[String]] => Unit = { pathsToIncrement =>
+    pathsToIncrement.foreach(increment(_))
+  }
+
+  protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder(metricsCallback)
 
   // Used by ConfigBackend for synchronous hashing of local files
   def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = None
@@ -148,16 +152,12 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       log.warning(s"Async File hashing actor received unexpected message: $other")
   }
 
-  private def metricsCallback: Set[NonEmptyList[String]] => Unit = { pathsToIncrement =>
-    pathsToIncrement.foreach(increment(_))
-  }
-
   def asyncHashing(fileRequest: SingleFileHashRequest, replyTo: ActorRef): Unit = {
     val fileAsString = fileRequest.file.value
     val ioHashCommandTry = for {
       path <- getPath(fileAsString)
       hashStrategy = hashStrategyForPath(path)
-      command <- ioCommandBuilder.hashCommand(path, hashStrategy, metricsCallback)
+      command <- ioCommandBuilder.hashCommand(path, hashStrategy)
     } yield command
     lazy val fileHashContext = FileHashContext(fileRequest.hashKey, fileRequest.file.value)
 

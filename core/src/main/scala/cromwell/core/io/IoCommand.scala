@@ -32,6 +32,8 @@ object IoCommand {
 
   type RetryCommand[T] = (FiniteDuration, IoCommand[T])
   type IOMetricsCallback = Set[NonEmptyList[String]] => Unit
+
+  val noopMetricsCallback: IOMetricsCallback = _ => ()
 }
 
 trait IoCommand[+T] {

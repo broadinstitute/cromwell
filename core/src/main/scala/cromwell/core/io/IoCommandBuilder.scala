@@ -2,7 +2,7 @@ package cromwell.core.io
 
 import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.DefaultIoCommand._
-import cromwell.core.io.IoCommand.IOMetricsCallback
+import cromwell.core.io.IoCommand.{IOMetricsCallback, noopMetricsCallback}
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.Path
@@ -45,7 +45,7 @@ object IoCommandBuilder {
   * This always defaults to building a DefaultIoCommand.
   * @param partialBuilders list of PartialIoCommandBuilder to try
   */
-class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.empty) {
+class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.empty, metricsCallback: IOMetricsCallback = noopMetricsCallback) {
   // Find the first partialBuilder for which the partial function is defined, or use the default
   private def buildOrDefault[A, B](builder: PartialIoCommandBuilder => PartialFunction[A, Try[B]],
                                    params: A,
@@ -87,7 +87,7 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
   def copyCommand(src: Path, dest: Path): Try[IoCopyCommand] =
     buildOrDefault(_.copyCommand, (src, dest), DefaultIoCopyCommand(src, dest))
 
-  def hashCommand(file: Path, hashStrategy: FileHashStrategy, metricsCallback: IOMetricsCallback = _ => ()): Try[IoHashCommand] =
+  def hashCommand(file: Path, hashStrategy: FileHashStrategy): Try[IoHashCommand] =
     buildOrDefault(_.hashCommand, (file, hashStrategy, metricsCallback), DefaultIoHashCommand(file, hashStrategy))
 
   def touchCommand(file: Path): Try[IoTouchCommand] =
@@ -106,4 +106,6 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
 /**
   * Only builds DefaultIoCommands.
   */
-case object DefaultIoCommandBuilder extends IoCommandBuilder(List.empty)
+case object DefaultIoCommandBuilder extends IoCommandBuilder(List.empty) {
+  def apply(metricsCallback: IOMetricsCallback = noopMetricsCallback) = new IoCommandBuilder(List.empty, metricsCallback)
+}

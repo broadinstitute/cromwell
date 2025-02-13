@@ -22,8 +22,8 @@ private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilde
   }
 
   override def hashCommand: PartialFunction[(Path, FileHashStrategy, IOMetricsCallback), Try[GcsBatchHashCommand]] = {
-    case (gcsPath: GcsPath, s, _) =>
-      GcsBatchHashCommand.forPath(gcsPath, s)
+    case (gcsPath: GcsPath, s, cb) =>
+      GcsBatchHashCommand.forPath(gcsPath, s, cb)
   }
 
   override def touchCommand: PartialFunction[Path, Try[GcsBatchTouchCommand]] = { case gcsPath: GcsPath =>

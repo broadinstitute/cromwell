@@ -1,4 +1,4 @@
-name: release-community-cromwell
+name: Release Community Cromwell
 
 on:
   workflow_dispatch: 
@@ -16,7 +16,7 @@ jobs:
           exit 1
         fi
         echo "RELEASE_VERSION=$((previous_version + 1))" >> $GITHUB_ENV
-        echo "NEXT_VERSION=$((RELEASE_VERSION + 1))" >> $GITHUB_ENV
+        echo "NEXT_VERSION=$((previous_version + 2))" >> $GITHUB_ENV
     - name: Clone Cromwell
       uses: actions/checkout@v4
       with:
@@ -26,7 +26,6 @@ jobs:
     - name: Merge to master and tag release
       run: |
         cd cromwell
-        git checkout develop
 
         echo 'Merge develop into master'
         git checkout --track origin/master

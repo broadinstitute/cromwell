@@ -207,7 +207,7 @@ case class GcsBatchHashCommand(override val file: GcsPath,
           hashType match {
             case HashType.Crc32c => Option(response.getCrc32c)
             case HashType.Md5 => Option(response.getMd5Hash)
-            case HashType.Identity => Option(response.getId)
+            case HashType.Identity => GcsPath.getBlobFingerprint(response)
             case _ => None
           }
       )

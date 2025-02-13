@@ -509,8 +509,6 @@ Cromwell will try each algorithm in the order listed until it finds an available
 types that aren't guaranteed to have a single type of hash. Cromwell will never download a file in order to compute its
 hash, all cloud hashing strategies are dependent on file metadata.
 
-Users may provide an empty list `hashing-strategy: []` to disable call caching for a filesystem.
-
 Each filesystem supports a limited set of hash strategies.
  * `gcs` Google Storage supports:
    * `crc32c` default, guaranteed to exist
@@ -534,9 +532,9 @@ is `["crc32c", "md5", "sha256", "etag"]`
 For some high-throughput production use cases that run many, many copies of the same task differing by only one input file, 
 the collision rate of `crc32c` may be unacceptably high. To dramatically reduce the chance of collision at the cost of 
 reducing the collection of tasks that can be call cached, we recommend `hashing-strategy: ["md5", "identity"]`. This 
-will use `md5` hashes when they exist, and fall back to the very strict `identity` strategy when they do not. Because
-all GCS files created by Cromwell are guaranteed to have `md5`, `identity` comes into play only for user-provided workflow
-input files.
+will use `md5` hashes when they exist, and fall back to the very strict `identity` strategy when they do not (ex. if
+a file was created by multipart upload). Because all GCS files created by Cromwell are guaranteed to have `md5`, 
+`identity` comes into play only for user-provided workflow input files.
 
 ##### Call cache strategy options for local filesystem
 
@@ -558,7 +556,7 @@ will be used. See Local Filesystem Options below for additional configuration th
       It is much more lightweight than the hash based options while still unique enough that collisions are unlikely. This
       strategy works well for workflows that generate multi-gigabyte files and where hashing these files on the
       cromwell instance provides CPU or I/O problems.
-      NOTE: This strategy requires hard-linking as a dupliation strategy, as copying changes the last modified time.
+      NOTE: This strategy requires hard-linking as a duplication strategy, as copying changes the last modified time.
 
 (*) The `fingerprint` and `xxh64` strategies are features that are community supported by Cromwell's HPC community. There
 is no official support from the core Cromwell team.

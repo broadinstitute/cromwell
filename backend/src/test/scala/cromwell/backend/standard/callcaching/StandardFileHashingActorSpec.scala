@@ -156,7 +156,8 @@ class StandardFileHashingActorSpec
       """filesystems.gcs.caching.hashing-strategy = ["md5", "identity"]
         |filesystems.s3.caching.hashing-strategy = "etag"
         |filesystems.http.some-other-config = "foobar"
-        |filesystems.ftp.caching.hashing-strategy = []""".stripMargin
+        |filesystems.ftp.caching.hashing-strategy = []
+        |filesystems.nfs.caching.hashing-strategy = "bogohash"""".stripMargin
     )
     val config = BackendConfigurationDescriptor(backendConfig, ConfigFactory.empty)
 
@@ -185,12 +186,26 @@ class StandardFileHashingActorSpec
       }
     }
 
+    // Test an actor-defined default overriden by config
     checkHashStrategy("gcs", FileHashStrategy(List(HashType.Md5, HashType.Identity)))
+
+    // Test a strategy only defined in config
     checkHashStrategy("s3", FileHashStrategy.ETag)
-    checkHashStrategy("ftp", FileHashStrategy(List()))
+
+    // Test a strategy defined as an empty list in config, should use fallback
+    checkHashStrategy("ftp", FileHashStrategy(List(HashType.Sha256)))
+
+    // Test a strategy with a default defined in the actor
     checkHashStrategy("drs", FileHashStrategy.Drs)
+
+    // Test a filesystem that has config, but not this config
     checkHashStrategy("http", FileHashStrategy(List(HashType.Sha256)))
+
+    // Test a strategy not defined in config or actor defaults
     checkHashStrategy("blob", FileHashStrategy(List(HashType.Sha256)))
+
+    // Test a strategy with an invalid value in config
+    checkHashStrategy("nfs", FileHashStrategy(List(HashType.Sha256)))
   }
 
 }

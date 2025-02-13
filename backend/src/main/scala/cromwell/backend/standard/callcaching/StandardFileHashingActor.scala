@@ -1,6 +1,5 @@
 package cromwell.backend.standard.callcaching
 
-import java.util.concurrent.TimeoutException
 import akka.actor.{Actor, ActorLogging, ActorRef, Timers}
 import akka.event.LoggingAdapter
 import cats.data.NonEmptyList
@@ -18,6 +17,7 @@ import cromwell.services.instrumentation.CromwellInstrumentation
 import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
+import java.util.concurrent.TimeoutException
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
@@ -102,11 +102,12 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
       fsConfigs <- configurationDescriptor.backendConfig.as[Option[Config]]("filesystems").toList
       fsKey <- fsConfigs.root.keySet().asScala
       configKey = s"${fsKey}.caching.hashing-strategy"
-      // TODO this allows users to override with an empty list to prevent caching, is that desirable or a footgun?
-      fileHashStrategyFromList = Try(fsConfigs.as[List[String]](configKey)).toOption
-      fileHashStrategyFromString = Try(fsConfigs.as[String](configKey)).toOption.map(List(_))
-      fileHashStrategy <- fileHashStrategyFromList.orElse(fileHashStrategyFromString)
-    } yield (fsKey, FileHashStrategy.of(fileHashStrategy))
+      fileHashStrategyConfigFromList = Try(fsConfigs.as[List[String]](configKey)).toOption
+      fileHashStrategyConfigFromString = Try(fsConfigs.as[String](configKey)).toOption.map(List(_))
+      fileHashStrategyConfig <- fileHashStrategyConfigFromList.orElse(fileHashStrategyConfigFromString)
+      fileHashStrategy = FileHashStrategy.of(fileHashStrategyConfig)
+      nonEmptyFileHashStrategy <- if (fileHashStrategy.isEmpty) None else Option(fileHashStrategy)
+    } yield (fsKey, nonEmptyFileHashStrategy)
 
     defaultHashingStrategies ++ configuredHashingStrategies
 

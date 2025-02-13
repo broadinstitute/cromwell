@@ -1,18 +1,16 @@
 package cromwell.filesystems.gcs
 
-import java.io._
-import java.net.URI
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.ContentTypes
 import better.files.File.OpenOptions
 import cats.effect.IO
 import com.google.api.gax.retrying.RetrySettings
 import com.google.api.services.storage.StorageScopes
+import com.google.api.services.storage.model.StorageObject
 import com.google.auth.Credentials
 import com.google.cloud.storage.Storage.BlobTargetOption
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystem, CloudStoragePath}
-import com.google.cloud.storage.{BlobId, BlobInfo, StorageOptions}
+import com.google.cloud.storage.{Blob, BlobId, BlobInfo, StorageOptions}
 import com.google.common.net.UrlEscapers
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
@@ -22,7 +20,10 @@ import cromwell.filesystems.gcs.GcsEnhancedRequest._
 import cromwell.filesystems.gcs.GcsPathBuilder._
 import cromwell.filesystems.gcs.GoogleUtil._
 import mouse.all._
+import org.apache.commons.codec.digest.DigestUtils
 
+import java.io._
+import java.net.URI
 import scala.concurrent.{ExecutionContext, Future}
 import scala.io.Codec
 import scala.language.postfixOps
@@ -268,4 +269,47 @@ case class GcsPath private[gcs] (nioPath: NioPath,
   } yield result
 
   private def userProjectBlobTarget: List[BlobTargetOption] = List(BlobTargetOption.userProject(projectId))
+}
+
+object GcsPath {
+
+  // When generating "identity" hashes for GCS files (see cromwell.core.callcaching.FileHashStrategy), we use the
+  // blob id, which includes bucket name, blob name, and generation. This slash-delimited string is md5-hashed to
+  // obtain a string of a consistent length. This is used for call caching. Logic for generating this fingerprint
+  // is centralized here because different codepaths are dealing with different representations of the GS object.
+
+  def getBlobFingerprint(blob: StorageObject): Option[String] =
+    makeFingerprint[StorageObject](
+      blob,
+      b => Option(b.getBucket),
+      b => Option(b.getName),
+      b =>
+        // Prevent "Suspicious application of an implicit view" compiler warning by
+        // explicitly converting java.lang.Long to scala Long
+        Option(Long.unbox(b.getGeneration))
+    )
+
+  def getBlobFingerprint(blob: Blob): Option[String] =
+    makeFingerprint[Blob](
+      blob,
+      b => Option(b.getBucket),
+      b => Option(b.getName),
+      b =>
+        // Prevent "Suspicious application of an implicit view" compiler warning by
+        // explicitly converting java.lang.Long to scala Long
+        Option(Long.unbox(b.getGeneration))
+    )
+
+  private def makeFingerprint[T](blob: T,
+                                 getBucket: T => Option[String],
+                                 getName: T => Option[String],
+                                 getGeneration: T => Option[Long]
+  ): Option[String] =
+    for {
+      bucket <- getBucket(blob)
+      name <- getName(blob)
+      generation <- getGeneration(blob)
+      id = List(bucket, name, generation.toString).mkString("/")
+      _ = println(id)
+    } yield DigestUtils.md5Hex(id).toUpperCase
 }

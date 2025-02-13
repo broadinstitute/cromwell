@@ -1,4 +1,4 @@
-name: recursive_imports_cost
+name: recursive_imports_cost_papi
 testFormat: workflowsuccessandverifycost
 backends: [Papi]
 

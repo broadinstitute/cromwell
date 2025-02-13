@@ -111,7 +111,7 @@ In case testing of the caching is required `<<CACHE_HIT_UUID>>` can be used.
 The testFormat should be `runtwiceexpectingcallcaching`. To verify that the cost is 0 when using call-caching the testFormat should be `runtwiceexpectingcallcachingnocost`
 
 The cost is optional. If supplied, Centaur will retrieve the cost of the successfully completed workflow and compare it to the cost range supplied. 
-* If evaluating the cost, the test format must be `WorkflowSuccessAndVerifyCost` and the call-caching option must be disabled for that test (example can be found in the `recursive_imports_cost.test`)
+* If evaluating the cost, the test format must be `WorkflowSuccessAndVerifyCost` and the call-caching option must be disabled for that test (example can be found in the `recursive_imports_cost_batch.test`)
 * Different backends may have different costs, so be sure to specify the backend in the test case file
 
 

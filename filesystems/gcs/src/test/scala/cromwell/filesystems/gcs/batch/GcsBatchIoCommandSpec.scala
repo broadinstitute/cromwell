@@ -6,6 +6,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError
 import com.google.api.client.http.HttpHeaders
 import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageObject}
 import cromwell.core.callcaching.FileHashStrategy
+import cromwell.core.io.IoCommand.noopMetricsCallback
 import cromwell.filesystems.gcs.{GcsPathBuilder, MockGcsPathBuilder}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
@@ -66,7 +67,7 @@ class GcsBatchIoCommandSpec extends AnyFlatSpec with Matchers with BeforeAndAfte
   }
 
   it should "test GcsBatchCrc32Command" in {
-    val command = PartialGcsBatchCommandBuilder.hashCommand((gcsPath, FileHashStrategy.Crc32c)).get
+    val command = PartialGcsBatchCommandBuilder.hashCommand((gcsPath, FileHashStrategy.Crc32c, noopMetricsCallback)).get
 
     type commandType = com.google.api.services.storage.Storage#Objects#Get
     command.operation should be(a[commandType])

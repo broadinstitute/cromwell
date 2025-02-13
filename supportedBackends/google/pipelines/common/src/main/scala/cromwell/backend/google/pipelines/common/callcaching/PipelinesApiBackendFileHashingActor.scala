@@ -6,7 +6,7 @@ import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 
 class PipelinesApiBackendFileHashingActor(standardParams: StandardFileHashingActorParams)
     extends StandardFileHashingActor(standardParams) {
-  override val ioCommandBuilder = GcsBatchCommandBuilder
+  override val ioCommandBuilder = GcsBatchCommandBuilder(metricsCallback)
 
   override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
     ("gcs", FileHashStrategy.Crc32c),

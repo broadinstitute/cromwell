@@ -99,5 +99,5 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
   * Only builds DefaultIoCommands.
   */
 case object DefaultIoCommandBuilder extends IoCommandBuilder(List.empty) {
-  def apply(metricsCallback: IOMetricsCallback = noopMetricsCallback) = new IoCommandBuilder(List.empty, metricsCallback)
+  def apply(metricsCallback: IOMetricsCallback) = new IoCommandBuilder(List.empty, metricsCallback)
 }

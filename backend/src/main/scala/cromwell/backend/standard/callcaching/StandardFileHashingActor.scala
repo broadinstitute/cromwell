@@ -113,7 +113,7 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
 
   }
 
-  private def metricsCallback: Set[NonEmptyList[String]] => Unit = { pathsToIncrement =>
+  protected def metricsCallback: Set[NonEmptyList[String]] => Unit = { pathsToIncrement =>
     pathsToIncrement.foreach(increment(_))
   }
 

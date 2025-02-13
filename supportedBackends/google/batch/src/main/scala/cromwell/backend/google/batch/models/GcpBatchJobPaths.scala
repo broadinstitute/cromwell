@@ -7,7 +7,7 @@ import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
 
 object GcpBatchJobPaths {
- val BatchLogPathKey = "log"
+  val BatchLogPathKey = "log"
   val BatchMonitoringKey = "monitoring"
   val BatchMonitoringImageKey = "monitoringImage"
   val BatchExecParamName = "exec"

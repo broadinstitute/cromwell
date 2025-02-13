@@ -40,5 +40,6 @@ private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilde
 }
 
 case object GcsBatchCommandBuilder extends IoCommandBuilder(List(PartialGcsBatchCommandBuilder)) {
-  def apply(metricsCallback: IOMetricsCallback) = new IoCommandBuilder(List(PartialGcsBatchCommandBuilder), metricsCallback)
+  def apply(metricsCallback: IOMetricsCallback) =
+    new IoCommandBuilder(List(PartialGcsBatchCommandBuilder), metricsCallback)
 }

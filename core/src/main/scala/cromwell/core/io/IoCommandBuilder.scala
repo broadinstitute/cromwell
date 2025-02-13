@@ -2,7 +2,7 @@ package cromwell.core.io
 
 import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.DefaultIoCommand._
-import cromwell.core.io.IoCommand.{IOMetricsCallback, noopMetricsCallback}
+import cromwell.core.io.IoCommand.{noopMetricsCallback, IOMetricsCallback}
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.Path
@@ -20,7 +20,8 @@ abstract class PartialIoCommandBuilder {
   def sizeCommand: PartialFunction[Path, Try[IoSizeCommand]] = PartialFunction.empty
   def deleteCommand: PartialFunction[(Path, Boolean), Try[IoDeleteCommand]] = PartialFunction.empty
   def copyCommand: PartialFunction[(Path, Path), Try[IoCopyCommand]] = PartialFunction.empty
-  def hashCommand: PartialFunction[(Path, FileHashStrategy, IOMetricsCallback), Try[IoHashCommand]] = PartialFunction.empty
+  def hashCommand: PartialFunction[(Path, FileHashStrategy, IOMetricsCallback), Try[IoHashCommand]] =
+    PartialFunction.empty
   def touchCommand: PartialFunction[Path, Try[IoTouchCommand]] = PartialFunction.empty
   def existsCommand: PartialFunction[Path, Try[IoExistsCommand]] = PartialFunction.empty
   def isDirectoryCommand: PartialFunction[Path, Try[IoIsDirectoryCommand]] = PartialFunction.empty
@@ -37,7 +38,9 @@ abstract class PartialIoCommandBuilder {
   * This always defaults to building a DefaultIoCommand.
   * @param partialBuilders list of PartialIoCommandBuilder to try
   */
-class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.empty, metricsCallback: IOMetricsCallback = noopMetricsCallback) {
+class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.empty,
+                       metricsCallback: IOMetricsCallback = noopMetricsCallback
+) {
   // Find the first partialBuilder for which the partial function is defined, or use the default
   private def buildOrDefault[A, B](builder: PartialIoCommandBuilder => PartialFunction[A, Try[B]],
                                    params: A,

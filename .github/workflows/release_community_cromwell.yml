@@ -28,7 +28,7 @@ jobs:
         cd cromwell
 
         echo 'Merge develop into master'
-        git checkout --track origin/master
+        git checkout master
         git merge --no-edit develop
 
         echo 'Tag the release'

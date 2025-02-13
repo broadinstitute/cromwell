@@ -1,9 +1,7 @@
 name: chart-update-on-merge
 
 on:
-  pull_request:
-    types:
-      - closed
+  workflow_dispatch
 
 jobs:
   chart-update:

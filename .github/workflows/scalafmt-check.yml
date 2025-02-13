@@ -9,7 +9,6 @@ run-name: ${{ format('ScalaFmt Check on {0}', github.ref_name) }}
 
 on:
   workflow_dispatch:
-  push:
 
 permissions:
   contents: read

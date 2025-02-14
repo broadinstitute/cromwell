@@ -3,6 +3,7 @@ package cromwell.core.io
 import java.time.OffsetDateTime
 import java.util.UUID
 import better.files.File.OpenOptions
+import cats.data.NonEmptyList
 import com.google.api.client.util.ExponentialBackOff
 import common.util.Backoff
 import common.util.StringUtil.EnhancedToStringable
@@ -30,6 +31,9 @@ object IoCommand {
   def defaultBackoff: Backoff = SimpleExponentialBackoff(defaultGoogleBackoff)
 
   type RetryCommand[T] = (FiniteDuration, IoCommand[T])
+  type IOMetricsCallback = Set[NonEmptyList[String]] => Unit
+
+  val noopMetricsCallback: IOMetricsCallback = _ => ()
 }
 
 trait IoCommand[+T] {

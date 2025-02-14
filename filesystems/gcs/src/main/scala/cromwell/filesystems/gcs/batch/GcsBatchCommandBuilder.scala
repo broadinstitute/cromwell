@@ -1,6 +1,7 @@
 package cromwell.filesystems.gcs.batch
 
 import cromwell.core.callcaching.FileHashStrategy
+import cromwell.core.io.IoCommand.IOMetricsCallback
 import cromwell.core.io._
 import cromwell.core.path.Path
 import cromwell.filesystems.gcs.GcsPath
@@ -20,9 +21,9 @@ private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilde
     case (gcsSrc: GcsPath, gcsDest: GcsPath) => GcsBatchCopyCommand.forPaths(gcsSrc, gcsDest)
   }
 
-  override def hashCommand: PartialFunction[(Path, FileHashStrategy), Try[GcsBatchHashCommand]] = {
-    case (gcsPath: GcsPath, s) =>
-      GcsBatchHashCommand.forPath(gcsPath, s)
+  override def hashCommand: PartialFunction[(Path, FileHashStrategy, IOMetricsCallback), Try[GcsBatchHashCommand]] = {
+    case (gcsPath: GcsPath, s, cb) =>
+      GcsBatchHashCommand.forPath(gcsPath, s, cb)
   }
 
   override def touchCommand: PartialFunction[Path, Try[GcsBatchTouchCommand]] = { case gcsPath: GcsPath =>
@@ -38,4 +39,7 @@ private case object PartialGcsBatchCommandBuilder extends PartialIoCommandBuilde
   }
 }
 
-case object GcsBatchCommandBuilder extends IoCommandBuilder(List(PartialGcsBatchCommandBuilder))
+case object GcsBatchCommandBuilder extends IoCommandBuilder(List(PartialGcsBatchCommandBuilder)) {
+  def apply(metricsCallback: IOMetricsCallback) =
+    new IoCommandBuilder(List(PartialGcsBatchCommandBuilder), metricsCallback)
+}

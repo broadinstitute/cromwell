@@ -5,6 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
 import cromwell.core.callcaching.FileHashStrategy
+import cromwell.core.io.IoCommand.noopMetricsCallback
 import cromwell.core.io._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.engine.io.IoActor._
@@ -89,7 +90,7 @@ class IoActorProxyGcsBatchSpec
 
     val copyCommand = GcsBatchCopyCommand.forPaths(src, dst).get
     val sizeCommand = GcsBatchSizeCommand.forPath(src).get
-    val hashCommand = GcsBatchHashCommand.forPath(src, FileHashStrategy.Crc32c).get
+    val hashCommand = GcsBatchHashCommand.forPath(src, FileHashStrategy.Crc32c, noopMetricsCallback).get
     // Should return true
     val isDirectoryCommand = GcsBatchIsDirectoryCommand.forPath(directory).get
     // Should return false

@@ -14,5 +14,5 @@ metadata {
   workflowName: requester_pays_localization
   status: Failed
   "failures.0.message": "Workflow failed"
-  "failures.0.causedBy.0.message": ~~"Job failed due to task failure. Specifically, task with index 0 failed due to the following task event: \"Task state is updated from RUNNING to FAILED"
+  "failures.0.causedBy.0.message": ~~"The job was stopped before the command finished. Batch error code 0. Job failed with an unknown reason"
 }

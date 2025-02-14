@@ -11,7 +11,7 @@ metadata {
   workflowName: retry_same_memory_output_failure
   status: Failed
   "failures.0.message": "Workflow failed"
-  "failures.0.causedBy.0.message": ~~"exit code 1."
+  "failures.0.causedBy.0.message": ~~"failed"
   "retry_same_memory_output_failure.imitate_oom_error.-1.1.executionStatus": "RetryableFailure"
   "retry_same_memory_output_failure.imitate_oom_error.-1.1.runtimeAttributes.memory": "1 GB"
   "retry_same_memory_output_failure.imitate_oom_error.-1.2.executionStatus": "RetryableFailure"

@@ -126,7 +126,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
   private def createTaskSpec(runnables: List[Runnable],
                              computeResource: ComputeResource,
-                             retryCount: Int,
                              durationInSeconds: Long,
                              volumes: List[Volume]
   ) =
@@ -134,7 +133,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .addAllRunnables(runnables.asJava)
       .setComputeResource(computeResource)
       .addAllVolumes(volumes.asJava)
-      .setMaxRetryCount(retryCount)
       .setMaxRunDuration(
         Duration.newBuilder
           .setSeconds(durationInSeconds)
@@ -180,7 +178,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     val createParameters = data.createParameters
     val runtimeAttributes = createParameters.runtimeAttributes
-    val retryCount = runtimeAttributes.preemptible
     val allDisksToBeMounted: Seq[GcpBatchAttachedDisk] =
       createParameters.disks ++ createParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
     val gcpBootDiskSizeMb = convertGbToMib(runtimeAttributes)
@@ -221,7 +218,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val taskCount: Long = 1
 
     // parse preemption value and set value for Spot. Spot is replacement for preemptible
-    val spotModel = toProvisioningModel(runtimeAttributes.preemptible)
+    val spotModel = toProvisioningModel(createParameters.preemptible)
 
     // Set GPU accelerators
     val accelerators = runtimeAttributes.gpuResource.map(toAccelerator)
@@ -260,7 +257,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     )
 
     val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-    val taskSpec = createTaskSpec(sortedRunnables, computeResource, retryCount, durationInSeconds, allVolumes)
+    val taskSpec = createTaskSpec(sortedRunnables, computeResource, durationInSeconds, allVolumes)
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
     val machineType = GcpBatchMachineConstraints.machineType(runtimeAttributes.memory,
                                                              runtimeAttributes.cpu,

@@ -118,10 +118,10 @@ engine {
 }
 
 backend {
-  default = batch
+  default = GCPBATCH
 
   providers {
-    batch {
+    GCPBATCH {
       actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         # Google project

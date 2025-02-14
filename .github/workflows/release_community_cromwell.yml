@@ -20,7 +20,7 @@ jobs:
     - name: Clone Cromwell
       uses: actions/checkout@v4
       with:
-        repository: broadinstitute/cromwell
+        repository: jgainerdewar/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
     - name: Merge to master and tag release
@@ -28,8 +28,7 @@ jobs:
         cd cromwell
 
         echo 'Merge develop into master'
-        git fetch
-        git checkout master
+        git checkout --track origin/master
         git merge --no-edit develop
 
         echo 'Tag the release'

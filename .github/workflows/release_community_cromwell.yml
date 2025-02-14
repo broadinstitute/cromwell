@@ -24,6 +24,7 @@ jobs:
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
         ref: develop
+        fetch-depth: 0
     - name: Merge to master and tag release
       run: |
         cd cromwell
@@ -34,15 +35,7 @@ jobs:
         echo 'Merge develop into master'
         git fetch 
 
-        git status
-        
         git checkout master
-        git checkout develop
-        echo 'GIT LOG DEVELOP'
-        git log
-
-        git diff master develop
-
         git merge --no-edit develop
 
         #echo 'Tag the release'

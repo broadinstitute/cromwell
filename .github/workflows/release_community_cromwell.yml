@@ -35,12 +35,14 @@ jobs:
         git fetch 
 
         git status
-        git diff master develop
         
-        #git checkout master
+        git checkout master
+        git checkout develop
+        echo 'GIT LOG DEVELOP'
+        git log
 
-        #echo 'GIT LOG MASTER'
-        #git log
+        git diff master develop
+
         #git merge --no-edit --allow-unrelated-histories develop
 
         #echo 'Tag the release'

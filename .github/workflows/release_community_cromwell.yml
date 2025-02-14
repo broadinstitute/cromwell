@@ -28,6 +28,7 @@ jobs:
         cd cromwell
 
         echo 'Merge develop into master'
+        git fetch
         git checkout master
         git merge --no-edit develop
 

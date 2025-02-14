@@ -23,14 +23,15 @@ jobs:
         repository: jgainerdewar/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
+        ref: develop
     - name: Merge to master and tag release
       run: |
         cd cromwell
 
         echo 'Merge develop into master'
-        git fetch
+        git fetch 
         git checkout master
-        git merge --no-edit develop
+        git merge --no-edit --allow-unrelated-histories develop
 
         echo 'Tag the release'
         git tag --message=${RELEASE_VERSION} ${RELEASE_VERSION}

@@ -34,6 +34,7 @@ jobs:
         echo 'Merge develop into master'
         git fetch 
 
+        git status
         git diff master develop
         
         #git checkout master

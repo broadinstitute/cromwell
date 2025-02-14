@@ -28,6 +28,9 @@ jobs:
       run: |
         cd cromwell
 
+        git config --global user.name "broadbot"
+        git config --global user.email "broadbot@broadinstitute.org"
+
         echo 'Merge develop into master'
         git fetch 
         git checkout master

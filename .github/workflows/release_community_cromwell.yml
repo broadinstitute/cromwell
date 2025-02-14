@@ -27,14 +27,16 @@ jobs:
     - name: Merge to master and tag release
       run: |
         cd cromwell
-        echo 'GIT LOG DEVELOP'
-        git log
 
         git config --global user.name "broadbot"
         git config --global user.email "broadbot@broadinstitute.org"
 
         echo 'Merge develop into master'
         git fetch 
+
+        echo 'GIT LOG DEVELOP'
+        git log
+        
         git checkout master
 
         echo 'GIT LOG MASTER'

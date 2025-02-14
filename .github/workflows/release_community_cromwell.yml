@@ -43,7 +43,7 @@ jobs:
 
         git diff master develop
 
-        #git merge --no-edit --allow-unrelated-histories develop
+        git merge --no-edit develop
 
         #echo 'Tag the release'
         #git tag --message=${RELEASE_VERSION} ${RELEASE_VERSION}

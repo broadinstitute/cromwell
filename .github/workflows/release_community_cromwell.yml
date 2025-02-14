@@ -34,13 +34,12 @@ jobs:
         echo 'Merge develop into master'
         git fetch 
 
-        echo 'GIT LOG DEVELOP'
-        git log
+        git diff master develop
         
-        git checkout master
+        #git checkout master
 
-        echo 'GIT LOG MASTER'
-        git log
+        #echo 'GIT LOG MASTER'
+        #git log
         #git merge --no-edit --allow-unrelated-histories develop
 
         #echo 'Tag the release'
@@ -81,6 +80,4 @@ jobs:
     #       server/target/scala-2.13/cromwell-${{ env.RELEASE_VERSION }}.jar
     #       womtool/target/scala-2.13/womtool-${{ env.RELEASE_VERSION }}.jar
 
-
-
-
+# TODO build and push Cromwell docker image

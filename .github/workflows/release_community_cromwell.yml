@@ -28,7 +28,7 @@ jobs:
       run: |
         cd cromwell
         echo 'GIT LOG DEVELOP'
-        git log | head -n 40
+        git log
 
         git config --global user.name "broadbot"
         git config --global user.email "broadbot@broadinstitute.org"

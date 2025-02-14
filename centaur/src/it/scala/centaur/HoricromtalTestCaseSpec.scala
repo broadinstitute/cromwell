@@ -4,8 +4,7 @@ import centaur.test.standard.CentaurTestCase
 import org.scalatest.DoNotDiscover
 
 @DoNotDiscover
-class HoricromtalTestCaseSpec(cromwellBackends: List[String])
-  extends AbstractCentaurTestCaseSpec(cromwellBackends) {
+class HoricromtalTestCaseSpec(cromwellBackends: List[String]) extends AbstractCentaurTestCaseSpec(cromwellBackends) {
 
   def this() = this(CentaurTestSuite.cromwellBackends)
 

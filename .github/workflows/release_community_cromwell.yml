@@ -81,8 +81,8 @@ jobs:
       run: |
         set -e
         cd cromwell
-        sbt -Dproject.isSnapshot=false -Dproject.isRelease=true dockerBuildAndPush
-        
+  #      sbt -Dproject.isSnapshot=false -Dproject.isRelease=true dockerBuildAndPush
+
     - name: Create Github release
       uses: softprops/action-gh-release@v2
       with:

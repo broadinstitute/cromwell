@@ -37,8 +37,8 @@ jobs:
         git checkout --track origin/master
         git merge --no-edit develop
 
-        echo 'Tag the release'
-        git tag --message=${RELEASE_VERSION} ${RELEASE_VERSION}
+        # echo 'Tag the release'
+        # git tag --message=${RELEASE_VERSION} ${RELEASE_VERSION}
     - name: Update develop with new version
       run: |
         cd cromwell

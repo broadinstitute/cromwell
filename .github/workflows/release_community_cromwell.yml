@@ -62,12 +62,12 @@ jobs:
     - name: Prepare release notes
       run: |
         cd cromwell
-        sed -n '/## ${RELEASE_VERSION}/,/## [0-9]/p' CHANGELOG.md | sed '$d' > changelog.txt
+        sed -n "/## ${RELEASE_VERSION}/,/## [0-9]/p" CHANGELOG.md | sed '$d' > changelog.txt
         echo 'Printing changelog'
         wc -l changelog.txt
         cat changelog.txt
-        echo 'Printing sed -n '/## ${RELEASE_VERSION}/,/## [0-9]/p' CHANGELOG.md'
-        sed -n '/## 88/,/## [0-9]/p' CHANGELOG.md
+        #echo 'Printing sed -n '/## ${RELEASE_VERSION}/,/## [0-9]/p' CHANGELOG.md'
+        #sed -n '/## 88/,/## [0-9]/p' CHANGELOG.md | sed '$d'
     - name: Push changes to origin
       run: |
         cd cromwell

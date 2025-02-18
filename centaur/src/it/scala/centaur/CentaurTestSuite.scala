@@ -32,8 +32,6 @@ object CentaurTestSuite extends StrictLogging {
 
   def isPapiUpgradeTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("papi_upgrade")
 
-  def isHoricromtalTest(testCase: CentaurTestCase): Boolean = testCase.containsTag("horicromtal")
-
   /** Horicromtality-related assertion config. */
   val cromwellTracker: Option[CromwellTracker] = {
 

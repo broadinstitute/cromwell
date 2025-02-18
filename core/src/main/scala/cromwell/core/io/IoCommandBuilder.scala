@@ -1,6 +1,8 @@
 package cromwell.core.io
 
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.DefaultIoCommand._
+import cromwell.core.io.IoCommand.{noopMetricsCallback, IOMetricsCallback}
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.Path
@@ -18,19 +20,12 @@ abstract class PartialIoCommandBuilder {
   def sizeCommand: PartialFunction[Path, Try[IoSizeCommand]] = PartialFunction.empty
   def deleteCommand: PartialFunction[(Path, Boolean), Try[IoDeleteCommand]] = PartialFunction.empty
   def copyCommand: PartialFunction[(Path, Path), Try[IoCopyCommand]] = PartialFunction.empty
-  def hashCommand: PartialFunction[Path, Try[IoHashCommand]] = PartialFunction.empty
+  def hashCommand: PartialFunction[(Path, FileHashStrategy, IOMetricsCallback), Try[IoHashCommand]] =
+    PartialFunction.empty
   def touchCommand: PartialFunction[Path, Try[IoTouchCommand]] = PartialFunction.empty
   def existsCommand: PartialFunction[Path, Try[IoExistsCommand]] = PartialFunction.empty
   def isDirectoryCommand: PartialFunction[Path, Try[IoIsDirectoryCommand]] = PartialFunction.empty
   def readLinesCommand: PartialFunction[Path, Try[IoReadLinesCommand]] = PartialFunction.empty
-}
-
-object IoCommandBuilder {
-  def apply(partialBuilders: PartialIoCommandBuilder*): IoCommandBuilder =
-    new IoCommandBuilder(partialBuilders.toList)
-
-  def apply: IoCommandBuilder =
-    new IoCommandBuilder(List.empty)
 }
 
 /**
@@ -43,7 +38,9 @@ object IoCommandBuilder {
   * This always defaults to building a DefaultIoCommand.
   * @param partialBuilders list of PartialIoCommandBuilder to try
   */
-class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.empty) {
+class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.empty,
+                       metricsCallback: IOMetricsCallback = noopMetricsCallback
+) {
   // Find the first partialBuilder for which the partial function is defined, or use the default
   private def buildOrDefault[A, B](builder: PartialIoCommandBuilder => PartialFunction[A, Try[B]],
                                    params: A,
@@ -85,8 +82,8 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
   def copyCommand(src: Path, dest: Path): Try[IoCopyCommand] =
     buildOrDefault(_.copyCommand, (src, dest), DefaultIoCopyCommand(src, dest))
 
-  def hashCommand(file: Path): Try[IoHashCommand] =
-    buildOrDefault(_.hashCommand, file, DefaultIoHashCommand(file))
+  def hashCommand(file: Path, hashStrategy: FileHashStrategy): Try[IoHashCommand] =
+    buildOrDefault(_.hashCommand, (file, hashStrategy, metricsCallback), DefaultIoHashCommand(file, hashStrategy))
 
   def touchCommand(file: Path): Try[IoTouchCommand] =
     buildOrDefault(_.touchCommand, file, DefaultIoTouchCommand(file))
@@ -104,4 +101,6 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
 /**
   * Only builds DefaultIoCommands.
   */
-case object DefaultIoCommandBuilder extends IoCommandBuilder(List.empty)
+case object DefaultIoCommandBuilder extends IoCommandBuilder(List.empty) {
+  def apply(metricsCallback: IOMetricsCallback) = new IoCommandBuilder(List.empty, metricsCallback)
+}

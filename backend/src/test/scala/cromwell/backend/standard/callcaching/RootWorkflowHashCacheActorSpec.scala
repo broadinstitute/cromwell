@@ -4,7 +4,7 @@ import akka.actor.Props
 import akka.testkit._
 import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.{IoHashCommandWithContext, _}
 import cromwell.core.actor.RobustClientHelper.RequestTimeout
-import cromwell.core.callcaching.HashKey
+import cromwell.core.callcaching.{FileHashStrategy, HashKey}
 import cromwell.core.io.DefaultIoCommand.DefaultIoHashCommand
 import cromwell.core.io.IoSuccess
 import cromwell.core.path.DefaultPathBuilder
@@ -28,7 +28,7 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite with ImplicitSender wi
     )
 
     val ioHashCommandWithContext =
-      IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get),
+      IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get, FileHashStrategy.Md5),
                                FileHashContext(HashKey(checkForHitOrMiss = false, List.empty), fakeFileName)
       )
     rootWorkflowFileHashCacheActor ! ioHashCommandWithContext
@@ -56,7 +56,7 @@ class RootWorkflowHashCacheActorSpec extends TestKitSuite with ImplicitSender wi
     )
 
     val ioHashCommandWithContext =
-      IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get),
+      IoHashCommandWithContext(DefaultIoHashCommand(DefaultPathBuilder.build("").get, FileHashStrategy.Md5),
                                FileHashContext(HashKey(checkForHitOrMiss = false, List.empty), fakeFileName)
       )
     rootWorkflowFileHashCacheActor ! ioHashCommandWithContext

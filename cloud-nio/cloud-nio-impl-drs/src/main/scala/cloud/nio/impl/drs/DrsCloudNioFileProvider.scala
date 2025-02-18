@@ -81,10 +81,10 @@ class DrsCloudNioFileProvider(drsPathResolver: DrsPathResolver, drsReadInterpret
     val fileAttributesIO = for {
       drsResolverResponse <- drsPathResolver.resolveDrs(drsPath, fields)
       sizeOption = drsResolverResponse.size
-      hashOption = getPreferredHash(drsResolverResponse.hashes)
+      hashOptions = drsResolverResponse.hashes.getOrElse(Map.empty)
       timeCreatedOption <- convertToFileTime(drsPath, DrsResolverField.TimeCreated, drsResolverResponse.timeCreated)
       timeUpdatedOption <- convertToFileTime(drsPath, DrsResolverField.TimeUpdated, drsResolverResponse.timeUpdated)
-    } yield new DrsCloudNioRegularFileAttributes(drsPath, sizeOption, hashOption, timeCreatedOption, timeUpdatedOption)
+    } yield new DrsCloudNioRegularFileAttributes(drsPath, sizeOption, hashOptions, timeCreatedOption, timeUpdatedOption)
 
     Option(fileAttributesIO.unsafeRunSync())
   }

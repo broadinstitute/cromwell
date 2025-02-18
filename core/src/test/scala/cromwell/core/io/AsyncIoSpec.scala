@@ -2,10 +2,10 @@ package cromwell.core.io
 
 import java.nio.file.NoSuchFileException
 import java.util.UUID
-
 import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.TestActorRef
 import cromwell.core.TestKitSuite
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -57,7 +57,7 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers {
     val testPath = DefaultPathBuilder.createTempFile()
     testPath.write("hello")
 
-    testActor.underlyingActor.asyncIo.hashAsync(testPath) map { hash =>
+    testActor.underlyingActor.asyncIo.hashAsync(testPath, FileHashStrategy.Md5) map { hash =>
       assert(hash == "5D41402ABC4B2A76B9719D911017C592")
     }
   }

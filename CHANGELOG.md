@@ -105,6 +105,10 @@ Cloud Life Sciences (aka `v2Beta`, deprecated) and Google Batch (aka `batch`, re
    * Default GPU on GCP Batch is now Nvidia T4
  * Updated runtime attributes documentation to clarify that the `nvidiaDriverVersion` key is ignored on GCP Batch.
 
+#### Call Caching Hash Strategy
+Users can now configure which algorithm is used to hash files for call caching purposes. See Configuring page in 
+ReadTheDocs for details. Default behavior is unchanged.
+
 ## 87 Release Notes
 
 ### GCP Batch

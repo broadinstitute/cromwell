@@ -140,6 +140,9 @@ object BlobPath {
 case class BlobPath private[blob] (pathString: String, endpoint: EndpointURL, container: BlobContainerName)(
   private val fsm: BlobFileSystemManager
 ) extends Path {
+
+  val filesystemTypeKey = "blob"
+
   override def nioPath: NioPath = findNioPath(pathString)
 
   override protected def newPath(nioPath: NioPath): Path = BlobPath(nioPath, endpoint, container, fsm)

@@ -147,6 +147,8 @@ class S3PathBuilder(configuration: S3Configuration) extends PathBuilder {
 }
 
 case class S3Path private[s3] (nioPath: NioPath, bucket: String, client: S3Client) extends Path {
+  val filesystemTypeKey = "s3"
+
   override protected def newPath(nioPath: NioPath): S3Path = S3Path(nioPath, bucket, client)
 
   override def pathAsString: String = s"s3://$pathWithoutScheme"

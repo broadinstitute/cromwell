@@ -65,18 +65,18 @@ jobs:
         sed -n '/## ~{currentReleaseVersion}/,/## [0-9]/p' CHANGELOG.md \
         | sed '$d' \
         > changelog.txt
-    # - name: Push changes to origin
-    #   run: |
-    #     cd cromwell
-    #     git push origin master develop ${RELEASE_VERSION}
-    # - name: Create Github release
-    #   uses: softprops/action-gh-release@v2
-    #   with:
-    #     body_path: changelog.txt
-    #     tag_name: ${{ env.RELEASE_VERSION }}
-    #     token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-    #     files: |
-    #       server/target/scala-2.13/cromwell-${{ env.RELEASE_VERSION }}.jar
-    #       womtool/target/scala-2.13/womtool-${{ env.RELEASE_VERSION }}.jar
+    - name: Push changes to origin
+      run: |
+        cd cromwell
+ #       git push origin master develop ${RELEASE_VERSION}
+    - name: Create Github release
+      uses: softprops/action-gh-release@v2
+      with:
+        body_path: changelog.txt
+        tag_name: ${{ env.RELEASE_VERSION }}
+        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        files: |
+          server/target/scala-2.13/cromwell-${{ env.RELEASE_VERSION }}.jar
+          womtool/target/scala-2.13/womtool-${{ env.RELEASE_VERSION }}.jar
 
 # TODO build and push Cromwell docker image

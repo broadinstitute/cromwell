@@ -9,6 +9,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: sbt/setup-sbt@v1
+    # `DSDEJENKINS_PASSWORD` auto syncs from vault with https://github.com/broadinstitute/terraform-ap-deployments/pull/614
+    # - name: Login to Docker Hub
+    #   uses: docker/login-action@v1
+    #   with:
+    #     username: dsdejenkins
+    #     password: ${{ secrets.DSDEJENKINS_PASSWORD }}
     - name: Find Cromwell release number
       run: |
         set -e
@@ -26,8 +32,9 @@ jobs:
         path: cromwell
         ref: develop
         fetch-depth: 0
-    - name: Merge to master and tag release
+    - name: Merge to master and rev develop
       run: |
+        set -e
         cd cromwell
 
         git config --global user.name "broadbot"
@@ -37,36 +44,45 @@ jobs:
         git checkout --track origin/master
         git merge --no-edit develop
 
-        # echo 'Tag the release'
-        # git tag --message=${RELEASE_VERSION} ${RELEASE_VERSION}
-    - name: Update develop with new version
-      run: |
-        cd cromwell
+        echo "Update develop to version ${NEXT_VERSION}"
         git checkout develop
         sed -i -e '/cromwellVersion[[:space:]]=/s/[0-9][0-9]*/${NEXT_VERSION}/' project/Version.scala
         git add project/Version.scala
         git diff-index --quiet HEAD \
         || git commit --message "Update cromwell version from ${RELEASE_VERSION} to ${NEXT_VERSION}"
-    # - name: Build new release
-    #   run: |
-    #     cd cromwell
-    #     git checkout master
-    #     # Use sbt.server.forcestart to workaround https://github.com/sbt/sbt/issues/6101
-    #     echo 'Assemble jars for cromwell and womtool'
-    #     sbt \
-    #     -Dsbt.server.forcestart=true \
-    #     -Dproject.version=${RELEASE_VERSION} \
-    #     -Dproject.isSnapshot=false \
-    #     server/assembly \
-    #     womtool/assembly
+
     - name: Prepare release notes
       run: |
+        set -e
         cd cromwell
         sed -n "/## ${RELEASE_VERSION}/,/## [0-9]/p" CHANGELOG.md | sed '$d' > changelog.txt
+
+    - name: Build jars for new release
+      run: |
+        set -e
+        cd cromwell
+        git checkout master
+        # Use sbt.server.forcestart to workaround https://github.com/sbt/sbt/issues/6101
+        echo 'Assemble jars for cromwell and womtool'
+        sbt \
+        -Dsbt.server.forcestart=true \
+        -Dproject.version=${RELEASE_VERSION} \
+        -Dproject.isSnapshot=false \
+        server/assembly \
+        womtool/assembly
+
     - name: Push changes to origin
       run: |
+        set -e
         cd cromwell
- #       git push origin master develop ${RELEASE_VERSION}
+ #       git push origin master develop
+
+    - name: Build and push Docker image
+      run: |
+        set -e
+        cd cromwell
+        sbt -Dproject.isSnapshot=false -Dproject.isRelease=true dockerBuildAndPush
+        
     - name: Create Github release
       uses: softprops/action-gh-release@v2
       with:
@@ -76,5 +92,3 @@ jobs:
         files: |
           cromwell/server/target/scala-2.13/cromwell-${{ env.RELEASE_VERSION }}.jar
           cromwell/womtool/target/scala-2.13/womtool-${{ env.RELEASE_VERSION }}.jar
-
-# TODO build and push Cromwell docker image

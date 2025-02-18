@@ -58,7 +58,7 @@ class FtpCloudNioFileSystemProviderSpec
         override def fileAttributes(cloudHost: String, cloudPath: String): Option[CloudNioRegularFileAttributes] =
           Option(
             new CloudNioRegularFileAttributes {
-              override def fileHash = throw new UnsupportedOperationException()
+              override def fileHashes: Map[String, String] = throw new UnsupportedOperationException()
               override def lastModifiedTime() = throw new UnsupportedOperationException()
               override def size(): Long = mockSizeFunction()
               override def fileKey() = throw new UnsupportedOperationException()

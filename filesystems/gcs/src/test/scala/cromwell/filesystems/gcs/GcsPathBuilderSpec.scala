@@ -1,14 +1,18 @@
 package cromwell.filesystems.gcs
 
 import com.google.api.gax.retrying.RetrySettings
+import com.google.api.services.storage.model.StorageObject
 import com.google.auth.Credentials
 import com.google.auth.oauth2.ServiceAccountCredentials
 import com.google.cloud.NoCredentials
+import com.google.cloud.storage.Blob
 import com.google.cloud.storage.contrib.nio.{CloudStorageConfiguration, CloudStorageFileSystemProvider}
+import common.mock.MockSugar.mock
 import cromwell.cloudsupport.gcp.auth.ServiceAccountTestSupport
 import cromwell.cloudsupport.gcp.gcs.GcsStorage
 import cromwell.core.path._
 import cromwell.core.{TestKitSuite, WorkflowOptions}
+import org.mockito.Mockito.when
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.Tables.Table
@@ -30,6 +34,30 @@ class GcsPathBuilderSpec
     val gcsPathBuilderWithProjectInfo = MockGcsPathBuilder.withOptions(wfOptionsWithProject)
 
     gcsPathBuilderWithProjectInfo.projectId shouldBe "my_project"
+  }
+
+  it should "create a fingerprint for a StorageObject" in {
+    val storageObject = mock[StorageObject]
+    when(storageObject.getBucket).thenReturn("myBucket")
+    when(storageObject.getName).thenReturn("myBlobDir/myBlob.txt")
+    when(storageObject.getGeneration).thenReturn(123456L)
+    GcsPath.getBlobFingerprint(storageObject) shouldBe Some("05B44C2CC99C109C7970BB7725DC08B6")
+  }
+
+  it should "create a fingerprint for a Blob" in {
+    val blob = mock[Blob]
+    when(blob.getBucket).thenReturn("myBucket")
+    when(blob.getName).thenReturn("myBlobDir/myBlob.txt")
+    when(blob.getGeneration).thenReturn(123456L)
+    GcsPath.getBlobFingerprint(blob) shouldBe Some("05B44C2CC99C109C7970BB7725DC08B6")
+  }
+
+  it should "create a fingerprint for a Storage Object with a null field" in {
+    val storageObject = mock[StorageObject]
+    when(storageObject.getBucket).thenReturn("myBucket")
+    when(storageObject.getName).thenReturn(null)
+    when(storageObject.getGeneration).thenReturn(123456L)
+    GcsPath.getBlobFingerprint(storageObject) shouldBe None
   }
 
   it should behave like truncateCommonRoots(pathBuilder, pathsToTruncate)

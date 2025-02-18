@@ -49,6 +49,8 @@ class HttpPathBuilder extends PathBuilder {
   * This class backs an http Path with a Unix path so this class' NIO methods cannot be used to access the underlying file.
   */
 case class HttpPath(nioPath: NioPath) extends Path {
+  val filesystemTypeKey = "http"
+
   override protected def newPath(nioPath: NioPath): Path = HttpPath(nioPath)
 
   override def pathAsString: String = nioPath.toString.replaceFirst("/", "//")

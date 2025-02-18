@@ -1,9 +1,6 @@
 name: recursive_imports_cost_papi
 testFormat: workflowsuccessandverifycost
-backends: {
-mode: "only",
-list: [PapiV2]
-}
+backends: [PapiV2]
 
 files {
   workflow: recursive_imports/recursive_imports.wdl

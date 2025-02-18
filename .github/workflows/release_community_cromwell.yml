@@ -8,6 +8,7 @@ jobs:
     name: Release Community Cromwell
     runs-on: ubuntu-latest
     steps:
+    - uses: sbt/setup-sbt@v1
     - name: Find Cromwell release number
       run: |
         set -e

@@ -40,6 +40,7 @@ jobs:
         git tag --message=${RELEASE_VERSION} ${RELEASE_VERSION}
     - name: Update develop with new version
       run: |
+        cd cromwell
         git checkout develop
         sed -i -e '/cromwellVersion[[:space:]]=/s/[0-9][0-9]*/${NEXT_VERSION}/' project/Version.scala
         git add project/Version.scala
@@ -47,6 +48,7 @@ jobs:
         || git commit --message "Update cromwell version from ${RELEASE_VERSION} to ${NEXT_VERSION}"
     - name: Build new release
       run: |
+        cd cromwell
         git checkout master
         # Use sbt.server.forcestart to workaround https://github.com/sbt/sbt/issues/6101
         echo 'Assemble jars for cromwell and womtool'
@@ -58,11 +60,13 @@ jobs:
         womtool/assembly
     - name: Prepare release notes
       run: |
+        cd cromwell
         sed -n '/## ~{currentReleaseVersion}/,/## [0-9]/p' CHANGELOG.md \
         | sed '$d' \
         > changelog.txt
     # - name: Push changes to origin
     #   run: |
+    #     cd cromwell
     #     git push origin master develop ${RELEASE_VERSION}
     # - name: Create Github release
     #   uses: softprops/action-gh-release@v2

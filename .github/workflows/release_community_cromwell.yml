@@ -9,12 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: sbt/setup-sbt@v1
+      
     # `DSDEJENKINS_PASSWORD` auto syncs from vault with https://github.com/broadinstitute/terraform-ap-deployments/pull/614
     - name: Login to Docker Hub
       uses: docker/login-action@v1
       with:
         username: dsdejenkins
         password: ${{ secrets.DSDEJENKINS_PASSWORD }}
+
     - name: Find Cromwell release number
       run: |
         set -e
@@ -24,6 +26,7 @@ jobs:
         fi
         echo "RELEASE_VERSION=$((previous_version + 1))" >> $GITHUB_ENV
         echo "NEXT_VERSION=$((previous_version + 2))" >> $GITHUB_ENV
+
     - name: Clone Cromwell
       uses: actions/checkout@v4
       with:
@@ -32,6 +35,7 @@ jobs:
         path: cromwell
         ref: develop
         fetch-depth: 0 # <-- important for branch shenanigans below
+
     - name: Merge to master and rev develop
       run: |
         set -e

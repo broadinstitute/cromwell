@@ -33,9 +33,9 @@ jobs:
         git config --global user.email "broadbot@broadinstitute.org"
 
         echo 'Merge develop into master'
-        git fetch 
-
-        git checkout master
+        #git fetch 
+        #git checkout master
+        git checkout --track origin/master
         git merge --no-edit develop
 
         #echo 'Tag the release'

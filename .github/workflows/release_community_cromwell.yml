@@ -66,6 +66,7 @@ jobs:
         | sed '$d' \
         > changelog.txt
         echo 'Printing changelog'
+        wc -l changelog.txt
         cat changelog.txt
     - name: Push changes to origin
       run: |

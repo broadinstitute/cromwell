@@ -13,7 +13,7 @@ task MentionsNirvanaReference {
     input {
         # Tiny 116 byte reference file, certainly not worth attaching a 55 GiB Nirvana reference disk for this.
         File mention =
-            "gs://broad-public-datasets/gvs/vat-annotations/Nirvana/3.18.1/SupplementaryAnnotation/GRCh38/MITOMAP_20200819.nsa.idx"
+            "gs://centaur-ci-test-data/gvs/vat-annotations/Nirvana/3.18.1/SupplementaryAnnotation/GRCh38/MITOMAP_20200819.nsa.idx"
     }
     command <<<
         PS4='\D{+%F %T} \w $ '

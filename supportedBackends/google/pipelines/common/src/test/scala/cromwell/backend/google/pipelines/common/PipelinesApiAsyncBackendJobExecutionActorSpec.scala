@@ -2,7 +2,6 @@ package cromwell.backend.google.pipelines.common
 
 import java.nio.file.Paths
 import java.util.UUID
-
 import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
@@ -25,11 +24,12 @@ import cromwell.backend.async.{
   FailedRetryableExecutionHandle
 }
 import cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor.JesPendingExecutionHandle
-import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory
+import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, RunStatus}
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PAPIStatusPollRequest
 import cromwell.backend.google.pipelines.common.api.RunStatus.UnsuccessfulRunStatus
 import cromwell.backend.google.pipelines.common.io.{DiskType, PipelinesApiWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
+import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
 import cromwell.backend.standard.{
   DefaultStandardAsyncExecutionActorParams,
   StandardAsyncExecutionActorParams,
@@ -46,6 +46,10 @@ import cromwell.services.instrumentation.{CromwellBucket, CromwellIncrement}
 import cromwell.services.instrumentation.InstrumentationService.InstrumentationServiceMessage
 import cromwell.services.keyvalue.InMemoryKvServiceActor
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvJobKey, KvPair, ScopedKey}
+import cromwell.services.metadata.CallMetadataKeys
+import cromwell.services.metadata.MetadataService.PutMetadataAction
+import cromwell.services.metrics.bard.BardEventing.BardEventRequest
+import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
 import org.scalatest._
@@ -64,6 +68,8 @@ import wom.transforms.WomWorkflowDefinitionMaker.ops._
 import wom.types._
 import wom.values._
 
+import java.time.OffsetDateTime
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.language.postfixOps
@@ -81,6 +87,7 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
   val mockPathBuilder: GcsPathBuilder = MockGcsPathBuilder.instance
   import MockGcsPathBuilder._
   var kvService: ActorRef = system.actorOf(Props(new InMemoryKvServiceActor), "kvService")
+  val mockGroupMetricsActor: TestProbe = TestProbe()
 
   private def gcsPath(str: String) = mockPathBuilder.build(str).getOrElse(fail(s"Invalid gcs path: $str"))
 
@@ -179,7 +186,8 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
           backendInitializationDataOption = Option(buildInitializationData(jobDescriptor, jesConfiguration)),
           backendSingletonActorOption = Option(jesSingletonActor),
           completionPromise = promise,
-          minimumRuntimeSettings = MinimumRuntimeSettings()
+          minimumRuntimeSettings = MinimumRuntimeSettings(),
+          groupMetricsActor = mockGroupMetricsActor.ref
         ),
         functions
       )
@@ -194,6 +202,17 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       override def tag: String = s"$name [UUID(${workflowId.shortString})$jobTag]"
       override val slf4jLoggers: Set[Logger] = Set.empty
     }
+    override val pollingResultMonitorActor: Option[ActorRef] = Some(
+      context.actorOf(
+        PapiPollResultMonitorActor.props(serviceRegistryActor,
+                                         workflowDescriptor,
+                                         jobDescriptor,
+                                         validatedRuntimeAttributes,
+                                         platform,
+                                         jobLogger
+        )
+      )
+    )
 
     override lazy val backendEngineFunctions: PipelinesApiExpressionFunctions = functions
   }
@@ -258,6 +277,13 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
                       PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey
             ),
             previousUnexpectedRetries.toString
+          ),
+          PipelinesApiBackendLifecycleActorFactory.quotaRetryCountKey -> KvPair(
+            ScopedKey(workflowDescriptor.id,
+                      KvJobKey(key),
+                      PipelinesApiBackendLifecycleActorFactory.quotaRetryCountKey
+            ),
+            0.toString // We're testing this in other ways, fake it here.
           )
         )
         val prefetchedKvEntriesUpd = if (failedRetriesCountOpt.isEmpty) {
@@ -356,9 +382,10 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     Await.result(promise.future, Timeout)
   }
 
-  def buildPreemptibleTestActorRef(attempt: Int,
-                                   preemptible: Int,
-                                   failedRetriesCountOpt: Option[Int] = None
+  private def buildPreemptibleTestActorRef(attempt: Int,
+                                           preemptible: Int,
+                                           failedRetriesCountOpt: Option[Int] = None,
+                                           serviceRegistryActor: Option[TestProbe] = None
   ): TestActorRef[TestablePipelinesApiJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,
@@ -367,12 +394,14 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
                                                       failedRetriesCountOpt = failedRetriesCountOpt
     )
     val props = Props(
-      new TestablePipelinesApiJobExecutionActor(jobDescriptor,
-                                                Promise(),
-                                                papiConfiguration,
-                                                TestableJesExpressionFunctions,
-                                                emptyActor,
-                                                failIoActor
+      new TestablePipelinesApiJobExecutionActor(
+        jobDescriptor,
+        Promise(),
+        papiConfiguration,
+        TestableJesExpressionFunctions,
+        emptyActor,
+        failIoActor,
+        serviceRegistryActor.map(actor => actor.ref).getOrElse(kvService)
       )
     )
     TestActorRef(props, s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}")
@@ -1736,6 +1765,188 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
       )
     )
 
+  }
+
+  private def setupBackend: TestablePipelinesApiJobExecutionActor = {
+    val inputs = Map(
+      "strs" -> WomArray(WomArrayType(WomStringType), Seq("A", "B", "C").map(WomString))
+    )
+
+    class TestPipelinesApiExpressionFunctions
+        extends PipelinesApiExpressionFunctions(TestableStandardExpressionFunctionsParams) {
+      override def writeFile(path: String, content: String): Future[WomSingleFile] =
+        Future.fromTry(Success(WomSingleFile(s"gs://some/path/file.txt")))
+    }
+
+    val functions = new TestPipelinesApiExpressionFunctions
+    makeJesActorRef(SampleWdl.ArrayIO, Map.empty, "serialize", inputs, functions).underlyingActor
+  }
+
+  it should "emit expected timing metadata as task executes" in {
+    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val expectedVmEnd = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
+
+    val pollResult0 = RunStatus.Initializing(Seq.empty)
+    val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
+    val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
+    val pollResult3 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, expectedVmEnd)))
+    val terminalPollResult = RunStatus.Success(
+      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance")
+    )
+
+    val serviceRegistryProbe = TestProbe()
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val job = StandardAsyncJob(UUID.randomUUID().toString)
+    val run = Run(job)
+    val handle = new JesPendingExecutionHandle(jobDescriptor, run.job, Option(run), None)
+    val testActorRef = buildPreemptibleTestActorRef(1, 1, None, Option(serviceRegistryProbe))
+
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult0)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult1)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult2)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case action: PutMetadataAction =>
+        action.events.exists(event => event.key.key.equals(CallMetadataKeys.VmStartTime))
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, pollResult3)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case action: PutMetadataAction => action.events.exists(event => event.key.key.equals(CallMetadataKeys.VmEndTime))
+      case _ => false
+    }
+    testActorRef.underlyingActor.handlePollSuccess(handle, terminalPollResult)
+    serviceRegistryProbe.fishForMessage(max = 5.seconds.dilated, hint = "") {
+      case _: PutMetadataAction => true
+      case _ => false
+    }
+  }
+
+  it should "send bard metrics message on task success" in {
+    val runStatus = RunStatus.Success(
+      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance")
+    )
+    val serviceRegistryProbe = TestProbe()
+    val statusPoller = TestProbe("statusPoller")
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+
+    val backend = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      statusPoller.ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref
+    )
+    backend ! Execute
+    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
+      backend ! runStatus
+    }
+
+    val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
+      case _: BardEventRequest => true
+      case _ => false
+    }
+
+    val taskSummary = bardMessage.asInstanceOf[BardEventRequest].event.asInstanceOf[TaskSummaryEvent]
+    taskSummary.workflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.parentWorkflowId should be(None)
+    taskSummary.rootWorkflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.jobTag should be(jobDescriptor.key.tag)
+    taskSummary.jobFullyQualifiedName should be(jobDescriptor.key.call.fullyQualifiedName)
+    taskSummary.jobIndex should be(None)
+    taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
+    taskSummary.terminalState shouldBe a[String]
+    taskSummary.platform should be(Some("gcp"))
+    taskSummary.dockerImage should be(Some("ubuntu:latest"))
+    taskSummary.cpuCount should be(1)
+    taskSummary.memoryBytes should be(2.147483648e9)
+    taskSummary.startTime should not be empty
+    taskSummary.cpuStartTime should be(None)
+    taskSummary.endTime should not be empty
+    taskSummary.jobSeconds should be(0)
+    taskSummary.cpuSeconds should be(None)
+  }
+
+  it should "send bard metrics message on task failure" in {
+    val runStatus = UnsuccessfulRunStatus(
+      Status.ABORTED,
+      Option("13: retryable error"),
+      Seq(ExecutionEvent("fakeEvent", OffsetDateTime.now().truncatedTo(ChronoUnit.MILLIS))),
+      Option("fakeMachine"),
+      Option("fakeZone"),
+      Option("fakeInstance"),
+      wasPreemptible = false
+    )
+    val serviceRegistryProbe = TestProbe()
+    val statusPoller = TestProbe("statusPoller")
+
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+
+    val backend = executionActor(
+      jobDescriptor,
+      Promise[BackendJobExecutionResponse](),
+      statusPoller.ref,
+      shouldBePreemptible = false,
+      serviceRegistryActor = serviceRegistryProbe.ref
+    )
+    backend ! Execute
+    statusPoller.expectMsgPF(max = Timeout, hint = "awaiting status poll") { case _: PAPIStatusPollRequest =>
+      backend ! runStatus
+    }
+
+    val bardMessage = serviceRegistryProbe.fishForMessage(5.seconds) {
+      case _: BardEventRequest => true
+      case _ => false
+    }
+
+    val taskSummary = bardMessage.asInstanceOf[BardEventRequest].event.asInstanceOf[TaskSummaryEvent]
+    taskSummary.workflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.parentWorkflowId should be(None)
+    taskSummary.rootWorkflowId should be(jobDescriptor.workflowDescriptor.id.id)
+    taskSummary.jobTag should be(jobDescriptor.key.tag)
+    taskSummary.jobFullyQualifiedName should be(jobDescriptor.key.call.fullyQualifiedName)
+    taskSummary.jobIndex should be(None)
+    taskSummary.jobAttempt should be(jobDescriptor.key.attempt)
+    taskSummary.terminalState shouldBe a[String]
+    taskSummary.platform should be(Some("gcp"))
+    taskSummary.dockerImage should be(Some("ubuntu:latest"))
+    taskSummary.cpuCount should be(1)
+    taskSummary.memoryBytes should be(2.147483648e9)
+    taskSummary.startTime should not be empty
+    taskSummary.cpuStartTime should be(None)
+    taskSummary.endTime should not be empty
+    taskSummary.jobSeconds should be(0)
+    taskSummary.cpuSeconds should be(None)
+  }
+
+  it should "call GroupMetricsActor when job runs into cloud quota delay" in {
+    val papiBackend = setupBackend
+    papiBackend.checkAndRecordQuotaExhaustion(RunStatus.AwaitingCloudQuota(Seq.empty))
+
+    mockGroupMetricsActor.expectMsgType[RecordGroupQuotaExhaustion]
+  }
+
+  it should "not call GroupMetricsActor when job hasn't run into quota delay" in {
+    val papiBackend = setupBackend
+    papiBackend.checkAndRecordQuotaExhaustion(RunStatus.Running(Seq.empty))
+
+    mockGroupMetricsActor.expectNoMessage()
   }
 
   private def makeRuntimeAttributes(job: CommandCallNode) = {

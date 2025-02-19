@@ -6,6 +6,7 @@ import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsT
 import cromwell.backend.google.batch.models.{BatchParameter, GcpBatchInput, GcpBatchOutput}
 import cromwell.core.path.Path
 import mouse.all.anySyntaxMouse
+import wom.format.MemorySize
 
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters._
@@ -147,7 +148,8 @@ object RunnableBuilder {
                    scriptContainerPath: String,
                    jobShell: String,
                    volumes: List[Volume],
-                   dockerhubCredentials: (String, String)
+                   dockerhubCredentials: (String, String),
+                   memory: MemorySize
   ): Runnable.Builder = {
 
     val container = (dockerhubCredentials._1, dockerhubCredentials._2) match {
@@ -164,9 +166,20 @@ object RunnableBuilder {
           .setEntrypoint(jobShell)
           .addCommands(scriptContainerPath)
     }
+
+    // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
+    // on the machine to utilize in their command blocks if needed
+    val environment =
+      Environment
+        .newBuilder()
+        .putAllVariables(
+          Map("MEM_UNIT" -> memory.unit.toString, "MEM_SIZE" -> memory.amount.toString).asJava
+        )
+
     Runnable
       .newBuilder()
       .setContainer(container)
+      .setEnvironment(environment)
       .withVolumes(volumes)
       .putLabels(Key.Tag, Value.UserRunnable)
   }

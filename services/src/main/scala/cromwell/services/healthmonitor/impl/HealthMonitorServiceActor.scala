@@ -7,18 +7,13 @@ import cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServ
 
 final class HealthMonitorServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
     extends WorkbenchHealthMonitorServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
-  implicit override val system = context.system
 
   override lazy val subsystems: Set[ProtoHealthMonitorServiceActor.MonitoredSubsystem] = {
 
-    val dockerHubSubsystemOption = if (serviceConfig.getBoolean("check-dockerhub")) Some(DockerHub) else None
     val engineDatabaseSubsystemOption = if (serviceConfig.getBoolean("check-engine-database")) Some(EngineDb) else None
-    val gcsSubsystemOption = if (serviceConfig.getBoolean("check-gcs")) Some(Gcs) else None
 
     Set(
-      dockerHubSubsystemOption,
-      engineDatabaseSubsystemOption,
-      gcsSubsystemOption
+      engineDatabaseSubsystemOption
     ).flatten ++ PapiSubsystems
   }
 }

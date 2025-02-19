@@ -7,26 +7,27 @@ on:
 
 jobs:
   chart-update:
-    name: Cromwhelm Chart Auto Updater
+    name: Cromwell Version Auto Updater
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-    - name: Fetch Jira ID from the commit message
-      id: fetch-jira-id
-      run: |
-        JIRA_ID=$(echo '${{ github.event.pull_request.title }}' | grep -Eo '[A-Z][A-Z]+-[0-9]+' | xargs echo -n | tr '[:space:]' ',')
-        [[ -z "$JIRA_ID" ]] && { echo "No Jira ID found in $1" ; exit 1; }
-        echo "JIRA_ID=$JIRA_ID" >> $GITHUB_OUTPUT
+    - uses: sbt/setup-sbt@v1
     - name: Clone Cromwell
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
       with:
         repository: broadinstitute/cromwell
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: cromwell
-    - uses: olafurpg/setup-scala@v10
+    - id: get-jira-id
+      # We're cloning multiple repos, so Cromwell and its actions are at `./cromwell/` instead of `./`
+      uses: ./cromwell/.github/library/get_jira_id
+    - uses: actions/setup-java@v4
       with:
-        java-version: adopt@1.11
-    - name: Clone Cromwhelm
+        distribution: 'temurin'
+        java-version: '17'
+    - name: (DISABLED) Clone Cromwhelm
+      # WX-1837 disabling CI for this chart, used by AoU RWB only
+      if: false
       uses: actions/checkout@v2
       with:
         repository: broadinstitute/cromwhelm
@@ -75,7 +76,9 @@ jobs:
         repository: broadinstitute/terra-helmfile
         event-type: update-service
         client-payload: '{"service": "cromiam", "version": "${{ env.CROMWELL_VERSION }}", "dev_only": false}'
-    - name: Edit & push cromwhelm chart
+    - name: (DISABLED) Edit & push cromwhelm chart
+      # WX-1837 disabling CI for this chart, used by AoU RWB only
+      if: false
       env:
         BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       run: |
@@ -88,39 +91,44 @@ jobs:
         git diff
         git config --global user.name "broadbot"
         git config --global user.email "broadbot@broadinstitute.org"
-        git commit -am "${{ steps.fetch-jira-id.outputs.JIRA_ID }}: Auto update to Cromwell $CROMWELL_VERSION"
+        git commit -am "${{ steps.get-jira-id.outputs.jira-id }}: Auto update to Cromwell $CROMWELL_VERSION"
         git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main
         cd -
 
-    - name: Clone terra-helmfile
+### WX-1836 Steps below here are disabled Azure CI
+
+    - name: (DISABLED) Clone terra-helmfile
       uses: actions/checkout@v3
+      if: false
       with:
         repository: broadinstitute/terra-helmfile
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
         path: terra-helmfile
 
-    - name: Update workflows-app in terra-helmfile
+    - name: (DISABLED) Update workflows-app in terra-helmfile
+      if: false
       run: |
         set -e
         cd terra-helmfile
         sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" charts/workflows-app/values.yaml
         cd -
-
-    - name: Update cromwell-runner-app in terra-helmfile
+        
+    - name: (DISABLED) Update cromwell-runner-app in terra-helmfile
+      if: false
       run: |
         set -e
         cd terra-helmfile
         sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" charts/cromwell-runner-app/values.yaml
         cd -
-        
 
-    - name: Make PR in terra-helmfile
+    - name: (DISABLED) Make PR in terra-helmfile
+      if: false
       env:
         BROADBOT_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
         GH_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       run: |
         set -e
-        JIRA_ID=${{ steps.fetch-jira-id.outputs.JIRA_ID }}
+        JIRA_ID=${{ steps.get-jira-id.outputs.jira-id }}
         if [[ $JIRA_ID == "missing" ]]; then
           echo "JIRA_ID missing, PR to terra-helmfile will not be created"
           exit 0;

@@ -2,7 +2,6 @@ package cromwell.cloudsupport.azure
 
 import cats.implicits.catsSyntaxValidatedId
 import com.azure.core.credential.TokenRequestContext
-import com.azure.core.management.AzureEnvironment
 import com.azure.core.management.profile.AzureProfile
 import com.azure.identity.DefaultAzureCredentialBuilder
 import common.validation.ErrorOr.ErrorOr
@@ -20,8 +19,8 @@ case object AzureCredentials {
 
   final val tokenAcquisitionTimeout = 5.seconds
 
-  val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
-  val tokenScope = "https://management.azure.com/.default"
+  val azureProfile = new AzureProfile(AzureConfiguration.azureEnvironment)
+  val tokenScope = AzureConfiguration.azureTokenScopeManagement
 
   private def tokenRequestContext: TokenRequestContext = {
     val trc = new TokenRequestContext()

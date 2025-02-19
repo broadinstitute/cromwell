@@ -1,6 +1,6 @@
 name: invalidate_bad_caches_jes_no_copy
 testFormat: workflowsuccess
-backends: [Papi-Caching-No-Copy]
+backends: [Papi-Caching-No-Copy, GCPBATCH_ALT]
 
 # No point retrying failures since they'll just end up colliding with previous results:
 retryTestFailures: false

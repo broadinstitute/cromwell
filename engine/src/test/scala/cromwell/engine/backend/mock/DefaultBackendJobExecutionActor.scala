@@ -49,7 +49,8 @@ class DefaultBackendLifecycleActorFactory(val name: String, val configurationDes
                                       initializationData: Option[BackendInitializationData],
                                       serviceRegistryActor: ActorRef,
                                       ioActor: ActorRef,
-                                      backendSingletonActor: Option[ActorRef]
+                                      backendSingletonActor: Option[ActorRef],
+                                      groupMetricsActor: ActorRef
   ): Props =
     DefaultBackendJobExecutionActor.props(jobDescriptor, configurationDescriptor)
 

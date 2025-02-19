@@ -1,0 +1,23 @@
+name: gcpWdlResultsCopying_DestinationInMetadata_Fail
+testFormat: workflowfailure
+tags: ["copyGcp"]
+
+# Will run on a Cromwell that supports any one of these backends
+backendsMode: any
+backends: [Papi, Papiv2, GCPBatch]
+
+files {
+  workflow: wdlResultsCopying/simpleWorkflow.wdl
+  options: wdlResultsCopying_DestinationInMetadata/gcp/options_fail.json
+}
+
+metadata {
+  status: Failed
+}
+
+# The copy to non-existent bucket failed so the delete should not have happened
+# (compare to `gcpWdlResultsMoving.test`)
+fileSystemCheck: "gcs"
+outputExpectations: {
+    "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
+}

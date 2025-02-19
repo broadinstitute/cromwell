@@ -1,0 +1,18 @@
+name: gcpbatch_requester_pays_localization_negative
+testFormat: workflowfailure
+# GCPBATCH backend configured SA does not have permission to bill the project, so this workflow should fail
+backends: [GCPBATCH]
+workflowType: WDL
+workflowTypeVersion: 1.0
+tags: ["wdl_1.0"]
+
+files {
+  workflow: requester_pays_gcs/localization.wdl
+}
+
+metadata {
+  workflowName: requester_pays_localization
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": ~~"The job was stopped before the command finished. Batch error code 0. Job failed with an unknown reason"
+}

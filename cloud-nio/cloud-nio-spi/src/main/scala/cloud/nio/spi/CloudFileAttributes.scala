@@ -3,22 +3,14 @@ package cloud.nio.spi
 import java.nio.file.attribute.{BasicFileAttributes, FileTime}
 
 import cloud.nio.spi.CloudNioFileAttributes._
-import cloud.nio.spi.HashType.HashType
 
 trait CloudNioFileAttributes extends BasicFileAttributes {
-  def fileHash: Option[FileHash]
+  def fileHashes: Map[String, String]
 }
 
 object CloudNioFileAttributes {
   val FileTimeZero: FileTime = FileTime.fromMillis(0)
 }
-
-case class FileHash(hashType: HashType, hash: String)
-
-sealed trait ChecksumResult
-case class ChecksumSkipped() extends ChecksumResult
-case class ChecksumSuccess() extends ChecksumResult
-case class ChecksumFailure(calculatedHash: String) extends ChecksumResult
 
 trait CloudNioRegularFileAttributes extends CloudNioFileAttributes {
   override def lastAccessTime(): FileTime = FileTimeZero
@@ -53,5 +45,5 @@ final case class CloudNioDirectoryAttributes(path: CloudNioPath) extends CloudNi
 
   override val fileKey: AnyRef = path
 
-  override val fileHash: Option[FileHash] = None
+  override val fileHashes: Map[String, String] = Map.empty
 }

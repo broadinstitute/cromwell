@@ -41,8 +41,8 @@ workflow if_then_else_expressions {
   call only_evaluate_correct_side
 
   output {
-    String a = fiveVsTen.maxOrMin
-    String b = sixVsTen.maxOrMin
+    Int a = fiveVsTen.maxOrMin
+    Int b = sixVsTen.maxOrMin
     String c = if a == b then only_evaluate_correct_side.only_lhs_works else only_evaluate_correct_side.only_rhs_works
     String d = if a != b then only_evaluate_correct_side.only_lhs_works else only_evaluate_correct_side.only_rhs_works
   }

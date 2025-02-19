@@ -123,6 +123,13 @@ trait MetadataRouteSupport extends HttpInstrumentation {
         }
       )
     },
+    path("workflows" / Segment / Segment / "cost") { (_, possibleWorkflowId) =>
+      get {
+        instrumentRequest {
+          metadataLookup(possibleWorkflowId, (w: WorkflowId) => GetCost(w), serviceRegistryActor)
+        }
+      }
+    },
     path("workflows" / Segment / "query") { _ =>
       get {
         instrumentRequest {
@@ -230,7 +237,7 @@ object MetadataRouteSupport {
         case FailedToGetArchiveStatusAndEndTime(e) => Future.failed(e)
       }
 
-    validateWorkflowIdInMetadata(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
+    validateWorkflowIdInMetadataSummaries(possibleWorkflowId, serviceRegistryActor) flatMap { id =>
       /*
         for requests made to one of /metadata, /logs or /outputs endpoints, perform an additional check to see
         if metadata for the workflow has been archived and deleted or not (as they interact with metadata table)

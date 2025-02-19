@@ -40,6 +40,7 @@ import wom.CommandSetupSideEffectFile
 
 import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.language.postfixOps
 import scala.util.Try
 
 object EngineFunctionEvaluators {
@@ -63,7 +64,7 @@ object EngineFunctionEvaluators {
       ErrorOr(EvaluatedValue(WomSingleFile(ioFunctionSet.pathFunctions.stderr), Seq.empty))
   }
 
-  private val ReadWaitTimeout = 60.seconds
+  private val ReadWaitTimeout = 10.minutes
   private def readFile(fileToRead: WomSingleFile, ioFunctionSet: IoFunctionSet, sizeLimit: Int) =
     Try(
       Await.result(ioFunctionSet.readFile(fileToRead.value, Option(sizeLimit), failOnOverflow = true), ReadWaitTimeout)
@@ -666,16 +667,28 @@ object EngineFunctionEvaluators {
         case _ => false
       }
 
+      def parallelSize(paths: Seq[String]) =
+        Try(
+          Await.result(
+            ioFunctionSet.parallelSize(paths),
+            1 hour
+          )
+        ).toErrorOr
+
       // Inner function: Get the file size, allowing for unpacking of optionals and arrays
       def optionalSafeFileSize(value: WomValue): ErrorOr[Long] = value match {
         case f if f.isInstanceOf[WomSingleFile] || WomSingleFileType.isCoerceableFrom(f.womType) =>
           f.coerceToType[WomSingleFile] flatMap { file =>
-            Try(Await.result(ioFunctionSet.size(file.valueString), Duration.Inf)).toErrorOr
+            Try(Await.result(ioFunctionSet.size(file.valueString), ReadWaitTimeout)).toErrorOr
           }
         case WomOptionalValue(f, Some(o)) if isOptionalOfFileType(f) => optionalSafeFileSize(o)
         case WomOptionalValue(f, None) if isOptionalOfFileType(f) => 0L.validNel
-        case WomArray(WomArrayType(womType), values) if isOptionalOfFileType(womType) =>
-          values.toList.traverse(optionalSafeFileSize).map(_.sum)
+        case WomArray(WomArrayType(womType), values) if WomSingleFileType.isCoerceableFrom(womType) =>
+          // `Array[File]` optimization: parallelize the size calculation
+          parallelSize(values.map(_.valueString))
+        case WomArray(WomArrayType(womType), values) if WomOptionalType(WomSingleFileType).isCoerceableFrom(womType) =>
+          // `Array[File?]` optimization: parallelize the size calculation for defined files
+          parallelSize(values.flatMap(_.asInstanceOf[WomOptionalValue].value).map(_.valueString))
         case _ =>
           s"The 'size' method expects a 'File', 'File?', 'Array[File]' or Array[File?] argument but instead got ${value.womType.stableName}.".invalidNel
       }

@@ -7,22 +7,13 @@ import org.apache.commons.text.StringEscapeUtils
 
 object RunnableUtils {
 
-  /** Image to use for ssh access. */
-  val sshImage = "gcr.io/cloud-genomics-pipelines/tools"
-
-  /** Entry point on the ssh image. */
-  val sshEntryPoint = "ssh-server"
-
-  /** Port mappings for the ssh container. */
-  val sshPortMappings = Map("22" -> Int.box(22))
-
   private val config = ConfigFactory.load().getConfig("google")
+
+  val MountPoint: String = "/mnt/disks/cromwell_root"
 
   /**
     * An image with the Google Cloud SDK installed.
     * http://gcr.io/google.com/cloudsdktool/cloud-sdk
-    *
-    * Also update `cromwell.backend.google.pipelines.common.action.ActionUtils`
     */
   val CloudSdkImage: String =
     config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:461.0.0-alpine")
@@ -58,7 +49,6 @@ object RunnableUtils {
                     monitoringShutdown: List[Runnable],
                     checkpointingStart: List[Runnable],
                     checkpointingShutdown: List[Runnable],
-                    sshAccess: List[Runnable],
                     isBackground: Runnable => Boolean
   ): List[Runnable] = {
     val toBeSortedRunnables = localization ++ userRunnable ++ memoryRetryRunnable ++ deLocalization
@@ -66,6 +56,6 @@ object RunnableUtils {
       isBackground(runnable)
     }
 
-    sshAccess ++ containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedRunnables ++ checkpointingShutdown ++ monitoringShutdown
+    containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedRunnables ++ checkpointingShutdown ++ monitoringShutdown
   }
 }

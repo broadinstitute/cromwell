@@ -9,8 +9,13 @@ import wom.format.MemorySize
 trait BatchUtilityConversions {
 
   // construct zones string
-  def toZonesPath(zones: Vector[String]): String =
-    zones.map(zone => "zones/" + zone).mkString(" ")
+  def toZonesPath(zones: Vector[String]): Vector[String] =
+    zones.map(zone => "zones/" + zone)
+
+  // Gets first zone in vector and removes last two characters of zone to construct region
+  // Ex. us-central1-a -> us-central1
+  def zonesToRegion(zones: Vector[String]): Option[String] =
+    zones.headOption.map(_.dropRight(2))
 
   // lowercase text to match gcp label requirements
   def toLabel(text: String): String =
@@ -31,10 +36,8 @@ trait BatchUtilityConversions {
     (memory.amount * 1024).toLong
 
   // set Standard or Spot instances
-  def toProvisioningModel(preemption: Int): ProvisioningModel = preemption compare 0 match {
-    case 0 => ProvisioningModel.STANDARD
-    case 1 => ProvisioningModel.SPOT
-  }
+  def toProvisioningModel(preemptible: Boolean): ProvisioningModel =
+    if (preemptible) ProvisioningModel.SPOT else ProvisioningModel.STANDARD
 
   def toDisks(disks: Seq[GcpBatchAttachedDisk]): List[AttachedDisk] = disks.map(toDisk).toList
 
@@ -48,7 +51,7 @@ trait BatchUtilityConversions {
     disk match {
       case _: GcpBatchReferenceFilesDisk =>
         volume
-          .addMountOptions("async, rw")
+          .addMountOptions("ro")
           .build
       case _ =>
         volume.build

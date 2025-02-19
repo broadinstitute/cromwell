@@ -40,7 +40,6 @@ scripts/docker-compose-mysql/compose/mysql/data
 # Vault rendered resources
 artifactory_credentials.properties
 aws_credentials
-centaur_secure.inc.conf
 cromwell-centaur-requester-pays-service-account.json
 cromwell-centaur-service-account.json
 cromwell-service-account.json
@@ -65,3 +64,6 @@ gha-creds-*.json
 
 # jenv
 .java-version
+
+# metals
+.metals/

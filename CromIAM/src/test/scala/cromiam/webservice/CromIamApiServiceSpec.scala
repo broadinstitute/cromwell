@@ -520,4 +520,49 @@ class CromIamApiServiceSpec
       rejection shouldEqual MissingHeaderRejection("OIDC_CLAIM_user_id")
     }
   }
+
+  behavior of "Cost endpoint"
+  it should "return 200 for authorized user who has collection associated with root workflow" in {
+    Get(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/cost")
+      .withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
+      status shouldBe OK
+      responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
+    }
+  }
+
+  it should "return 200 for authorized user who has collection associated with subworkflow" in {
+    Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/cost")
+      .withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
+      status shouldBe OK
+      responseAs[String] shouldBe "Response from Cromwell"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
+    }
+  }
+
+  it should "return 500 for authorized user who doesn't have collection associated with workflow" in {
+    Get(s"/api/workflows/$version/${cromwellClient.workflowIdWithoutCollection}/cost")
+      .withHeaders(goodAuthHeaders) ~> allRoutes ~> check {
+      status shouldBe InternalServerError
+      responseAs[
+        String
+      ] shouldBe s"CromIAM unexpected error: java.lang.IllegalArgumentException: Workflow ${cromwellClient.workflowIdWithoutCollection} has no associated collection"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
+    }
+  }
+
+  it should "return SamDenialException for user who doesn't have view permissions" in {
+    Get(s"/api/workflows/$version/${cromwellClient.subworkflowId}/cost")
+      .withHeaders(badAuthHeaders) ~> allRoutes ~> check {
+      status shouldBe Forbidden
+      responseAs[String] shouldBe "Access Denied"
+      contentType should be(ContentTypes.`text/plain(UTF-8)`)
+    }
+  }
+
+  it should "reject request if it doesn't contain OIDC_CLAIM_user_id in header" in {
+    Get(s"/api/workflows/$version/${cromwellClient.rootWorkflowIdWithCollection}/cost") ~> allRoutes ~> check {
+      rejection shouldEqual MissingHeaderRejection("OIDC_CLAIM_user_id")
+    }
+  }
 }

@@ -6,7 +6,7 @@ import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
 import cromwell.core.WorkflowId
 import cromwell.core.instrumentation.InstrumentationPrefixes
-import cromwell.services.metadata.{MetadataEvent, MetadataValue}
+import cromwell.services.metadata.{MetadataEvent, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
@@ -29,16 +29,7 @@ class WriteMetadataActor(override val batchSize: Int,
   private val statsRecorder = MetadataStatisticsRecorder(metadataStatisticsRecorderSettings)
 
   override def process(e: NonEmptyVector[MetadataWriteAction]) = instrumentedProcess {
-    val cleanedMetadataWriteActions = if (metadataKeysToClean.isEmpty) e else sanitizeInputs(e)
-    val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
-
-    val (putWithoutResponse, putWithResponse) = cleanedMetadataWriteActions.foldLeft(empty) {
-      case ((putEvents, putAndRespondEvents), action: PutMetadataAction) =>
-        (putEvents ++ action.events, putAndRespondEvents)
-      case ((putEvents, putAndRespondEvents), action: PutMetadataActionAndRespond) =>
-        (putEvents, putAndRespondEvents :+ (action.events -> action.replyTo))
-    }
-    val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
+    val (cleanedMetadataWriteActions, allPutEvents, putWithResponse) = prepareMetadata(e)
     val dbAction = addMetadataEvents(allPutEvents)
 
     statsRecorder.processEventsAndGenerateAlerts(allPutEvents) foreach (a =>
@@ -58,6 +49,22 @@ class WriteMetadataActor(override val batchSize: Int,
     dbAction.map(_ => allPutEvents.size)
   }
 
+  def prepareMetadata(
+    e: NonEmptyVector[MetadataWriteAction]
+  ): (NonEmptyVector[MetadataWriteAction], Iterable[MetadataEvent], List[(Iterable[MetadataEvent], ActorRef)]) = {
+    val cleanedMetadataWriteActions = if (metadataKeysToClean.isEmpty) e else sanitizeInputs(e)
+    val empty = (Vector.empty[MetadataEvent], List.empty[(Iterable[MetadataEvent], ActorRef)])
+
+    val (putWithoutResponse, putWithResponse) = cleanedMetadataWriteActions.foldLeft(empty) {
+      case ((putEvents, putAndRespondEvents), action: PutMetadataAction) =>
+        (putEvents ++ action.events, putAndRespondEvents)
+      case ((putEvents, putAndRespondEvents), action: PutMetadataActionAndRespond) =>
+        (putEvents, putAndRespondEvents :+ (action.events -> action.replyTo))
+    }
+    val allPutEvents: Iterable[MetadataEvent] = putWithoutResponse ++ putWithResponse.flatMap(_._1)
+    (cleanedMetadataWriteActions, allPutEvents, putWithResponse)
+  }
+
   def sanitizeInputs(
     metadataWriteActions: NonEmptyVector[MetadataWriteAction]
   ): NonEmptyVector[MetadataWriteAction] =
@@ -65,7 +72,12 @@ class WriteMetadataActor(override val batchSize: Int,
       val metadataEvents =
         metadataWriteAction.events.map { event =>
           event.value match {
-            case Some(eventVal) => event.copy(value = Option(MetadataValue(StringUtil.cleanUtf8mb4(eventVal.value))))
+            case Some(eventVal) =>
+              if (eventVal.valueType == MetadataString && metadataKeysToClean.contains(event.key.key)) {
+                event.copy(value = Option(MetadataValue(StringUtil.cleanUtf8mb4(eventVal.value))))
+              } else {
+                event
+              }
             case None => event
           }
         }

@@ -1,7 +1,5 @@
 package cromwell.engine.workflow.lifecycle.execution
 
-import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.{Actor, Props}
 import akka.testkit.{EventFilter, TestActorRef, TestDuration, TestProbe}
 import com.typesafe.config.ConfigFactory
@@ -24,6 +22,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
 
@@ -88,9 +87,13 @@ class WorkflowExecutionActorSpec
     val ioActor = system.actorOf(SimpleIoActor.props)
     val subWorkflowStoreActor = system.actorOf(AlwaysHappySubWorkflowStoreActor.props)
     val jobRestartCheckTokenDispenserActor =
-      system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running"))
+      system.actorOf(
+        JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running", None)
+      )
     val jobExecutionTokenDispenserActor =
-      system.actorOf(JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running"))
+      system.actorOf(
+        JobTokenDispenserActor.props(serviceRegistry, Rate(100, 1.second), None, "execution", "Running", None)
+      )
     val MockBackendConfigEntry = BackendConfigurationEntry(
       name = "Mock",
       lifecycleActorFactoryClass = "cromwell.engine.backend.mock.RetryableBackendLifecycleActorFactory",
@@ -126,7 +129,8 @@ class WorkflowExecutionActorSpec
         rootConfig,
         new AtomicInteger(),
         fileHashCacheActor = None,
-        blacklistCache = None
+        blacklistCache = None,
+        groupMetricsActor = TestProbe().ref
       ),
       name = "WorkflowExecutionActor",
       supervisor = weaSupervisor.ref

@@ -42,6 +42,12 @@ trait PreResolvePathBuilder extends PathBuilder {
 trait Path extends PathObjectMethods with NioPathMethods with BetterFileMethods with EvenBetterPathMethods {
 
   /**
+   * A string key corresponding to the filesystem this Path is associated with, ex. gcs, drs, local etc.
+   * This should be the string used to identify the filesystem in Cromwell's config file.
+   */
+  val filesystemTypeKey: String
+
+  /**
     * A reference to the underlying nioPath, used to create new java.nio.Path's that will then be sent to newPath
     * for wrapping.
     *

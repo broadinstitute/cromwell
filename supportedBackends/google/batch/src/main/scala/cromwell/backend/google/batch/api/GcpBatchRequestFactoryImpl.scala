@@ -1,5 +1,9 @@
 package cromwell.backend.google.batch.api
 
+import com.google.api.services.bigquery.BigqueryScopes
+import com.google.api.services.compute.ComputeScopes
+import com.google.api.services.oauth2.Oauth2Scopes
+import com.google.api.services.storage.StorageScopes
 import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.LogsPolicy.Destination
 import com.google.cloud.batch.v1.{
@@ -7,6 +11,7 @@ import com.google.cloud.batch.v1.{
   ComputeResource,
   CreateJobRequest,
   DeleteJobRequest,
+  GCS,
   GetJobRequest,
   Job,
   JobName,
@@ -22,7 +27,9 @@ import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models.{GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
 import cromwell.backend.google.batch.runnable._
-import cromwell.backend.google.batch.util.BatchUtilityConversions
+import cromwell.backend.google.batch.util.{BatchUtilityConversions, GcpBatchMachineConstraints}
+import cromwell.core.labels.{Label, Labels}
+import cromwell.core.logging.JobLogger
 
 import scala.jdk.CollectionConverters._
 
@@ -48,10 +55,15 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     val network = NetworkInterface.newBuilder
       .setNoExternalIpAddress(data.gcpBatchParameters.runtimeAttributes.noAddress)
-      .setNetwork(vpcAndSubnetworkProjectLabelValues.networkName(data.gcpBatchParameters.projectId))
+      .setNetwork(vpcAndSubnetworkProjectLabelValues.networkName(data.createParameters.projectId))
+
+    // When selecting a subnet region, prefer zones set in runtime attrs, then fall back to
+    // the region the host google project is in. Note that zones in runtime attrs will always
+    // be in a single region.
+    val region = zonesToRegion(data.createParameters.runtimeAttributes.zones).getOrElse(data.gcpBatchParameters.region)
 
     vpcAndSubnetworkProjectLabelValues
-      .subnetNameOption(data.gcpBatchParameters.projectId)
+      .subnetNameOption(projectId = data.createParameters.projectId, region = region)
       .foreach(network.setSubnetwork)
 
     network
@@ -74,14 +86,24 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
   private def createInstancePolicy(cpuPlatform: String,
                                    spotModel: ProvisioningModel,
                                    accelerators: Option[Accelerator.Builder],
-                                   attachedDisks: List[AttachedDisk]
+                                   attachedDisks: List[AttachedDisk],
+                                   machineType: String
   ): InstancePolicy.Builder = {
 
     // set GPU count to 0 if not included in workflow
-    val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType("")) // TODO: Driver version
+    // `setDriverVersion()` is available but we're using the Batch default for now
+    //
+    // Nvidia lifecycle reference:
+    // https://docs.nvidia.com/datacenter/tesla/drivers/index.html#cuda-drivers
+    //
+    // GCP docs:
+    // https://cloud.google.com/batch/docs/create-run-job-gpus#install-gpu-drivers
+    // https://cloud.google.com/batch/docs/reference/rest/v1/projects.locations.jobs#Accelerator.FIELDS.driver_version
+    val gpuAccelerators = accelerators.getOrElse(Accelerator.newBuilder.setCount(0).setType(""))
 
     val instancePolicy = InstancePolicy.newBuilder
       .setProvisioningModel(spotModel)
+      .setMachineType(machineType)
       .addAllDisks(attachedDisks.asJava)
       .setMinCpuPlatform(cpuPlatform)
       .buildPartial()
@@ -104,7 +126,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
   private def createTaskSpec(runnables: List[Runnable],
                              computeResource: ComputeResource,
-                             retryCount: Int,
                              durationInSeconds: Long,
                              volumes: List[Volume]
   ) =
@@ -112,7 +133,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       .addAllRunnables(runnables.asJava)
       .setComputeResource(computeResource)
       .addAllVolumes(volumes.asJava)
-      .setMaxRetryCount(retryCount)
       .setMaxRunDuration(
         Duration.newBuilder
           .setSeconds(durationInSeconds)
@@ -154,19 +174,30 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     }
   }
 
-  override def submitRequest(data: GcpBatchRequest): CreateJobRequest = {
+  override def submitRequest(data: GcpBatchRequest, jobLogger: JobLogger): CreateJobRequest = {
 
-    val batchAttributes = data.gcpBatchParameters.batchAttributes
-    val runtimeAttributes = data.gcpBatchParameters.runtimeAttributes
     val createParameters = data.createParameters
-    val retryCount = data.gcpBatchParameters.runtimeAttributes.preemptible
+    val runtimeAttributes = createParameters.runtimeAttributes
     val allDisksToBeMounted: Seq[GcpBatchAttachedDisk] =
       createParameters.disks ++ createParameters.referenceDisksForLocalizationOpt.getOrElse(List.empty)
     val gcpBootDiskSizeMb = convertGbToMib(runtimeAttributes)
 
     // set parent for metadata storage of job information
-    lazy val parent = s"projects/${data.gcpBatchParameters.projectId}/locations/${data.gcpBatchParameters.region}"
-    val gcpSa = ServiceAccount.newBuilder.setEmail(batchAttributes.computeServiceAccount).build
+    lazy val parent = s"projects/${createParameters.projectId}/locations/${data.gcpBatchParameters.region}"
+    val scopes = List(
+      ComputeScopes.COMPUTE,
+      StorageScopes.DEVSTORAGE_FULL_CONTROL,
+      GoogleCloudScopes.KmsScope,
+      // Profile and Email scopes are requirements for interacting with DRS Resolvers
+      Oauth2Scopes.USERINFO_EMAIL,
+      Oauth2Scopes.USERINFO_PROFILE,
+      // Monitoring scope as POC
+      GoogleCloudScopes.MonitoringWrite,
+      // Allow read/write with BigQuery
+      BigqueryScopes.BIGQUERY
+    ).asJava
+
+    val gcpSa = ServiceAccount.newBuilder.setEmail(createParameters.computeServiceAccount).addAllScopes(scopes).build
 
     // make zones path
     val zones = toZonesPath(runtimeAttributes.zones)
@@ -187,7 +218,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val taskCount: Long = 1
 
     // parse preemption value and set value for Spot. Spot is replacement for preemptible
-    val spotModel = toProvisioningModel(runtimeAttributes.preemptible)
+    val spotModel = toProvisioningModel(createParameters.preemptible)
 
     // Set GPU accelerators
     val accelerators = runtimeAttributes.gpuResource.map(toAccelerator)
@@ -195,7 +226,12 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val networkInterface = createNetwork(data = data)
     val networkPolicy = createNetworkPolicy(networkInterface.build())
     val allDisks = toDisks(allDisksToBeMounted)
-    val allVolumes = toVolumes(allDisksToBeMounted)
+    val allVolumes = toVolumes(allDisksToBeMounted) ::: createParameters.targetLogFile.map { targetLogFile =>
+      Volume.newBuilder
+        .setGcs(GCS.newBuilder().setRemotePath(targetLogFile.gcsBucket))
+        .setMountPath(targetLogFile.mountPath)
+        .build()
+    }.toList
 
     val containerSetup: List[Runnable] = containerSetupRunnables(allVolumes)
     val localization: List[Runnable] = localizeRunnables(createParameters, allVolumes)
@@ -206,7 +242,6 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val monitoringShutdown: List[Runnable] = monitoringShutdownRunnables(createParameters)
     val checkpointingStart: List[Runnable] = checkpointingSetupRunnables(createParameters, allVolumes)
     val checkpointingShutdown: List[Runnable] = checkpointingShutdownRunnables(createParameters, allVolumes)
-    val sshAccess: List[Runnable] = List.empty // sshAccessActions(createPipelineParameters, mounts)
 
     val sortedRunnables: List[Runnable] = RunnableUtils.sortRunnables(
       containerSetup = containerSetup,
@@ -218,30 +253,71 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       monitoringShutdown = monitoringShutdown,
       checkpointingStart = checkpointingStart,
       checkpointingShutdown = checkpointingShutdown,
-      sshAccess = sshAccess,
       isBackground = _.getBackground
     )
 
     val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-    val taskSpec = createTaskSpec(sortedRunnables, computeResource, retryCount, durationInSeconds, allVolumes)
+    val taskSpec = createTaskSpec(sortedRunnables, computeResource, durationInSeconds, allVolumes)
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-    val instancePolicy = createInstancePolicy(cpuPlatform, spotModel, accelerators, allDisks)
-    val locationPolicy = LocationPolicy.newBuilder.addAllowedLocations(zones).build
+    val machineType = GcpBatchMachineConstraints.machineType(runtimeAttributes.memory,
+                                                             runtimeAttributes.cpu,
+                                                             cpuPlatformOption = runtimeAttributes.cpuPlatform,
+                                                             jobLogger = jobLogger
+    )
+    val instancePolicy =
+      createInstancePolicy(cpuPlatform = cpuPlatform, spotModel, accelerators, allDisks, machineType = machineType)
+    val locationPolicy = LocationPolicy.newBuilder.addAllAllowedLocations(zones.asJava).build
     val allocationPolicy =
       createAllocationPolicy(data, locationPolicy, instancePolicy.build, networkPolicy, gcpSa, accelerators)
+
+    val logsPolicy = data.createParameters.targetLogFile match {
+      case None => LogsPolicy.newBuilder.setDestination(Destination.CLOUD_LOGGING).build
+
+      case Some(targetLogFile) =>
+        LogsPolicy.newBuilder
+          .setDestination(Destination.PATH)
+          .setLogsPath(targetLogFile.diskPath.pathAsString)
+          .build
+    }
+
+    val googleLabels = data.createParameters.googleLabels.map(l => Label(l.key, l.value))
+
+    val jobDescriptor = data.createParameters.jobDescriptor
+    val backendJobDescriptorKey = jobDescriptor.key
+
+    val workflow = jobDescriptor.workflowDescriptor
+    val call = jobDescriptor.taskCall
+    val subWorkflow = workflow.callable
+    val subWorkflowLabels =
+      if (!subWorkflow.equals(workflow.rootWorkflow))
+        Labels("cromwell-sub-workflow-name" -> subWorkflow.name,
+               "cromwell-sub-workflow-id" -> s"cromwell-sub-${jobDescriptor.workflowDescriptor.id.toString}"
+        )
+      else
+        Labels.empty
+
+    val alias = call.localName
+    val aliasLabels =
+      if (!alias.equals(call.callable.name))
+        Labels("wdl-call-alias" -> alias)
+      else
+        Labels.empty
+
+    val shardLabels = Labels(backendJobDescriptorKey.index.map(l => Label("wdl-shard-index", l.toString)).toVector)
+
+    val allLabels = Labels(
+      "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
+      "wdl-task-name" -> call.callable.name,
+      "wdl-attempt" -> backendJobDescriptorKey.attempt.toString,
+      "goog-batch-worker" -> "true",
+      "submitter" -> "cromwell"
+    ) ++ shardLabels ++ subWorkflowLabels ++ aliasLabels ++ Labels(googleLabels.toVector)
+
     val job = Job.newBuilder
       .addTaskGroups(taskGroup)
       .setAllocationPolicy(allocationPolicy.build())
-      .putLabels("submitter",
-                 "cromwell"
-      ) // label to signify job submitted by cromwell for larger tracking purposes within GCP batch
-      .putLabels("goog-batch-worker", "true")
-      .putAllLabels(data.createParameters.googleLabels.map(label => label.key -> label.value).toMap.asJava)
-      .setLogsPolicy(
-        LogsPolicy.newBuilder
-          .setDestination(Destination.CLOUD_LOGGING)
-          .build
-      )
+      .putAllLabels(allLabels.asJavaMap)
+      .setLogsPolicy(logsPolicy)
 
     CreateJobRequest.newBuilder
       .setParent(parent)

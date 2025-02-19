@@ -1,7 +1,3 @@
-#
-# After any edits to this file run `sbt generateRestApiDocs` and commit the generated changes to `docs/api/RESTAPI.md`.
-#
-
 swagger: '2.0'
 
 # This line is included when the YAML is served by Cromwell if it sees an environment variable called "SWAGGER_BASE_PATH"
@@ -560,7 +556,8 @@ paths:
           in: query
         - name: expandSubWorkflows
           description: >
-            When true, metadata for sub workflows will be fetched and inserted automatically in the metadata response.
+            When true, metadata for sub workflows will be fetched and inserted automatically in the metadata response. 
+            Requires inclusion of key subworkflowId in metadata results (either included or not excluded).
           required: false
           type: boolean
           in: query

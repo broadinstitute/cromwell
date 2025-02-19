@@ -53,12 +53,9 @@ services {
 	config {
 
       //check-papi-backends: [ Papi ]
-      check-gcs: true
       check-engine-database: true
-      check-dockerhub: true
 
 	  google-auth-name = "service_account"
-	  gcs-bucket-to-check = "cloud-cromwell-dev"
 	}
   }
 }

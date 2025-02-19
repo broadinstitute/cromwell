@@ -2,16 +2,12 @@ package wom.expression
 
 import cats.data.Validated._
 import cats.effect.IO
+import cats.implicits.toTraverseOps
 import common.validation.ErrorOr.ErrorOr
-import wom.expression.IoFunctionSet.IoElement
 import wom.types._
 import wom.values._
 
 import scala.concurrent.{ExecutionContext, Future}
-
-object FileEvaluation {
-  def requiredFile(file: WomFile): FileEvaluation = FileEvaluation(file = file, optional = false, secondary = false)
-}
 
 case class FileEvaluation(file: WomFile, optional: Boolean, secondary: Boolean)
 
@@ -81,28 +77,6 @@ final case class ValueAsAnExpression(value: WomValue) extends WomExpression {
 trait PathFunctionSet {
 
   /**
-    * Similar to java.nio.Path.resolveSibling with
-    * of == a string representation of a java.nio.Path
-    */
-  def sibling(of: String, other: String): String
-
-  /**
-    * Similar to java.nio.Path.isAbsolute
-    */
-  def isAbsolute(path: String): Boolean
-
-  /**
-    * Similar to sibling only if "of" IS an absolute path and "other" IS NOT an absolute path, otherwise return other
-    */
-  def absoluteSibling(of: String, other: String): String =
-    if (isAbsolute(of) && !isAbsolute(other)) sibling(of, other) else other
-
-  /**
-    * If path is relative, prefix it with the _host_ call root.
-    */
-  def relativeToHostCallRoot(path: String): String
-
-  /**
     * Similar to java.nio.Path.getFileName
     */
   def name(path: String): String
@@ -156,44 +130,25 @@ trait IoFunctionSet {
   def writeFile(path: String, content: String): Future[WomSingleFile]
 
   /**
-    * Creates a temporary directory. This must be in a place accessible to the backend.
-    * In a world where then backend is not known at submission time this will not be sufficient.
-    */
-  def createTemporaryDirectory(name: Option[String]): Future[String]
-
-  /**
-    * Copy pathFrom to targetName
-    * @return destination as a WomSingleFile
-    */
-  def copyFile(source: String, destination: String): Future[WomSingleFile]
-
-  /**
     * Glob files and directories using the provided pattern.
     * @return the list of globbed paths
     */
   def glob(pattern: String): Future[Seq[String]]
 
   /**
-    * Recursively list all files (and only files, not directories) under "dirPath"
-    * dirPath MUST BE a directory
-    * @return The list of all files under "dirPath"
-    */
-  def listAllFilesUnderDirectory(dirPath: String): Future[Seq[String]]
-
-  /**
-    * List entries in a directory non recursively. Includes directories
-    */
-  def listDirectory(path: String)(visited: Vector[String] = Vector.empty): Future[Iterator[IoElement]]
-
-  /**
-    * Return true if path points to a directory, false otherwise
-    */
-  def isDirectory(path: String): Future[Boolean]
-
-  /**
     * Return the size of the file located at "path"
     */
   def size(path: String): Future[Long]
+
+  /**
+    * There was a hot spot around sequentially evaluating the size of a long list of files.
+    * The engine function evaluators that call into this trait are not async & don't have
+    * an execution context, so this trick keeps the implementation details hidden. (WX-1633)
+    *
+    * @param paths a list of paths
+    * @return the sum of the sizes of all the files located at the paths
+    */
+  def parallelSize(paths: Seq[String]): Future[Long] = paths.map(size).sequence.map(_.sum)
 
   /**
     * To map/flatMap over IO results

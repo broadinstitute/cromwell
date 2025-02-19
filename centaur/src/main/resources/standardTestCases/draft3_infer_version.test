@@ -13,5 +13,5 @@ metadata {
   status: Succeeded
   "outputs.draft3_infer_version.j": 660
   "actualWorkflowLanguage": WDL
-  "actualWorkflowLanguageVersion": 1.0
+  "actualWorkflowLanguageVersion": "1.0"
 }

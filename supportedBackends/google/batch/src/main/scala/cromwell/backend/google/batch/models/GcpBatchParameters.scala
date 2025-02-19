@@ -32,7 +32,7 @@ sealed trait BatchParameter {
   /**
     * Path in the docker container. It must be mounted on the docker from / to its hostPath
     *
-    * e.g: /cromwell_root/root_bucket/input_data/my_input.bam
+    * e.g: /mnt/disks/cromwell_root/root_bucket/input_data/my_input.bam
     */
   def containerPath: Path = mount.mountPoint.resolve(relativeHostPath)
 
@@ -79,6 +79,3 @@ final case class GcpBatchDirectoryOutput(name: String,
                                          secondary: Boolean,
                                          override val contentType: Option[ContentType] = None
 ) extends GcpBatchOutput
-
-// TODO: Remove when support for V1 is stopped, this is only used to pass the extra_param auth file
-final case class GcpBatchLiteralInput(name: String, value: String)

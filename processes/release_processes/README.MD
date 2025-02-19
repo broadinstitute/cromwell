@@ -1,106 +1,18 @@
 # Release Processes
 
-## How to update these processes
-
-Have a better idea about how the deployment processes should work?
-See our "updating the process" [process](../README.MD)!
-
 ## Core Process: How to Publish and Release Cromwell
 
 This process is unrelated to Terra. Both GCP and Azure Terra update automatically. For more information see [here](https://support.terra.bio/hc/en-us/articles/9512163608731-Faster-Cromwell-updates-in-Terra-).
 
-Manually cutting a numeric release is expected to continue being done on a cadence of every ~6 months. If you're the lucky "Release Rotation Engineer" this time, you should do the following four things:
+Manually cutting a numeric release is expected to continue being done on a cadence of every ~6 months. This is handled
+through the Release Community Cromwell Github Action. Just run the action via the Github web UI - you must be a repo admin.
 
-1. Create a Jira ticket for the release (look at previous release tickets if you're not sure how).
-1. Check that Cromwell's [nightly integration](https://github.com/broadinstitute/cromwell/actions?query=event%3Aschedule) testing is passing.
-1. [Run the publish script to create a new version of Cromwell](#how-to-publish-a-new-cromwell-version)
-1. [Run through the "How to Deploy Cromwell in CaaS prod" process](#how-to-deploy-cromwell-in-caas-staging-and-caas-prod)
+Before:
+ * Communicate with the team in our private channel to ensure no one merges to `develop` while the release is ongoing.
 
-### How to publish a new Cromwell version
-
-#### Announce your intentions
-
-Post a message in `#dsp-workflows-private` letting people know that a publish is imminent in case there are PRs they want to get
-wrapped up and merged to `develop` to go out in the forthcoming version of Cromwell.
-
-#### Get a Github token
-
-The release WDL uses a github token to perform actions on your behalf.
-* Follow the directions [here](https://help.github.com/en/github/authenticating-to-github/creating-a-personal-access-token-for-the-command-line).
-  When asked give the token these exact permissions ([example screenshot](github_token_scopes.png)):
-  * the full set of `repo` permissions
-  * the `workflow` permission
-  * only the `read:org` permission (do not let this token administer your organizations!)
-  * only the `user:email` permission (do not let this token administer your user!)
-* When viewing the token in the [list-view of tokens](https://github.com/settings/tokens), its scopes string should read exactly `read:org, repo, user:email, workflow`
-* Copy the token and save it to a file on your local machine, for example `~/.github-token`. You'll use it in a second.
-
-#### Prepare a temporary `release` directory
-
-Make or copy the following files into a temporary `release/` directory outside the Cromwell repository. This removes any chance of committing your token.
-
-* A copy of the workflow file to run (https://github.com/broadinstitute/cromwell/blob/develop/publish/publish_workflow.wdl)
-* An inputs json like this one.
-
-```json
-{
-  "publish_workflow.githubToken": "<<GITHUB TOKEN VALUE>>",
-  "publish_workflow.publishDocker": "broadinstitute/cromwell-publish:latest",
-  "publish_workflow.organization": "broadinstitute"
-}
-```
-
-#### Make sure Docker will have enough memory
-
-Follow the instructions [here](https://docs.docker.com/docker-for-mac/#resources) to increase Docker memory.
-Ensure you have at least 8GB; 4GB is not sufficient.
-
-#### Let people know the publish is underway
-
-Post another message in `#dsp-workflows-private` that the release is underway, asking everyone to hold off merges to `develop` until
-the release is published.
-
-#### Run the `publish_workflow.wdl` Workflow
-
-Run Cromwell in server mode with a persistent backing database, using Docker containers. This allows call caching to happen if you need to restart for any reason.
-See instructions for using a Dockerized MySQL server and CI config [here](#cromwell-setup-for-publishing).
-
-Note that the publish workflow is quite resource intensive; it's a good idea to shut down other resource intensive apps before launching it to avoid painfully slow or failed executions.
-
-Make sure to plug in your laptop.
-
-Using the Swagger API at `http://localhost:8000`, submit the workflow to Cromwell along with the inputs file.
-
-The workflow outputs its status to the console.
-
-#### Make sure it all went swimmingly
-
-* Check that the workflow succeeded.
-* Check that there's now a new Cromwell release listed [here](https://github.com/broadinstitute/cromwell/releases).
-* Let `#dsp-workflows-private` know that it's okay to resume merges to `develop`.
-* Announce release in `#dsp-workflows`, with context that it's for standalone Cromwells (the code is already in Terra).
-* **One business day later,** confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) has the latest version. If it doesn't, start investigation by looking at [Homebrew PR's](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+cromwell).
-
-### Publish Docker Image
-* If the release workflow went well, it's time to also publish Docker images for this release. 
-* `git checkout` the Cromwell hash that was just published (i.e. the one directly BEFORE the "Update Cromwell version from x to x+1" commit that the publish WDL makes). It's important that the image being built uses the exact same code as the .jar files published to github.
-* Run `sbt -Dproject.isSnapshot=false -Dproject.isRelease=true dockerBuildAndPush` from your local Cromwell directory. 
-* Grab a cup of coffee, and verify that all of the new images were pushed successfully. For example, you should now be able to do `docker pull broadinstitute/cromwell:{new version #}`
-  * The list of images is `cromwell`, `cromiam`, `cromwell-drs-localizer`, and `womtool`
-  * Docker Hub links: [Cromwell](https://hub.docker.com/repository/docker/broadinstitute/cromwell/general), [CromIAM](https://hub.docker.com/repository/docker/broadinstitute/cromiam/general), [DRS Localizer](https://hub.docker.com/repository/docker/broadinstitute/cromwell-drs-localizer/general), [Womtool](https://hub.docker.com/repository/docker/broadinstitute/womtool/general)
-
-### How to Deploy Cromwell in CaaS staging and CaaS prod
-
-CaaS is "Cromwell as a Service". It is only used by Epigenomics, and will eventually be retired in favor of Terra.
-
-**Note:** If the Cromwell CHANGELOG indicates that the upgrade might take some time (e.g., because of a database migration), checking in with the CaaS users
-to let them know that the upgrade is about to happen is a good idea.
-
-Deploying to CaaS is detailed in the [Quick CaaS Deployment Guide](https://docs.google.com/document/d/1s0YC-oohJ7o-OGcgnH_-YBtIEKmLIPTRpG36yvWxUpE)
-
-### How to be Sure You're Done
-
-Confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) was updated.
+After:
+ * Announce the release in our public channel with context that it's for standalone Cromwells (the code is already in Terra).
+ * The day after the release, confirm that [the Homebrew package](https://formulae.brew.sh/formula/cromwell) has the latest version. If it doesn't, start investigation by looking at [Homebrew PR's](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+cromwell).
 
 ## Bonus Processes
 
@@ -134,9 +46,3 @@ export ARTIFACTORY_PASSWORD=<the-password>
 ```
 
 A SNAP version of the client library will be published in jFrog at [this path](https://broadinstitute.jfrog.io/ui/repos/tree/General/libs-release-local/org/broadinstitute/cromwell).
-
-## Cromwell setup for publishing
-
-One can run a publishing-friendly Cromwell using a containerized MySQL server and config files
-from Cromwell's CI. See the `start_publish_mysql_docker.sh` and `start_publish_cromwell.sh`
-scripts under `release_processes/scripts`.

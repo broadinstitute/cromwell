@@ -122,6 +122,9 @@ object CentaurCromwellClient extends StrictLogging {
   ): IO[WorkflowMetadata] =
     sendReceiveFutureCompletion(() => cromwellClient.metadata(id, args))
 
+  def cost(workflow: SubmittedWorkflow): IO[WorkflowCost] =
+    sendReceiveFutureCompletion(() => cromwellClient.cost(workflow.id))
+
   def archiveStatus(id: WorkflowId): IO[String] =
     sendReceiveFutureCompletion(() => cromwellClient.query(id)).map(_.results.head.metadataArchiveStatus)
 

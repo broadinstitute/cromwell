@@ -75,7 +75,8 @@ object TestFormulas extends StrictLogging {
   } yield SubmitResponse(submittedWorkflow)
 
   def runSuccessfulWorkflowAndVerifyMetadata(
-    workflowDefinition: Workflow
+    workflowDefinition: Workflow,
+    checkCost: Boolean = false
   )(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] = for {
     _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
     _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
@@ -94,6 +95,7 @@ object TestFormulas extends StrictLogging {
     _ <- validateLogs(metadata, submittedWorkflow, workflowDefinition)
     _ = cromwellTracker.track(metadata)
     _ <- validateDirectoryContentsCounts(workflowDefinition, submittedWorkflow, metadata)
+    _ <- if (checkCost) fetchAndValidateCost(workflowDefinition, submittedWorkflow) else Test.successful(())
   } yield SubmitResponse(submittedWorkflow)
 
   def runFailingWorkflowAndVerifyMetadata(
@@ -112,7 +114,8 @@ object TestFormulas extends StrictLogging {
   } yield SubmitResponse(submittedWorkflow)
 
   def runWorkflowTwiceExpectingCaching(
-    workflowDefinition: Workflow
+    workflowDefinition: Workflow,
+    checkCost: Boolean = false
   )(implicit cromwellTracker: Option[CromwellTracker]): Test[SubmitResponse] =
     for {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
@@ -128,6 +131,7 @@ object TestFormulas extends StrictLogging {
       _ = cromwellTracker.track(metadata)
       _ <- validateNoCacheMisses(secondWf, metadata, workflowDefinition)
       _ <- validateDirectoryContentsCounts(workflowDefinition, secondWf, metadata)
+      _ <- if (checkCost) validateNoCost(secondWf) else Test.successful(())
     } yield SubmitResponse(secondWf)
 
   def runWorkflowThriceExpectingCaching(

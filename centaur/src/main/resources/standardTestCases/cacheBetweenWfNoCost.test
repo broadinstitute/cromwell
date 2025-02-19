@@ -1,0 +1,17 @@
+name: cacheBetweenWFNoCost
+testFormat: runtwiceexpectingcallcachingnocost
+backends: [Papi, GCPBATCH]
+
+files {
+  workflow: cacheBetweenWF/cacheBetweenWFNoCost.wdl
+  options: common_options/cache_read_off_write_on.options
+  second-options: common_options/cache_read_on_write_on.options
+}
+
+metadata {
+  workflowName: cacheBetweenWFNoCost
+  status: Succeeded
+  "calls.cacheBetweenWFNoCost.one.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWFNoCost.one:-1"
+  "calls.cacheBetweenWFNoCost.two.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheBetweenWFNoCost.two:-1"
+  "outputs.cacheBetweenWFNoCost.area.ellipseArea": 18.849539999999998
+}

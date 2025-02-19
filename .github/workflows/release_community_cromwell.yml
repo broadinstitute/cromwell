@@ -34,6 +34,7 @@ jobs:
         token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
         path: cromwell
         ref: develop
+        persist-credentials: false
         # fetch-depth 0 tells the action to include all past commits in the checkout.
         # This is needed to smoothly perform the below merge of `develop` into `master`.
         # Without the existing commits, git doesn't understand how the branches are

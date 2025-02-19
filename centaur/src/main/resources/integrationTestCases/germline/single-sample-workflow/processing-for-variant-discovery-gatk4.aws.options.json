@@ -1,6 +1,0 @@
-{
-  "default_runtime_attributes": {
-    "cpu": 4,
-    "disks": "local-disk"
-  }
-}

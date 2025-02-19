@@ -9,34 +9,27 @@ Users should expect a longer-than-usual database migration due primarily to the 
 to `METADATA_ENTRY`. In pre-release testing, this migration proceeded at about 3 million rows per minute. Please plan 
 downtime accordingly.
 
-### New Features
-
-#### Prevent Job start during Cloud Quota exhaustion
-
-This optional feature prevents Cromwell from starting new jobs in a group that is currently experiencing 
-cloud quota exhaustion. Jobs will be started once the group's quota becomes available. To enable this feature, 
-set `quota-exhaustion-job-start-control.enabled` to true.
-
-#### Call Caching Hash Strategy
-Users can now configure which algorithm is used to hash files for call caching purposes. See [Configuring](https://cromwell.readthedocs.io/en/stable/Configuring/) page in
-ReadTheDocs for details. Default behavior is unchanged.
-
 ### GCP Batch Updates
-- The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
-- Fixed a bug with not being able to recover jobs on Cromwell restart.
-- Fixed machine type selection to match the Google Cloud Life Sciences backend, including default n1 non shared-core machine types and correct handling of `cpuPlatform` to select n2 or n2d machine types as appropriate.
-- Fixed preemption and maxRetries behavior. In particular, once a task has exhausted its allowed preemptible attempts, the task will be scheduled again on a non-preemptible VM.
-- Fixed error message reporting for failed jobs.
-- Fixed the "retry with more memory" feature.
-- Fixed the reference disk feature.
-- Fixed pulling Docker image metadata from private GCR repositories.
-- Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
-- Added a way to use a custom LogsPolicy for the job execution, setting `backend.providers.batch.config.batch.logs-policy` to "CLOUD_LOGGING" (default) keeps the current behavior, or, set it to "PATH" to stream the logs to Google Cloud Storage.
-- When "CLOUD_LOGGING" is used, many more Cromwell / WDL labels for workflow, root workflow, call, shard etc. are now assigned to GCP Batch log entries.
-- Fixed subnet selection for networks that use custom subnet creation
-- Updated runtime attributes documentation to clarify that the `nvidiaDriverVersion` key is ignored on GCP Batch.
+ * The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+ * Fixed a bug with not being able to recover jobs on Cromwell restart.
+ * Fixed machine type selection to match the Google Cloud Life Sciences backend, including default n1 non shared-core machine types and correct handling of `cpuPlatform` to select n2 or n2d machine types as appropriate.
+ * Fixed preemption and maxRetries behavior. In particular, once a task has exhausted its allowed preemptible attempts, the task will be scheduled again on a non-preemptible VM.
+ * Fixed error message reporting for failed jobs.
+ * Fixed the "retry with more memory" feature.
+ * Fixed the reference disk feature.
+ * Fixed pulling Docker image metadata from private GCR repositories.
+ * Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
+ * Added a way to use a custom LogsPolicy for the job execution, setting `backend.providers.batch.config.batch.logs-policy` to "CLOUD_LOGGING" (default) keeps the current behavior, or, set it to "PATH" to stream the logs to Google Cloud Storage.
+ * When "CLOUD_LOGGING" is used, many more Cromwell / WDL labels for workflow, root workflow, call, shard etc. are now assigned to GCP Batch log entries.
+ * Fixed subnet selection for networks that use custom subnet creation
+ * Updated runtime attributes documentation to clarify that the `nvidiaDriverVersion` key is ignored on GCP Batch.
 
 ### Improvements
+ * A new optional feature prevents Cromwell from starting new jobs in a group that is currently experiencing
+   cloud quota exhaustion. Jobs will be started once the group's quota becomes available. To enable this feature,
+   set `quota-exhaustion-job-start-control.enabled` to true.
+ * Users can now configure which algorithm is used to hash files for call caching purposes. See [Configuring](https://cromwell.readthedocs.io/en/stable/Configuring/) page in
+   ReadTheDocs for details. Default behavior is unchanged.
  * Cromwell now allows opting into configured soft links on shared file systems such as HPC environments. More details can
    be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional-docker-soft-links).
  * Users reported cases where Life Sciences jobs failed due to insufficient quota, instead of queueing and waiting until

@@ -66,6 +66,8 @@ ReadTheDocs for details. Default behavior is unchanged.
      and `.gcs-bucket-to-check` are therefore obsolete.
  * Code relating to the Google Genomics API (aka `v1Alpha`) has been removed since Google has entirely disabled that service.
    Cloud Life Sciences (aka `v2Beta`, deprecated) and Google Batch (aka `batch`, recommended) remain the two viable GCP backends.
+   Cloud Life Sciences is expected to be unavailable starting in July 2025 and `v2Beta` support will be removed in a future 
+   Cromwell release.
  * Removed support for Nvidia K80 "Kepler" GPUs, which were [discontinued by GCP in May 2024](https://cloud.google.com/compute/docs/eol/k80-eol).
    * Default GPU on Life Sciences is now Nvidia P100
    * Default GPU on GCP Batch is now Nvidia T4

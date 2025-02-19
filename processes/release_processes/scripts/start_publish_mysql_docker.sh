@@ -25,4 +25,4 @@ docker run \
   --env MYSQL_DATABASE=cromwell_test \
   --env MYSQL_USER=cromwell \
   --env MYSQL_PASSWORD=test \
-  --rm mysql/mysql-server:8.0  #TODO: update to mysql server 8.4 when available
+  --rm mysql:8.4

@@ -119,6 +119,9 @@ The cost is optional. If supplied, Centaur will retrieve the cost of the success
 Both Cromwell and Centaur require configuration files in order to correctly build and test various parts of the system. Because of this, we divide
 our tests into groups depending on which configuration files they require. Below is the current matrix of configuration files and test source directories.
 
+Note: To exclude a specific test from a test suite, find the `.sh` file that runs that suite, then add a new line with the -e flag to the `cromwell::build::run_centaur` command
+(ex. `-e {NAME_OF_TEST}`)
+
 ## Upgrade / Horicromtal / etc.
 
 | CI Test Type                  | Cromwell Config                                                  | Centaur Config                                         |

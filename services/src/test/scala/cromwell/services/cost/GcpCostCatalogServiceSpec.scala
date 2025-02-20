@@ -80,9 +80,9 @@ class GcpCostCatalogServiceSpec
 
   it should "cache catalogs properly" in {
     val testLookupKey = CostCatalogKey(
-      machineType = N2,
+      resourceInfo = N2,
       usageType = Preemptible,
-      machineCustomization = Predefined,
+      machineCustomization = Some(Predefined),
       resourceType = Cpu,
       region = "europe-west9"
     )
@@ -110,30 +110,30 @@ class GcpCostCatalogServiceSpec
   it should "find CPU and RAM skus for all supported machine types" in {
     val lookupRows = Table(
       ("machineType", "usage", "customization", "resource", "region", "exists"),
-      (N1, Preemptible, Predefined, Cpu, "us-west1", true),
-      (N1, Preemptible, Predefined, Ram, "us-west1", true),
-      (N1, OnDemand, Predefined, Cpu, "us-west1", true),
-      (N1, OnDemand, Predefined, Ram, "us-west1", true),
-      (N1, Preemptible, Custom, Cpu, "us-west1", false),
-      (N1, Preemptible, Custom, Ram, "us-west1", false),
-      (N1, OnDemand, Custom, Cpu, "us-west1", false),
-      (N1, OnDemand, Custom, Ram, "us-west1", false),
-      (N2, Preemptible, Predefined, Cpu, "us-west1", false),
-      (N2, Preemptible, Predefined, Ram, "us-west1", false),
-      (N2, OnDemand, Predefined, Cpu, "us-west1", false),
-      (N2, OnDemand, Predefined, Ram, "us-west1", false),
-      (N2, Preemptible, Custom, Cpu, "us-west1", true),
-      (N2, Preemptible, Custom, Ram, "us-west1", true),
-      (N2, OnDemand, Custom, Cpu, "us-west1", true),
-      (N2, OnDemand, Custom, Ram, "us-west1", true),
-      (N2d, Preemptible, Predefined, Cpu, "us-west1", false),
-      (N2d, Preemptible, Predefined, Ram, "us-west1", false),
-      (N2d, OnDemand, Predefined, Cpu, "us-west1", false),
-      (N2d, OnDemand, Predefined, Ram, "us-west1", false),
-      (N2d, Preemptible, Custom, Cpu, "us-west1", true),
-      (N2d, Preemptible, Custom, Ram, "us-west1", true),
-      (N2d, OnDemand, Custom, Cpu, "us-west1", true),
-      (N2d, OnDemand, Custom, Ram, "us-west1", true)
+      (N1, Preemptible, Some(Predefined), Cpu, "us-west1", true),
+      (N1, Preemptible, Some(Predefined), Ram, "us-west1", true),
+      (N1, OnDemand, Some(Predefined), Cpu, "us-west1", true),
+      (N1, OnDemand, Some(Predefined), Ram, "us-west1", true),
+      (N1, Preemptible, Some(Custom), Cpu, "us-west1", false),
+      (N1, Preemptible, Some(Custom), Ram, "us-west1", false),
+      (N1, OnDemand, Some(Custom), Cpu, "us-west1", false),
+      (N1, OnDemand, Some(Custom), Ram, "us-west1", false),
+      (N2, Preemptible, Some(Predefined), Cpu, "us-west1", false),
+      (N2, Preemptible, Some(Predefined), Ram, "us-west1", false),
+      (N2, OnDemand, Some(Predefined), Cpu, "us-west1", false),
+      (N2, OnDemand, Some(Predefined), Ram, "us-west1", false),
+      (N2, Preemptible, Some(Custom), Cpu, "us-west1", true),
+      (N2, Preemptible, Some(Custom), Ram, "us-west1", true),
+      (N2, OnDemand, Some(Custom), Cpu, "us-west1", true),
+      (N2, OnDemand, Some(Custom), Ram, "us-west1", true),
+      (N2d, Preemptible, Some(Predefined), Cpu, "us-west1", false),
+      (N2d, Preemptible, Some(Predefined), Ram, "us-west1", false),
+      (N2d, OnDemand, Some(Predefined), Cpu, "us-west1", false),
+      (N2d, OnDemand, Some(Predefined), Ram, "us-west1", false),
+      (N2d, Preemptible, Some(Custom), Cpu, "us-west1", true),
+      (N2d, Preemptible, Some(Custom), Ram, "us-west1", true),
+      (N2d, OnDemand, Some(Custom), Cpu, "us-west1", true),
+      (N2d, OnDemand, Some(Custom), Ram, "us-west1", true)
     )
 
     forAll(lookupRows) { case (machineType, usage, customization, resource, region, exists: Boolean) =>
@@ -146,64 +146,67 @@ class GcpCostCatalogServiceSpec
   it should "find the skus for a VM when appropriate" in {
     val lookupRows = Table(
       ("instantiatedVmInfo", "resource", "skuDescription"),
-      (InstantiatedVmInfo("europe-west9", "custom-16-32768", false),
+      (InstantiatedVmInfo("europe-west9", "custom-16-32768", None, false),
        Cpu,
        "N1 Predefined Instance Core running in Paris"
       ),
-      (InstantiatedVmInfo("europe-west9", "custom-16-32768", false),
+      (InstantiatedVmInfo("europe-west9", "custom-16-32768", None, false),
        Ram,
        "N1 Predefined Instance Ram running in Paris"
       ),
-      (InstantiatedVmInfo("us-central1", "custom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", None, true),
        Cpu,
        "Spot Preemptible N1 Predefined Instance Core running in Americas"
       ),
-      (InstantiatedVmInfo("us-central1", "custom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", None, true),
        Ram,
        "Spot Preemptible N1 Predefined Instance Ram running in Americas"
       ),
-      (InstantiatedVmInfo("europe-west9", "n1-custom-16-32768", false),
+      (InstantiatedVmInfo("europe-west9", "n1-custom-16-32768", None, false),
        Cpu,
        "N1 Predefined Instance Core running in Paris"
       ),
-      (InstantiatedVmInfo("europe-west9", "n1-custom-16-32768", false),
+      (InstantiatedVmInfo("europe-west9", "n1-custom-16-32768", None, false),
        Ram,
        "N1 Predefined Instance Ram running in Paris"
       ),
-      (InstantiatedVmInfo("us-central1", "n1-custom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "n1-custom-4-4096", None, true),
        Cpu,
        "Spot Preemptible N1 Predefined Instance Core running in Americas"
       ),
-      (InstantiatedVmInfo("us-central1", "n1-custom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "n1-custom-4-4096", None, true),
        Ram,
        "Spot Preemptible N1 Predefined Instance Ram running in Americas"
       ),
-      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", None, true),
        Cpu,
        "Spot Preemptible N2 Custom Instance Core running in Americas"
       ),
-      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", None, true),
        Ram,
        "Spot Preemptible N2 Custom Instance Ram running in Americas"
       ),
-      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", false),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", None, false),
        Cpu,
        "N2 Custom Instance Core running in Americas"
       ),
-      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", false), Ram, "N2 Custom Instance Ram running in Americas"),
-      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", None, false),
+       Ram,
+       "N2 Custom Instance Ram running in Americas"
+      ),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", None, true),
        Cpu,
        "Spot Preemptible N2D AMD Custom Instance Core running in Americas"
       ),
-      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", None, true),
        Ram,
        "Spot Preemptible N2D AMD Custom Instance Ram running in Americas"
       ),
-      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", false),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", None, false),
        Cpu,
        "N2D AMD Custom Instance Core running in Americas"
       ),
-      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", false),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", None, false),
        Ram,
        "N2D AMD Custom Instance Ram running in Americas"
       )
@@ -219,21 +222,21 @@ class GcpCostCatalogServiceSpec
   it should "fail to find the skus for a VM when appropriate" in {
     val lookupRows = Table(
       ("instantiatedVmInfo", "resource", "errors"),
-      (InstantiatedVmInfo("us-central1", "custooooooom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "custooooooom-4-4096", None, true),
        Cpu,
        List("Unrecognized machine type: custooooooom-4-4096")
       ),
-      (InstantiatedVmInfo("us-central1", "n2custom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "n2custom-4-4096", None, true),
        Cpu,
        List("Unrecognized machine type: n2custom-4-4096")
       ),
-      (InstantiatedVmInfo("us-central1", "standard-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "standard-4-4096", None, true),
        Cpu,
        List("Unrecognized machine type: standard-4-4096")
       ),
-      (InstantiatedVmInfo("planet-mars1", "custom-4-4096", true),
+      (InstantiatedVmInfo("planet-mars1", "custom-4-4096", None, true),
        Cpu,
-       List("Failed to look up Cpu SKU for InstantiatedVmInfo(planet-mars1,custom-4-4096,true)")
+       List("Failed to look up Cpu SKU for InstantiatedVmInfo(planet-mars1,custom-4-4096,None,true)")
       )
     )
 
@@ -249,18 +252,18 @@ class GcpCostCatalogServiceSpec
     // Create BigDecimals from strings to avoid inequality due to floating point shenanigans
     val lookupRows = Table(
       ("instantiatedVmInfo", "costPerHour"),
-      (InstantiatedVmInfo("us-central1", "custom-4-4096", true), BigDecimal(".0361")),
-      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", true), BigDecimal(".04254400000000000480")),
-      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", true), BigDecimal(".02371600000000000040")),
-      (InstantiatedVmInfo("us-central1", "custom-4-4096", false), BigDecimal(".143392")),
-      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", false), BigDecimal(".150561600")),
-      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", false), BigDecimal(".130989600000000012")),
-      (InstantiatedVmInfo("europe-west9", "custom-4-4096", true), BigDecimal(".035018080000000004")),
-      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4096", true), BigDecimal("0.049532000000000004")),
-      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", true), BigDecimal("0.030608000000000004")),
-      (InstantiatedVmInfo("europe-west9", "custom-4-4096", false), BigDecimal(".1663347200000000040")),
-      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4352", false), BigDecimal(".17594163050")),
-      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", false), BigDecimal(".151947952"))
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", None, true), BigDecimal(".0361")),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", None, true), BigDecimal(".04254400000000000480")),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", None, true), BigDecimal(".02371600000000000040")),
+      (InstantiatedVmInfo("us-central1", "custom-4-4096", None, false), BigDecimal(".143392")),
+      (InstantiatedVmInfo("us-central1", "n2-custom-4-4096", None, false), BigDecimal(".150561600")),
+      (InstantiatedVmInfo("us-central1", "n2d-custom-4-4096", None, false), BigDecimal(".130989600000000012")),
+      (InstantiatedVmInfo("europe-west9", "custom-4-4096", None, true), BigDecimal(".035018080000000004")),
+      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4096", None, true), BigDecimal("0.049532000000000004")),
+      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", None, true), BigDecimal("0.030608000000000004")),
+      (InstantiatedVmInfo("europe-west9", "custom-4-4096", None, false), BigDecimal(".1663347200000000040")),
+      (InstantiatedVmInfo("europe-west9", "n2-custom-4-4352", None, false), BigDecimal(".17594163050")),
+      (InstantiatedVmInfo("europe-west9", "n2d-custom-4-4096", None, false), BigDecimal(".151947952"))
     )
 
     forAll(lookupRows) { case (instantiatedVmInfo: InstantiatedVmInfo, expectedCostPerHour: BigDecimal) =>
@@ -274,24 +277,24 @@ class GcpCostCatalogServiceSpec
 
     val lookupRows = Table(
       ("instantiatedVmInfo", "errors"),
-      (InstantiatedVmInfo("us-central1", "custooooooom-4-4096", true),
+      (InstantiatedVmInfo("us-central1", "custooooooom-4-4096", None, true),
        List("Unrecognized machine type: custooooooom-4-4096")
       ),
-      (InstantiatedVmInfo("us-central1", "n2_custom_4_4096", true),
+      (InstantiatedVmInfo("us-central1", "n2_custom_4_4096", None, true),
        List("Unrecognized machine type: n2_custom_4_4096")
       ),
-      (InstantiatedVmInfo("us-central1", "custom-foo-4096", true),
+      (InstantiatedVmInfo("us-central1", "custom-foo-4096", None, true),
        List("Could not extract core count from custom-foo-4096")
       ),
-      (InstantiatedVmInfo("us-central1", "custom-16-bar", true),
+      (InstantiatedVmInfo("us-central1", "custom-16-bar", None, true),
        List("Could not extract Ram MB count from custom-16-bar")
       ),
-      (InstantiatedVmInfo("us-central1", "123-456-789", true), List("Unrecognized machine type: 123-456-789")),
-      (InstantiatedVmInfo("us-central1", "n2-16-4096", true),
-       List("Failed to look up Cpu SKU for InstantiatedVmInfo(us-central1,n2-16-4096,true)")
+      (InstantiatedVmInfo("us-central1", "123-456-789", None, true), List("Unrecognized machine type: 123-456-789")),
+      (InstantiatedVmInfo("us-central1", "n2-16-4096", None, true),
+       List("Failed to look up Cpu SKU for InstantiatedVmInfo(us-central1,n2-16-4096,None,true)")
       ),
-      (InstantiatedVmInfo("planet-mars1", "n2-custom-4-4096", true),
-       List("Failed to look up Cpu SKU for InstantiatedVmInfo(planet-mars1,n2-custom-4-4096,true)")
+      (InstantiatedVmInfo("planet-mars1", "n2-custom-4-4096", None, true),
+       List("Failed to look up Cpu SKU for InstantiatedVmInfo(planet-mars1,n2-custom-4-4096,None,true)")
       )
     )
 

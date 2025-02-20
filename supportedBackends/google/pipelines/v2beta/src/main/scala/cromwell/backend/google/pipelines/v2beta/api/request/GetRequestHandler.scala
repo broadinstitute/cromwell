@@ -22,7 +22,7 @@ import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import cromwell.backend.google.pipelines.v2beta.api.request.ErrorReporter._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.ExecutionEvent
-import cromwell.services.cost.InstantiatedVmInfo
+import cromwell.services.cost.{GpuInfo, InstantiatedVmInfo}
 import cromwell.services.metadata.CallMetadataKeys
 import io.grpc.Status
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -115,9 +115,30 @@ trait GetRequestHandler { this: RequestHandler =>
           if (lastDashIndex != -1) zoneString.substring(0, lastDashIndex) else zoneString
         }
 
+        val gpuInfo: Option[GpuInfo] = for {
+          pipelineValue <- pipeline
+          resources <- Option(pipelineValue.getResources)
+          virtualMachine <- Option(resources.getVirtualMachine)
+          gpusList <- Option(virtualMachine.getAccelerators)
+          gpus <- {
+            if (gpusList.size > 1) {
+              // TODO: Improve this warning
+              // - Log appears repeatedly while task is running
+              // - Improve formatting of accelerator info
+              // - Include workflow/task ID?
+              logger.warn(
+                s"Multiple GPU types present ($gpusList) for a single task. Only the first will be used for cost calculations."
+              )
+            }
+            gpusList.asScala.headOption
+          }
+        } yield GpuInfo(gpus.getCount, gpus.getType)
+
+        // Unlike with region and machineType, gpuInfo's being None does not indicate an invalid
+        // result - it just means no GPUs are being used by the VM
         val instantiatedVmInfo: Option[InstantiatedVmInfo] = (region, machineType) match {
           case (Some(instantiatedRegion), Some(instantiatedMachineType)) =>
-            Option(InstantiatedVmInfo(instantiatedRegion, instantiatedMachineType, preemptible))
+            Option(InstantiatedVmInfo(instantiatedRegion, instantiatedMachineType, gpuInfo, preemptible))
           case _ => Option.empty
         }
         if (operation.getDone) {

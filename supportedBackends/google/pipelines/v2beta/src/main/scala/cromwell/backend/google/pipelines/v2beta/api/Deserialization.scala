@@ -117,6 +117,22 @@ private[api] object Deserialization {
         case (Some(f), number: Number) if f.getType == classOf[java.lang.Double] => newT.set(key, number.doubleValue())
         case (Some(f), number: Number) if f.getType == classOf[java.lang.Float] => newT.set(key, number.floatValue())
         case (Some(f), number: Number) if f.getType == classOf[java.lang.Long] => newT.set(key, number.longValue())
+        // AN-144, 12/12/2024
+        // These cases handle the possibility that a field of a numeric type has a corresponding numeric value
+        // represented as a string. This can happen if the value was represented as a string in the original JSON.
+        // Currently, only the last of these 4 cases is used: Google stores the count field of the Accelerator class as
+        // a long, but the JSON value of that field is a number represented as a string. The other cases were added to
+        // provide similar support for other numeric types in case Google adds new fields represented in a similar way
+        // in the future. If a field of a numeric type has a string value that cannot be parsed to the correct numeric
+        // type, it will be skipped (see comment below for rationale).
+        case (Some(f), string: String) if f.getType == classOf[java.lang.Integer] =>
+          string.toIntOption.foreach(intValue => newT.set(key, intValue))
+        case (Some(f), string: String) if f.getType == classOf[java.lang.Double] =>
+          string.toDoubleOption.foreach(doubleValue => newT.set(key, doubleValue))
+        case (Some(f), string: String) if f.getType == classOf[java.lang.Float] =>
+          string.toFloatOption.foreach(floatValue => newT.set(key, floatValue))
+        case (Some(f), string: String) if f.getType == classOf[java.lang.Long] =>
+          string.toLongOption.foreach(longValue => newT.set(key, longValue))
         // If either the key is not an attribute of T, or we can't assign it - just skip it
         // The only effect is that an attribute might not be populated and would be null.
         // We would only notice if we do look at this attribute though, which we only do with the purpose of populating metadata

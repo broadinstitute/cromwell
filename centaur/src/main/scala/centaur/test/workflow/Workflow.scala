@@ -25,7 +25,8 @@ final case class Workflow private (testName: String,
                                    allowOtherOutputs: Boolean,
                                    skipDescribeEndpointValidation: Boolean,
                                    submittedWorkflowTracker: SubmittedWorkflowTracker,
-                                   maximumAllowedTime: Option[FiniteDuration]
+                                   maximumAllowedTime: Option[FiniteDuration],
+                                   cost: Option[List[BigDecimal]] = None
 ) {
 
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(
@@ -94,6 +95,7 @@ object Workflow {
         val validateDescription: Boolean = conf.get[Boolean]("skipDescribeEndpointValidation").valueOrElse(false)
 
         val maximumTime: Option[FiniteDuration] = conf.get[Option[FiniteDuration]]("maximumTime").value
+        val cost: Option[List[BigDecimal]] = conf.get[Option[List[BigDecimal]]]("cost").value
 
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
           (f, d, m, retryTestFailures) =>
@@ -107,7 +109,8 @@ object Workflow {
                      allowOtherOutputs,
                      validateDescription,
                      submittedWorkflowTracker,
-                     maximumTime
+                     maximumTime,
+                     cost
             )
         }
 

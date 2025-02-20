@@ -1060,4 +1060,52 @@ object Operations extends StrictLogging {
           IO.raiseError(CentaurTestException(message, workflow))
         }
     }
+
+  def getExpectedCost(workflowCost: Option[List[BigDecimal]]): IO[List[BigDecimal]] =
+    workflowCost match {
+      case Some(cost) if cost(0) > cost(1) =>
+        IO.raiseError(
+          new Exception(s"Lower bound of expected cost cannot be higher than the upper bound (${cost(0)} - ${cost(1)})")
+        )
+      case Some(cost) => IO.pure(cost)
+      case None =>
+        IO.raiseError(new Exception("Expected cost range is required in the test config to validate the workflow cost"))
+    }
+
+  /**
+    * Validate that the actual cost is within the expected range
+    */
+  def validateCost(actualCost: BigDecimal, expectedCost: List[BigDecimal]): IO[Unit] =
+    if (expectedCost(0) > actualCost || actualCost > expectedCost(1)) {
+      IO.raiseError(
+        new Exception(s"Expected cost within range ${expectedCost(0)} - ${expectedCost(1)} but got $actualCost")
+      )
+    } else {
+      IO.unit
+    }
+
+  def fetchAndValidateCost(workflowSpec: Workflow, submittedWorkflow: SubmittedWorkflow): Test[Unit] =
+    new Test[Unit] {
+
+      override def run: IO[Unit] =
+        for {
+          actualCost <- CentaurCromwellClient.cost(submittedWorkflow)
+          expectedCost <- getExpectedCost(workflowSpec.cost)
+          _ <- validateCost(actualCost.cost, expectedCost)
+        } yield ()
+    }
+
+  def validateNoCost(submittedWorkflow: SubmittedWorkflow): Test[Unit] =
+    new Test[Unit] {
+
+      override def run: IO[Unit] =
+        for {
+          actualCost <- CentaurCromwellClient.cost(submittedWorkflow)
+          _ =
+            if (actualCost.cost != 0)
+              IO.raiseError(new Exception(s"When using call caching, the cost must be 0, not ${actualCost.cost}"))
+            else IO.unit
+        } yield ()
+    }
+
 }

@@ -66,7 +66,7 @@ object Dependencies {
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.14.0"
-  private val jakartaActivationV = "1.2.1"
+  private val jakartaActivationV = "1.2.2"
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
@@ -772,7 +772,7 @@ object Dependencies {
   )
 
   private val asyncHttpClientOverrides = List(
-    "org.asynchttpclient" % "async-http-client" % "2.10.5",
+    "org.asynchttpclient" % "async-http-client" % "2.12.4",
   )
 
 

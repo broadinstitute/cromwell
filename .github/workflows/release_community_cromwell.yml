@@ -10,6 +10,12 @@ jobs:
     steps:
     - uses: sbt/setup-sbt@v1
 
+    # Only Cromwell admins should be permitted to run this action
+    - name: Enforce admin role
+      uses: prince-chrismc/check-actor-permissions-action@v3
+      with:
+        permission: admin
+
     # `DSDEJENKINS_PASSWORD` auto syncs from vault with https://github.com/broadinstitute/terraform-ap-deployments/pull/614
     - name: Login to Docker Hub
       uses: docker/login-action@v1
@@ -54,7 +60,7 @@ jobs:
 
         echo "Update develop to version ${NEXT_VERSION}"
         git checkout develop
-        sed -i -e '/cromwellVersion[[:space:]]=/s/[0-9][0-9]*/${NEXT_VERSION}/' project/Version.scala
+        sed -i -e "/cromwellVersion[[:space:]]=/s/[0-9][0-9]*/${NEXT_VERSION}/" project/Version.scala
         git add project/Version.scala
         git diff-index --quiet HEAD \
         || git commit --message "Update cromwell version from ${RELEASE_VERSION} to ${NEXT_VERSION}"
@@ -83,7 +89,7 @@ jobs:
       run: |
         set -e
         cd cromwell
-        git push origin master develop
+        git push origin develop master
 
     - name: Build and push Docker image
       run: |

@@ -44,6 +44,10 @@ google {
       name = "user_service_account"
       scheme = "user_service_account"
     }
+    {
+       name = "application-default"
+       scheme = "application_default"
+    }
   ]
 }
 
@@ -58,6 +62,13 @@ services {
 	  google-auth-name = "service_account"
 	}
   }
+   GcpCostCatalogService {
+      class = "cromwell.services.cost.GcpCostCatalogService"
+          config {
+            enabled = true
+            catalogExpirySeconds = 86400
+          }
+      }
 }
 
 filesystems.drs.global.config.resolver.url = "https://drshub.dsde-dev.broadinstitute.org/api/v4/drs/resolve"

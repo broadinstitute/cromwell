@@ -10,9 +10,9 @@
 #
 # 2021-04-14 12:22:57 0 [Note] mysqld (mysqld 5.6.51) starting as process 1 ...
 # ^Z
-# [1]+  Stopped                 ./start_publish_mysql_docker.sh
+# [1]+  Stopped                 ./start_mysql_docker.sh
 # scripts $ kill %1
-# [1]+  Terminated: 15          ./start_publish_mysql_docker.sh
+# [1]+  Terminated: 15          ./start_mysql_docker.sh
 # scripts $
 
 # Fail loudly if things go wrong https://gist.github.com/mohanpedala/1e2ff5661761d3abd0385e8223e16425

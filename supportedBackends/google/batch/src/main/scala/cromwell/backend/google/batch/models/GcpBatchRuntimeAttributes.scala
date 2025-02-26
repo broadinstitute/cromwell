@@ -58,8 +58,8 @@ object GcpBatchRuntimeAttributes {
   private val PreemptibleDefaultValue = WomInteger(0)
 
   val BootDiskSizeKey = "bootDiskSizeGb"
-  private val bootDiskValidationInstance = new IntRuntimeAttributesValidation(BootDiskSizeKey)
-  private val BootDiskDefaultValue = WomInteger(10)
+  // This is the smallest size we will actually get, see https://cloud.google.com/batch/docs/vm-os-environment-overview#default
+  private val BootDiskDefaultValue = WomInteger(30)
 
   val NoAddressKey = "noAddress"
   private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(NoAddressKey)
@@ -123,9 +123,26 @@ object GcpBatchRuntimeAttributes {
       MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) getOrElse MemoryDefaultValue
     )
 
-  private def bootDiskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
-    bootDiskValidationInstance
-      .withDefault(bootDiskValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse BootDiskDefaultValue)
+  private def bootDiskSizeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int] =
+    new IntRuntimeAttributesValidation(BootDiskSizeKey).optional
+
+  // If the user doesn't provide a boot disk size, use the default. If they DO provide a boot disk size,
+  // add the default to it to account for the space taken by the user Docker image. See AN-345.
+  private def safeBootDiskSizeGb(validatedRuntimeAttributes: ValidatedRuntimeAttributes,
+                                 runtimeConfig: Option[Config]
+  ): Int = {
+    val validation = bootDiskSizeValidation(runtimeConfig)
+
+    val configDefault: Option[WomInteger] = validation.configDefaultWomValue(runtimeConfig) match {
+      case Some(i: WomInteger) => Some(i)
+      case _ => None
+    }
+    val defaultBootDiskSizeGb = configDefault.getOrElse(BootDiskDefaultValue).value
+
+    val userBootDiskSize: Int =
+      RuntimeAttributesValidation.extractOption(validation.key, validatedRuntimeAttributes).getOrElse(0)
+    userBootDiskSize + defaultBootDiskSizeGb
+  }
 
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
     noAddressValidationInstance
@@ -195,8 +212,7 @@ object GcpBatchRuntimeAttributes {
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val preemptible: Int =
       RuntimeAttributesValidation.extract(preemptibleValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val bootDiskSize: Int =
-      RuntimeAttributesValidation.extract(bootDiskSizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val bootDiskSize: Int = safeBootDiskSizeGb(validatedRuntimeAttributes, runtimeAttrsConfig)
     val memory: MemorySize =
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[GcpBatchAttachedDisk] =

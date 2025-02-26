@@ -1,5 +1,10 @@
 # Cromwell Change Log
 
+## 89 Release Notes
+
+### GCP Batch Updates
+ * Add default VM boot disk size to user-requested boot disk size; this ensures the VM has room for large user command Docker images.
+
 ## 88 Release Notes
 
 ### Important Upgrade Note: Database Schema Change

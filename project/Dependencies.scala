@@ -6,6 +6,7 @@ object Dependencies {
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
+  private val apacheHttpClient5V = "5.3.1"
   private val awsSdkV = "2.17.265"
   // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
   // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
@@ -21,6 +22,7 @@ object Dependencies {
   private val azureAppInsightsLogbackV = "2.6.4"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.4.10"
+  private val bardClientV = "1.0.8"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
@@ -30,7 +32,7 @@ object Dependencies {
   private val circeGenericExtrasV = "0.14.1"
   private val circeOpticsV = "0.14.1"
   private val circeV = "0.14.1"
-  private val circeYamlV = "0.14.1"
+  private val circeYamlV = "0.15.1"
   private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
   private val commonsCsvV = "1.9.0"
   private val commonsIoV = "2.11.0" // via: https://commons.apache.org/proper/commons-io/
@@ -44,30 +46,27 @@ object Dependencies {
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
   private val googleApiClientV = "2.1.4"
-  private val googleCloudBigQueryV = "2.25.0"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20230421-2.0.0"
   private val googleCloudMonitoringV = "3.2.5"
-  private val googleCloudNioV = "0.124.8"
+  private val googleCloudNioV = "0.127.18"
   private val googleCloudStorageV = "2.17.2"
-  private val googleGaxGrpcV = "2.25.0"
-  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-genomics
-  private val googleGenomicsServicesV2Alpha1ApiV = "v2alpha1-rev20210811-1.32.1"
+  private val googleGaxGrpcV = "2.48.0"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.42.3"
   private val googleCloudBatchV1 = "0.18.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
-  private val googleOauth2V = "1.5.3"
+  private val googleOauth2V = "1.23.0"
   private val googleOauthClientV = "1.33.1"
   private val googleCloudResourceManagerV = "1.17.0"
-  private val grpcV = "1.54.1"
-  private val guavaV = "31.0.1-jre"
+  private val grpcV = "1.65.1"
+  private val guavaV = "33.2.1-jre"
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.13.3"
-  private val jakartaActivationV = "1.2.1"
+  private val jacksonV = "2.14.0"
+  private val jakartaActivationV = "1.2.2"
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
@@ -89,6 +88,7 @@ object Dependencies {
   private val metrics3StatsdV = "4.2.0"
   private val mockFtpServerV = "3.0.0"
   private val mockitoV = "3.12.4"
+  private val mockitoInlineV = "2.8.9"
   private val mockserverNettyV = "5.14.0"
   private val mouseV = "1.0.11"
 
@@ -133,10 +133,10 @@ object Dependencies {
     * https://github.com/slick/slick/pull/2201
   */
   private val slickV = "3.4.0-M1"
-  private val snakeyamlV = "1.33"
+  private val snakeyamlV = "2.3"
   private val sprayJsonV = "1.3.6"
   private val sttpV = "1.7.2"
-  private val swaggerParserV = "1.0.56"
+  private val swaggerParserV = "1.0.71"
   private val swaggerUiV = "4.5.2"
   private val testContainersScalaV = "0.40.10"
   private val tikaV = "2.3.0"
@@ -365,11 +365,6 @@ object Dependencies {
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
-  private val googleGenomicsV2Alpha1Dependency = List(
-    "com.google.apis" % "google-api-services-genomics" % googleGenomicsServicesV2Alpha1ApiV
-      exclude("com.google.guava", "guava-jdk5")
-  )
-
   private val googleLifeSciencesV2BetaDependency = List(
     "com.google.apis" % "google-api-services-lifesciences" % googleLifeSciencesServicesV2BetaApiV
       exclude("com.google.guava", "guava-jdk5")
@@ -380,6 +375,8 @@ object Dependencies {
     "com.google.api.grpc" % "proto-google-cloud-batch-v1" % googleCloudBatchV1,
     "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
   )
+
+  private val googlePapiBatchDependencies =  googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
 
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`
@@ -421,11 +418,11 @@ object Dependencies {
       exclude("org.apache.httpcomponents", "httpclient"),
     "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
       exclude("com.google.apis", "google-api-services-genomics"),
-    "org.apache.httpcomponents" % "httpclient" % apacheHttpClientV,
-    "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
+    "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V,
+  "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5"),
     "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
-  ) ++ googleGenomicsV2Alpha1Dependency ++ googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
+  )
 
   private val dbmsDependencies = List(
     "org.hsqldb" % "hsqldb" % hsqldbV,
@@ -447,7 +444,7 @@ object Dependencies {
     "com.lihaoyi" %% "pprint" % pprintV,
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
-  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ betterFilesDependencies ++ awsCloudDependencies ++ azureDependencies
+  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ googlePapiBatchDependencies ++ betterFilesDependencies ++ awsCloudDependencies ++ azureDependencies
 
   val databaseSqlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,
@@ -529,7 +526,7 @@ object Dependencies {
     "jakarta.activation" % "jakarta.activation-api" % jakartaActivationV,
   )
 
-  val draft2LanguageFactoryDependencies = List(
+  val mockServerDependencies = List(
     "org.mock-server" % "mockserver-netty" % mockserverNettyV % Test
   )
 
@@ -560,7 +557,6 @@ object Dependencies {
   val centaurDependencies: List[ModuleID] = List(
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
-    "com.google.cloud" % "google-cloud-bigquery" % googleCloudBigQueryV % IntegrationTest,
     "org.gnieh" %% "diffson-spray-json" % diffsonSprayJsonV
   ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
@@ -589,11 +585,6 @@ object Dependencies {
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies ++
     testDatabaseDependencies
-
-  val servicesDependencies: List[ModuleID] = List(
-    "com.google.api" % "gax-grpc" % googleGaxGrpcV,
-    "org.apache.commons" % "commons-csv" % commonsCsvV,
-  ) ++ testDatabaseDependencies ++ akkaHttpDependencies
 
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
 
@@ -635,16 +626,14 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % scalatestV,
     // Use mockito Java DSL directly instead of the numerous and often hard to keep updated Scala DSLs.
     // See also scaladoc in common.mock.MockSugar and that trait's various usages.
-    "org.mockito" % "mockito-core" % mockitoV
+    "org.mockito" % "mockito-core" % mockitoV,
+    "org.mockito" % "mockito-inline" % mockitoInlineV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
 
   val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion: String = swaggerUiV
-
-  val perfDependencies: List[ModuleID] = circeDependencies ++ betterFilesDependencies ++ commonDependencies ++
-    googleApiClientDependencies ++ googleCloudDependencies
 
   val drsLocalizerDependencies: List[ModuleID] = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
@@ -667,7 +656,7 @@ object Dependencies {
       cromwellApiClientDependencies ++
       databaseMigrationDependencies ++
       databaseSqlDependencies ++
-      draft2LanguageFactoryDependencies ++
+      mockServerDependencies ++
       drsLocalizerDependencies ++
       engineDependencies ++
       gcsFileSystemDependencies ++
@@ -675,7 +664,6 @@ object Dependencies {
       implDrsDependencies ++
       implFtpDependencies ++
       languageFactoryDependencies ++
-      perfDependencies ++
       serverDependencies ++
       sfsBackendDependencies ++
       spiDependencies ++
@@ -784,7 +772,7 @@ object Dependencies {
   )
 
   private val asyncHttpClientOverrides = List(
-    "org.asynchttpclient" % "async-http-client" % "2.10.5",
+    "org.asynchttpclient" % "async-http-client" % "2.12.4",
   )
 
 
@@ -797,8 +785,19 @@ object Dependencies {
   )
 
   private val protobufJavaOverrides = List(
-    "com.google.protobuf" % "protobuf-java" % "3.21.2",
+    "com.google.protobuf" % "protobuf-java" % "3.25.3",
   )
+
+  val servicesDependencies: List[ModuleID] = List(
+    "com.google.cloud" % "google-cloud-billing" % "2.47.0",
+    "com.google.api" % "gax-grpc" % googleGaxGrpcV,
+    "org.apache.commons" % "commons-csv" % commonsCsvV,
+    "bio.terra" % "bard-client-resttemplate" % bardClientV
+      exclude("org.springframework", "spring-aop")
+      exclude("org.springframework", "spring-jcl"),
+    "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V // Needed for rest-template connection pooling
+
+  ) ++ testDatabaseDependencies ++ akkaHttpDependencies ++ mockServerDependencies ++ googleCloudDependencies
 
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use

@@ -1,6 +1,6 @@
 name: call_cache_capoeira_jes
 testFormat: workflowsuccess
-backends: [Papi, Local]
+backends: [Papi, GCPBATCH]
 retryTestFailures: false
 
 files {
@@ -47,5 +47,4 @@ metadata {
   "calls.call_cache_capoeira.read_array_files.callCaching.hashes.input.Boolean ready": "B326B5062B2F0E69046810717534CB09"
   "calls.call_cache_capoeira.read_array_files.callCaching.hashes.input.File b.0": "EQWINA=="
   "calls.call_cache_capoeira.read_array_files.callCaching.hashes.input.File a.0": "T53tZg=="
-  "calls.call_cache_capoeira.read_array_files.callCaching.hashes.backend name": "36EF4A8AB268D1A1C74D8108C93D48ED"
 }

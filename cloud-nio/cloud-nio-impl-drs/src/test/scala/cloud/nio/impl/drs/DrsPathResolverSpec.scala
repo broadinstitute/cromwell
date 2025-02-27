@@ -5,7 +5,6 @@ import cats.data.NonEmptyList
 import java.nio.file.attribute.FileTime
 import java.time.OffsetDateTime
 import cloud.nio.impl.drs.DrsCloudNioRegularFileAttributes._
-import cloud.nio.spi.{FileHash, HashType}
 import common.assertion.CromwellTimeoutSpec
 import io.circe.{Json, JsonObject}
 import org.apache.http.ProtocolVersion
@@ -16,7 +15,6 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   private val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key" -> Json.fromString("value"))))
   private val crcHashValue = "8a366443"
   private val md5HashValue = "336ea55913bc261b72875bd259753046"
-  private val shaHashValue = "f76877f8e86ec3932fd2ae04239fbabb8c90199dab0019ae55fa42b31c314c44"
 
   private val fullDrsResolverResponse = DrsResolverResponse(
     size = Option(34905345),
@@ -39,81 +37,6 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   private val fullDrsResolverResponseBadTz =
     fullDrsResolverResponse
       .copy(timeUpdated = fullDrsResolverResponse.timeUpdated.map(_.stripSuffix("Z") + "BADTZ"))
-
-  private val etagHashValue = "something"
-  private val completeHashesMap = Option(
-    Map(
-      "betty" -> "abc123",
-      "charles" -> "456",
-      "alfred" -> "xrd",
-      "sha256" -> shaHashValue,
-      "crc32c" -> crcHashValue,
-      "md5" -> md5HashValue,
-      "etag" -> etagHashValue
-    )
-  )
-
-  private val missingCRCHashesMap = Option(
-    Map(
-      "alfred" -> "xrd",
-      "sha256" -> shaHashValue,
-      "betty" -> "abc123",
-      "md5" -> md5HashValue,
-      "charles" -> "456"
-    )
-  )
-
-  private val onlySHAHashesMap = Option(
-    Map(
-      "betty" -> "abc123",
-      "charles" -> "456",
-      "alfred" -> "xrd",
-      "sha256" -> shaHashValue
-    )
-  )
-
-  private val onlyEtagHashesMap = Option(
-    Map(
-      "alfred" -> "xrd",
-      "betty" -> "abc123",
-      "charles" -> "456",
-      "etag" -> etagHashValue
-    )
-  )
-
-  behavior of "fileHash()"
-
-  it should "return crc32c hash from `hashes` in DRS Resolver response when there is a crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(completeHashesMap) shouldBe Option(
-      FileHash(HashType.Crc32c, crcHashValue)
-    )
-  }
-
-  it should "return md5 hash from `hashes` in DRS Resolver response when there is no crc32c" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(missingCRCHashesMap) shouldBe Option(
-      FileHash(HashType.Md5, md5HashValue)
-    )
-  }
-
-  it should "return sha256 hash from `hashes` in DRS Resolver response when there is only a sha256" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(onlySHAHashesMap) shouldBe Option(
-      FileHash(HashType.Sha256, shaHashValue)
-    )
-  }
-
-  it should "return etag hash from `hashes` in DRS Resolver response when there is only an etag" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(onlyEtagHashesMap) shouldBe Option(
-      FileHash(HashType.S3Etag, etagHashValue)
-    )
-  }
-
-  it should "return None when no hashes object is returned" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(None) shouldBe None
-  }
-
-  it should "return None when an empty hash object is returned" in {
-    DrsCloudNioRegularFileAttributes.getPreferredHash(Option(Map.empty)) shouldBe None
-  }
 
   private val failureResponseJson = """
     {

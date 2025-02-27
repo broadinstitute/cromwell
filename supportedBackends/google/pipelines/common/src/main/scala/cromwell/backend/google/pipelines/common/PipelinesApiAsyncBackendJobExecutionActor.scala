@@ -1,6 +1,5 @@
 package cromwell.backend.google.pipelines.common
 
-import java.net.SocketTimeoutException
 import _root_.io.grpc.Status
 import akka.actor.ActorRef
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
@@ -23,7 +22,7 @@ import cromwell.backend.async.{
 import cromwell.backend.google.pipelines.common.PipelinesApiConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.pipelines.common.PipelinesApiJobPaths.GcsTransferLibraryName
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory._
-import cromwell.backend.google.pipelines.common.api.RunStatus.TerminalRunStatus
+import cromwell.backend.google.pipelines.common.api.RunStatus.{AwaitingCloudQuota, TerminalRunStatus}
 import cromwell.backend.google.pipelines.common.api._
 import cromwell.backend.google.pipelines.common.api.clients.PipelinesApiRunCreationClient.JobAbortedException
 import cromwell.backend.google.pipelines.common.api.clients.{
@@ -36,13 +35,9 @@ import cromwell.backend.google.pipelines.common.errors.FailedToDelocalizeFailure
 import cromwell.backend.google.pipelines.common.io._
 import cromwell.backend.google.pipelines.common.monitoring.{CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.io.DirectoryFunctions
-import cromwell.backend.standard.{
-  ScriptPreambleData,
-  StandardAdHocValue,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob
-}
+import cromwell.backend.standard.GroupMetricsActor.RecordGroupQuotaExhaustion
+import cromwell.backend.standard._
+
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
@@ -57,17 +52,19 @@ import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
 import shapeless.Coproduct
+import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
-import wom.callable.AdHocValue
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.types.{WomArrayType, WomSingleFileType}
 import wom.values._
 
+import java.net.SocketTimeoutException
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 object PipelinesApiAsyncBackendJobExecutionActor {
@@ -103,6 +100,7 @@ object PipelinesApiAsyncBackendJobExecutionActor {
     }
 
     new Exception(s"Task $jobTag failed. $returnCodeMessage PAPI error code ${errorCode.getCode.value}. $message")
+      with NoStackTrace
   }
 }
 
@@ -115,7 +113,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     with PipelinesApiAbortClient
     with PipelinesApiReferenceFilesMappingOperations
     with PipelinesApiDockerCacheMappingOperations
-    with PapiInstrumentation {
+    with PapiInstrumentation
+    with GcpPlatform {
 
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
 
@@ -133,7 +132,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
 
   override type StandardAsyncRunState = RunStatus
 
-  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
+  override val pollingResultMonitorActor: Option[ActorRef] = Option.empty
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean =
+    thiz.toString == that.toString
 
   override val papiApiActor: ActorRef = jesBackendSingletonActor
 
@@ -165,7 +166,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   override lazy val preemptible: Boolean = previousRetryReasons match {
-    case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
+    case Valid(PreviousRetryReasons(p, _, _)) => p < maxPreemption
     case _ => false
   }
 
@@ -531,7 +532,9 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
           commandScriptContainerPath = cmdInput.containerPath,
           logGcsPath = jesLogPath,
           inputOutputParameters = inputOutputParameters,
-          projectId = googleProject(jobDescriptor.workflowDescriptor),
+          projectId = googleProject(
+            jobDescriptor.workflowDescriptor
+          ),
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
           googleLabels = backendLabels ++ customLabels,
           preemptible = preemptible,
@@ -773,6 +776,12 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   override def pollStatusAsync(handle: JesPendingExecutionHandle): Future[RunStatus] =
     super[PipelinesApiStatusRequestClient].pollStatus(workflowId, handle.pendingJob)
 
+  override def checkAndRecordQuotaExhaustion(runStatus: RunStatus): Unit = runStatus match {
+    case AwaitingCloudQuota(_, _) =>
+      standardParams.groupMetricsActor ! RecordGroupQuotaExhaustion(googleProject(jobDescriptor.workflowDescriptor))
+    case _ =>
+  }
+
   override def customPollStatusFailure: PartialFunction[(ExecutionHandle, Exception), ExecutionHandle] = {
     case (_: JesPendingExecutionHandle @unchecked, JobAbortedException) =>
       AbortedExecutionHandle
@@ -891,6 +900,7 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
         runStatus match {
           case preemptedStatus: RunStatus.Preempted if preemptible => handlePreemption(preemptedStatus, returnCode)
           case _: RunStatus.Cancelled => AbortedExecutionHandle
+          case quotaFailedStatus: RunStatus.QuotaFailed => handleQuotaFailedStatus(quotaFailedStatus)
           case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
           case unknown =>
             throw new RuntimeException(
@@ -901,13 +911,23 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
-  private def nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p: Int, ur: Int): Seq[KvPair] =
+  /**
+    *
+    * @param p  Preemption count
+    * @param ur Unexpected Retry count
+    * @param q  Quota count
+    * @return   KV sequence ready to be saved for the next attempt
+    */
+  private def nextAttemptRetryKvPairs(p: Int, ur: Int, q: Int): Seq[KvPair] =
     Seq(
       KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.unexpectedRetryCountKey),
              ur.toString
       ),
       KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.preemptionCountKey),
              p.toString
+      ),
+      KvPair(ScopedKey(workflowId, futureKvJobKey, PipelinesApiBackendLifecycleActorFactory.quotaRetryCountKey),
+             q.toString
       )
     )
 
@@ -917,11 +937,11 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
   ): ExecutionHandle = {
     val msg = s"Retrying. $errorMessage"
     previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur)) =>
+      case Valid(PreviousRetryReasons(p, ur, q)) =>
         val thisUnexpectedRetry = ur + 1
         if (thisUnexpectedRetry <= maxUnexpectedRetries) {
           val preemptionAndUnexpectedRetryCountsKvPairs =
-            nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p, thisUnexpectedRetry)
+            nextAttemptRetryKvPairs(p, thisUnexpectedRetry, q)
           // Increment unexpected retry count and preemption count stays the same
           FailedRetryableExecutionHandle(
             StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
@@ -944,19 +964,62 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
     }
   }
 
+  private def handleQuotaFailedStatus(runStatus: RunStatus.QuotaFailed): ExecutionHandle = {
+
+    val machineType = runStatus.machineType.map(mt => s"$mt ").getOrElse("")
+    val baseMsg = s"Could not start instance ${machineType}due to insufficient quota."
+
+    previousRetryReasons match {
+      case Valid(PreviousRetryReasons(p, ur, q)) =>
+        val thisQuotaFailure = q + 1
+        val nextKvPairs = nextAttemptRetryKvPairs(p, ur, thisQuotaFailure)
+
+        if (thisQuotaFailure < pipelinesConfiguration.papiAttributes.quotaAttempts) {
+          val retryFlavor =
+            s"$baseMsg Cromwell will automatically retry the task. Backend info: ${runStatus.prettyPrintedError}"
+          val exception = StandardException(runStatus.errorCode, retryFlavor, jobTag, None, standardPaths.error)
+          jobLogger.info(exception.getMessage)
+          FailedRetryableExecutionHandle(
+            exception,
+            None,
+            Option(nextKvPairs)
+          )
+        } else {
+          val nopeFlavor =
+            s"$baseMsg Cromwell retries exhausted, task failed. Backend info: ${runStatus.prettyPrintedError}"
+          val exception = StandardException(runStatus.errorCode, nopeFlavor, jobTag, None, standardPaths.error)
+          jobLogger.info(exception.getMessage)
+          FailedNonRetryableExecutionHandle(
+            StandardException(runStatus.errorCode, nopeFlavor, jobTag, None, standardPaths.error),
+            None,
+            None
+          )
+        }
+      case Invalid(_) =>
+        val otherMsg = s"$baseMsg Backend info: ${runStatus.prettyPrintedError}"
+        val exception = StandardException(runStatus.errorCode, otherMsg, jobTag, None, standardPaths.error)
+        jobLogger.info(exception.getMessage)
+        FailedNonRetryableExecutionHandle(
+          exception,
+          None,
+          None
+        )
+    }
+  }
+
   private def handlePreemption(runStatus: RunStatus.Preempted, jobReturnCode: Option[Int]): ExecutionHandle = {
     import common.numeric.IntegerUtil._
 
     val errorCode: Status = runStatus.errorCode
     val prettyPrintedError: String = runStatus.prettyPrintedError
     previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur)) =>
+      case Valid(PreviousRetryReasons(p, ur, q)) =>
         val thisPreemption = p + 1
         val taskName = s"${workflowDescriptor.id}:${call.localName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
         val preemptionAndUnexpectedRetryCountsKvPairs =
-          nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(thisPreemption, ur)
+          nextAttemptRetryKvPairs(thisPreemption, ur, q)
         if (thisPreemption < maxPreemption) {
           // Increment preemption count and unexpectedRetryCount stays the same
           val msg =

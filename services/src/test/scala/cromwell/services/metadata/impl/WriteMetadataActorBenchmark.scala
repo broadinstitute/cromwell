@@ -46,7 +46,7 @@ class WriteMetadataActorBenchmark extends TestKitSuite with AnyFlatSpecLike with
 
   it should "provide good throughput" taggedAs IntegrationTest in {
     val writeActor =
-      TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry, Int.MaxValue, MetadataStatisticsDisabled) {
+      TestFSMRef(new WriteMetadataActor(1000, 5.seconds, registry, Int.MaxValue, MetadataStatisticsDisabled, List()) {
         override val metadataDatabaseInterface: MetadataSlickDatabase = dataAccess
       })
 

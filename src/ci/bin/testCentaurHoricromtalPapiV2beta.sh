@@ -26,8 +26,10 @@ cromwell::build::run_centaur \
     -e standard_output_paths_colliding_prevented \
     -e papi_v2alpha1_gcsa \
     -e restart \
-    -e lots_of_inputs \
-    # `lots_of_inputs` is redundant to, and a less rigorous version of, `lots_of_inputs_papiv2`
+    -e lots_of_inputs_papiv2 \
+    -e recursive_imports_cost_papi \
+    # Due to Centaur changes in WX-1629, lots_of_inputs_papiv2 times out due to the large number of inputs. Instead,
+    # we run lots_of_inputs, which tests 400 inputs instead of the 10,000 in lots_of_inputs_papiv2
 
 cromwell::build::generate_code_coverage
 

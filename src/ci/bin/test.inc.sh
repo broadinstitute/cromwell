@@ -543,7 +543,9 @@ cromwell::private::pip_install() {
 
 cromwell::private::upgrade_pip() {
     sudo apt-get install -y python3-pip
-    cromwell::private::pip_install pip --upgrade
+    # as of ubuntu 23 need to pass --user flag
+    # https://mail.openvswitch.org/pipermail/ovs-dev/2024-June/414969.html
+    cromwell::private::pip_install pip --upgrade --user pip
     cromwell::private::pip_install requests[security] --ignore-installed
 }
 
@@ -745,7 +747,7 @@ cromwell::private::login_docker() {
 
 cromwell::private::render_secure_resources() {
     # Avoid docker output to sbt's stderr by pulling the image here
-    docker pull broadinstitute/dsde-toolbox:dev | cat
+    docker pull --quiet broadinstitute/dsde-toolbox:dev | cat
     # Copy the CI resources, then render the secure resources using Vault
     sbt -Dsbt.supershell=false --warn renderCiResources \
     || if [[ "${CROMWELL_BUILD_IS_CI}" == "true" ]]; then
@@ -834,7 +836,6 @@ cromwell::private::setup_prior_version_resources() {
 cromwell::private::generate_code_coverage() {
     sbt -Dsbt.supershell=false --warn coverageReport
     sbt -Dsbt.supershell=false --warn coverageAggregate
-    bash <(curl -s https://codecov.io/bash) > /dev/null || true
 }
 
 cromwell::private::start_build_heartbeat() {

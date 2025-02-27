@@ -62,8 +62,6 @@ trait WorkflowStoreEntryComponent {
     ) <> ((WorkflowStoreEntry.apply _).tupled, WorkflowStoreEntry.unapply)
 
     def ucWorkflowStoreEntryWeu = index("UC_WORKFLOW_STORE_ENTRY_WEU", workflowExecutionUuid, unique = true)
-
-    def ixWorkflowStoreEntryWs = index("IX_WORKFLOW_STORE_ENTRY_WS", workflowState, unique = false)
   }
 
   protected val workflowStoreEntries = TableQuery[WorkflowStoreEntries]

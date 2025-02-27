@@ -1,17 +1,25 @@
 package cromwell.backend.google.batch.actors
 
+import _root_.io.grpc.{Status => GrpcStatus}
 import akka.actor.{ActorLogging, ActorRef}
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
 import akka.pattern.AskSupport
 import cats.data.NonEmptyList
-import cats.data.Validated.Valid
+import cats.data.Validated.{Invalid, Valid}
 import cats.implicits._
 import com.google.cloud.batch.v1.JobName
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
-import cromwell.backend.async.{ExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{
+  AbortedExecutionHandle,
+  ExecutionHandle,
+  FailedNonRetryableExecutionHandle,
+  FailedRetryableExecutionHandle,
+  PendingExecutionHandle
+}
+import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
 import cromwell.backend.google.batch.io._
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
@@ -21,51 +29,59 @@ import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.monitoring.{BatchInstrumentation, CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
 import cromwell.backend.google.batch.util.{GcpBatchReferenceFilesMappingOperations, RuntimeOutputMapping}
-import cromwell.filesystems.gcs.GcsPathBuilder
-import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
-
-import java.io.FileNotFoundException
-import cromwell.backend.standard.{
-  ScriptPreambleData,
-  StandardAdHocValue,
-  StandardAsyncExecutionActor,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob
-}
+import cromwell.backend.standard._
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
+import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
-import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.services.instrumentation.CromwellInstrumentation
+import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, KvPair, ScopedKey}
 import cromwell.services.metadata.CallMetadataKeys
 import mouse.all._
-import shapeless.Coproduct
 import org.apache.commons.codec.digest.DigestUtils
 import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import org.apache.commons.io.output.ByteArrayOutputStream
+import shapeless.Coproduct
+import wom.callable.AdHocValue
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
-import wom.callable.AdHocValue
 import wom.core.FullyQualifiedName
 import wom.expression.{FileEvaluation, NoIoFunctionSet}
 import wom.values._
 
-import java.io.OutputStreamWriter
+import java.io.{FileNotFoundException, OutputStreamWriter}
+import java.net.SocketTimeoutException
 import java.nio.charset.Charset
 import java.util.Base64
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.io.Source
 import scala.language.postfixOps
-import scala.util.{Failure, Success, Try}
 import scala.util.control.NoStackTrace
+import scala.util.{Failure, Success, Try}
 
 object GcpBatchAsyncBackendJobExecutionActor {
+
+  def StandardException(errorCode: GrpcStatus,
+                        message: String,
+                        jobTag: String,
+                        returnCodeOption: Option[Int],
+                        stderrPath: Path
+  ): Exception = {
+    val returnCodeMessage = returnCodeOption match {
+      case Some(returnCode) if returnCode == 0 => "Job exited without an error, exit code 0."
+      case Some(returnCode) => s"Job exit code $returnCode. Check $stderrPath for more information."
+      case None => "The job was stopped before the command finished."
+    }
+
+    new Exception(s"Task $jobTag failed. $returnCodeMessage Batch error code ${errorCode.getCode.value}. $message")
+  }
 
   // GCS path regexes comments:
   // - The (?s) option at the start makes '.' expression to match any symbol, including '\n'
@@ -124,14 +140,15 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     extends BackendJobLifecycleActor
     with StandardAsyncExecutionActor
     with BatchApiRunCreationClient
-    with BatchApiFetchJobClient
+    with BatchApiStatusRequestClient
     with BatchApiAbortClient
     with AskSupport
     with GcpBatchJobCachingActorHelper
     with GcpBatchReferenceFilesMappingOperations
     with BatchInstrumentation
     with ActorLogging
-    with CromwellInstrumentation {
+    with CromwellInstrumentation
+    with GcpPlatform {
 
   import GcpBatchAsyncBackendJobExecutionActor._
   override lazy val ioCommandBuilder: IoCommandBuilder = GcsBatchCommandBuilder
@@ -150,7 +167,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
    * in the state type.
    */
-  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean = thiz == that
+  def statusEquivalentTo(thiz: StandardAsyncRunState)(that: StandardAsyncRunState): Boolean =
+    thiz.toString == that.toString
 
   protected lazy val cmdInput: GcpBatchFileInput =
     GcpBatchFileInput(GcpBatchJobPaths.BatchExecParamName,
@@ -164,18 +182,23 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def dockerImageUsed: Option[String] = Option(jobDockerImage)
 
-  // noinspection ActorMutableStateInspection
-
   // Need to add previousRetryReasons and preemptible in order to get preemptible to work in the tests
   protected val previousRetryReasons: ErrorOr[PreviousRetryReasons] =
     PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
-  lazy val preemptible: Boolean = previousRetryReasons match {
+  override lazy val preemptible: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
     case _ => false
   }
 
-  override def tryAbort(job: StandardAsyncJob): Unit = abortJob(JobName.parse(job.jobId), backendSingletonActor)
+  override def tryAbort(job: StandardAsyncJob): Unit =
+    abortJob(workflowId = workflowId,
+             jobName = JobName.parse(job.jobId),
+             backendSingletonActor = backendSingletonActor,
+             requestFactory = initializationData.requestFactory
+    )
+
+  override def requestsAbortAndDiesImmediately: Boolean = false
 
   val backendSingletonActor: ActorRef = standardParams.backendSingletonActorOption
     .getOrElse(throw new RuntimeException("GCP Batch actor cannot exist without its backend singleton 2"))
@@ -185,12 +208,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
    */
   protected def gcpBatchInputsFromWomFiles(inputName: String,
                                            remotePathArray: Seq[WomFile],
-                                           localPathArray: Seq[WomFile],
-                                           jobDescriptor: BackendJobDescriptor
+                                           localPathArray: Seq[WomFile]
   ): Iterable[GcpBatchInput] =
     (remotePathArray zip localPathArray) flatMap {
-      case (remotePath: WomMaybeListedDirectory, localPath) =>
-        maybeListedDirectoryToBatchParameters(inputName, remotePath, localPath.valueString)
       case (remotePath: WomUnlistedDirectory, localPath) =>
         Seq(
           GcpBatchDirectoryInput(inputName,
@@ -199,8 +219,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                  workingDisk
           )
         )
-      case (remotePath: WomMaybePopulatedFile, localPath) =>
-        maybePopulatedFileToBatchParameters(inputName, remotePath, localPath.valueString)
       case (remotePath, localPath) =>
         Seq(
           GcpBatchFileInput(inputName,
@@ -210,27 +228,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           )
         )
     }
-
-  private def maybePopulatedFileToBatchParameters(inputName: String,
-                                                  maybePopulatedFile: WomMaybePopulatedFile,
-                                                  localPath: String
-  ) = {
-    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap { secondaryFile =>
-      gcpBatchInputsFromWomFiles(secondaryFile.valueString,
-                                 List(secondaryFile),
-                                 List(relativeLocalizationPath(secondaryFile)),
-                                 jobDescriptor
-      )
-    }
-
-    Seq(
-      GcpBatchFileInput(inputName,
-                        getPath(maybePopulatedFile.valueString).get,
-                        DefaultPathBuilder.get(localPath),
-                        workingDisk
-      )
-    ) ++ secondaryFiles
-  }
 
   /**
    * Turns WomFiles into relative paths.  These paths are relative to the working disk.
@@ -290,7 +287,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
   protected lazy val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] =
-    // NOTE: This causes the tests to fail
     jobDescriptor.localInputs map { case (key, womFile) =>
       key -> womFile.collectAsSeq {
         case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
@@ -591,7 +587,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         val inputFilePaths = inputOutputParameters.jobInputParameters.map(_.cloudPath.pathAsString).toSet
 
         val referenceDisksToMount =
-          batchAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
+          if (useReferenceDisks)
+            batchAttributes.referenceFileToDiskImageMappingOpt.map(getReferenceDisksToMount(_, inputFilePaths))
+          else
+            None
 
         val dockerhubCredentials: (String, String) =
           new String(Base64.getDecoder.decode(batchAttributes.dockerhubToken), "UTF-8").split(":", 2) match {
@@ -624,6 +623,32 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         // not the `stderr` file contained memory retry error keys
         val retryWithMoreMemoryKeys: Option[List[String]] = memoryRetryFactor.flatMap(_ => memoryRetryErrorKeys)
 
+        val targetLogFile = batchAttributes.logsPolicy match {
+          case GcpBatchLogsPolicy.CloudLogging => None
+          case GcpBatchLogsPolicy.Path =>
+            DefaultPathBuilder.build(
+              gcpBatchLogPath.pathAsString.replace(
+                gcpBatchLogPath.root.pathAsString,
+                GcpBatchAttachedDisk.GcsMountPoint + "/"
+              )
+            ) match {
+              case Failure(exception) =>
+                throw new RuntimeException(
+                  "Unable to use GcpBatchLogsPolicy.Path because the destination path could not be built, this is likely a programming error and a bug must be reported",
+                  exception
+                )
+              case Success(path) =>
+                // remove trailing slash
+                val bucket = workflowPaths.workflowRoot.root.pathWithoutScheme.replace("/", "")
+
+                log.info(s"Batch logs for workflow $workflowId will be streamed to GCS at: $gcpBatchLogPath")
+
+                Some(
+                  GcpBatchLogFile(gcsBucket = bucket, mountPath = GcpBatchAttachedDisk.GcsMountPoint, diskPath = path)
+                )
+            }
+        }
+
         CreateBatchJobParameters(
           jobDescriptor = jobDescriptor,
           runtimeAttributes = runtimeAttributes,
@@ -631,7 +656,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           cloudWorkflowRoot = workflowPaths.workflowRoot,
           cloudCallRoot = callRootPath,
           commandScriptContainerPath = cmdInput.containerPath,
-          logGcsPath = gcpBatchLogPath,
           inputOutputParameters = inputOutputParameters,
           projectId = googleProject(jobDescriptor.workflowDescriptor),
           computeServiceAccount = computeServiceAccount(jobDescriptor.workflowDescriptor),
@@ -650,7 +674,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           checkpointingConfiguration,
           enableSshAccess = enableSshAccess,
           vpcNetworkAndSubnetworkProjectLabels = data.vpcNetworkAndSubnetworkProjectLabels,
-          dockerhubCredentials = dockerhubCredentials
+          dockerhubCredentials = dockerhubCredentials,
+          targetLogFile = targetLogFile
         )
       case Some(other) =>
         throw new RuntimeException(s"Unexpected initialization data: $other")
@@ -658,11 +683,17 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         throw new RuntimeException("No batch backend initialization data found?")
     }
 
+  /**
+   * Given a path (relative or absolute), returns a (Path, GcpBatchAttachedDisk) tuple where the Path is
+   * relative to the AttachedDisk's mount point
+   *
+   * @throws Exception if the `path` does not live in one of the supplied `disks`
+   */
   protected def relativePathAndAttachedDisk(path: String,
                                             disks: Seq[GcpBatchAttachedDisk]
   ): (Path, GcpBatchAttachedDisk) = {
     val absolutePath = DefaultPathBuilder.get(path) match {
-      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPoint.resolve(p)
+      case p if !p.isAbsolute => GcpBatchWorkingDisk.MountPointPath.resolve(p)
       case p => p
     }
 
@@ -721,9 +752,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
 
   private val DockerMonitoringLogPath: Path =
-    GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringLogFilename)
+    GcpBatchWorkingDisk.MountPointPath.resolve(gcpBatchCallPaths.batchMonitoringLogFilename)
   private val DockerMonitoringScriptPath: Path =
-    GcpBatchWorkingDisk.MountPoint.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
+    GcpBatchWorkingDisk.MountPointPath.resolve(gcpBatchCallPaths.batchMonitoringScriptFilename)
+
+  // noinspection ActorMutableStateInspection
+  @scala.annotation.unused
+  private var hasDockerCredentials: Boolean = false
 
   override def scriptPreamble: ErrorOr[ScriptPreambleData] =
     if (monitoringOutput.isDefined)
@@ -732,18 +767,18 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                              |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin).valid
     else ScriptPreambleData("").valid
 
-  private[actors] def generateInputs(jobDescriptor: BackendJobDescriptor): Set[GcpBatchInput] = {
-    // We need to tell PAPI about files that were created as part of command instantiation (these need to be defined
+  private[actors] def generateInputs(): Set[GcpBatchInput] = {
+    // We need to tell Batch about files that were created as part of command instantiation (these need to be defined
     // as inputs that will be localized down to the VM). Make up 'names' for these files that are just the short
     // md5's of their paths.
     val writeFunctionFiles = instantiatedCommand.createdFiles map { f => f.file.value.md5SumShort -> List(f) } toMap
 
     val writeFunctionInputs = writeFunctionFiles flatMap { case (name, files) =>
-      gcpBatchInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath), jobDescriptor)
+      gcpBatchInputsFromWomFiles(name, files.map(_.file), files.map(localizationPath))
     }
 
     val callInputInputs = callInputFiles flatMap { case (name, files) =>
-      gcpBatchInputsFromWomFiles(name, files, files.map(relativeLocalizationPath), jobDescriptor)
+      gcpBatchInputsFromWomFiles(name, files, files.map(relativeLocalizationPath))
     }
 
     (writeFunctionInputs ++ callInputInputs).toSet
@@ -763,33 +798,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                                   fileEvaluation.secondary
     )
     List(directoryOutput)
-  }
-
-  private def maybeListedDirectoryToBatchParameters(inputName: String,
-                                                    womMaybeListedDirectory: WomMaybeListedDirectory,
-                                                    localPath: String
-  ) = womMaybeListedDirectory match {
-    // If there is a path, simply localize as a directory
-    case WomMaybeListedDirectory(Some(path), _, _, _) =>
-      List(GcpBatchDirectoryInput(inputName, getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
-
-    // If there is a listing, recurse and call gcpBatchInputsFromWomFiles on all the listed files
-    case WomMaybeListedDirectory(_, Some(listing), _, _) if listing.nonEmpty =>
-      listing.flatMap {
-        case womFile: WomFile if isAdHocFile(womFile) =>
-          gcpBatchInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
-                                     List(womFile),
-                                     List(fileName(womFile)),
-                                     jobDescriptor
-          )
-        case womFile: WomFile =>
-          gcpBatchInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
-                                     List(womFile),
-                                     List(relativeLocalizationPath(womFile)),
-                                     jobDescriptor
-          )
-      }
-    case _ => List.empty
   }
 
   def generateSingleFileOutputs(womFile: WomSingleFile, fileEvaluation: FileEvaluation): List[GcpBatchFileOutput] = {
@@ -839,10 +847,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     outputs.toSet ++ additionalGlobOutput
   }
 
-  protected def uploadGcsTransferLibrary(createBatchParameters: CreateBatchJobParameters,
-                                         cloudPath: Path,
-                                         gcsTransferConfiguration: GcsTransferConfiguration
-  ): Future[Unit] =
+  protected def uploadGcsTransferLibrary(cloudPath: Path): Future[Unit] =
     asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
 
   lazy val monitoringOutput: Option[GcpBatchFileOutput] = monitoringScript map { _ =>
@@ -857,7 +862,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
   }
 
-  override lazy val commandDirectory: Path = GcpBatchWorkingDisk.MountPoint
+  override lazy val commandDirectory: Path = GcpBatchWorkingDisk.MountPointPath
 
   // Primary entry point for cromwell to run GCP Batch job
   override def executeAsync(): Future[ExecutionHandle] = {
@@ -911,25 +916,16 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           executionScriptInputParameter = cmdInput,
           monitoringScriptInputParameter = monitoringScript
         ),
-        generateInputs(jobDescriptor).toList,
+        generateInputs().toList,
         standardStreams ++ generateOutputs(jobDescriptor).toList,
         DetritusOutputParameters(
           monitoringScriptOutputParameter = monitoringOutput,
           rcFileOutputParameter = rcFileOutput,
           memoryRetryRCFileOutputParameter = memoryRetryRCFileOutput
-        ),
-        List.empty
+        )
       )
 
     })
-
-    val gcpBatchParameters = CreateGcpBatchParameters(
-      jobDescriptor = jobDescriptor,
-      runtimeAttributes = runtimeAttributes,
-      batchAttributes = batchAttributes,
-      projectId = batchAttributes.project,
-      region = batchAttributes.location
-    )
 
     val runBatchResponse = for {
       _ <- evaluateRuntimeAttributes
@@ -937,12 +933,21 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       customLabels <- Future.fromTry(GcpLabel.fromWorkflowOptions(workflowDescriptor.workflowOptions))
       batchParameters <- generateInputOutputParameters
       createParameters = createBatchParameters(batchParameters, customLabels)
+
+      gcpBatchParameters = CreateGcpBatchParameters(
+        jobDescriptor = jobDescriptor,
+        runtimeAttributes = runtimeAttributes,
+        batchAttributes = batchAttributes,
+        projectId = batchAttributes.project,
+        region = batchAttributes.location
+      )
+
       drsLocalizationManifestCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.DrsLocalizationManifestName
       _ <- uploadDrsLocalizationManifest(createParameters, drsLocalizationManifestCloudPath)
       gcsTransferConfiguration = initializationData.gcpBatchConfiguration.batchAttributes.gcsTransferConfiguration
       gcsTransferLibraryCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsTransferLibraryName
       transferLibraryContainerPath = createParameters.commandScriptContainerPath.sibling(GcsTransferLibraryName)
-      _ <- uploadGcsTransferLibrary(createParameters, gcsTransferLibraryCloudPath, gcsTransferConfiguration)
+      _ <- uploadGcsTransferLibrary(gcsTransferLibraryCloudPath)
       gcsLocalizationScriptCloudPath = jobPaths.callExecutionRoot / GcpBatchJobPaths.GcsLocalizationScriptName
       referenceInputsToMountedPathsOpt = getReferenceInputsToMountedPathsOpt(createParameters)
       _ <- uploadGcsLocalizationScript(createParameters,
@@ -957,37 +962,61 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                          transferLibraryContainerPath,
                                          gcsTransferConfiguration
       )
-      _ = createParameters.privateDockerKeyAndEncryptedToken.isDefined
+      _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       jobName = "job-" + java.util.UUID.randomUUID.toString
       request = GcpBatchRequest(workflowId, createParameters, jobName = jobName, gcpBatchParameters)
-      response <- runBatchJob(request = request, backendSingletonActor = backendSingletonActor)
+      response <- runBatchJob(request = request,
+                              backendSingletonActor = backendSingletonActor,
+                              requestFactory = initializationData.requestFactory,
+                              jobLogger = jobLogger
+      )
       _ = sendGoogleLabelsToMetadata(customLabels)
       _ = sendIncrementMetricsForReferenceFiles(referenceInputsToMountedPathsOpt.map(_.keySet))
 
     } yield response
 
-    // TODO: Handle when the job gets aborted before it starts being processed
-    runBatchResponse.map { runId =>
-      PendingExecutionHandle(jobDescriptor = jobDescriptor,
-                             pendingJob = runId,
-                             runInfo = Option(Run(runId)),
-                             previousState = None
-      )
-    }
+    runBatchResponse
+      .map { runId =>
+        PendingExecutionHandle(jobDescriptor = jobDescriptor,
+                               pendingJob = runId,
+                               runInfo = Option(Run(runId)),
+                               previousState = None
+        )
+      }
+      .recover { case BatchApiRunCreationClient.JobAbortedException => AbortedExecutionHandle }
   }
 
-  override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = {
-    log.info("reconnect async runs") // in for debugging remove later
+  override def isFatal(throwable: Throwable): Boolean = super.isFatal(throwable) || isFatalBatchException(throwable)
+
+  override def isTransient(throwable: Throwable): Boolean = isTransientBatchException(throwable)
+
+  val futureKvJobKey: KvJobKey =
+    KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
+
+  override def recoverAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] = reconnectToExistingJob(jobId)
+
+  override def reconnectAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] =
+    reconnectToExistingJob(jobId)
+
+  override def reconnectToAbortAsync(jobId: StandardAsyncJob): Future[ExecutionHandle] =
+    reconnectToExistingJob(jobId, forceAbort = true)
+
+  private def reconnectToExistingJob(jobForResumption: StandardAsyncJob, forceAbort: Boolean = false) = {
+    if (forceAbort) tryAbort(jobForResumption)
     val handle = PendingExecutionHandle[StandardAsyncJob, StandardAsyncRunInfo, StandardAsyncRunState](
       jobDescriptor,
-      jobId,
-      Option(Run(jobId)),
+      jobForResumption,
+      Option(Run(jobForResumption)),
       previousState = None
     )
     Future.successful(handle)
   }
 
-  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(5.second, 5.minutes, 1.1)
+  override lazy val pollBackOff: SimpleExponentialBackoff = SimpleExponentialBackoff(
+    initialInterval = 5.second,
+    maxInterval = batchAttributes.maxPollingInterval.seconds,
+    multiplier = 1.1
+  )
 
   override lazy val executeOrRecoverBackOff: SimpleExponentialBackoff =
     SimpleExponentialBackoff(initialInterval = 5.seconds, maxInterval = 20.seconds, multiplier = 1.1)
@@ -1002,52 +1031,40 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       // do nothing - reference disks feature is either not configured in Cromwell or disabled in workflow options
     }
 
-  protected def sendIncrementMetricsForDockerImageCache(dockerImageCacheDiskOpt: Option[String],
-                                                        dockerImageAsSpecifiedByUser: String,
-                                                        isDockerImageCacheUsageRequested: Boolean
-  ): Unit =
-    (isDockerImageCacheUsageRequested, dockerImageCacheDiskOpt) match {
-      case (true, None) =>
-        increment(NonEmptyList("docker", List("image", "cache", "image_not_in_cache", dockerImageAsSpecifiedByUser)))
-      case (true, Some(_)) =>
-        increment(NonEmptyList("docker", List("image", "cache", "used_image_from_cache", dockerImageAsSpecifiedByUser)))
-      case (false, Some(_)) =>
-        increment(NonEmptyList("docker", List("image", "cache", "cached_image_not_used", dockerImageAsSpecifiedByUser)))
-      case _ => // docker image cache not requested and image is not in cache anyway - do nothing
-    }
-
   override def pollStatusAsync(handle: GcpBatchPendingExecutionHandle): Future[RunStatus] = {
     // yes, we use the whole jobName as the id
     val jobNameStr = handle.pendingJob.jobId
 
     for {
       _ <- Future.unit // trick to get into a future context
-      _ = log.info(s"started polling for $jobNameStr")
       jobName = JobName.parse(jobNameStr)
-      job <- fetchJob(jobName, backendSingletonActor)
-    } yield RunStatus.fromJobStatus(job.getStatus.getState)
+      status <- pollStatus(workflowId, jobName, backendSingletonActor, initializationData.requestFactory)
+    } yield status
   }
+
+  override val pollingResultMonitorActor: Option[ActorRef] = Option(
+    context.actorOf(
+      BatchPollResultMonitorActor.props(serviceRegistryActor,
+                                        workflowDescriptor,
+                                        jobDescriptor,
+                                        validatedRuntimeAttributes,
+                                        platform,
+                                        jobLogger
+      )
+    )
+  )
 
   override def isTerminal(runStatus: RunStatus): Boolean =
     runStatus match {
-      case _: RunStatus.TerminalRunStatus =>
-        log.info(s"isTerminal match terminal run status with $runStatus")
-        true
-      case other =>
-        log.info(f"isTerminal match _ running with status $other")
-        false
+      case _: RunStatus.TerminalRunStatus => true
+      case _ => false
     }
 
   override def isDone(runStatus: RunStatus): Boolean =
     runStatus match {
-      case _: RunStatus.Succeeded =>
-        log.info("GCP batch job succeeded matched isDone")
-        true
-      case _: RunStatus.UnsuccessfulRunStatus =>
-        log.info("GCP batch job unsuccessful matched isDone")
-        false
+      case _: RunStatus.Success => true
+      case _: RunStatus.UnsuccessfulRunStatus => false
       case _ =>
-        log.info(s"did not match isDone: $runStatus")
         throw new RuntimeException(
           s"Cromwell programmer blunder: isDone was called on an incomplete RunStatus ($runStatus)."
         )
@@ -1055,18 +1072,108 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def getTerminalEvents(runStatus: RunStatus): Seq[ExecutionEvent] =
     runStatus match {
-      case t: RunStatus.TerminalRunStatus =>
-        log.warning(s"Tried to get terminal events on a terminal status without events: $runStatus")
-        t.eventList
-
+      case successStatus: RunStatus.Success => successStatus.eventList
       case unknown =>
         throw new RuntimeException(s"handleExecutionSuccess not called with RunStatus.Success. Instead got $unknown")
     }
 
+  override def retryEvaluateOutputs(exception: Exception): Boolean =
+    exception match {
+      case aggregated: CromwellAggregatedException =>
+        aggregated.throwables.collectFirst { case s: SocketTimeoutException => s }.isDefined
+      case _ => false
+    }
+
+  private lazy val standardPaths = jobPaths.standardPaths
+
+  override def handleExecutionFailure(runStatus: RunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
+    val prettyPrintedError = "Job failed with an unknown reason"
+
+    // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
+    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus, returnCode: Option[Int]): ExecutionHandle =
+      FailedNonRetryableExecutionHandle(
+        StandardException(
+          runStatus.errorCode,
+          prettyPrintedError,
+          jobTag,
+          returnCode,
+          standardPaths.error
+        ),
+        returnCode,
+        None
+      )
+
+    Future.fromTry {
+      Try {
+        runStatus match {
+          case _: RunStatus.Aborted => AbortedExecutionHandle
+          case preemption: RunStatus.Preempted if preemptible =>
+            handlePreemption(preemption, returnCode, prettyPrintedError)
+          case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
+          case unknown =>
+            throw new RuntimeException(
+              s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown"
+            )
+        }
+      }
+    }
+  }
+
+  private def nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p: Int, ur: Int): Seq[KvPair] =
+    Seq(
+      KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey),
+             ur.toString
+      ),
+      KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey), p.toString)
+    )
+
+  private def handlePreemption(
+    runStatus: RunStatus.UnsuccessfulRunStatus,
+    jobReturnCode: Option[Int],
+    prettyPrintedError: String
+  ): ExecutionHandle = {
+    import common.numeric.IntegerUtil._
+
+    val errorCode: GrpcStatus = runStatus.errorCode
+    previousRetryReasons match {
+      case Valid(PreviousRetryReasons(p, ur)) =>
+        val thisPreemption = p + 1
+        val taskName = s"${workflowDescriptor.id}:${call.localName}"
+        val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
+
+        val preemptionAndUnexpectedRetryCountsKvPairs =
+          nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(thisPreemption, ur)
+        if (thisPreemption < maxPreemption) {
+          // Increment preemption count and unexpectedRetryCount stays the same
+          val msg =
+            s"$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is " +
+              s"$maxPreemption). Error code $errorCode.$prettyPrintedError"
+          FailedRetryableExecutionHandle(
+            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+          )
+        } else {
+          val msg = s"$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The " +
+            s"call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)"
+          FailedRetryableExecutionHandle(
+            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            jobReturnCode,
+            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+          )
+        }
+      case Invalid(_) =>
+        FailedNonRetryableExecutionHandle(
+          StandardException(errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error),
+          jobReturnCode,
+          None
+        )
+    }
+  }
+
   override lazy val startMetadataKeyValues: Map[String, Any] =
     super[GcpBatchJobCachingActorHelper].startMetadataKeyValues
 
-  // TODO: review sending machine and Instance type
   override def getTerminalMetadata(runStatus: RunStatus): Map[String, Any] =
     runStatus match {
       case _: TerminalRunStatus => Map()
@@ -1092,9 +1199,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   protected def fuseEnabled(descriptor: BackendWorkflowDescriptor): Boolean =
     descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.EnableFuse).toOption.getOrElse(batchAttributes.enableFuse)
 
-  protected def useDockerImageCache(descriptor: BackendWorkflowDescriptor): Boolean =
-    descriptor.workflowOptions.getBoolean(WorkflowOptionKeys.UseDockerImageCache).getOrElse(false)
-
   override def cloudResolveWomFile(womFile: WomFile): WomFile =
     womFile.mapFile { value =>
       getPath(value) match {
@@ -1108,8 +1212,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     womFile.mapFile { value =>
       (getPath(value), asAdHocFile(womFile)) match {
         case (Success(gcsPath: GcsPath), Some(adHocFile)) =>
-          // Ad hoc files will be placed directly at the root ("/cromwell_root/ad_hoc_file.txt") unlike other input files
-          // for which the full path is being propagated ("/cromwell_root/path/to/input_file.txt")
+          // Ad hoc files will be placed directly at the root ("/mnt/disks/cromwell_root/ad_hoc_file.txt") unlike other input files
+          // for which the full path is being propagated ("/mnt/disks/cromwell_root/path/to/input_file.txt")
           workingDisk.mountPoint.resolve(adHocFile.alternativeName.getOrElse(gcsPath.name)).pathAsString
         case (Success(path @ (_: GcsPath | _: HttpPath)), _) =>
           workingDisk.mountPoint.resolve(path.pathWithoutScheme).pathAsString
@@ -1138,6 +1242,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       batchOutputs collectFirst {
         case batchOutput if batchOutput.name == makeSafeReferenceName(path) =>
           val pathAsString = batchOutput.cloudPath.pathAsString
+
+          // TODO: batchOutput.cloudPath.exists invokes GCP, which causes a test ported from papi-common to fail
           if (batchOutput.isFileParameter && !batchOutput.cloudPath.exists) {
             // This is not an error if the path represents a `File?` optional output (the Batch delocalization script
             // should have failed if this file output was not optional but missing). Throw to produce the correct "empty
@@ -1152,9 +1258,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           /*
            * Strip the prefixes in RuntimeOutputMapping.prefixFilters from the path, one at a time.
            * For instance
-           * file:///cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
+           * file:///mnt/disks/cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt will progressively become
            *
-           * /cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
+           * /mnt/disks/cromwell_root/bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
            * bucket/workflow_name/6d777414-5ee7-4c60-8b9e-a02ec44c398e/call-A/file.txt
            * call-A/file.txt
            *
@@ -1162,7 +1268,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
            * The cwl.output.json when it's being read by Cromwell from the bucket still contains local paths
            * (as they were created by the cwl tool).
            * In order to keep things working we need to map those local paths to where they were actually delocalized,
-           * which is determined in cromwell.backend.google.pipelines.v2beta.api.Delocalization.
+           * which is determined in cromwell.backend.google.batch.runnable.Delocalization.
            */
           case _ =>
             (callRootPath /
@@ -1175,7 +1281,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
     }
 
-  // No need for Cromwell-performed localization in the PAPI backend, ad hoc values are localized directly from GCS to the VM by PAPI.
+  // No need for Cromwell-performed localization in the Batch backend, ad hoc values are localized directly from GCS to the VM by Batch.
   override lazy val localizeAdHocValues: List[AdHocValue] => ErrorOr[List[StandardAdHocValue]] =
     _.map(Coproduct[StandardAdHocValue](_)).validNel
 }

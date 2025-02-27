@@ -1,4 +1,4 @@
-import Version.cromwellVersion
+import Version.{cromwellVersion, Debug, Release, Snapshot, Standard}
 import org.apache.ivy.Ivy
 import org.apache.ivy.core.IvyPatternHelper
 import org.apache.ivy.core.module.descriptor.{DefaultModuleDescriptor, MDArtifact}
@@ -36,20 +36,26 @@ object Publishing {
       ArrayBuffer(broadinstitute/cromwell:dev, broadinstitute/cromwell:develop)
      */
     dockerTags := {
-      val versionsCsv = if (Version.isSnapshot) {
-        // Tag looks like `85-443a6fc-SNAP`
-        version.value
-      } else {
-        if (Version.isRelease) {
-          // Tags look like `85`, `85-443a6fc`
-          s"$cromwellVersion,${version.value}"
-        } else {
-          // Tag looks like `85-443a6fc`, `latest`
-          s"${version.value},latest"
-        }
+      val tags = Version.buildType match {
+        case Snapshot =>
+          // Ordinary local build
+          // Looks like `85-443a6fc-SNAP`
+          Seq(version.value)
+        case Release =>
+          // Looks like `85`, `85-443a6fc`
+          Seq(cromwellVersion, version.value)
+        case Debug =>
+          // Ordinary local build with debug stuff
+          // Looks like `85-443a6fc-DEBUG`
+          Seq(version.value)
+        case Standard =>
+          // Merge to `develop`
+          // Looks like `85-443a6fc`, `latest`, `develop`
+          // TODO: once we automate releases, `latest` should move to `Release`
+          Seq(version.value, "latest", "develop")
       }
 
-      // Travis applies (as of 10/22) the `dev` and `develop` tags on merge to `develop`
+      val versionsCsv = tags.mkString(",")
       sys.env.getOrElse("CROMWELL_SBT_DOCKER_TAGS", versionsCsv).split(",")
     },
     docker / imageNames := dockerTags.value map { tag =>
@@ -63,10 +69,23 @@ object Publishing {
       val additionalDockerInstr: Seq[Instruction] = (dockerCustomSettings ?? Nil).value
 
       new Dockerfile {
-        from("us.gcr.io/broad-dsp-gcr-public/base/jre:11-debian")
+        from("us.gcr.io/broad-dsp-gcr-public/base/jre:17-debian")
         expose(8000)
         add(artifact, artifactTargetPath)
         runRaw(s"ln -s $artifactTargetPath /app/$projectName.jar")
+
+        // Extra tools in debug mode only
+        if (Version.buildType == Debug) {
+          addInstruction(installDebugFacilities(version.value))
+        }
+
+        // Add a custom java opt, this avoids the following error (from Akka):
+        //     class com.typesafe.sslconfig.ssl.DefaultHostnameVerifier (in unnamed module @0x5594a1b5)
+        //     cannot access class sun.security.util.HostnameChecker (in module java.base)
+        //     because module java.base does not export sun.security.util to unnamed module @0x5594a1b5
+        // See https://docs.oracle.com/en/java/javase/17/migrate/migrating-jdk-8-later-jdk-releases.html#GUID-2F61F3A9-0979-46A4-8B49-325BA0EE8B66
+        // TODO remove this once we upgrade Akka past 2.5
+        val addOpensJavaOpt = "--add-opens=java.base/sun.security.util=ALL-UNNAMED"
 
         /*
         If you use the 'exec' form for an entry point, shell processing is not performed and
@@ -103,7 +122,7 @@ object Publishing {
         entryPoint(
           "/bin/bash",
           "-c",
-          s"java $${JAVA_OPTS} -jar /app/$projectName.jar $${${projectName.toUpperCase.replaceAll("-", "_")}_ARGS} $${*}",
+          s"java $${JAVA_OPTS} ${addOpensJavaOpt} -jar /app/$projectName.jar $${${projectName.toUpperCase.replaceAll("-", "_")}_ARGS} $${*}",
           "--"
         )
         // for each custom setting (instruction) run addInstruction()
@@ -116,6 +135,44 @@ object Publishing {
       platforms = List("linux/arm64", "linux/amd64"),
     )
   )
+
+  /**
+    * Install packages needed for debugging when shelled in to a running image.
+    *
+    * This includes:
+    * - The JDK, which includes tools like `jstack` not present in the JRE
+    * - The YourKit Java Profiler
+    * - Various Linux system & development utilities
+    *
+    * @return Instruction to run in the build
+    */
+  def installDebugFacilities(displayVersion: String): Instruction = {
+    import sbtdocker.Instructions
+    import java.time.{ZoneId, ZonedDateTime}
+    import java.time.format.DateTimeFormatter
+
+    val buildTime =
+      ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"))
+
+    // It is optimal to use a single `Run` instruction to minimize the number of layers in the image.
+    //
+    // Documentation:
+    // - https://www.yourkit.com/docs/java-profiler/2024.3/help/docker_broker.jsp#setup
+    Instructions.Run(
+      s"""apt-get update -qq && \\
+         |apt-get install -qq --no-install-recommends file gpg htop jq less nload unzip vim && \\
+         |rm -rf /var/lib/apt/lists/* && \\
+         |mkdir /tmp/docker-build-cache && \\
+         |wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2024.3-docker.zip -P /tmp/docker-build-cache/ && \\
+         |unzip /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3-docker.zip -d /tmp/docker-build-cache && \\
+         |mkdir -p /usr/local/YourKit-JavaProfiler-2024.3/bin/ && \\
+         |cp -R /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ /usr/local/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ && \\
+         |rm -rf /tmp/docker-build-cache && \\
+         |echo "Version $displayVersion built at $buildTime" > /etc/motd && \\
+         |echo "[ ! -z "\\$$TERM" -a -r /etc/motd ] && cat /etc/motd" > /etc/bash.bashrc
+         |""".stripMargin
+    )
+  }
 
   def dockerPushSettings(pushEnabled: Boolean): Seq[Setting[_]] =
     if (pushEnabled) {
@@ -163,9 +220,8 @@ object Publishing {
 
   val additionalResolvers = List(
     broadArtifactoryResolver,
-    broadArtifactoryResolverSnap,
-    Resolver.sonatypeRepo("releases")
-  )
+    broadArtifactoryResolverSnap
+  ) ++ Resolver.sonatypeOssRepos("releases")
 
   private val artifactoryCredentialsFile =
     file("target/ci/resources/artifactory_credentials.properties").getAbsoluteFile

@@ -1,0 +1,18 @@
+name: gcpbatch_retry_with_more_memory
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: retry_with_more_memory/gcpbatch/retry_with_more_memory.wdl
+  options: retry_with_more_memory/retry_with_more_memory.options
+}
+
+metadata {
+  workflowName: retry_with_more_memory
+  status: Succeeded
+  "retry_with_more_memory.imitate_oom_error.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory.imitate_oom_error.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory.imitate_oom_error.-1.2.executionStatus": "RetryableFailure"
+  "retry_with_more_memory.imitate_oom_error.-1.2.runtimeAttributes.memory": "1.1 GB"
+  "outputs.retry_with_more_memory.memory_output": "1.2100000000000002 GB"
+}

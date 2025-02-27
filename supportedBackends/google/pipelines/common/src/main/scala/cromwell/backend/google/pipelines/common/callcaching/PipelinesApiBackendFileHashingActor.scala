@@ -1,9 +1,15 @@
 package cromwell.backend.google.pipelines.common.callcaching
 
 import cromwell.backend.standard.callcaching.{StandardFileHashingActor, StandardFileHashingActorParams}
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 
 class PipelinesApiBackendFileHashingActor(standardParams: StandardFileHashingActorParams)
     extends StandardFileHashingActor(standardParams) {
-  override val ioCommandBuilder = GcsBatchCommandBuilder
+  override val ioCommandBuilder = GcsBatchCommandBuilder(metricsCallback)
+
+  override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
+    ("gcs", FileHashStrategy.Crc32c),
+    ("drs", FileHashStrategy.Drs)
+  )
 }

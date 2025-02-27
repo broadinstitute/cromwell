@@ -8,7 +8,6 @@ import com.google.api.client.http.{HttpRequest, HttpResponse}
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
 import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
 import com.google.api.services.cloudresourcemanager.{CloudResourceManager, CloudResourceManagerScopes}
-import com.google.api.services.genomics.v2alpha1.GenomicsScopes
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
@@ -16,6 +15,7 @@ import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.OAuth2Credentials
 import cromwell.backend.google.batch._
 import cromwell.backend.google.batch.actors.GcpBatchInitializationActor._
+import cromwell.backend.google.batch.api.GcpBatchRequestFactoryImpl
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{
   VirtualPrivateCloudConfiguration,
   VirtualPrivateCloudLabels,
@@ -72,12 +72,11 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
   private lazy val gcsCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.gcs
     .retryCredentials(workflowOptions, List(StorageScopes.DEVSTORAGE_FULL_CONTROL))
 
-  // Credentials object for the Genomics API
-  private lazy val genomicsCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.genomics
+  // Credentials object for the Batch API
+  private lazy val batchCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.batch
     .retryCredentials(workflowOptions,
                       List(
-                        CloudLifeSciencesScopes.CLOUD_PLATFORM,
-                        GenomicsScopes.GENOMICS
+                        CloudLifeSciencesScopes.CLOUD_PLATFORM
                       )
     )
 
@@ -230,11 +229,11 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
 
   override lazy val workflowPaths: Future[GcpBatchWorkflowPaths] = for {
     gcsCred <- gcsCredentials
-    genomicsCred <- genomicsCredentials
+    batchCred <- batchCredentials
     validatedPathBuilders <- pathBuilders
   } yield new GcpBatchWorkflowPaths(workflowDescriptor,
                                     gcsCred,
-                                    genomicsCred,
+                                    batchCred,
                                     gcpBatchConfiguration,
                                     validatedPathBuilders,
                                     standardStreamNameToFileNameMetadataMapper
@@ -249,6 +248,7 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
     runtimeAttributesBuilder = runtimeAttributesBuilder,
     gcpBatchConfiguration = gcpBatchConfiguration,
     gcsCredentials = gcsCreds,
+    requestFactory = new GcpBatchRequestFactoryImpl()(gcpBatchConfiguration.batchAttributes.gcsTransferConfiguration),
     privateDockerEncryptionKeyName = privateDockerEncryptionKeyName,
     privateDockerEncryptedToken = privateDockerEncryptedToken,
     vpcNetworkAndSubnetworkProjectLabels = vpcNetworkAndSubnetworkProjectLabels

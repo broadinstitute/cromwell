@@ -32,34 +32,40 @@ jobs:
       matrix:
         # Batch test fixes to land later
         include:
-          - build_type: centaurGcpBatch
-            build_mysql: 5.7
-            friendly_name: Centaur GCP Batch with MySQL 5.7
           - build_type: centaurPapiV2beta
-            build_mysql: 5.7
-            friendly_name: Centaur Papi V2 Beta with MySQL 5.7
+            build_mysql: 8.0
+            friendly_name: Life Sciences, MySQL 8.0
+          - build_type: centaurPapiV2beta
+            build_mysql: 8.4
+            friendly_name: Life Sciences, MySQL 8.4 (current Terra production)
+          - build_type: centaurGcpBatch
+            build_mysql: 8.0
+            friendly_name: GCP Batch, MySQL 8.0
+          - build_type: centaurGcpBatch
+            build_mysql: 8.4
+            friendly_name: GCP Batch, MySQL 8.4
           - build_type: centaurPapiV2betaRestart
-            build_mysql: 5.7
+            build_mysql: 8.4
             friendly_name: Centaur Papi V2 Beta (restart)
           - build_type: dbms
             friendly_name: DBMS
           - build_type: centaurTes
-            build_mysql: 5.7
-            friendly_name: Centaur TES with MySQL 5.7
+            build_mysql: 8.4
+            friendly_name: Centaur TES with MySQL 8.4
           - build_type: centaurLocal
-            build_mysql: 5.7
-            friendly_name: Centaur Local with MySQL 5.7
+            build_mysql: 8.4
+            friendly_name: Centaur Local with MySQL 8.4
           - build_type: checkPublish
             friendly_name: Check Publish
           - build_type: centaurAws
-            build_mysql: 5.7
-            friendly_name: Centaur AWS with MySQL 5.7
+            build_mysql: 8.4
+            friendly_name: Centaur AWS with MySQL 8.4
           - build_type: centaurDummy
-            build_mysql: 5.7
-            friendly_name: Centaur Dummy with MySQL 5.7
+            build_mysql: 8.4
+            friendly_name: Centaur Dummy with MySQL 8.4
           - build_type: centaurHoricromtalPapiV2beta
-            build_mysql: 5.7
-            friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 5.7
+            build_mysql: 8.4
+            friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 8.4
           - build_type: horicromtalDeadlock
             friendly_name: Horicromtal Deadlock
           - build_type: singleWorkflowRunner
@@ -71,15 +77,15 @@ jobs:
             build_postgresql: 11.3
             friendly_name: Centaur Local with PostgreSQL 11.3
           - build_type: centaurEngineUpgradeLocal
-            build_mysql: 5.7
-            friendly_name: Centaur Engine Upgrade Local with MySQL 5.7
+            build_mysql: 8.4
+            friendly_name: Centaur Engine Upgrade Local with MySQL 8.4
           - build_type: referenceDiskManifestBuilderApp
             friendly_name: Reference Disk Manifest Builder App
           - build_type: centaurSlurm
-            build_mysql: 5.7
-            friendly_name: "Centaur Slurm with MySQL 5.7"
+            build_mysql: 8.4
+            friendly_name: "Centaur Slurm with MySQL 8.4"
           - build_type: centaurBlob
-            build_mysql: 5.7
+            build_mysql: 8.4
             friendly_name: Centaur Blob
     name: ${{ matrix.friendly_name }}
     env:
@@ -96,12 +102,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
+    - uses: sbt/setup-sbt@v1
     - uses: actions/checkout@v3 # checkout the cromwell repo
       with:
         ref: ${{ inputs.target-branch }}
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+    # Activate SSH and idle for 30 minutes
+#    - name: Setup tmate session
+#      uses: mxschmitt/action-tmate@v3
+#      timeout-minutes: 30
+#      with:
+#        limit-access-to-actor: true
+#        detached: true
     #This script bascially just looks up another script to run, assuming that the other script's filename is:
     #src/ci/bin/test${BUILD_TYPE}.sh. The first letter of the BUILD_TYPE is automatically capitalized when looking.
     - name: Run Integration Test
@@ -110,6 +124,10 @@ jobs:
         set -e
         echo Running test.sh
         ./src/ci/bin/test.sh
+    - uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: false # Tolerate missing codecov reports, since not all suites generate them.
     # always() is some github magic that forces the following step to run, even when the previous fails.
     # Without it, the if statement won't be evaluated on a test failure.
     - uses: ravsamhq/notify-slack-action@v2

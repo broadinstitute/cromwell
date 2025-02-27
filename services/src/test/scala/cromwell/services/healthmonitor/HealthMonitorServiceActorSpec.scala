@@ -29,9 +29,7 @@ class HealthMonitorServiceActorSpec
   it should "be able to load an instance and answer questions even with only basic configuration" in {
 
     val serviceConfigString =
-      """check-dockerhub: false
-        |check-engine-database: false
-        |check-gcs: false
+      """check-engine-database: false
         |check-papi-backends: []
         |""".stripMargin
 

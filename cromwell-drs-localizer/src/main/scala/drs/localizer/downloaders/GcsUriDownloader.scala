@@ -57,33 +57,29 @@ case class GcsUriDownloader(gcsUrl: String,
                           downloadAttempt: Int = 0
   ): IO[DownloadResult] = {
 
-    def maybeRetryForDownloadFailure(t: Throwable): IO[DownloadResult] =
-      if (downloadAttempt < downloadRetries) {
-        backoff foreach { b => Thread.sleep(b.backoffMillis) }
-        logger.warn(s"Attempting download retry $downloadAttempt of $downloadRetries for a GCS url", t)
-        downloadWithRetries(downloadRetries,
-                            backoff map {
-                              _.next
-                            },
-                            downloadAttempt + 1
-        )
-      } else {
-        IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries resolution retries to download GCS file", t))
-      }
+    // Necessary function to handle the throwable when trying to recover a failed download
+    def handleDownloadFailure(t: Throwable): IO[DownloadResult] =
+      downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
 
-    runDownloadCommand.redeemWith(
-      recover = maybeRetryForDownloadFailure,
-      bind = {
-        case s: DownloadSuccess.type =>
-          IO.pure(s)
-        case _: RecognizedRetryableDownloadFailure =>
-          downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
-        case _: UnrecognizedRetryableDownloadFailure =>
-          downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
-        case _ =>
-          downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
-      }
-    )
+    if (downloadAttempt < downloadRetries) {
+      backoff foreach { b => Thread.sleep(b.backoffMillis) }
+      logger.info(s"Attempting download attempt $downloadAttempt of $downloadRetries for a GCS url")
+      runDownloadCommand.redeemWith(
+        recover = handleDownloadFailure,
+        bind = {
+          case s: DownloadSuccess.type =>
+            IO.pure(s)
+          case _: RecognizedRetryableDownloadFailure =>
+            downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
+          case _: UnrecognizedRetryableDownloadFailure =>
+            downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
+          case _ =>
+            downloadWithRetries(downloadRetries, backoff, downloadAttempt + 1)
+        }
+      )
+    } else {
+      IO.raiseError(new RuntimeException(s"Exhausted $downloadRetries resolution retries to download GCS file"))
+    }
   }
 
   /**

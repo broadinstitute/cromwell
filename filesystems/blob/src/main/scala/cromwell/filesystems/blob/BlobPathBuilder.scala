@@ -3,6 +3,7 @@ package cromwell.filesystems.blob
 import akka.http.scaladsl.model.Uri
 import com.azure.storage.blob.nio.AzureBlobFileAttributes
 import com.google.common.net.UrlEscapers
+import cromwell.cloudsupport.azure.AzureConfiguration
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.blob.BlobPathBuilder._
 
@@ -13,13 +14,13 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object BlobPathBuilder {
-  private val blobHostnameSuffix = ".blob.core.windows.net"
+  private val blobHostnameSuffix = s".blob${AzureConfiguration.azureEnvironment.getStorageEndpointSuffix}"
   sealed trait BlobPathValidation
   case class ValidBlobPath(path: String, container: BlobContainerName, endpoint: EndpointURL) extends BlobPathValidation
   case class UnparsableBlobPath(errorMessage: Throwable) extends BlobPathValidation
 
   def invalidBlobHostMessage(endpoint: EndpointURL) =
-    s"Malformed Blob URL for this builder: The endpoint $endpoint doesn't contain the expected host string '{SA}.blob.core.windows.net/'"
+    s"Malformed Blob URL for this builder: The endpoint $endpoint doesn't contain the expected host string '{SA}.${blobHostnameSuffix}/'"
   def invalidBlobContainerMessage(endpoint: EndpointURL) =
     s"Malformed Blob URL for this builder: Could not parse container"
   val externalToken =
@@ -103,19 +104,20 @@ object BlobPath {
   // 1) If the path starts with http:/ (single slash!) transform it to the containerName:<path inside container>
   //    format the library expects
   // 2) If the path looks like <container>:<path>, strip off the <container>: to leave the absolute path inside the container.
-  private val brokenPathRegex = "https:/([a-z0-9]+).blob.core.windows.net/([-a-zA-Z0-9]+)/(.*)".r
+  private val brokenPathRegex =
+    s"https:/([a-z0-9]+).blob${AzureConfiguration.azureEnvironment.getStorageEndpointSuffix}/([-a-zA-Z0-9]+)/(.*)".r
 
   // Blob files larger than 5 GB upload in parallel parts [0][1] and do not get a native `CONTENT-MD5` property.
   // Instead, some uploaders such as TES [2] calculate the md5 themselves and store it under this key in metadata.
   // They do this for all files they touch, regardless of size, and the root/metadata property is authoritative over native.
   //
   // N.B. most if not virtually all large files in the wild will NOT have this key populated because they were not created
-  // by TES or its associated upload utility [4].
+  // by TES or its associated upload utility [3].
   //
   // [0] https://learn.microsoft.com/en-us/azure/storage/blobs/scalability-targets
   // [1] https://learn.microsoft.com/en-us/rest/api/storageservices/version-2019-12-12
   // [2] https://github.com/microsoft/ga4gh-tes/blob/03feb746bb961b72fa91266a56db845e3b31be27/src/Tes.Runner/Transfer/BlobBlockApiHttpUtils.cs#L25
-  // [4] https://github.com/microsoft/ga4gh-tes/blob/main/src/Tes.RunnerCLI/scripts/roothash.sh
+  // [3] https://github.com/microsoft/ga4gh-tes/blob/main/src/Tes.RunnerCLI/scripts/roothash.sh
   private val largeBlobFileMetadataKey = "md5_4mib_hashlist_root_hash"
 
   def cleanedNioPathString(nioString: String): String = {
@@ -138,6 +140,9 @@ object BlobPath {
 case class BlobPath private[blob] (pathString: String, endpoint: EndpointURL, container: BlobContainerName)(
   private val fsm: BlobFileSystemManager
 ) extends Path {
+
+  val filesystemTypeKey = "blob"
+
   override def nioPath: NioPath = findNioPath(pathString)
 
   override protected def newPath(nioPath: NioPath): Path = BlobPath(nioPath, endpoint, container, fsm)

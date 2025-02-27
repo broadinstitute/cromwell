@@ -1,0 +1,13 @@
+name: gcpbatch_checkpointing
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: checkpointing/gcpbatch_checkpointing.wdl
+}
+
+metadata {
+  workflowName: checkpointing
+  status: Succeeded
+  "outputs.checkpointing.preempted": "GOTPREEMPTED"
+}

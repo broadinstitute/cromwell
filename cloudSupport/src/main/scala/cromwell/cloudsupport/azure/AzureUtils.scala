@@ -1,6 +1,5 @@
 package cromwell.cloudsupport.azure
 
-import com.azure.core.management.AzureEnvironment
 import com.azure.core.management.profile.AzureProfile
 import com.azure.identity.DefaultAzureCredentialBuilder
 import com.azure.resourcemanager.AzureResourceManager
@@ -33,7 +32,7 @@ object AzureUtils {
       .map(Success(_))
       .getOrElse(Failure(new Exception("Could not parse storage account")))
 
-    val azureProfile = new AzureProfile(AzureEnvironment.AZURE)
+    val azureProfile = new AzureProfile(AzureConfiguration.azureEnvironment)
 
     def azureCredentialBuilder = new DefaultAzureCredentialBuilder()
       .authorityHost(azureProfile.getEnvironment.getActiveDirectoryEndpoint)

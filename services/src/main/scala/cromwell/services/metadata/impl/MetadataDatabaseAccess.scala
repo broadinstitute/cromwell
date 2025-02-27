@@ -1,7 +1,6 @@
 package cromwell.services.metadata.impl
 
 import java.time.OffsetDateTime
-
 import cats.Semigroup
 import cats.data.NonEmptyList
 import cats.instances.future._
@@ -303,9 +302,6 @@ trait MetadataDatabaseAccess {
     metadataDatabaseInterface.getRootAndSubworkflowLabels(rootWorkflowId.toString) map {
       _ map { case (id, labelsForId) => WorkflowId.fromString(id) -> labelsForId }
     }
-
-  def workflowWithIdExistsInMetadata(possibleWorkflowId: String)(implicit ec: ExecutionContext): Future[Boolean] =
-    metadataDatabaseInterface.metadataEntryExists(possibleWorkflowId)
 
   def workflowWithIdExistsInMetadataSummaries(possibleWorkflowId: String)(implicit
     ec: ExecutionContext

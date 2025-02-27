@@ -60,7 +60,7 @@ If the failure mode is **`ContinueWhilePossible`**, then A **will be** retried (
 
 In both [Run](../Modes/#run) and [Server](../Modes/#server) mode, you can abort a running workflow. This section explains what that entails.
 
-When aborting a workflow, either through the [abort endpoint](../api/RESTAPI#abort-a-running-workflow) or by terminating the [Cromwell run process](../Modes) (if [configured](../Configuring#abort) to do so), Cromwell does the following:
+When aborting a workflow, either through the `/abort` endpoint or by terminating the [Cromwell run process](../Modes) (if [configured](../Configuring#abort) to do so), Cromwell does the following:
 
 1. Changes the status of the workflow to `Aborting`,
 2. Does not start any new jobs,

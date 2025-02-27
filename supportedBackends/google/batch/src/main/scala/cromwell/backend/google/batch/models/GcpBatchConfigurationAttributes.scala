@@ -22,15 +22,9 @@ import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{
   GcsTransferConfiguration,
   VirtualPrivateCloudConfiguration
 }
-import cromwell.backend.google.batch.util.{
-  DockerImageCacheEntry,
-  GcpBatchDockerCacheMappingOperations,
-  GcpBatchReferenceFilesMappingOperations
-}
+import cromwell.backend.google.batch.util.GcpBatchReferenceFilesMappingOperations
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
-import cromwell.filesystems.gcs.GcsPathBuilder
-import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.{refineMV, refineV}
@@ -46,7 +40,6 @@ case class GcpBatchConfigurationAttributes(
   project: String,
   computeServiceAccount: String,
   auths: GcpBatchAuths,
-  restrictMetadataAccess: Boolean,
   dockerhubToken: String,
   enableFuse: Boolean,
   executionBucket: String,
@@ -61,14 +54,11 @@ case class GcpBatchConfigurationAttributes(
   virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
   batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
   referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]],
-  dockerImageToCacheDiskImageMappingOpt: Option[Map[String, DockerImageCacheEntry]],
-  checkpointingInterval: FiniteDuration
+  checkpointingInterval: FiniteDuration,
+  logsPolicy: GcpBatchLogsPolicy
 )
 
-object GcpBatchConfigurationAttributes
-    extends GcpBatchDockerCacheMappingOperations
-    with GcpBatchReferenceFilesMappingOperations
-    with StrictLogging {
+object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOperations with StrictLogging {
 
   /**
     * param transferAttempts This is the number of attempts, not retries, hence it is positive.
@@ -89,7 +79,10 @@ object GcpBatchConfigurationAttributes
 
   lazy val Logger: Logger = LoggerFactory.getLogger("BatchConfiguration")
 
-  val BatchApiDefaultQps = 1000
+  // Default queries per 100 seconds
+  // Batch allows up to 6000 queries per minute (100 requests per second).
+  // See: https://cloud.google.com/batch/quotas
+  val BatchApiDefaultQp100s = 10000
   val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
 
   val checkpointingIntervalKey = "checkpointing-interval"
@@ -98,15 +91,16 @@ object GcpBatchConfigurationAttributes
     "project",
     "root",
     "maximum-polling-interval",
-    "genomics",
-    "genomics.location",
-    "genomics.compute-service-account",
-    "genomics.auth",
-    "genomics.restrict-metadata-access",
-    "genomics.enable-fuse",
-    "genomics-api-queries-per-100-seconds",
-    "genomics.localization-attempts",
-    "genomics.parallel-composite-upload-threshold",
+    "batch",
+    "batch.location",
+    "batch.compute-service-account",
+    "batch.auth",
+    "batch.restrict-metadata-access",
+    "batch.enable-fuse",
+    "batch-queries-per-100-seconds",
+    "batch.localization-attempts",
+    "batch.parallel-composite-upload-threshold",
+    "batch.logs-policy",
     "filesystems",
     "filesystems.drs.auth",
     "filesystems.gcs.auth",
@@ -128,12 +122,11 @@ object GcpBatchConfigurationAttributes
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
     "reference-disk-localization-manifests",
-    "docker-image-cache-manifest-file",
     checkpointingIntervalKey
   )
 
-  private val deprecatedJesKeys: Map[String, String] = Map(
-    "genomics.default-zones" -> "default-runtime-attributes.zones"
+  private val deprecatedBatchKeys: Map[String, String] = Map(
+    "batch.default-zones" -> "default-runtime-attributes.zones"
   )
 
   def apply(googleConfig: GoogleConfiguration,
@@ -196,7 +189,7 @@ object GcpBatchConfigurationAttributes
       }
     }
 
-    warnDeprecated(configKeys, deprecatedJesKeys, Logger)
+    warnDeprecated(configKeys, deprecatedBatchKeys, Logger)
 
     val project: ErrorOr[String] = validate {
       backendConfig.as[String]("project")
@@ -205,19 +198,29 @@ object GcpBatchConfigurationAttributes
       backendConfig.as[String]("root")
     }
     val location: ErrorOr[String] = validate {
-      backendConfig.as[String]("genomics.location")
+      backendConfig.as[String]("batch.location")
     }
     val maxPollingInterval: Int = backendConfig.as[Option[Int]]("maximum-polling-interval").getOrElse(600)
     val computeServiceAccount: String =
-      backendConfig.as[Option[String]]("genomics.compute-service-account").getOrElse("default")
-    val genomicsAuthName: ErrorOr[String] = validate {
-      backendConfig.as[String]("genomics.auth")
+      backendConfig.as[Option[String]]("batch.compute-service-account").getOrElse("default")
+    val batchAuthName: ErrorOr[String] = validate {
+      backendConfig.as[String]("batch.auth")
     }
-    val genomicsRestrictMetadataAccess: ErrorOr[Boolean] = validate {
-      backendConfig.as[Option[Boolean]]("genomics.restrict-metadata-access").getOrElse(false)
+    val batchRestrictMetadataAccess: ErrorOr[Boolean] = validate {
+      backendConfig.as[Option[Boolean]]("batch.restrict-metadata-access").getOrElse(false)
     }
-    val genomicsEnableFuse: ErrorOr[Boolean] = validate {
-      backendConfig.as[Option[Boolean]]("genomics.enable-fuse").getOrElse(false)
+    val batchEnableFuse: ErrorOr[Boolean] = validate {
+      backendConfig.as[Option[Boolean]]("batch.enable-fuse").getOrElse(false)
+    }
+    val logsPolicy: ErrorOr[GcpBatchLogsPolicy] = validate {
+      backendConfig.as[Option[String]]("batch.logs-policy").getOrElse("CLOUD_LOGGING") match {
+        case "CLOUD_LOGGING" => GcpBatchLogsPolicy.CloudLogging
+        case "PATH" => GcpBatchLogsPolicy.Path
+        case other =>
+          throw new IllegalArgumentException(
+            s"Unrecognized logs policy entry: $other. Supported strategies are CLOUD_LOGGING and PATH."
+          )
+      }
     }
 
     val dockerhubToken: ErrorOr[String] = validate {
@@ -238,6 +241,7 @@ object GcpBatchConfigurationAttributes
           )
       }
     }
+
     val requestWorkers: ErrorOr[Int Refined Positive] =
       validatePositiveInt(backendConfig.as[Option[Int]]("request-workers").getOrElse(3), "request-workers")
 
@@ -252,11 +256,11 @@ object GcpBatchConfigurationAttributes
     }
 
     val parallelCompositeUploadThreshold =
-      validateGsutilMemorySpecification(backendConfig, "genomics.parallel-composite-upload-threshold")
+      validateGsutilMemorySpecification(backendConfig, "batch.parallel-composite-upload-threshold")
 
     val localizationAttempts: ErrorOr[Int Refined Positive] = backendConfig
-      .as[Option[Int]]("genomics.localization-attempts")
-      .map(attempts => validatePositiveInt(attempts, "genomics.localization-attempts"))
+      .as[Option[Int]]("batch.localization-attempts")
+      .map(attempts => validatePositiveInt(attempts, "batch.localization-attempts"))
       .getOrElse(DefaultGcsTransferAttempts.validNel)
 
     val gcsTransferConfiguration: ErrorOr[GcsTransferConfiguration] =
@@ -294,16 +298,12 @@ object GcpBatchConfigurationAttributes
     val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ManifestFile]]] =
       validateReferenceDiskManifestConfigs(backendConfig, backendName)
 
-    val dockerImageCacheManifestFile: ErrorOr[Option[ValidFullGcsPath]] = validateGcsPathToDockerImageCacheManifestFile(
-      backendConfig
-    )
-
     val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
 
     def authGoogleConfigForBatchConfigurationAttributes(
       project: String,
       bucket: String,
-      genomicsName: String,
+      batchName: String,
       location: String,
       restrictMetadata: Boolean,
       dockerhubToken: String,
@@ -316,20 +316,16 @@ object GcpBatchConfigurationAttributes
       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
-      dockerImageCacheManifestFileOpt: Option[ValidFullGcsPath]
+      logsPolicy: GcpBatchLogsPolicy
     ): ErrorOr[GcpBatchConfigurationAttributes] =
-      (googleConfig.auth(genomicsName), googleConfig.auth(gcsName)) mapN { (genomicsAuth, gcsAuth) =>
+      (googleConfig.auth(batchName), googleConfig.auth(gcsName)) mapN { (batchAuth, gcsAuth) =>
         val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
-          generateReferenceFilesMapping(genomicsAuth, _)
-        }
-        val dockerImageToCacheDiskImageMappingOpt = dockerImageCacheManifestFileOpt map {
-          generateDockerImageToDiskImageMapping(genomicsAuth, _)
+          generateReferenceFilesMapping(batchAuth, _)
         }
         models.GcpBatchConfigurationAttributes(
           project = project,
           computeServiceAccount = computeServiceAccount,
-          auths = GcpBatchAuths(genomicsAuth, gcsAuth),
-          restrictMetadataAccess = restrictMetadata,
+          auths = GcpBatchAuths(batchAuth, gcsAuth),
           dockerhubToken = dockerhubToken,
           enableFuse = enableFuse,
           executionBucket = bucket,
@@ -344,18 +340,18 @@ object GcpBatchConfigurationAttributes
           virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
           batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
           referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
-          dockerImageToCacheDiskImageMappingOpt = dockerImageToCacheDiskImageMappingOpt,
-          checkpointingInterval = checkpointingInterval
+          checkpointingInterval = checkpointingInterval,
+          logsPolicy = logsPolicy
         )
       }
 
     (project,
      executionBucket,
-     genomicsAuthName,
+     batchAuthName,
      location,
-     genomicsRestrictMetadataAccess,
+     batchRestrictMetadataAccess,
      dockerhubToken,
-     genomicsEnableFuse,
+     batchEnableFuse,
      gcsFilesystemAuthName,
      qpsValidation,
      duplicationStrategy,
@@ -364,7 +360,7 @@ object GcpBatchConfigurationAttributes
      virtualPrivateCloudConfiguration,
      batchRequestTimeoutConfigurationValidation,
      referenceDiskLocalizationManifestFiles,
-     dockerImageCacheManifestFile
+     logsPolicy
     ) flatMapN authGoogleConfigForBatchConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>
@@ -374,20 +370,6 @@ object GcpBatchConfigurationAttributes
         }
     }
   }
-
-  private def validateSingleGcsPath(gcsPath: String): ErrorOr[ValidFullGcsPath] =
-    GcsPathBuilder.validateGcsPath(gcsPath) match {
-      case validPath: ValidFullGcsPath => validPath.validNel
-      case invalidPath => s"Invalid GCS path: $invalidPath".invalidNel
-    }
-
-  private[batch] def validateGcsPathToDockerImageCacheManifestFile(
-    backendConfig: Config
-  ): ErrorOr[Option[ValidFullGcsPath]] =
-    backendConfig.getAs[String]("docker-image-cache-manifest-file") match {
-      case Some(gcsPath) => validateSingleGcsPath(gcsPath).map(Option.apply)
-      case None => None.validNel
-    }
 
   /**
     * Validate that the entries corresponding to "reference-disk-localization-manifests" in the specified
@@ -429,12 +411,12 @@ object GcpBatchConfigurationAttributes
   def validateQps(config: Config): ErrorOr[Int Refined Positive] = {
     import eu.timepit.refined._
 
-    val qp100s = config.as[Option[Int]]("genomics-api-queries-per-100-seconds").getOrElse(BatchApiDefaultQps)
+    val qp100s = config.as[Option[Int]]("batch-queries-per-100-seconds").getOrElse(BatchApiDefaultQp100s)
     val qpsCandidate = qp100s / 100
 
     refineV[Positive](qpsCandidate) match {
       case Left(_) =>
-        s"Calculated QPS for Google Genomics API ($qpsCandidate/s) was not a positive integer (supplied value was $qp100s per 100s)".invalidNel
+        s"Calculated QPS for Google Batch API ($qpsCandidate/s) was not a positive integer (supplied value was $qp100s per 100s)".invalidNel
       case Right(refined) => refined.validNel
     }
   }

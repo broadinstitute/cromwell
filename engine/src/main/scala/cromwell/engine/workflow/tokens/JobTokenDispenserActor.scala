@@ -1,9 +1,15 @@
 package cromwell.engine.workflow.tokens
 
-import java.time.OffsetDateTime
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
+import akka.pattern.ask
+import akka.util.Timeout
 import cats.data.NonEmptyList
+import cromwell.backend.standard.GroupMetricsActor.{
+  GetQuotaExhaustedGroups,
+  GetQuotaExhaustedGroupsFailure,
+  GetQuotaExhaustedGroupsResponse,
+  GetQuotaExhaustedGroupsSuccess
+}
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.JobToken._
 import cromwell.core.instrumentation.InstrumentationPrefixes.ServicesPrefix
@@ -16,12 +22,14 @@ import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationScheduler}
 import cromwell.services.loadcontroller.LoadControllerService.ListenToLoadController
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import io.circe.generic.JsonCodec
 import io.circe.Printer
-import io.github.andrebeat.pool.Lease
-import io.circe.syntax._
+import io.circe.generic.JsonCodec
 import io.circe.generic.semiauto._
+import io.circe.syntax._
+import io.github.andrebeat.pool.Lease
 
+import java.time.OffsetDateTime
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
@@ -29,7 +37,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
                              override val dispensingRate: DynamicRateLimiter.Rate,
                              logInterval: Option[FiniteDuration],
                              dispenserType: String,
-                             tokenAllocatedDescription: String
+                             tokenAllocatedDescription: String,
+                             groupMetricsActor: Option[ActorRef]
 ) extends Actor
     with ActorLogging
     with JobInstrumentation
@@ -37,6 +46,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     with Timers
     with DynamicRateLimiter
     with CromwellInstrumentation {
+
+  implicit val ec: ExecutionContext = context.dispatcher
 
   // Metrics paths are based on the dispenser type
   private val tokenDispenserMetricsBasePath: NonEmptyList[String] = NonEmptyList.of("token_dispenser", dispenserType)
@@ -50,6 +61,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     tokenDispenserMetricsActivityRates :+ "requests_enqueued"
   private val tokensLeasedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_dispensed"
   private val tokensReturnedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_returned"
+
+  final private val groupMetricsTimeout = Timeout(60.seconds)
 
   /**
     * Lazily created token queue. We only create a queue for a token type when we need it
@@ -100,7 +113,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     case JobTokenReturn => release(sender())
     case TokensAvailable(n) =>
       emitHeartbeatMetrics()
-      dispense(n)
+      checkAndDispenseTokens(n)
     case Terminated(terminee) => onTerminate(terminee)
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
     case FetchLimitedGroups => sender() ! tokenExhaustedGroups
@@ -125,11 +138,34 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       ()
     }
 
-  private def dispense(n: Int) = if (tokenQueues.nonEmpty) {
+  private def checkAndDispenseTokens(n: Int): Unit =
+    if (tokenQueues.nonEmpty) {
+      // don't fetch cloud quota exhausted groups for token dispenser allocating 'restart' tokens
+      (dispenserType, groupMetricsActor) match {
+        case ("execution", Some(gmActor)) =>
+          gmActor
+            .ask(GetQuotaExhaustedGroups)(groupMetricsTimeout)
+            .mapTo[GetQuotaExhaustedGroupsResponse] onComplete {
+            case Success(GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups)) => dispense(n, quotaExhaustedGroups)
+            case Success(GetQuotaExhaustedGroupsFailure(errorMsg)) =>
+              log.error(s"Failed to fetch quota exhausted groups. Error: $errorMsg")
+              dispense(n, List.empty)
+            case Failure(exception) =>
+              log.error(s"Unexpected failure while fetching quota exhausted groups. Error: ${exception.getMessage}")
+              dispense(n, List.empty)
+          }
+        case _ => dispense(n, List.empty)
+      }
+    }
 
-    // Sort by backend name to avoid re-ordering across iterations:
+  private def dispense(n: Int, quotaExhaustedGroups: List[String]): Unit = {
+    // Sort by backend name to avoid re-ordering across iterations. The RoundRobinQueueIterator will only fetch job
+    // requests from a hog group that is not experiencing cloud quota exhaustion.
     val iterator =
-      new RoundRobinQueueIterator(tokenQueues.toList.sortBy(_._1.backend).map(_._2), currentTokenQueuePointer)
+      new RoundRobinQueueIterator(tokenQueues.toList.sortBy(_._1.backend).map(_._2),
+                                  currentTokenQueuePointer,
+                                  quotaExhaustedGroups
+      )
 
     // In rare cases, an abort might empty an inner queue between "available" and "dequeue", which could cause an
     // exception.
@@ -245,9 +281,18 @@ object JobTokenDispenserActor {
             rate: DynamicRateLimiter.Rate,
             logInterval: Option[FiniteDuration],
             dispenserType: String,
-            tokenAllocatedDescription: String
+            tokenAllocatedDescription: String,
+            groupMetricsActor: Option[ActorRef]
   ): Props =
-    Props(new JobTokenDispenserActor(serviceRegistryActor, rate, logInterval, dispenserType, tokenAllocatedDescription))
+    Props(
+      new JobTokenDispenserActor(serviceRegistryActor,
+                                 rate,
+                                 logInterval,
+                                 dispenserType,
+                                 tokenAllocatedDescription,
+                                 groupMetricsActor
+      )
+    )
       .withDispatcher(EngineDispatcher)
 
   case class JobTokenRequest(hogGroup: HogGroup, jobTokenType: JobTokenType)

@@ -1,7 +1,6 @@
 package cromwell.backend.google.pipelines.v2beta.api.request
 
 import java.time.OffsetDateTime
-
 import akka.actor.ActorRef
 import com.google.api.client.googleapis.batch.BatchRequest
 import com.google.api.client.googleapis.json.GoogleJsonError
@@ -17,11 +16,14 @@ import cromwell.backend.google.pipelines.common.api.RunStatus.{
   Success,
   UnsuccessfulRunStatus
 }
+import cromwell.backend.google.pipelines.common.errors.isQuotaMessage
 import cromwell.backend.google.pipelines.v2beta.PipelinesConversions._
 import cromwell.backend.google.pipelines.v2beta.api.Deserialization._
 import cromwell.backend.google.pipelines.v2beta.api.request.ErrorReporter._
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.ExecutionEvent
+import cromwell.services.cost.InstantiatedVmInfo
+import cromwell.services.metadata.CallMetadataKeys
 import io.grpc.Status
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -69,44 +71,56 @@ trait GetRequestHandler { this: RequestHandler =>
     } else {
       try {
         val events: List[Event] = operation.events.fallBackTo(List.empty)(pollingRequest.workflowId -> operation)
-        if (operation.getDone) {
-          val metadata = Try(operation.getMetadata.asScala.toMap).getOrElse(Map[String, AnyRef]())
-          // Deserialize the response
-          val pipeline: Option[Pipeline] = operation.pipeline.flatMap(
-            _.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
-          )
-          val actions: List[Action] = pipeline
-            .flatMap(pipelineValue => Option(pipelineValue.getActions))
-            .map(_.asScala)
-            .toList
-            .flatten
-          val workerEvent: Option[WorkerAssignedEvent] =
-            events.collectFirst {
-              case event if event.getWorkerAssigned != null => event.getWorkerAssigned
-            }
-          val executionEvents = getEventList(metadata, events, actions)
-          val virtualMachineOption = for {
-            pipelineValue <- pipeline
-            resources <- Option(pipelineValue.getResources)
-            virtualMachine <- Option(resources.getVirtualMachine)
-          } yield virtualMachine
-          // Correlate `executionEvents` to `actions` to potentially assign a grouping into the appropriate events.
-          val machineType = virtualMachineOption.flatMap(virtualMachine => Option(virtualMachine.getMachineType))
-          /*
-          preemptible is only used if the job fails, as a heuristic to guess if the VM was preempted.
-          If we can't get the value of preempted we still need to return something, returning false will not make the
-          failure count as a preemption which seems better than saying that it was preemptible when we really don't know
-           */
-          val preemptibleOption = for {
-            pipelineValue <- pipeline
-            resources <- Option(pipelineValue.getResources)
-            virtualMachine <- Option(resources.getVirtualMachine)
-            preemptible <- Option(virtualMachine.getPreemptible)
-          } yield preemptible
-          val preemptible = preemptibleOption.exists(_.booleanValue)
-          val instanceName = workerEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
-          val zone = workerEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
+        val metadata = Try(operation.getMetadata.asScala.toMap).getOrElse(Map[String, AnyRef]())
+        // Deserialize the response
+        val pipeline: Option[Pipeline] = operation.pipeline.flatMap(
+          _.toErrorOr.fallBack(pollingRequest.workflowId -> operation)
+        )
+        val actions: List[Action] = pipeline
+          .flatMap(pipelineValue => Option(pipelineValue.getActions))
+          .map(_.asScala)
+          .toList
+          .flatten
+        val executionEvents = getEventList(metadata, events, actions)
+        val workerAssignedEvent: Option[WorkerAssignedEvent] =
+          events.collectFirst {
+            case event if event.getWorkerAssigned != null => event.getWorkerAssigned
+          }
+        val virtualMachineOption = for {
+          pipelineValue <- pipeline
+          resources <- Option(pipelineValue.getResources)
+          virtualMachine <- Option(resources.getVirtualMachine)
+        } yield virtualMachine
 
+        // Correlate `executionEvents` to `actions` to potentially assign a grouping into the appropriate events.
+        val machineType = virtualMachineOption.flatMap(virtualMachine => Option(virtualMachine.getMachineType))
+
+        /*
+        preemptible is only used if the job fails, as a heuristic to guess if the VM was preempted.
+        If we can't get the value of preempted we still need to return something, returning false will not make the
+        failure count as a preemption which seems better than saying that it was preemptible when we really don't know
+         */
+        val preemptibleOption = for {
+          pipelineValue <- pipeline
+          resources <- Option(pipelineValue.getResources)
+          virtualMachine <- Option(resources.getVirtualMachine)
+          preemptible <- Option(virtualMachine.getPreemptible)
+        } yield preemptible
+        val preemptible = preemptibleOption.exists(_.booleanValue)
+        val instanceName =
+          workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getInstance()))
+        val zone = workerAssignedEvent.flatMap(workerAssignedEvent => Option(workerAssignedEvent.getZone))
+        val region = zone.map { zoneString =>
+          val lastDashIndex = zoneString.lastIndexOf("-")
+          if (lastDashIndex != -1) zoneString.substring(0, lastDashIndex) else zoneString
+        }
+
+        val instantiatedVmInfo: Option[InstantiatedVmInfo] = (region, machineType) match {
+          case (Some(instantiatedRegion), Some(instantiatedMachineType)) =>
+            Option(InstantiatedVmInfo(instantiatedRegion, instantiatedMachineType, preemptible))
+          case _ => Option.empty
+        }
+        if (operation.getDone) {
           // If there's an error, generate an unsuccessful status. Otherwise, we were successful!
           Option(operation.getError) match {
             case Some(error) =>
@@ -121,14 +135,14 @@ trait GetRequestHandler { this: RequestHandler =>
                 pollingRequest.workflowId
               )
               errorReporter.toUnsuccessfulRunStatus(error, events)
-            case None => Success(executionEvents, machineType, zone, instanceName)
+            case None => Success(executionEvents, machineType, zone, instanceName, instantiatedVmInfo)
           }
         } else if (isQuotaDelayed(events)) {
-          AwaitingCloudQuota
+          AwaitingCloudQuota(executionEvents, instantiatedVmInfo)
         } else if (operation.hasStarted) {
-          Running
+          Running(executionEvents, instantiatedVmInfo)
         } else {
-          Initializing
+          Initializing(executionEvents, instantiatedVmInfo)
         }
       } catch {
         case nullPointerException: NullPointerException =>
@@ -154,6 +168,16 @@ trait GetRequestHandler { this: RequestHandler =>
       metadata.get("endTime") map { time =>
         ExecutionEvent("Complete in GCE / Cromwell Poll Interval", OffsetDateTime.parse(time.toString))
       }
+
+    val vmStartedEvent: Option[ExecutionEvent] = events.collectFirst {
+      case event if event.getWorkerAssigned != null =>
+        ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.parse(event.getTimestamp), Option.empty)
+    }
+
+    val vmEndedEvent: Option[ExecutionEvent] = events.collectFirst {
+      case event if event.getWorkerReleased != null =>
+        ExecutionEvent(CallMetadataKeys.VmEndTime, OffsetDateTime.parse(event.getTimestamp), Option.empty)
+    }
 
     // Map action indexes to event types. Action indexes are 1-based for some reason.
     // BA-6455: since v2beta version of Life Sciences API, `a.getLabels` would return `null` for empty labels, unlike
@@ -186,7 +210,7 @@ trait GetRequestHandler { this: RequestHandler =>
         }
     }
 
-    starterEvent.toList ++ filteredExecutionEvents ++ completionEvent
+    starterEvent.toList ++ filteredExecutionEvents ++ completionEvent ++ vmStartedEvent.toList ++ vmEndedEvent.toList
   }
 
   // Future enhancement: parse as `com.google.api.services.lifesciences.v2beta.model.DelayedEvent` instead of
@@ -197,16 +221,9 @@ trait GetRequestHandler { this: RequestHandler =>
   private def isQuotaDelayed(events: List[Event]): Boolean =
     events.sortBy(_.getTimestamp).reverse.headOption match {
       case Some(event) =>
-        quotaMessages.exists(event.getDescription.contains)
+        isQuotaMessage(event.getDescription)
       case None =>
         // If the events list is empty, we're not waiting for quota yet
         false
     }
-
-  private val quotaMessages = List(
-    "A resource limit has delayed the operation",
-    "usage too high",
-    "no available zones",
-    "resource_exhausted"
-  )
 }

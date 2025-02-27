@@ -48,7 +48,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
                                 rootConfig: Config,
                                 totalJobsByRootWf: AtomicInteger,
                                 fileHashCacheActor: Option[ActorRef],
-                                blacklistCache: Option[BlacklistCache]
+                                blacklistCache: Option[BlacklistCache],
+                                groupMetricsActor: ActorRef
 ) extends LoggingFSM[SubWorkflowExecutionActorState, SubWorkflowExecutionActorData]
     with JobLogging
     with WorkflowMetadataHelper
@@ -274,7 +275,8 @@ class SubWorkflowExecutionActor(key: SubWorkflowKey,
         rootConfig,
         totalJobsByRootWf,
         fileHashCacheActor = fileHashCacheActor,
-        blacklistCache = blacklistCache
+        blacklistCache = blacklistCache,
+        groupMetricsActor = groupMetricsActor
       ),
       s"${subWorkflowEngineDescriptor.id}-SubWorkflowActor-${key.tag}"
     )
@@ -414,7 +416,8 @@ object SubWorkflowExecutionActor {
             rootConfig: Config,
             totalJobsByRootWf: AtomicInteger,
             fileHashCacheActor: Option[ActorRef],
-            blacklistCache: Option[BlacklistCache]
+            blacklistCache: Option[BlacklistCache],
+            groupMetricsActor: ActorRef
   ) =
     Props(
       new SubWorkflowExecutionActor(
@@ -437,7 +440,8 @@ object SubWorkflowExecutionActor {
         rootConfig,
         totalJobsByRootWf,
         fileHashCacheActor = fileHashCacheActor,
-        blacklistCache = blacklistCache
+        blacklistCache = blacklistCache,
+        groupMetricsActor = groupMetricsActor
       )
     ).withDispatcher(EngineDispatcher)
 }

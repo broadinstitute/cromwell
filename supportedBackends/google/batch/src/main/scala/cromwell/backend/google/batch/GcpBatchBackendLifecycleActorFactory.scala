@@ -2,35 +2,38 @@ package cromwell.backend.google.batch
 
 import akka.actor.{ActorRef, Props}
 import com.google.api.client.util.ExponentialBackOff
+import com.google.api.gax.rpc.FixedHeaderProvider
+import com.google.cloud.batch.v1.BatchServiceSettings
+import com.google.common.collect.ImmutableMap
 import com.typesafe.scalalogging.StrictLogging
+import cromwell.backend._
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{
   preemptionCountKey,
   robustBuildAttributes,
   unexpectedRetryCountKey
 }
 import cromwell.backend.google.batch.actors._
-import cromwell.backend.google.batch.api.{GcpBatchApiRequestHandler, GcpBatchRequestFactoryImpl}
-import cromwell.backend.google.batch.models.{GcpBatchConfiguration, GcpBatchConfigurationAttributes}
+import cromwell.backend.google.batch.api.request.{BatchRequestExecutor, RequestHandler}
+import cromwell.backend.google.batch.authentication.GcpBatchDockerCredentials
 import cromwell.backend.google.batch.callcaching.{BatchBackendCacheHitCopyingActor, BatchBackendFileHashingActor}
+import cromwell.backend.google.batch.models.{
+  GcpBackendInitializationData,
+  GcpBatchConfiguration,
+  GcpBatchConfigurationAttributes
+}
 import cromwell.backend.standard._
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
-import cromwell.backend.{
-  BackendConfigurationDescriptor,
-  BackendInitializationData,
-  BackendWorkflowDescriptor,
-  Gcp,
-  JobExecutionMap,
-  Platform
-}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import cromwell.core.CallOutputs
+import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.core.{CallOutputs, DockerCredentials}
 import wom.graph.CommandCallNode
 
-import scala.util.{Failure, Try}
+import scala.util.{Failure, Success, Try}
 
 class GcpBatchBackendLifecycleActorFactory(override val name: String,
                                            override val configurationDescriptor: BackendConfigurationDescriptor
-) extends StandardLifecycleActorFactory {
+) extends StandardLifecycleActorFactory
+    with GcpPlatform {
 
   override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
 
@@ -70,7 +73,6 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
 
   override def workflowFinalizationActorParams(workflowDescriptor: BackendWorkflowDescriptor,
                                                ioActor: ActorRef,
-                                               // batchConfiguration: GcpBatchConfiguration,
                                                calls: Set[CommandCallNode],
                                                jobExecutionMap: JobExecutionMap,
                                                workflowOutputs: CallOutputs,
@@ -93,14 +95,46 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
   )
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] = {
-    val requestHandler = new GcpBatchApiRequestHandler
-    val requestFactory = new GcpBatchRequestFactoryImpl()(batchConfiguration.batchAttributes.gcsTransferConfiguration)
+    implicit val requestHandler: RequestHandler = new RequestHandler
+
+    val batchSettings = BatchServiceSettings.newBuilder
+      .setHeaderProvider(FixedHeaderProvider.create(ImmutableMap.of("user-agent", "cromwell")))
+      .build
+
     Option(
-      GcpBatchBackendSingletonActor.props(requestFactory, serviceRegistryActor = serviceRegistryActor)(requestHandler)
+      GcpBatchBackendSingletonActor.props(
+        qps = batchConfiguration.batchAttributes.qps,
+        requestWorkers = batchConfiguration.batchAttributes.requestWorkers,
+        serviceRegistryActor = serviceRegistryActor,
+        batchRequestExecutor = new BatchRequestExecutor.CloudImpl(batchSettings)
+      )(requestHandler)
     )
   }
 
-  override def platform: Option[Platform] = Option(Gcp)
+  override def dockerHashCredentials(
+    workflowDescriptor: BackendWorkflowDescriptor,
+    initializationData: Option[BackendInitializationData]
+  ): List[Any] =
+    Try(BackendInitializationData.as[GcpBackendInitializationData](initializationData)) match {
+      case Success(data) =>
+        val tokenFromWorkflowOptions = workflowDescriptor.workflowOptions
+          .get(GoogleAuthMode.DockerCredentialsTokenKey)
+          .toOption
+        val effectiveToken = tokenFromWorkflowOptions.orElse {
+          data.gcpBatchConfiguration.dockerCredentials.map(_.token)
+        }
+
+        val dockerCredentials: Option[GcpBatchDockerCredentials] = effectiveToken.map { token =>
+          // These credentials are being returned for hashing and all that matters in this context is the token
+          // so just `None` the auth and key.
+          val baseDockerCredentials = new DockerCredentials(token = token, authName = None, keyName = None)
+          GcpBatchDockerCredentials.apply(baseDockerCredentials, googleConfig)
+        }
+        val googleCredentials = Option(data.gcsCredentials)
+        List(dockerCredentials, googleCredentials).flatten
+
+      case _ => List.empty[Any]
+    }
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {

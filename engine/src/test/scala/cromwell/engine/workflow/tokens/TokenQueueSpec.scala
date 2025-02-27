@@ -28,7 +28,7 @@ class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
     val probe = TestProbe().ref
     val tq = TokenQueue(tokenType, tokenEventLogger).enqueue(TokenQueuePlaceholder(probe, "hogGroupA"))
     tq.queueOrder should be(List("hogGroupA"))
-    val dequeued = tq.dequeue
+    val dequeued = tq.dequeue(List.empty)
     dequeued.leasedActor shouldBe defined
     dequeued.leasedActor.get.actor shouldBe probe
     dequeued.leasedActor.get.lease.get().jobTokenType shouldBe tokenType
@@ -37,28 +37,105 @@ class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
     dequeued.tokenQueue.size shouldBe 0
   }
 
+  it should "dequeue only from non-exhausted group" in {
+    val probe1 = TestProbe().ref
+    val probe2 = TestProbe().ref
+    val probe3 = TestProbe().ref
+    val probe4 = TestProbe().ref
+    val quotaExhaustedGroup = "groot-hog-group"
+    val nonQuotaExhaustedGroup = "not-groot-hog-group"
+    val quotaExhaustedGroups = List(quotaExhaustedGroup)
+    val mockTokenType = JobTokenType("pool1", Option(10), 3)
+
+    val tq1 = TokenQueue(mockTokenType, tokenEventLogger)
+      .enqueue(TokenQueuePlaceholder(probe1, quotaExhaustedGroup))
+      .enqueue(TokenQueuePlaceholder(probe2, nonQuotaExhaustedGroup))
+
+    // queue order should still be first-come-first-serve
+    tq1.queueOrder should be(List(quotaExhaustedGroup, nonQuotaExhaustedGroup))
+
+    // only request from non-exhausted quota should be dequeued
+    tq1.available(quotaExhaustedGroups) shouldBe true
+    val dequeued1 = tq1.dequeue(quotaExhaustedGroups)
+    dequeued1.leasedActor shouldBe defined
+    dequeued1.leasedActor.get.actor shouldBe probe2
+    dequeued1.leasedActor.get.lease.get().jobTokenType shouldBe mockTokenType
+
+    val updatedTQ1 = dequeued1.tokenQueue
+
+    // there are no requests from non-exhausted group in queue
+    updatedTQ1.available(quotaExhaustedGroups) shouldBe false
+
+    // queue should still contain request from quota exhausted group
+    updatedTQ1.queues.size shouldBe 1
+    updatedTQ1.queueOrder should be(List(quotaExhaustedGroup))
+
+    // another 2 requests from non-exhausted group
+    val tq2 = updatedTQ1
+      .enqueue(TokenQueuePlaceholder(probe3, nonQuotaExhaustedGroup))
+      .enqueue(TokenQueuePlaceholder(probe4, nonQuotaExhaustedGroup))
+
+    tq2.queueOrder should be(List(quotaExhaustedGroup, nonQuotaExhaustedGroup))
+
+    // only requests from non-exhausted quota should be dequeued
+    tq2.available(quotaExhaustedGroups) shouldBe true
+    // it should dequeue probe3
+    val dequeued2 = tq2.dequeue(quotaExhaustedGroups)
+    dequeued2.leasedActor shouldBe defined
+    dequeued2.leasedActor.get.actor shouldBe probe3
+    dequeued2.leasedActor.get.lease.get().jobTokenType shouldBe mockTokenType
+
+    val tq3 = dequeued2.tokenQueue
+
+    // queue should contain requests from 2 groups for probe1 and probe4
+    tq3.queues.size shouldBe 2
+    tq3.queueOrder should be(List(quotaExhaustedGroup, nonQuotaExhaustedGroup))
+
+    // 'groot-hog-group' is no longer in quota exhaustion
+
+    // next dequeue should be from 'groot-hog-group' for probe1
+    tq3.available(List.empty) shouldBe true
+    // it should dequeue probe1
+    val dequeued3 = tq3.dequeue(List.empty)
+    dequeued3.leasedActor shouldBe defined
+    dequeued3.leasedActor.get.actor shouldBe probe1
+    dequeued3.leasedActor.get.lease.get().jobTokenType shouldBe mockTokenType
+
+    val tq4 = dequeued3.tokenQueue
+
+    // 1 request from probe4 should still exist and should be dequeued next
+    tq4.available(List.empty) shouldBe true
+    val dequeued4 = tq4.dequeue(List.empty)
+    dequeued4.leasedActor shouldBe defined
+    dequeued4.leasedActor.get.actor shouldBe probe4
+    dequeued4.leasedActor.get.lease.get().jobTokenType shouldBe mockTokenType
+
+    // all requests are fulfilled
+    dequeued4.tokenQueue.queues shouldBe empty
+  }
+
   it should "return true for available iff there's an element in the queue and room in the pool" in {
     val probe1 = TestProbe().ref
     val probe2 = TestProbe().ref
     val tq = TokenQueue(tokenType, tokenEventLogger)
     // queue is empty
-    tq.available shouldBe false
+    tq.available(List.empty) shouldBe false
 
     // with something in the queue, available is true
     val queueWith1 = tq.enqueue(TokenQueuePlaceholder(probe1, "hogGroupA"))
-    queueWith1.available shouldBe true
+    queueWith1.available(List.empty) shouldBe true
 
     val queueWith2 = queueWith1.enqueue(TokenQueuePlaceholder(probe2, "hogGroupA"))
 
-    val dequeued = queueWith2.dequeue
+    val dequeued = queueWith2.dequeue(List.empty)
     // probe 2 is still in there
     dequeued.tokenQueue.size shouldBe 1
     // pool is empty though so available should be false
-    dequeued.tokenQueue.available shouldBe false
+    dequeued.tokenQueue.available(List.empty) shouldBe false
 
     // If we release the token, we should be available again
     dequeued.leasedActor.get.lease.release()
-    dequeued.tokenQueue.available shouldBe true
+    dequeued.tokenQueue.available(List.empty) shouldBe true
   }
 
   it should "respect hog groups" in {
@@ -66,62 +143,62 @@ class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
 
     // Start with an empty queue which can dish out up to 1 token each, to up to 2 hog groups:
     val tq = TokenQueue(JobTokenType("pool1", Option(2), 2), tokenEventLogger)
-    tq.available shouldBe false
+    tq.available(List.empty) shouldBe false
 
     val queueWith1 = tq.enqueue(TokenQueuePlaceholder(refA1, "hogGroupA"))
     queueWith1.queueOrder should be(List("hogGroupA"))
-    queueWith1.available shouldBe true
+    queueWith1.available(List.empty) shouldBe true
 
-    val dequeueResult = queueWith1.dequeue
+    val dequeueResult = queueWith1.dequeue(List.empty)
     dequeueResult.leasedActor.map(_.actor) should be(Some(refA1))
     val tokenDispensedAlreadyQueue = dequeueResult.tokenQueue
 
     // Since it's been dispensed, there's now nothing available in this queue:
     tokenDispensedAlreadyQueue.queueOrder should be(List.empty)
-    tokenDispensedAlreadyQueue.available shouldBe false
+    tokenDispensedAlreadyQueue.available(List.empty) shouldBe false
 
     // Adding another entry in hogGroupA should not help:
     val refA2 = TestProbe("A2").ref
     val queueWith2 = tokenDispensedAlreadyQueue.enqueue(TokenQueuePlaceholder(refA2, "hogGroupA"))
-    queueWith2.available shouldBe false
+    queueWith2.available(List.empty) shouldBe false
 
     // An entry in hogGroupB however *should* register as available:
     val refB1 = TestProbe("B1").ref
     val queueWithB1 = queueWith2.enqueue(TokenQueuePlaceholder(refB1, "hogGroupB"))
-    queueWithB1.available shouldBe true
+    queueWithB1.available(List.empty) shouldBe true
 
     // And the 'B' actor should be the one to be dequeued next:
-    val dequeueResult2 = queueWithB1.dequeue
+    val dequeueResult2 = queueWithB1.dequeue(List.empty)
     dequeueResult2.leasedActor.map(_.actor) should be(Some(refB1))
     val tokenB1DispensedAlreadyQueue = dequeueResult2.tokenQueue
 
     // And again, now we don't have anything available:
-    tokenB1DispensedAlreadyQueue.available shouldBe false
+    tokenB1DispensedAlreadyQueue.available(List.empty) shouldBe false
 
     // Adding another entry in hogGroupB should not help:
     val refB2 = TestProbe("B2").ref
     val queueWithB2 = tokenB1DispensedAlreadyQueue.enqueue(TokenQueuePlaceholder(refB2, "hogGroupB"))
-    queueWithB2.available shouldBe false
+    queueWithB2.available(List.empty) shouldBe false
 
     // Because the pool is now full, adding a third hog group won't make anything available either:
     val refC1 = TestProbe("C1").ref
     val queueWithA2B2andC1 = queueWithB2.enqueue(TokenQueuePlaceholder(refC1, "hogGroupC"))
-    queueWithA2B2andC1.available shouldBe false
+    queueWithA2B2andC1.available(List.empty) shouldBe false
 
     // When we release B1's lease, we get availability again:
     dequeueResult2.leasedActor.foreach(_.lease.release())
-    queueWithA2B2andC1.available shouldBe true
+    queueWithA2B2andC1.available(List.empty) shouldBe true
 
     // The next entry to be dequeued should be B2, not C1:
-    val dequeueResult3 = queueWithA2B2andC1.dequeue
+    val dequeueResult3 = queueWithA2B2andC1.dequeue(List.empty)
     dequeueResult3.leasedActor.map(_.actor) should be(Some(refB2))
     val queueWithA2andC1 = dequeueResult3.tokenQueue
-    queueWithA2andC1.available should be(false)
+    queueWithA2andC1.available(List.empty) should be(false)
 
     // But when B2 finishes, we do indeed get C1:
     dequeueResult3.leasedActor foreach { _.lease.release() }
-    queueWithA2andC1.available should be(true)
-    val dequeueResult4 = queueWithA2andC1.dequeue
+    queueWithA2andC1.available(List.empty) should be(true)
+    val dequeueResult4 = queueWithA2andC1.dequeue(List.empty)
     dequeueResult4.leasedActor.map(_.actor) should be(Some(refC1))
   }
 

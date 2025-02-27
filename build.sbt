@@ -221,13 +221,6 @@ lazy val googlePipelinesCommon = (project in backendRoot / "google" / "pipelines
   .dependsOn(services % "test->test")
   .dependsOn(common % "test->test")
 
-lazy val googlePipelinesV2Alpha1 = (project in backendRoot / "google" / "pipelines" / "v2alpha1")
-  .withLibrarySettings("cromwell-pipelines-v2-alpha1-backend")
-  .dependsOn(googlePipelinesCommon)
-  .dependsOn(googlePipelinesCommon % "test->test")
-  .dependsOn(core % "test->test")
-  .dependsOn(common % "test->test")
-
 lazy val googlePipelinesV2Beta = (project in backendRoot / "google" / "pipelines" / "v2beta")
   .withLibrarySettings("cromwell-pipelines-v2-beta-backend")
   .dependsOn(googlePipelinesCommon)
@@ -237,6 +230,7 @@ lazy val googlePipelinesV2Beta = (project in backendRoot / "google" / "pipelines
 
 lazy val googleBatch = (project in backendRoot / "google" / "batch")
   .withLibrarySettings("cromwell-google-batch-backend")
+  .dependsOn(core)
   .dependsOn(backend)
   .dependsOn(gcsFileSystem)
   .dependsOn(drsFileSystem)
@@ -339,7 +333,7 @@ lazy val languageFactoryCore = (project in languageFactoryRoot / "language-facto
   .dependsOn(common % "test->test")
 
 lazy val wdlDraft2LanguageFactory = (project in languageFactoryRoot / "wdl-draft2")
-  .withLibrarySettings("wdl-draft2", draft2LanguageFactoryDependencies)
+  .withLibrarySettings("wdl-draft2", mockServerDependencies)
   .dependsOn(languageFactoryCore)
   .dependsOn(common % "test->test")
   .dependsOn(wdlModelDraft2)
@@ -387,11 +381,6 @@ lazy val `cloud-nio-impl-drs` = (project in cloudNio / "cloud-nio-impl-drs")
   .dependsOn(common)
   .dependsOn(common % "test->test")
 
-lazy val perf = project
-  .withExecutableSettings("perf", dependencies = perfDependencies, pushDocker = false)
-  .dependsOn(common)
-  .dependsOn(common % "test->test")
-
 lazy val `cromwell-drs-localizer` = project
   .withExecutableSettings("cromwell-drs-localizer", drsLocalizerDependencies, drsLocalizerSettings)
   .dependsOn(`cloud-nio-impl-drs`)
@@ -408,7 +397,6 @@ lazy val pact4s = project.in(file("pact4s"))
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
-  .dependsOn(googlePipelinesV2Alpha1)
   .dependsOn(googlePipelinesV2Beta)
   .dependsOn(googleBatch)
   .dependsOn(awsBackend)
@@ -448,12 +436,10 @@ lazy val root = (project in file("."))
   .aggregate(ftpFileSystem)
   .aggregate(gcsFileSystem)
   .aggregate(googlePipelinesCommon)
-  .aggregate(googlePipelinesV2Alpha1)
   .aggregate(googlePipelinesV2Beta)
   .aggregate(googleBatch)
   .aggregate(httpFileSystem)
   .aggregate(languageFactoryCore)
-  .aggregate(perf)
   .aggregate(server)
   .aggregate(services)
   .aggregate(sfsBackend)

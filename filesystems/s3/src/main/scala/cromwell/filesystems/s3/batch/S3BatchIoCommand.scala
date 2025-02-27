@@ -30,8 +30,9 @@
  */
 package cromwell.filesystems.s3.batch
 
+import cromwell.core.callcaching.HashType.HashType
+import cromwell.core.callcaching.{FileHashStrategy, HashType}
 import software.amazon.awssdk.core.exception.SdkException
-
 import software.amazon.awssdk.services.s3.model.{CopyObjectResponse, HeadObjectResponse, NoSuchKeyException}
 import cromwell.core.io.{
   IoCommand,
@@ -42,7 +43,6 @@ import cromwell.core.io.{
   IoSizeCommand,
   IoTouchCommand
 }
-
 import cromwell.filesystems.s3.S3Path
 
 /**
@@ -112,9 +112,28 @@ case class S3BatchSizeCommand(override val file: S3Path) extends IoSizeCommand(f
   * `IoCommand` to find the hash of an s3 object (the `Etag`)
   * @param file the path to the object
   */
-case class S3BatchEtagCommand(override val file: S3Path) extends IoHashCommand(file) with S3BatchHeadCommand[String] {
-  override def mapResponse(response: HeadObjectResponse): String = response.eTag
-  override def commandDescription: String = s"S3BatchEtagCommand file '$file'"
+case class S3BatchHashCommand(override val file: S3Path, override val hashStrategy: FileHashStrategy)
+    extends IoHashCommand(file, hashStrategy)
+    with S3BatchHeadCommand[String] {
+
+  override def mapResponse(response: HeadObjectResponse): String =
+    hashStrategy
+      .getFileHash(
+        response,
+        (resp: HeadObjectResponse, hashType: HashType) =>
+          hashType match {
+            case HashType.Etag => Option(response.eTag())
+            case _ => None
+          }
+      )
+      .map(_.hash)
+      .get
+  // This ^^ unprotected .get is here because of a need to join the theoretical optionality of hashes
+  // (codified in AN-380) with this class's lack of ability to handle optionality. Refactoring this class
+  // isn't in scope right now. The .get replaced an unprotected response.eTag(), so we aren't creating any
+  // new error cases. --jdewar 02-2025
+
+  override def commandDescription: String = s"S3BatchEtagCommand file '$file' with hashStrategy '$hashStrategy'"
 }
 
 /**

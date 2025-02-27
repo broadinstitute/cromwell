@@ -1,6 +1,5 @@
 package centaur.test
 
-import java.util.UUID
 import cats.Monad
 import cats.effect.{ContextShift, IO, Timer}
 import cats.implicits._
@@ -11,7 +10,7 @@ import centaur.test.metadata.WorkflowFlatMetadata._
 import centaur.test.submit.SubmitHttpResponse
 import centaur.test.workflow.Workflow
 import com.azure.storage.blob.BlobContainerClient
-import com.google.api.services.genomics.v2alpha1.{Genomics, GenomicsScopes}
+import com.google.api.services.lifesciences.v2beta.{CloudLifeSciences, CloudLifeSciencesScopes}
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
@@ -46,6 +45,7 @@ import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import spray.json._
 
+import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -108,12 +108,13 @@ object Operations extends StrictLogging {
   lazy val configuration: GoogleConfiguration = GoogleConfiguration(CentaurConfig.conf)
   lazy val googleConf: Config = CentaurConfig.conf.getConfig("google")
   lazy val authName: String = googleConf.getString("auth")
-  lazy val genomicsEndpointUrl: String = googleConf.getString("genomics.endpoint-url")
-  lazy val genomicsAndStorageScopes = List(StorageScopes.CLOUD_PLATFORM_READ_ONLY, GenomicsScopes.GENOMICS)
+  lazy val endpointUrl: String = googleConf.getString("genomics.endpoint-url")
+  lazy val lifeSciencesAndStorageScopes =
+    List(StorageScopes.CLOUD_PLATFORM_READ_ONLY, CloudLifeSciencesScopes.CLOUD_PLATFORM)
   lazy val credentials: Credentials = configuration
     .auth(authName)
     .unsafe
-    .credentials(genomicsAndStorageScopes)
+    .credentials(lifeSciencesAndStorageScopes)
   lazy val credentialsProjectOption: Option[String] =
     Option(credentials) collect { case serviceAccountCredentials: ServiceAccountCredentials =>
       serviceAccountCredentials.getProjectId
@@ -122,15 +123,15 @@ object Operations extends StrictLogging {
   // The project from the config or from the credentials. By default the project is read from the system environment.
   lazy val projectOption: Option[String] = confProjectOption orElse credentialsProjectOption
 
-  lazy val genomics: Genomics = {
-    val builder = new Genomics.Builder(
+  lazy val cloudLifeSciences: CloudLifeSciences = {
+    val builder = new CloudLifeSciences.Builder(
       GoogleAuthMode.httpTransport,
       GoogleAuthMode.jsonFactory,
       new HttpCredentialsAdapter(credentials)
     )
     builder
       .setApplicationName(configuration.applicationName)
-      .setRootUrl(genomicsEndpointUrl)
+      .setRootUrl(endpointUrl)
       .build()
   }
 
@@ -408,7 +409,7 @@ object Operations extends StrictLogging {
     new Test[Unit] {
       def checkPAPIAborted(): IO[Unit] =
         for {
-          operation <- IO(genomics.projects().operations().get(jobId).execute())
+          operation <- IO(cloudLifeSciences.projects().locations().operations().get(jobId).execute())
           done = operation.getDone
           operationError = Option(operation.getError)
           aborted = operationError.exists(_.getCode == 1) && operationError.exists(
@@ -426,6 +427,7 @@ object Operations extends StrictLogging {
 
       override def run: IO[Unit] = if (jobId.startsWith("operations/")) {
         checkPAPIAborted()
+
       } else IO.unit
     }
 
@@ -560,17 +562,45 @@ object Operations extends StrictLogging {
       lazy val inExpectedButNotInActual = expected.diff(actual)
 
       if (!workflow.allowOtherOutputs && inActualButNotInExpected.nonEmpty) {
-        val message =
-          s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
-        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        if (!checkIfActuallySame(inActualButNotInExpected, inExpectedButNotInActual)) {
+          val message =
+            s"In actual outputs but not in expected and other outputs not allowed: ${inActualButNotInExpected.mkString(", ")}"
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        } else {
+          IO.unit
+        }
       } else if (inExpectedButNotInActual.nonEmpty) {
-        val message =
-          s"In actual outputs but not in expected: ${inExpectedButNotInActual.mkString(", ")}" + System.lineSeparator +
-            s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
-        IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        if (!checkIfActuallySame(inExpectedButNotInActual, inActualButNotInExpected)) {
+          val message =
+            s"In actual outputs but not in expected: ${inExpectedButNotInActual.mkString(", ")}" + System.lineSeparator +
+              s"In expected outputs but not in actual: ${inExpectedButNotInActual.mkString(", ")}"
+          IO.raiseError(CentaurTestException(message, workflow, submittedWorkflow))
+        } else {
+          IO.unit
+        }
       } else {
         IO.unit
       }
+    }
+
+    /*
+      This function removes extraneous quotation marks before checking for equality between the first and second set
+      because the actual outputs (from the caller) are in a "cleaned" state but the expected outputs may have extra
+      quotation marks if the output is a String (e.g., the actual output will be "hello" but the expected output will read
+      "\"hello\""). This function cleans the outputs to make sure that we're not reporting a false difference caused by
+      quotes that should have been removed.
+     */
+    private def checkIfActuallySame(firstSet: Set[(String, JsValue)], secondSet: Set[(String, JsValue)]): Boolean = {
+      firstSet.foreach { value =>
+        secondSet.find(keyValue => keyValue._1 == value._1) match {
+          case Some(element) =>
+            if (element._2.toString().replaceAll("\"", "") != value._2.toString().replaceAll("\"", "")) {
+              false
+            }
+          case _ => false
+        }
+      }
+      true
     }
 
     override def run: IO[JsObject] = {
@@ -581,8 +611,7 @@ object Operations extends StrictLogging {
 
       for {
         outputs <- CentaurCromwellClient.outputs(submittedWorkflow)
-        outputsMap = outputs.asFlat.stringifyValues
-        _ <- checkOutputs(expectedOutputs)(outputsMap)
+        _ <- checkOutputs(expectedOutputs)(outputs.asFlat.value)
       } yield outputs.outputs.asJsObject
 
     }
@@ -1031,4 +1060,52 @@ object Operations extends StrictLogging {
           IO.raiseError(CentaurTestException(message, workflow))
         }
     }
+
+  def getExpectedCost(workflowCost: Option[List[BigDecimal]]): IO[List[BigDecimal]] =
+    workflowCost match {
+      case Some(cost) if cost(0) > cost(1) =>
+        IO.raiseError(
+          new Exception(s"Lower bound of expected cost cannot be higher than the upper bound (${cost(0)} - ${cost(1)})")
+        )
+      case Some(cost) => IO.pure(cost)
+      case None =>
+        IO.raiseError(new Exception("Expected cost range is required in the test config to validate the workflow cost"))
+    }
+
+  /**
+    * Validate that the actual cost is within the expected range
+    */
+  def validateCost(actualCost: BigDecimal, expectedCost: List[BigDecimal]): IO[Unit] =
+    if (expectedCost(0) > actualCost || actualCost > expectedCost(1)) {
+      IO.raiseError(
+        new Exception(s"Expected cost within range ${expectedCost(0)} - ${expectedCost(1)} but got $actualCost")
+      )
+    } else {
+      IO.unit
+    }
+
+  def fetchAndValidateCost(workflowSpec: Workflow, submittedWorkflow: SubmittedWorkflow): Test[Unit] =
+    new Test[Unit] {
+
+      override def run: IO[Unit] =
+        for {
+          actualCost <- CentaurCromwellClient.cost(submittedWorkflow)
+          expectedCost <- getExpectedCost(workflowSpec.cost)
+          _ <- validateCost(actualCost.cost, expectedCost)
+        } yield ()
+    }
+
+  def validateNoCost(submittedWorkflow: SubmittedWorkflow): Test[Unit] =
+    new Test[Unit] {
+
+      override def run: IO[Unit] =
+        for {
+          actualCost <- CentaurCromwellClient.cost(submittedWorkflow)
+          _ =
+            if (actualCost.cost != 0)
+              IO.raiseError(new Exception(s"When using call caching, the cost must be 0, not ${actualCost.cost}"))
+            else IO.unit
+        } yield ()
+    }
+
 }

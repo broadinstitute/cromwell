@@ -1,12 +1,13 @@
 package cromwell.backend.google.batch.models
 
 import cromwell.backend.BackendJobDescriptorKey
+import cromwell.backend.google.batch.runnable.GcpBatchMetadataKeys
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
+import cromwell.services.metadata.CallMetadataKeys
 
 object GcpBatchJobPaths {
-
-  val BatchLogPathKey = "jesLog"
+  val BatchLogPathKey = "log"
   val BatchMonitoringKey = "monitoring"
   val BatchMonitoringImageKey = "monitoringImage"
   val BatchExecParamName = "exec"
@@ -36,6 +37,27 @@ case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths,
 
   val batchMonitoringScriptFilename: String = s"${GcpBatchJobPaths.BatchMonitoringKey}.sh"
   val batchMonitoringImageScriptFilename: String = s"${GcpBatchJobPaths.BatchMonitoringImageKey}.sh"
+
+  val jesMonitoringLogFilename: String = s"${GcpBatchJobPaths.BatchMonitoringKey}.log"
+  lazy val jesMonitoringLogPath: Path = callExecutionRoot.resolve(jesMonitoringLogFilename)
+
+  override lazy val customMetadataPaths = Map(
+    CallMetadataKeys.BackendLogsPrefix + ":log" -> batchLogPath
+  ) ++ (
+    workflowPaths.monitoringScriptPath map { p =>
+      Map(GcpBatchMetadataKeys.MonitoringScript -> p, GcpBatchMetadataKeys.MonitoringLog -> jesMonitoringLogPath)
+    } getOrElse Map.empty
+  )
+
+  override lazy val customLogPaths: Map[String, Path] = Map(
+    GcpBatchJobPaths.BatchLogPathKey -> batchLogPath
+  )
+
+  override def standardOutputAndErrorPaths: Map[String, Path] =
+    super.standardOutputAndErrorPaths map { case (k, v) =>
+      val updated = workflowPaths.standardStreamNameToFileNameMetadataMapper(this, k)
+      k -> v.parent.resolve(updated)
+    }
 
   override def forCallCacheCopyAttempts: JobPaths = this.copy(isCallCacheCopyAttempt = true)
 }

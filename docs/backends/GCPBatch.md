@@ -1,13 +1,15 @@
-**Google Cloud Backend**
+**Google Cloud Batch Backend (alpha)**
 
 [//]:
 Google Cloud Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
 
 This section offers detailed configuration instructions for using Cromwell with the Google Cloud Batch in all supported
 authentication modes. Before reading further in this section please see the
-[Getting started on Google Cloud Batch](../tutorials/Batch101) for instructions common to all authentication modes
+[Getting started on Google Cloud Batch](../tutorials/GcpBatch101) for instructions common to all authentication modes
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
+
+*NOTE*: Google Cloud Batch is still in alpha version, this means that there could be breaking changes, be sure to review the [GCP Batch CHANGELOG](https://github.com/broadinstitute/cromwell/blob/develop/CHANGELOG.md#gcp-batch) carefully before upgrading.
 
 **Configuring Authentication**
 
@@ -84,13 +86,13 @@ Creating the account will cause the JSON file to be downloaded.  The structure o
 Most importantly, the value of the `client_email` field should go into the `service-account-id` field in the configuration (see below).  The
 `private_key` portion needs to be pulled into its own file (e.g. `my-key.pem`).  The `\n`s in the string need to be converted to newline characters.
 
-While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `GCPBATCH.config.genomics.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Batch API and not GCS, it's important that this service account, and the service account specified in `GCPBATCH.config.genomics.auth` can both read/write the location specified by `GCPBATCH.config.root`
+While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `GCPBATCH.config.batch.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Batch API and not GCS, it's important that this service account, and the service account specified in `GCPBATCH.config.batch.auth` can both read/write the location specified by `GCPBATCH.config.root`
 
 **User Service Account**
 
 A [JSON key file for the service account](../wf_options/Google.md) must be passed in via the `user_service_account_json` field in the [Workflow Options](../wf_options/Google.md) when submitting the job. Omitting this field will cause the workflow to fail. The JSON should be passed as a string and will need to have no newlines and all instances of `"` and `\n` escaped. 
 
-In the likely event that this service account does not have access to Cromwell's default google project the `google_project` workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the `jes_gcs_root` workflow option should be set appropriately.
+In the likely event that this service account does not have access to Cromwell's default google project the `google_project` workflow option must be set. In the similarly likely case that this service account can not access Cromwell's default google bucket, the `gcp_batch_gcs_root` workflow option should be set appropriately.
 
 For information on the interaction of `user_service_account_json` with private Docker images please see the `Docker` section below.  
 
@@ -135,6 +137,33 @@ backend {
 
 `token` is the standard base64-encoded username:password for the appropriate Docker Hub account.
 
+GCP Batch also supports the use of Google Secret Manager for storing private Docker Hub credentials as described in
+Google Batch documentation
+[here](https://cloud.google.com/batch/docs/create-run-job-secret-manager#use-secrets-for-docker-registry). In the
+Cromwell GCP Batch backend, the usage of this feature is very similar to the regular
+base64-encoded `username:password` token, except that it is the GSM paths of username and password that are separated by
+a colon and base64
+encoded:
+
+```
+backend {
+  default = GCPBATCH
+  providers {
+    GCPBATCH {
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
+      config {
+        dockerhub {
+          token = "base64-encoded-GSM-path-to-docker-hub-username:GSM-path-to-docker-hub-password"
+        }
+      }
+    }
+  }
+}
+```
+
+Note that as per the Google Secret Manager docs, the compute service account for the project in which the GCP Batch
+jobs will run will need to be assigned the `Secret Manager Secret Accessor` IAM role.
+
 **Monitoring**
 
 In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.
@@ -150,7 +179,7 @@ The output of this script will be written to a `monitoring.log` file that will b
 **Google Cloud Storage Filesystem**
 
 On the Google Batch backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
-On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `jes_gcs_root` [Workflow Option](../wf_options/Google) will take
+On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `gcp_batch_gcs_root` [Workflow Option](../wf_options/Google) will take
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 
@@ -169,14 +198,29 @@ backend.providers.GCPBATCH.config {
 Every call run on the GCP Batch backend is given certain labels by default, so that Google resources can be queried by these labels later. 
 The current default label set automatically applied is:
 
-| Key | Value | Example | Notes |
-|-----|-------|---------|-------|
-| cromwell-workflow-id | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-' |
-| cromwell-sub-workflow-name | The name of this job's sub-workflow | my-sub-workflow | Only present if the task is called in a subworkflow. |
-| wdl-task-name | The name of the WDL task | my-task | |
-| wdl-call-alias | The alias of the WDL call that created this job | my-task-1 | Only present if the task was called with an alias. |
+| Key                        | Value                                                                                       | Example                                           | Notes                                                                                                                             |
+|----------------------------|---------------------------------------------------------------------------------------------|---------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| cromwell-workflow-id       | The Cromwell ID given to the root workflow (i.e. the ID returned by Cromwell on submission) | cromwell-d4b412c5-bf3d-4169-91b0-1b635ce47a26     | To fit the required [format](#label-format), we prefix with 'cromwell-'                                                           |
+| cromwell-sub-workflow-id   | The Cromwell ID given to this job's sub-workflow (immediate parent workflow)                | cromwell-sub-d4b412c5-bf3d-4169-91b0-1b635ce47a26 | To fit the required [format](#label-format), we prefix with 'cromwell-sub-'. Only present if the task is called in a subworkflow. |
+| cromwell-sub-workflow-name | The name of this job's sub-workflow                                                         | my-sub-workflow                                   | Only present if the task is called in a subworkflow.                                                                              |
+| wdl-task-name              | The name of the WDL task                                                                    | my-task                                           |                                                                                                                                   |
+| wdl-call-alias             | The alias of the WDL call that created this job                                             | my-task-1                                         | Only present if the task was called with an alias.                                                                                |
+| wdl-attempt                | Attempt number for this call                                                                | 1                                                 |                                                                                                                                   |
+| wdl-shard-index            | Index of this job within a scatter,                                                         |                                                   | Only present if the task was called within a scatter.                                                                             |
 
 Any custom labels provided as '`google_labels`' in the [workflow options](../wf_options/Google) are also applied to Google resources by GCP Batch.
+
+### Custom Mount Points
+
+Cromwell's GCP Batch backend supports custom mount points as documented [here](../RuntimeAttributes.md#disks), with the caveat that all custom mount points must be specified under `/mnt/disks`.
+
+e.g. a GCP Batch custom mount point specification should look like:
+
+```
+runtime {
+    disks: "/mnt/disks/my_mnt 30 SSD, /mnt/disks/my_mnt2 500 HDD"
+}
+```
 
 ### Virtual Private Network
 
@@ -209,11 +253,17 @@ backend {
 ```
 
 The `network-name` and `subnetwork-name` should reference the name of your private network and subnetwork within that
-network respectively. The `subnetwork-name` is an optional config.
+network respectively. For example, if your `virtual-private-cloud` config looks like the one above, then Cromwell will 
+use the value of the configuration key, which is `vpc-network` here, as the name of private network and run the jobs on 
+this network. If the network name is not present in the config Cromwell will fall back to trying to run jobs on the 
+default network.
 
-For example, if your `virtual-private-cloud` config looks like the one above, then Cromwell will use the value of the
-configuration key, which is `vpc-network` here, as the name of private network and run the jobs on this network.
-If the network name is not present in the config Cromwell will fall back to trying to run jobs on the default network.
+`subnetwork-name` is an optional configuration parameter which accepts a `*` wildcard for choosing the appropriate 
+subnetwork region. If your network is using "auto" subnet creation, `subnetwork-name`specification can be omitted and 
+GCP Batch will choose the appropriate subnetwork automatically. If the network's subnet creation strategy is "custom," 
+the full subnetwork name (with `*` for region) must be supplied (ex. `"projects/${projectId}/regions/*/subnetworks/subnetwork"`).
+Note that wildcard regions are not supported by GCP Batch, Cromwell will replace `*` with the correct region at job
+creation time.
 
 If the `network-name` or `subnetwork-name` values contain the string `${projectId}` then that value will be replaced
 by Cromwell with the name of the project running GCP Batch.
@@ -250,7 +300,10 @@ backend {
 
 The `network-label-key` and `subnetwork-label-key` should reference the keys in your project's labels whose value is the name of your private network
 and subnetwork within that network respectively. `auth` should reference an auth scheme in the `google` stanza which will be used to get the project metadata from Google Cloud.
-The `subnetwork-label-key` is an optional config.
+The `subnetwork-label-key` is an optional config. Note that in the
+PAPI v2 backend `subnetwork-label-key` was an optional configuration parameter which accepted a `*` wildcard for choosing the
+appropriate subnetwork region, but in GCP Batch the `subnetwork-label-key` specification can be omitted
+and GCP Batch will choose the appropriate subnetwork automatically.
 
 For example, if your `virtual-private-cloud` config looks like the one above, and one of the labels in your project is
 
@@ -280,7 +333,7 @@ google {
 
 Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature
 is turned off by default but can be enabled backend-wide by specifying a `gsutil`-compatible memory specification for the key
-`genomics.parallel-composite-upload-threshold` in backend configuration. This memory value represents the minimum size an output file
+`batch.parallel-composite-upload-threshold` in backend configuration. This memory value represents the minimum size an output file
 must have to be a candidate for `gsutil` parallel composite uploading:
 
 ```
@@ -292,7 +345,7 @@ backend {
       actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
       config {
         ...
-        genomics {
+        batch {
           ...
           parallel-composite-upload-threshold = 150M
           ...

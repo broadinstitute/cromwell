@@ -6,9 +6,6 @@ import cromwell.backend.{BackendConfigurationDescriptor, BackendJobDescriptor, B
 import cromwell.core.logging.JobLogger
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import net.ceedubs.ficus.Ficus._
-
-import scala.language.postfixOps
-import scala.util.Try
 import wdl.draft2.model.FullyQualifiedName
 import wdl4s.parser.MemoryUnit
 import wom.InstantiatedCommand
@@ -16,7 +13,8 @@ import wom.callable.Callable.OutputDefinition
 import wom.expression.NoIoFunctionSet
 import wom.values._
 
-import scala.collection.immutable.Map
+import scala.language.postfixOps
+import scala.util.Try
 
 final case class WorkflowExecutionIdentityConfig(value: String) { override def toString: String = value.toString }
 final case class WorkflowExecutionIdentityOption(value: String) { override def toString: String = value }

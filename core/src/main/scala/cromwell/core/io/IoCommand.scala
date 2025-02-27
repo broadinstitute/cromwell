@@ -2,11 +2,12 @@ package cromwell.core.io
 
 import java.time.OffsetDateTime
 import java.util.UUID
-
 import better.files.File.OpenOptions
+import cats.data.NonEmptyList
 import com.google.api.client.util.ExponentialBackOff
 import common.util.Backoff
 import common.util.StringUtil.EnhancedToStringable
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
@@ -30,6 +31,9 @@ object IoCommand {
   def defaultBackoff: Backoff = SimpleExponentialBackoff(defaultGoogleBackoff)
 
   type RetryCommand[T] = (FiniteDuration, IoCommand[T])
+  type IOMetricsCallback = Set[NonEmptyList[String]] => Unit
+
+  val noopMetricsCallback: IOMetricsCallback = _ => ()
 }
 
 trait IoCommand[+T] {
@@ -161,8 +165,8 @@ abstract class IoDeleteCommand(val file: Path, val swallowIOExceptions: Boolean)
 /**
   * Get Hash value for file
   */
-abstract class IoHashCommand(val file: Path) extends SingleFileIoCommand[String] {
-  override def toString = s"get hash of ${file.pathAsString}"
+abstract class IoHashCommand(val file: Path, val hashStrategy: FileHashStrategy) extends SingleFileIoCommand[String] {
+  override def toString = s"get $hashStrategy hash of ${file.pathAsString}"
   override lazy val name = "hash"
 }
 

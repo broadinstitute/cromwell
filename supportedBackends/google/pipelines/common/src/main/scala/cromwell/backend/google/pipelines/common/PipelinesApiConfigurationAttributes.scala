@@ -51,6 +51,7 @@ case class PipelinesApiConfigurationAttributes(
   cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
   requestWorkers: Int Refined Positive,
   pipelineTimeout: FiniteDuration,
+  quotaAttempts: Int,
   logFlushPeriod: Option[FiniteDuration],
   gcsTransferConfiguration: GcsTransferConfiguration,
   virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
@@ -86,6 +87,9 @@ object PipelinesApiConfigurationAttributes
 
   val checkpointingIntervalKey = "checkpointing-interval"
 
+  /**
+    * Used to screen & warn about unexpected keys
+    */
   private val papiKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
     "project",
     "root",
@@ -108,6 +112,7 @@ object PipelinesApiConfigurationAttributes
     "concurrent-job-limit",
     "request-workers",
     "pipeline-timeout",
+    "quota-attempts",
     "batch-requests.timeouts.read",
     "batch-requests.timeouts.connect",
     "default-runtime-attributes.bootDiskSizeGb",
@@ -223,6 +228,8 @@ object PipelinesApiConfigurationAttributes
 
     val pipelineTimeout: FiniteDuration = backendConfig.getOrElse("pipeline-timeout", 7.days)
 
+    val quotaAttempts: Int = backendConfig.as[Option[Int]]("quota-attempts").getOrElse(20)
+
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
       case Some(duration) if duration.isFinite => Option(duration)
       // "Inf" disables upload
@@ -317,6 +324,7 @@ object PipelinesApiConfigurationAttributes
           cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
           requestWorkers = requestWorkers,
           pipelineTimeout = pipelineTimeout,
+          quotaAttempts = quotaAttempts,
           logFlushPeriod = logFlushPeriod,
           gcsTransferConfiguration = gcsTransferConfiguration,
           virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,

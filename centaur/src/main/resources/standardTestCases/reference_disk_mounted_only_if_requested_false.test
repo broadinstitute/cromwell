@@ -1,6 +1,6 @@
 name: reference_disk_mounted_only_if_requested_false
 testFormat: workflowsuccess
-backends: [Papiv2-Reference-Disk-Localization]
+backends: [Papiv2-Reference-Disk-Localization, GCPBATCH_ALT]
 
 files {
   workflow: reference_disk/reference_disk_mounted_only_if_requested.wdl

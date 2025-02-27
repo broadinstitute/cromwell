@@ -24,6 +24,7 @@ object SraPath {
 }
 
 case class SraPath(accession: String, path: String) extends Path {
+  val filesystemTypeKey = "sra"
   override def pathAsString: String = SraPath.Scheme + pathWithoutScheme
   override def pathWithoutScheme: String = accession + "/" + path
 

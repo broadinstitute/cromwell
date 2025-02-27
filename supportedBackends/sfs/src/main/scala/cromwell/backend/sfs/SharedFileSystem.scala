@@ -115,6 +115,7 @@ trait SharedFileSystem extends PathFactory {
   def sharedFileSystemConfig: Config
   lazy val maxHardLinks: Int =
     sharedFileSystemConfig.getOrElse[Int]("max-hardlinks", 950) // Windows limit 1024. Keep a safe margin.
+  lazy val dockerAllowSoftLinks: Boolean = sharedFileSystemConfig.getOrElse("docker.allow-soft-links", false)
   lazy val cachedCopyDir: Option[Path] = None
 
   private def localizePathViaCachedCopy(originalPath: Path, executionPath: Path, docker: Boolean): Try[Unit] = {
@@ -217,10 +218,10 @@ trait SharedFileSystem extends PathFactory {
     }
 
   private def createStrategies(configStrategies: Seq[String], docker: Boolean): Seq[DuplicationStrategy] = {
-    // If localizing for a docker job, remove soft-link as an option
+    // If localizing for a docker job, by default remove soft-link as an option
     // If no cachedCopyDir is defined, cached-copy can not be used and is removed.
     val filteredConfigStrategies = configStrategies filter {
-      case "soft-link" if docker => false
+      case "soft-link" if docker => dockerAllowSoftLinks
       case "cached-copy" if cachedCopyDir.isEmpty => false
       case _ => true
     }
@@ -298,7 +299,6 @@ trait SharedFileSystem extends PathFactory {
         if (inputsRoot.isParentOf(localInputPath)) localInputPath
         else {
           val nameOverride = womFile match {
-            case directory: WomMaybeListedDirectory => directory.basename
             case _ => None
           }
           // Concatenate call directory with absolute input path
@@ -339,19 +339,11 @@ trait SharedFileSystem extends PathFactory {
   private def localizeWomFile(toDestPath: WomFile => String => Try[PairOfFiles],
                               strategies: LazyList[DuplicationStrategy],
                               docker: Boolean
-  )(womFile: WomFile): WomFile = {
-    val localized = womFile mapWomFile { file =>
+  )(womFile: WomFile): WomFile =
+    womFile mapWomFile { file =>
       val result = toDestPath(file)(file.value) flatMap { case PairOfFiles(src, dst) =>
         duplicate("localize", src, dst, strategies, docker).map(_ => dst.pathAsString)
       }
       result.get
     }
-    val sized = localized collect {
-      case womMaybePopulatedFile @ WomMaybePopulatedFile(Some(path), _, None, _, _, _, _) =>
-        val pair = toDestPath(womMaybePopulatedFile)(path).get
-        val srcSize = pair.src.size
-        womMaybePopulatedFile.copy(sizeOption = Option(srcSize))
-    }
-    sized
-  }
 }

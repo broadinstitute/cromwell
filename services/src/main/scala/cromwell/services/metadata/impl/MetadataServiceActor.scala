@@ -110,12 +110,14 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   val metadataWriteStatisticsConfig = MetadataStatisticsRecorderSettings(
     serviceConfig.as[Option[Config]]("metadata-write-statistics")
   )
+  val metadataKeysToClean = serviceConfig.getOrElse[List[String]]("metadata-keys-to-sanitize-utf8mb4", List())
   val writeActor = context.actorOf(
     WriteMetadataActor.props(dbBatchSize,
                              dbFlushRate,
                              serviceRegistryActor,
                              LoadConfig.MetadataWriteThreshold,
-                             metadataWriteStatisticsConfig
+                             metadataWriteStatisticsConfig,
+                             metadataKeysToClean
     ),
     "WriteMetadataActor"
   )
@@ -192,16 +194,6 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
       None
     }
 
-  private def validateWorkflowIdInMetadata(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit =
-    workflowWithIdExistsInMetadata(possibleWorkflowId.toString) onComplete {
-      case Success(true) => sender ! RecognizedWorkflowId
-      case Success(false) => sender ! UnrecognizedWorkflowId
-      case Failure(e) =>
-        sender ! FailedToCheckWorkflowId(
-          new RuntimeException(s"Failed lookup attempt for workflow ID $possibleWorkflowId", e)
-        )
-    }
-
   private def validateWorkflowIdInMetadataSummaries(possibleWorkflowId: WorkflowId, sender: ActorRef): Unit =
     workflowWithIdExistsInMetadataSummaries(possibleWorkflowId.toString) onComplete {
       case Success(true) => sender ! RecognizedWorkflowId
@@ -256,7 +248,6 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     case action: PutMetadataActionAndRespond => writeActor forward action
     // Assume that listen messages are directed to the write metadata actor
     case listen: Listen => writeActor forward listen
-    case v: ValidateWorkflowIdInMetadata => validateWorkflowIdInMetadata(v.possibleWorkflowId, sender())
     case v: ValidateWorkflowIdInMetadataSummaries =>
       validateWorkflowIdInMetadataSummaries(v.possibleWorkflowId, sender())
     case g: FetchWorkflowMetadataArchiveStatusAndEndTime =>

@@ -18,7 +18,7 @@ object GcpBatchTestConfig {
       |project = "my-cromwell-workflows"
       |root = "gs://my-cromwell-workflows-bucket"
       |
-      |genomics {
+      |batch {
       |  auth = "application-default"
       |  location = "us-central1"
       |}
@@ -47,7 +47,7 @@ object GcpBatchTestConfig {
       |project = "my-cromwell-workflows"
       |root = "gs://my-cromwell-workflows-bucket"
       |
-      |genomics {
+      |batch {
       |  auth = "application-default"
       |}
       |
@@ -82,10 +82,10 @@ object GcpBatchTestConfig {
        |}
        |
        |backend {
-       |  default = "batch"
+       |  default = "GCPBATCH"
        |  providers {
-       |    batch {
-       |      actor-factory = "cromwell.backend.google.pipelines.batch.GcpBatchBackendLifecycleActorFactory"
+       |    GCPBATCH {
+       |      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
        |      config {
        |      $BatchBackendConfigString
        |      }
@@ -108,7 +108,7 @@ object GcpBatchTestConfig {
     Await.result(BatchBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
   val googleConfiguration: GoogleConfiguration = GoogleConfiguration(BatchGlobalConfig)
   val batchAttributes: GcpBatchConfigurationAttributes =
-    GcpBatchConfigurationAttributes(googleConfiguration, BatchBackendConfig, "batch")
+    GcpBatchConfigurationAttributes(googleConfiguration, BatchBackendConfig, "GCPBATCH")
   val gcpBatchConfiguration =
     new GcpBatchConfiguration(BatchBackendConfigurationDescriptor, googleConfiguration, batchAttributes)
 }

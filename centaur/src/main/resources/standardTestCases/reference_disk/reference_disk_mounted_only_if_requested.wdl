@@ -13,16 +13,16 @@ task MentionsNirvanaReference {
     input {
         # Tiny 116 byte reference file, certainly not worth attaching a 55 GiB Nirvana reference disk for this.
         File mention =
-            "gs://broad-public-datasets/gvs/vat-annotations/Nirvana/3.18.1/SupplementaryAnnotation/GRCh38/MITOMAP_20200819.nsa.idx"
+            "gs://gcp-public-data--broad-references/hg38/v0/Nirvana/3.18.1_2024-03-06/SupplementaryAnnotation/GRCh38/MITOMAP_20200819.nsa.idx"
     }
     command <<<
         PS4='\D{+%F %T} \w $ '
         set -o nounset -o xtrace
 
         # Debug output
-        lsblk
+        lsblk > lsblk.out
 
-        CANDIDATE_MOUNT_POINT=$(lsblk | sed -E -n 's!.*(/mnt/[a-f0-9]+).*!\1!p')
+        CANDIDATE_MOUNT_POINT=$(lsblk | sed -E -n 's!.*(/mnt/[^/]+).*!\1!p')
 
         if [[ ! -z ${CANDIDATE_MOUNT_POINT} ]]; then
             echo "Found unexpected mounted disk, investigating further."
@@ -43,6 +43,7 @@ task MentionsNirvanaReference {
         backend: "Papiv2-Reference-Disk-Localization"
     }
     output {
+        File lsblk = "lsblk.out"
         Boolean disk_mounted = read_boolean("disk_mounted.out")
         File? find_out = "find.out"
     }

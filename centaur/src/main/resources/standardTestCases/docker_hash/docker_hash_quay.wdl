@@ -3,7 +3,7 @@ task quay {
         echo "hello"
     }
     runtime {
-        docker: "quay.io/broadinstitute/cromwell-docker-test:centaur"
+        docker: "quay.io/broadinstitute/cromwell-tools:v2.4.1"
     }
 }
 

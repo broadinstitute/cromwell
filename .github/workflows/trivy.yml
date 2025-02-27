@@ -12,17 +12,18 @@ jobs:
         project:
         - cromiam
         - cromwell-drs-localizer
-        - perf
         - server
         - womtool
 
     steps:
       - uses: actions/checkout@v2
+      - uses: sbt/setup-sbt@v1
 
       # fetch SBT package
-      - uses: olafurpg/setup-scala@v10
+      - uses: actions/setup-java@v4
         with:
-          java-version: adopt@1.11
+          distribution: 'temurin'
+          java-version: '17'
 
       # set up SBT cache
       - uses: actions/cache@v2

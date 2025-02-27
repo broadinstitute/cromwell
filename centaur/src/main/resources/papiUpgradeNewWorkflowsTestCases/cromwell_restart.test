@@ -1,6 +1,6 @@
 name: cromwell_restart
 testFormat: CromwellRestartWithRecover
-backends: [Papiv1]
+backends: [Papiv1, GCPBATCH]
 callMark: cromwell_restart.cromwell_killer
 retryTestFailures: false
 

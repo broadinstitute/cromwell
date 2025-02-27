@@ -2,9 +2,9 @@ package cromwell.backend.google.batch.models
 
 import cats.data.NonEmptyList
 import cromwell.backend.RuntimeAttributeDefinition
-import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models.GcpBatchTestConfig._
 import cromwell.backend.validation.ContinueOnReturnCodeSet
+import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk, GcpBatchWorkingDisk}
 import cromwell.core.WorkflowOptions
 import eu.timepit.refined.refineMV
 import org.scalatest.TestSuite
@@ -285,7 +285,6 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
     failOnStderr = false,
     continueOnReturnCode = ContinueOnReturnCodeSet(Set(0)),
     noAddress = false,
-    useDockerImageCache = None,
     checkpointFilename = None
   )
 

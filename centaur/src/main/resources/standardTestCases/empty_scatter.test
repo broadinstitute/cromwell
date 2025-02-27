@@ -8,6 +8,6 @@ files {
 metadata {
   workflowName: empty_scatter
   status: Succeeded
-  "outputs.empty_scatter.task_outs_length" : "0"
-  "outputs.empty_scatter.decls_length" : "0"
+  "outputs.empty_scatter.task_outs_length" : 0
+  "outputs.empty_scatter.decls_length" : 0
 }

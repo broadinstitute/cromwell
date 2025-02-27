@@ -6,7 +6,7 @@ task prepare {
     Array[String] array = read_lines(stdout())
   }
   runtime {
-    docker: "python:3.5.0"
+    docker: "python:3.12.4"
   }
 }
 
@@ -19,7 +19,7 @@ task analysis {
     File out = "a.txt"
   }
   runtime {
-    docker: "python:3.5.0"
+    docker: "python:3.12.4"
   }
 }
 

@@ -1,6 +1,7 @@
 name: docker_image_cache_true_unspecified
 testFormat: workflowsuccess
-backends: [Papiv2-Docker-Image-Cache]
+# This will need an alt if we want to bring Docker image cache to GCPBATCH which I'm not sure we do
+backends: [Papiv2-Docker-Image-Cache, GCPBATCH_DOCKER_IMAGE_CACHE_NOT_IMPLEMENTED]
 
 files {
   workflow: docker_image_cache/docker_image_cache_true.wdl

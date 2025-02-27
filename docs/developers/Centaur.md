@@ -5,7 +5,7 @@ Centaur is an integration testing suite for the [Cromwell](http://github.com/bro
 Centaur expects to find a Cromwell server properly configured and running in server mode, listening on port 8000.  
 This can be configured by modifying the `cromwellUrl` parameter in `application.conf`.
 
-You can get a build of your current cromwell code with [these instructions](Building.md).
+You can get a build of your current Cromwell code with [these instructions](Building.md).
 The server can be run with `java -jar <Cromwell JAR> server`, checkout [this page](../CommandLine.md) 
 for more detailed instructions. 
 You can now run the tests from another terminal.
@@ -15,7 +15,6 @@ You can now run the tests from another terminal.
 There are two ways to invoke the integration tests:
 
 * `sbt "centaur / IntegrationTest / test"` - compiles Centaur and runs all tests via sbt directly. Tests are expected to be in the `centaur/src/main/standardTestCases` directory. This can be changed by modifying `reference.conf`.
-
 * `src/ci/bin/testCentaurLocal.sh` - runs the same tests using the continuous integration pipeline configuration.
 
 * Tests that require different Cromwell and Centaur configurations can be invoked by calling the various scripts in `src/ci/bin`.
@@ -77,6 +76,9 @@ metadata {
   "failures.0.causedBy": "BetweenKeyboardAndChairException"
 }
 
+// Optional, the expected cost range of running the workflow
+cost:[ 0.0000, 0.0001 ]
+
 filesystemcheck: "local" // possible values: "local", "gcs". Used in conjunction with outputExpectations to define files we expect to exist after running this workflow.
 outputExpectations: {
     "/path/to/my/output/file1": 1
@@ -91,6 +93,7 @@ The `basePath` field is optional, but if supplied all paths will be resolved fro
 The `testFormat` field can be one of the following, case insensitive:
 * `workflowsuccess`: The workflow being supplied is expected to successfully complete
 * `workflowfailure`: The workflow being supplied is expected to fail
+* `workflowsuccessandverifycost`: The workflow being supplied is expected to complete and the expected cost will be verified
 
 The `metadata` is optional. If supplied, Centaur will retrieve the metadata from the successfully completed workflow and compare the values retrieved to those supplied. At the moment the only fields supported are strings, numbers and booleans.
 
@@ -105,12 +108,19 @@ In case the absolute path the cromwell root is used (for example: `/home/my_user
 * `"calls.hello.hello.exit_code": "<<WORKFLOW_ROOT>>/call-hello/execution/exit_code"`
 
 In case testing of the caching is required `<<CACHE_HIT_UUID>>` can be used. 
-The testFormat should be `runtwiceexpectingcallcaching`.
+The testFormat should be `runtwiceexpectingcallcaching`. To verify that the cost is 0 when using call-caching the testFormat should be `runtwiceexpectingcallcachingnocost`
+
+The cost is optional. If supplied, Centaur will retrieve the cost of the successfully completed workflow and compare it to the cost range supplied. 
+* If evaluating the cost, the test format must be `WorkflowSuccessAndVerifyCost` and the call-caching option must be disabled for that test (example can be found in the `recursive_imports_cost_batch.test`)
+* Different backends may have different costs, so be sure to specify the backend in the test case file
 
 
 ## Centaur Test Types
 Both Cromwell and Centaur require configuration files in order to correctly build and test various parts of the system. Because of this, we divide
 our tests into groups depending on which configuration files they require. Below is the current matrix of configuration files and test source directories.
+
+Note: To exclude a specific test from a test suite, find the `.sh` file that runs that suite, then add a new line with the -e flag to the `cromwell::build::run_centaur` command
+(ex. `-e {NAME_OF_TEST}`)
 
 ## Upgrade / Horicromtal / etc.
 

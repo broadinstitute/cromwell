@@ -6,13 +6,14 @@ import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
 import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.monitoring.{CheckpointingConfiguration, MonitoringImage}
+import cromwell.core.logging.JobLogger
 import cromwell.core.path.Path
 import wom.runtime.WomOutputRuntimeExtractor
 
 import scala.concurrent.duration.FiniteDuration
 
 trait GcpBatchRequestFactory {
-  def submitRequest(data: GcpBatchRequest): CreateJobRequest
+  def submitRequest(data: GcpBatchRequest, jobLogger: JobLogger): CreateJobRequest
 
   def queryRequest(jobName: JobName): GetJobRequest
 
@@ -42,12 +43,13 @@ object GcpBatchRequestFactory {
     rcFileOutputParameter: GcpBatchFileOutput,
     memoryRetryRCFileOutputParameter: GcpBatchFileOutput
   ) {
-    def all: List[GcpBatchFileOutput] =
-      memoryRetryRCFileOutputParameter :: List(rcFileOutputParameter) ++ monitoringScriptOutputParameter
+    def all: List[GcpBatchFileOutput] = memoryRetryRCFileOutputParameter ::
+      rcFileOutputParameter ::
+      monitoringScriptOutputParameter.toList
   }
 
   /**
-    * Bundle containing all input and output parameters to a PAPI job
+    * Bundle containing all input and output parameters to a Batch job
     * Detrituses and actual inputs / outputs to the job are separated for more clarity and to leave open the possibility
     * to treat them differently.
     */
@@ -55,8 +57,7 @@ object GcpBatchRequestFactory {
     detritusInputParameters: DetritusInputParameters,
     jobInputParameters: List[GcpBatchInput],
     jobOutputParameters: List[GcpBatchOutput],
-    detritusOutputParameters: DetritusOutputParameters,
-    literalInputParameters: List[GcpBatchLiteralInput]
+    detritusOutputParameters: DetritusOutputParameters
   ) {
     lazy val fileInputParameters: List[GcpBatchInput] = jobInputParameters ++ detritusInputParameters.all
     lazy val fileOutputParameters: List[GcpBatchOutput] = detritusOutputParameters.all ++ jobOutputParameters
@@ -64,13 +65,21 @@ object GcpBatchRequestFactory {
 
   case class CreateBatchDockerKeyAndToken(key: String, encryptedToken: String)
 
+  /**
+   * Defines the values used for streaming the job logs to GCS.
+   * 
+   * @param gcsBucket the Cloud Storage bucket where the log file should be streamed to.
+   * @param mountPath the path where the Cloud Storage bucket will be mounted to.
+   * @param diskPath  the path in the mounted disk where the log file should be written to.
+   */
+  case class GcpBatchLogFile(gcsBucket: String, mountPath: String, diskPath: Path)
+
   case class CreateBatchJobParameters(jobDescriptor: BackendJobDescriptor,
                                       runtimeAttributes: GcpBatchRuntimeAttributes,
                                       dockerImage: String,
                                       cloudWorkflowRoot: Path,
                                       cloudCallRoot: Path,
                                       commandScriptContainerPath: Path,
-                                      logGcsPath: Path,
                                       inputOutputParameters: InputOutputParameters,
                                       projectId: String,
                                       computeServiceAccount: String,
@@ -89,15 +98,10 @@ object GcpBatchRequestFactory {
                                       checkpointingConfiguration: CheckpointingConfiguration,
                                       enableSshAccess: Boolean,
                                       vpcNetworkAndSubnetworkProjectLabels: Option[VpcAndSubnetworkProjectLabelValues],
-                                      dockerhubCredentials: (String, String)
+                                      dockerhubCredentials: (String, String),
+                                      targetLogFile: Option[GcpBatchLogFile]
   ) {
-    def literalInputs = inputOutputParameters.literalInputParameters
-
-    def inputParameters = inputOutputParameters.fileInputParameters
-
     def outputParameters = inputOutputParameters.fileOutputParameters
-
-    def allParameters = inputParameters ++ outputParameters
   }
 
 }

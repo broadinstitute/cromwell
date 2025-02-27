@@ -1,19 +1,17 @@
 package centaur.test.metadata
 
 import java.util.UUID
-
 import cats.data.Validated._
 import centaur.test.metadata.JsValueEnhancer._
-import com.typesafe.config.Config
-import common.collections.EnhancedCollections._
+import com.typesafe.config.{Config, ConfigValue, ConfigValueType}
 import common.validation.ErrorOr._
 import common.validation.Validation._
-import configs.Result
-import configs.syntax._
 import cromwell.api.model.{WorkflowId, WorkflowLabels, WorkflowMetadata, WorkflowOutputs}
 import mouse.all._
 import spray.json._
 
+import java.util
+import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
@@ -43,14 +41,6 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
                          workflowRoot: String,
                          cacheHitUUID: Option[UUID]
   ): Option[String] = {
-    /*
-      FIXME/TODO:
-
-      At the moment all expected values are coerced into JsString (as it is hard to discern intended type from
-      HOCON). However values coming from the metadata endpoint are JsValue. At the moment we're only using
-      JsString, JsNumber and JsBoolean for comparison so this is a hacky way of handling that situation. It's
-      entirely likely that it won't survive long term.
-     */
     import WorkflowFlatMetadata._
 
     lazy val substitutedValue = expected.toString.replaceExpectationVariables(WorkflowId(workflowID), workflowRoot)
@@ -65,16 +55,37 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
       case o: JsString if stripQuotes(cacheSubstitutions).startsWith("~~") =>
         val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~~")
         (!stripQuotes(o.toString).contains(stripped)).option(s"Actual value ${o.toString()} does not contain $stripped")
-      case o: JsString => (cacheSubstitutions != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
+      case o: JsString if stripQuotes(cacheSubstitutions).endsWith("~~") =>
+        val stripped = stripQuotes(cacheSubstitutions).stripSuffix("~~")
+        (!stripQuotes(o.toString).contains(stripped))
+          .option(s"Actual value ${o.toString()} does not start with $stripped")
+      case o: JsString =>
+        (cacheSubstitutions != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
       case o: JsNumber =>
-        (expected != JsString(o.value.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+        expected match {
+          case JsNumber(value) =>
+            (value.compare(o.value) != 0).option(s"expected: $cacheSubstitutions but got: $actual")
+          case _ => Option(s"metadata $actual is a number, but expected to be the same type as $expected")
+        }
       case o: JsBoolean =>
-        (expected != JsString(o.value.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+        expected match {
+          case JsBoolean(value) => (value != o.value).option(s"expected: $cacheSubstitutions but got: $actual")
+          case _ => Option(s"metadata $actual is a boolean, but expected to be the same type as $expected")
+        }
       case o: JsArray if stripQuotes(cacheSubstitutions).startsWith("~>") =>
         val stripped = stripQuotes(cacheSubstitutions).stripPrefix("~>")
         val replaced = stripped.replaceAll("\\\\\"", "\"")
-        (replaced != o.toString).option(s"expected: $cacheSubstitutions but got: $actual")
-      case o: JsArray => (expected != JsString(o.toString)).option(s"expected: $cacheSubstitutions but got: $actual")
+        replaced.parseJson match {
+          case JsArray(elements) =>
+            (elements != o.elements).option(s"expected: $replaced.parseJson but got: $actual")
+          case _ => Option(s"metadata $actual is an array, but expected to be the same type as ${replaced.parseJson}")
+        }
+      case o: JsArray =>
+        expected match {
+          case JsArray(elements) =>
+            (elements != o.elements).option(s"expected: $cacheSubstitutions but got: $actual")
+          case _ => Option(s"metadata $actual is an array, but expected to be the same type as $expected")
+        }
       case JsNull => (expected != JsNull).option(s"expected: $cacheSubstitutions but got: $actual")
       case _ => Option(s"expected: $cacheSubstitutions but got: $actual")
     }
@@ -85,10 +96,67 @@ case class WorkflowFlatMetadata(value: Map[String, JsValue]) extends AnyVal {
 
 object WorkflowFlatMetadata {
 
-  def fromConfig(config: Config): ErrorOr[WorkflowFlatMetadata] =
-    config.extract[Map[String, Option[String]]] match {
-      case Result.Success(m) => Valid(WorkflowFlatMetadata(m safeMapValues { _.map(JsString.apply).getOrElse(JsNull) }))
-      case Result.Failure(_) => invalidNel(s"Metadata block can not be converted to a Map: $config")
+  def fromConfig(config: Config): ErrorOr[WorkflowFlatMetadata] = {
+    val metadataValues = config.entrySet().toArray(Array[util.Map.Entry[String, ConfigValue]]()).map { value =>
+      val v: ConfigValue = value.getValue
+      val key: String = value.getKey.stripPrefix("\"").stripSuffix("\"")
+      v.valueType() match {
+        case ConfigValueType.BOOLEAN => key -> JsBoolean.apply(v.unwrapped().asInstanceOf[Boolean])
+        case ConfigValueType.NUMBER =>
+          val num = v.unwrapped().asInstanceOf[Number]
+          if (num.intValue() == num.doubleValue()) {
+            key -> JsNumber.apply(num.intValue())
+          } else {
+            key -> JsNumber.apply(num.doubleValue())
+          }
+        case ConfigValueType.LIST =>
+          key ->
+            parseArray(
+              v.unwrapped()
+                .asInstanceOf[util.List[Object]]
+                .asScala
+                .toVector
+            )
+        case ConfigValueType.NULL => key -> JsNull
+        case _ =>
+          /*
+            FIXME/TODO:
+
+            As part of WX-1629, this was changed to allow Centaur tests to perform comparisons that take data type
+            into account instead of casting all values to strings before comparing. However, it seems that expected
+            values from *.test files are read in as either Strings, Numbers, or Lists -- as such, in order to compare
+            booleans, a cast is required. This isn't ideal because it makes it impossible to use the Strings "true" or
+            "false" -- they will always be cast to booleans. The changes necessary to fix this are more wide reaching
+            than the scope of WX-1629, so this must be fixed in the future.
+           */
+          if (v.unwrapped().asInstanceOf[String] == "true" || v.unwrapped().asInstanceOf[String] == "false") {
+            key -> JsBoolean.apply(v.unwrapped().asInstanceOf[String].toBoolean)
+          } else {
+            key -> JsString.apply(v.unwrapped().asInstanceOf[String])
+          }
+      }
+    }
+
+    Valid(WorkflowFlatMetadata(metadataValues.toMap))
+  }
+
+  private def parseArray(element: Any): JsValue =
+    element match {
+      case array: Vector[Any] =>
+        JsArray(
+          array.map {
+            case value: java.util.ArrayList[_] => parseArray(value.asInstanceOf[util.List[Any]].asScala.toVector)
+            case value: Any => parseArray(value)
+          }
+        )
+      case _ =>
+        element match {
+          case value: java.lang.Boolean => JsBoolean.apply(value)
+          case value: java.lang.Integer => JsNumber.apply(value)
+          case value: java.lang.Float => JsNumber.apply(value)
+          case value: java.lang.Double => JsNumber.apply(value)
+          case _ => JsString.apply(element.asInstanceOf[String])
+        }
     }
 
   def fromWorkflowMetadata(workflowMetadata: WorkflowMetadata): ErrorOr[WorkflowFlatMetadata] = {

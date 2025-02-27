@@ -57,6 +57,23 @@ trait MetadataEntryComponent {
 
     // TODO: rename index via liquibase
     def ixMetadataEntryWeu = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
+
+    /**
+      * Index designed to accelerate common key-specific queries across an entire workflow, such as:
+      * - Get workflow-level `outputs%` keys (no tasks, requireEmptyJobKey = true)
+      * - Get all `vmStartTime%`, `vmEndTime%`, `vmCostPerHour%` keys in the workflow (include tasks, requireEmptyJobKey = false)
+      *
+      * It is NOT good, as in may make actively slower, queries that reference a specific job. If we do more
+      * with getting metadata for individual jobs, recommend creating this index with all 5 columns:
+      * - WORKFLOW_EXECUTION_UUID, CALL_FQN, JOB_SCATTER_INDEX, JOB_RETRY_ATTEMPT, METADATA_KEY
+      *
+      * Do NOT recommend this alternate order, as wildcards in the middle are inefficient and this can be
+      * slower than no indexes. Tested with 20M row `69e8259c` workflow in October 2024.
+      * - WORKFLOW_EXECUTION_UUID, METADATA_KEY, CALL_FQN, JOB_SCATTER_INDEX, JOB_RETRY_ATTEMPT
+      *
+      * @return A reference to the index
+      */
+    def ixMetadataEntryWeuMk = index("IX_METADATA_ENTRY_WEU_MK", (workflowExecutionUuid, metadataKey), unique = false)
   }
 
   val metadataEntries = TableQuery[MetadataEntries]
@@ -94,22 +111,6 @@ trait MetadataEntryComponent {
         } yield metadata
       }.size
     )
-
-  val metadataEntryExistsForWorkflowExecutionUuid = Compiled((workflowExecutionUuid: Rep[String]) =>
-    (for {
-      metadataEntry <- metadataEntries
-      if metadataEntry.workflowExecutionUuid === workflowExecutionUuid
-    } yield metadataEntry).exists
-  )
-
-  def metadataEntryExistsForWorkflowExecutionUuid(workflowId: Rep[String], key: Rep[String]): Rep[Boolean] =
-    metadataEntries
-      .filter(metadataEntry =>
-        metadataEntry.workflowExecutionUuid === workflowId &&
-          metadataEntry.metadataKey === key &&
-          metadataEntry.metadataValue.isDefined
-      )
-      .exists
 
   val metadataEntriesForWorkflowExecutionUuidAndMetadataKey =
     Compiled((workflowExecutionUuid: Rep[String], metadataKey: Rep[String]) =>

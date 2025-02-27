@@ -71,7 +71,7 @@ trait Localization {
       List(localizeDrsLocalizationManifest, runDrsLocalization)
     } else List[Runnable.Builder]()
 
-    // Any "classic" PAPI v2 one-at-a-time localizations for non-GCS inputs.
+    // Any "classic" Batch one-at-a-time localizations for non-GCS inputs.
     val singletonLocalizations =
       createParameters.inputOutputParameters.fileInputParameters.flatMap(_.toRunnables(volumes))
 

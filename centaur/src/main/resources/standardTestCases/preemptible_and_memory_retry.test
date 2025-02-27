@@ -1,6 +1,10 @@
 name: preemptible_and_memory_retry
 testFormat: workflowfailure
-backends: [Papiv2]
+# The original version of this test was tailored to the quirks of Papi v2 in depending on the misdiagnosis of its own
+# VM deletion as a preemption event. However GCP Batch perhaps more correctly diagnoses VM deletion as a weird
+# non-preemption event. The GCPBATCH version of this test uses `gcloud beta compute instances simulate-maintenance-event`
+# to simulate a preemption in a way that GCP Batch actually perceives as a preemption.
+backends: [Papiv2, GCPBATCH_ALT]
 
 files {
   workflow: retry_with_more_memory/preemptible_and_memory_retry.wdl

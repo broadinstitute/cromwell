@@ -5,6 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import better.files.File.OpenOptions
 import com.google.cloud.storage.StorageException
 import cromwell.core.TestKitSuite
+import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.DefaultIoCommand._
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
 import cromwell.core.io._
@@ -214,7 +215,7 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
     val src = DefaultPathBuilder.createTempFile()
     src.write("hello")
 
-    val hashCommand = DefaultIoHashCommand(src)
+    val hashCommand = DefaultIoHashCommand(src, FileHashStrategy.Md5)
 
     testActor ! hashCommand
     expectMsgPF(5 seconds) {

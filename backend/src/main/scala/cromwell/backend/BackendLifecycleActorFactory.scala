@@ -14,7 +14,7 @@ import wom.graph.CommandCallNode
 
 import scala.concurrent.ExecutionContext
 
-trait BackendLifecycleActorFactory {
+trait BackendLifecycleActorFactory extends PlatformSpecific {
 
   /**
     * Name of the backend.
@@ -56,7 +56,8 @@ trait BackendLifecycleActorFactory {
                              initializationData: Option[BackendInitializationData],
                              serviceRegistryActor: ActorRef,
                              ioActor: ActorRef,
-                             backendSingletonActor: Option[ActorRef]
+                             backendSingletonActor: Option[ActorRef],
+                             groupMetricsActor: ActorRef
   ): Props
 
   lazy val jobExecutionTokenType: JobTokenType = {
@@ -166,7 +167,7 @@ trait BackendLifecycleActorFactory {
   /**
     * Allows Cromwell to self-identify which cloud it's running on for runtime attribute purposes
     */
-  def platform: Option[Platform] = None
+  override def platform: Option[Platform] = None
 }
 
 object BackendLifecycleActorFactory {

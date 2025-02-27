@@ -1,9 +1,9 @@
 package cromwell.backend.standard.callcaching
 
-import java.util.concurrent.TimeoutException
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Timers}
 import akka.event.LoggingAdapter
+import cats.data.NonEmptyList
+import com.typesafe.config.Config
 import cromwell.backend.standard.StandardCachingActorHelper
 import cromwell.backend.standard.callcaching.RootWorkflowFileHashCacheActor.IoHashCommandWithContext
 import cromwell.backend.standard.callcaching.StandardFileHashingActor._
@@ -12,8 +12,13 @@ import cromwell.core.JobKey
 import cromwell.core.callcaching._
 import cromwell.core.io._
 import cromwell.core.logging.JobLogging
+import cromwell.core.path.Path
+import cromwell.services.instrumentation.CromwellInstrumentation
+import net.ceedubs.ficus.Ficus._
 import wom.values.WomFile
 
+import java.util.concurrent.TimeoutException
+import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -48,6 +53,10 @@ case class FileHashContext(hashKey: HashKey, file: String)
 class DefaultStandardFileHashingActor(standardParams: StandardFileHashingActorParams)
     extends StandardFileHashingActor(standardParams) {
   override val ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+
+  override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
+    ("drs", FileHashStrategy.Drs)
+  )
 }
 
 object StandardFileHashingActor {
@@ -72,7 +81,8 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
     with JobLogging
     with IoClientHelper
     with StandardCachingActorHelper
-    with Timers {
+    with Timers
+    with CromwellInstrumentation {
   override lazy val ioActor: ActorRef = standardParams.ioActor
   override lazy val jobDescriptor: BackendJobDescriptor = standardParams.jobDescriptor
   override lazy val backendInitializationDataOption: Option[BackendInitializationData] =
@@ -80,9 +90,40 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
   override lazy val configurationDescriptor: BackendConfigurationDescriptor = standardParams.configurationDescriptor
 
-  protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder
+  // Child classes can override to set per-filesystem defaults
+  val defaultHashingStrategies: Map[String, FileHashStrategy] = Map.empty
 
+  // Hashing strategy to use if none is specified.
+  val fallbackHashingStrategy: FileHashStrategy = FileHashStrategy.Md5
+
+  // Combines defaultHashingStrategies with user-provided configuration
+  lazy val hashingStrategies: Map[String, FileHashStrategy] = {
+    val configuredHashingStrategies = for {
+      fsConfigs <- configurationDescriptor.backendConfig.as[Option[Config]]("filesystems").toList
+      fsKey <- fsConfigs.root.keySet().asScala
+      configKey = s"${fsKey}.caching.hashing-strategy"
+      fileHashStrategyConfigFromList = Try(fsConfigs.as[List[String]](configKey)).toOption
+      fileHashStrategyConfigFromString = Try(fsConfigs.as[String](configKey)).toOption.map(List(_))
+      fileHashStrategyConfig <- fileHashStrategyConfigFromList.orElse(fileHashStrategyConfigFromString)
+      fileHashStrategy = FileHashStrategy.of(fileHashStrategyConfig)
+      nonEmptyFileHashStrategy <- if (fileHashStrategy.isEmpty) None else Option(fileHashStrategy)
+    } yield (fsKey, nonEmptyFileHashStrategy)
+
+    defaultHashingStrategies ++ configuredHashingStrategies
+
+  }
+
+  protected def metricsCallback: Set[NonEmptyList[String]] => Unit = { pathsToIncrement =>
+    pathsToIncrement.foreach(increment(_))
+  }
+
+  protected def ioCommandBuilder: IoCommandBuilder = DefaultIoCommandBuilder(metricsCallback)
+
+  // Used by ConfigBackend for synchronous hashing of local files
   def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = None
+
+  def hashStrategyForPath(p: Path): FileHashStrategy =
+    hashingStrategies.getOrElse(p.filesystemTypeKey, fallbackHashingStrategy)
 
   def fileHashingReceive: Receive = {
     // Hash Request
@@ -115,8 +156,9 @@ abstract class StandardFileHashingActor(standardParams: StandardFileHashingActor
   def asyncHashing(fileRequest: SingleFileHashRequest, replyTo: ActorRef): Unit = {
     val fileAsString = fileRequest.file.value
     val ioHashCommandTry = for {
-      gcsPath <- getPath(fileAsString)
-      command <- ioCommandBuilder.hashCommand(gcsPath)
+      path <- getPath(fileAsString)
+      hashStrategy = hashStrategyForPath(path)
+      command <- ioCommandBuilder.hashCommand(path, hashStrategy)
     } yield command
     lazy val fileHashContext = FileHashContext(fileRequest.hashKey, fileRequest.file.value)
 

@@ -8,6 +8,8 @@ import scala.annotation.tailrec
   * WOMmy TaskDefinition. That should get straightened out. */
 object StringUtil {
   val Ws = Pattern.compile("[\\ \\t]+")
+  val utf8mb4Regex = "[\\x{10000}-\\x{FFFFF}]"
+  val utf8mb3Replacement = "\uFFFD" // This is the standard char for replacing
 
   /**
     * 1) Remove all leading newline chars
@@ -63,4 +65,12 @@ object StringUtil {
 
     start(0)
   }
+
+  /**
+   * Remove all utf8mb4 exclusive characters (emoji) from the given string.
+   * @param in String to clean
+   * @return String with all utf8mb4 exclusive characters removed
+   */
+  def cleanUtf8mb4(in: String): String =
+    in.replaceAll(utf8mb4Regex, utf8mb3Replacement)
 }

@@ -3,7 +3,7 @@
 ## 89 Release Notes
 
 ### GCP Batch Updates
- * Add default VM boot disk size to user-requested boot disk size; this ensures the VM has room for large user command Docker images.
+ * Add 30 GB default VM boot disk size to user-requested boot disk size; this ensures the VM has room for large user command Docker images.
 
 ## 88 Release Notes
 

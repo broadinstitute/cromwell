@@ -33,7 +33,7 @@ object GcpBatchTestConfig {
       |    continueOnReturnCode: 0
       |    docker: "ubuntu:latest"
       |    memory: "2048 MB"
-      |    bootDiskSizeGb: 10
+      |    bootDiskSizeGb: 30
       |    disks: "local-disk 10 SSD"
       |    noAddress: false
       |    preemptible: 0

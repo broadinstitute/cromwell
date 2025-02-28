@@ -4,6 +4,7 @@ import cats.implicits.{catsSyntaxValidatedId, toTraverseOps}
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.google.batch.io.{GcpBatchAttachedDisk, GcpBatchWorkingDisk}
+import cromwell.backend.google.batch.models.GcpBatchRuntimeAttributes.BootDiskSizeKey
 import cromwell.backend.google.batch.models.GpuResource.GpuType
 import cromwell.backend.google.batch.util.{GpuTypeValidation, GpuValidation}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
@@ -58,8 +59,8 @@ object GcpBatchRuntimeAttributes {
   private val PreemptibleDefaultValue = WomInteger(0)
 
   val BootDiskSizeKey = "bootDiskSizeGb"
-  private val bootDiskValidationInstance = new IntRuntimeAttributesValidation(BootDiskSizeKey)
-  private val BootDiskDefaultValue = WomInteger(10)
+  // This is the smallest size we will actually get, see https://cloud.google.com/batch/docs/vm-os-environment-overview#default
+  val BootDiskDefaultValue = WomInteger(30)
 
   val NoAddressKey = "noAddress"
   private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(NoAddressKey)
@@ -124,8 +125,7 @@ object GcpBatchRuntimeAttributes {
     )
 
   private def bootDiskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
-    bootDiskValidationInstance
-      .withDefault(bootDiskValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse BootDiskDefaultValue)
+    new BootDiskSizeValidation(runtimeConfig)
 
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
     noAddressValidationInstance
@@ -268,4 +268,23 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[GcpBatchAttachedD
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be a comma separated String or Array[String]"
+}
+
+class BootDiskSizeValidation(runtimeConfig: Option[Config]) extends IntRuntimeAttributesValidation(BootDiskSizeKey) {
+
+  override protected def staticDefaultOption: Option[WomInteger] = Option(WomInteger(0))
+
+  private def defaultBootDiskSize: Int = {
+    val configDefault: Option[WomInteger] = this.configDefaultWomValue(runtimeConfig) match {
+      case Some(i: WomInteger) => Some(i)
+      case _ => None
+    }
+    configDefault.getOrElse(GcpBatchRuntimeAttributes.BootDiskDefaultValue).value
+  }
+
+  // If the user doesn't provide a boot disk size, use the default. If they DO provide a boot disk size,
+  // add the default to it to account for the space taken by the user Docker image. See AN-345.
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = { case WomInteger(value) =>
+    (value + defaultBootDiskSize).validNel
+  }
 }

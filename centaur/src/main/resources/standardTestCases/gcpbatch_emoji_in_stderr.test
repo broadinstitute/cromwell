@@ -1,0 +1,12 @@
+name: gcpbatch_emoji_in_stderr
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: emoji_in_stderr/emoji_in_stderr.wdl
+}
+
+metadata {
+  workflowName: emoji_in_stderr
+  status: Succeeded
+}

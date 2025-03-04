@@ -43,6 +43,23 @@ class BatchRequestExecutorSpec
     .setDescription("Job state is set from RUNNING to SOME_OTHER_STATUS for job...")
     .build()
 
+  val schedulingStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(3).build())
+    .setDescription("Job state is set from QUEUED to SCHEDULED for job...")
+    .build()
+
+  val preemptionError = "Job state is set from SCHEDULED to FAILED for job projects/....Job failed due to task " +
+    "failure. Specifically, task with index 0 failed due to the following task event: \"Task state is updated " +
+    "from PENDING to FAILED on zones/... due to Spot VM preemption with exit code 50001.\""
+  val preemptionStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(4).build())
+    .setDescription(preemptionError)
+    .build()
+
   def setupBatchClient(machineType: String = "n1-standard-1",
                        location: String = "regions/us-central1",
                        jobState: State = JobStatus.State.SUCCEEDED,
@@ -76,6 +93,44 @@ class BatchRequestExecutorSpec
   }
 
   behavior of "BatchRequestExecutor"
+
+  it should "create a schedule status event correctly" in {
+
+    val mockClient = setupBatchClient(jobState = JobStatus.State.QUEUED, events = List(schedulingStatusEvent))
+    val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
+
+    // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
+    val internalGetHandler = PrivateMethod[BatchApiResponse.StatusQueried](Symbol("internalGetHandler"))
+    val result = batchRequestExecutor invokePrivate internalGetHandler(mockClient, GetJobRequest.newBuilder().build())
+
+    // Verify the event
+    result.status match {
+      case RunStatus.Initializing(events, _) =>
+        events.length shouldBe 1
+        events.map(_.name).head shouldBe "Job state is set from QUEUED to SCHEDULED for job..."
+        events.map(_.offsetDateTime.toString).head shouldBe "1970-01-01T00:00:03Z"
+      case _ => fail("Expected RunStatus.Initializing with events")
+    }
+  }
+
+  it should "handle an immediate preemption correctly" in {
+
+    val mockClient = setupBatchClient(jobState = JobStatus.State.FAILED, events = List(preemptionStatusEvent))
+    val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
+
+    // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
+    val internalGetHandler = PrivateMethod[BatchApiResponse.StatusQueried](Symbol("internalGetHandler"))
+    val result = batchRequestExecutor invokePrivate internalGetHandler(mockClient, GetJobRequest.newBuilder().build())
+
+    // Verify the event
+    result.status match {
+      case RunStatus.Preempted(_, events, _) =>
+        events.length shouldBe 1
+        events.map(_.name).head shouldBe preemptionError
+        events.map(_.offsetDateTime.toString).head shouldBe "1970-01-01T00:00:04Z"
+      case _ => fail("Expected RunStatus.Preempted with events")
+    }
+  }
 
   it should "create instantiatedVmInfo correctly" in {
 

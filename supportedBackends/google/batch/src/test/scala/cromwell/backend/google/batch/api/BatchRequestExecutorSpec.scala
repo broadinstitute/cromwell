@@ -2,15 +2,6 @@ package cromwell.backend.google.batch.api.request
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
-import com.google.cloud.batch.v1.{
-  AllocationPolicy,
-  BatchServiceClient,
-  BatchServiceSettings,
-  GetJobRequest,
-  Job,
-  JobStatus,
-  StatusEvent
-}
 import com.google.cloud.batch.v1.AllocationPolicy.{
   InstancePolicy,
   InstancePolicyOrTemplate,
@@ -18,6 +9,7 @@ import com.google.cloud.batch.v1.AllocationPolicy.{
   ProvisioningModel
 }
 import com.google.cloud.batch.v1.JobStatus.State
+import com.google.cloud.batch.v1._
 import com.google.protobuf.Timestamp
 import common.mock.MockSugar
 import cromwell.backend.google.batch.api.BatchApiResponse
@@ -28,6 +20,8 @@ import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import scala.jdk.CollectionConverters._
+
 class BatchRequestExecutorSpec
     extends TestKit(ActorSystem("BatchRequestExecutorSpec"))
     with AnyFlatSpecLike
@@ -35,9 +29,24 @@ class BatchRequestExecutorSpec
     with MockSugar
     with PrivateMethodTester {
 
+  val startStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(1).build())
+    .setDescription("Job state is set from SCHEDULED to RUNNING for job...")
+    .build()
+
+  val endStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(2).build())
+    .setDescription("Job state is set from RUNNING to SOME_OTHER_STATUS for job...")
+    .build()
+
   def setupBatchClient(machineType: String = "n1-standard-1",
                        location: String = "regions/us-central1",
-                       jobState: State = JobStatus.State.SUCCEEDED
+                       jobState: State = JobStatus.State.SUCCEEDED,
+                       events: List[StatusEvent]
   ): BatchServiceClient = {
     val instancePolicy = InstancePolicy
       .newBuilder()
@@ -51,25 +60,10 @@ class BatchRequestExecutorSpec
       .addInstances(InstancePolicyOrTemplate.newBuilder().setPolicy(instancePolicy))
       .build()
 
-    val startStatusEvent = StatusEvent
-      .newBuilder()
-      .setType("STATUS_CHANGED")
-      .setEventTime(Timestamp.newBuilder().setSeconds(1).build())
-      .setDescription("Job state is set from SCHEDULED to RUNNING for job...")
-      .build()
-
-    val endStatusEvent = StatusEvent
-      .newBuilder()
-      .setType("STATUS_CHANGED")
-      .setEventTime(Timestamp.newBuilder().setSeconds(2).build())
-      .setDescription("Job state is set from RUNNING to SOME_OTHER_STATUS for job...")
-      .build()
-
     val jobStatus = JobStatus
       .newBuilder()
       .setState(jobState)
-      .addStatusEvents(startStatusEvent)
-      .addStatusEvents(endStatusEvent)
+      .addAllStatusEvents(events.asJava)
       .build()
 
     val job = Job.newBuilder().setAllocationPolicy(allocationPolicy).setStatus(jobStatus).build()
@@ -85,7 +79,8 @@ class BatchRequestExecutorSpec
 
   it should "create instantiatedVmInfo correctly" in {
 
-    val mockClient = setupBatchClient(jobState = JobStatus.State.RUNNING)
+    val mockClient =
+      setupBatchClient(jobState = JobStatus.State.RUNNING, events = List(startStatusEvent, endStatusEvent))
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
 
@@ -105,7 +100,10 @@ class BatchRequestExecutorSpec
 
   it should "create instantiatedVmInfo correctly with different location info" in {
 
-    val mockClient = setupBatchClient(location = "zones/us-central1-a", jobState = JobStatus.State.RUNNING)
+    val mockClient = setupBatchClient(location = "zones/us-central1-a",
+                                      jobState = JobStatus.State.RUNNING,
+                                      events = List(startStatusEvent, endStatusEvent)
+    )
 
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
@@ -126,7 +124,8 @@ class BatchRequestExecutorSpec
 
   it should "create instantiatedVmInfo correctly with missing location info" in {
 
-    val mockClient = setupBatchClient(jobState = JobStatus.State.RUNNING)
+    val mockClient =
+      setupBatchClient(jobState = JobStatus.State.RUNNING, events = List(startStatusEvent, endStatusEvent))
 
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
@@ -147,7 +146,7 @@ class BatchRequestExecutorSpec
 
   it should "send vmStartTime and vmEndTime metadata info when a workflow succeeds" in {
 
-    val mockClient = setupBatchClient()
+    val mockClient = setupBatchClient(events = List(startStatusEvent, endStatusEvent))
 
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
@@ -168,7 +167,8 @@ class BatchRequestExecutorSpec
   }
 
   it should "send vmStartTime and vmEndTime metadata info along with other events when a workflow fails" in {
-    val mockClient = setupBatchClient(jobState = JobStatus.State.FAILED)
+    val mockClient =
+      setupBatchClient(jobState = JobStatus.State.FAILED, events = List(startStatusEvent, endStatusEvent))
 
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())

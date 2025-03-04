@@ -190,6 +190,9 @@ cromwell::private::create_build_variables() {
         centaurHoricromtalPapiV2beta*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2beta_horicromtal_application.conf"
             ;;
+        centaurHoricromtalGcpBatch*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/gcp_batch_horicromtal_application.conf"
+            ;;
         centaurBlob*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_blob_test.conf"
             ;;

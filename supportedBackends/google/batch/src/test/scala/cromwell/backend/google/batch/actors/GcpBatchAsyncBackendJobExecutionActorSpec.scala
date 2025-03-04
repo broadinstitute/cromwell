@@ -1431,7 +1431,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val batchBackend = testActorRef.underlyingActor
 
-    // NOTE: The commented lines are not provided by batch yet, we need to check whether those are necessary
     val actual = batchBackend.startMetadataKeyValues.safeMapValues(_.toString)
     actual should be(
       Map(
@@ -1442,7 +1441,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         "labels:cromwell-workflow-id" -> s"cromwell-$workflowId",
         "labels:wdl-task-name" -> "goodbye",
         "preemptible" -> "false",
-        "runtimeAttributes:bootDiskSizeGb" -> "10",
+        "runtimeAttributes:bootDiskSizeGb" -> "30",
         "runtimeAttributes:continueOnReturnCode" -> "0",
         "runtimeAttributes:cpu" -> "1",
         "runtimeAttributes:disks" -> "local-disk 200 SSD",

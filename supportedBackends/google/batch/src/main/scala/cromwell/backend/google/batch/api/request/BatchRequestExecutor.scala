@@ -12,9 +12,9 @@ import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiResponse}
 import cromwell.backend.google.batch.models.RunStatus
 import cromwell.core.ExecutionEvent
-import io.grpc.Status
 import cromwell.services.cost.InstantiatedVmInfo
 import cromwell.services.metadata.CallMetadataKeys
+import io.grpc.Status
 
 import java.util.regex.Pattern
 import scala.annotation.unused
@@ -153,7 +153,7 @@ object BatchRequestExecutor {
       // Get instances that can be created with this AllocationPolicy, only instances[0] is supported
       val instancePolicy = allocationPolicy.getInstances(0).getPolicy
       val machineType = instancePolicy.getMachineType
-      val preemtible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber
+      val preemptible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber
 
       // location list = [regions/us-central1, zones/us-central1-b], region is the first element
       val location = allocationPolicy.getLocation.getAllowedLocationsList.get(0)
@@ -163,7 +163,7 @@ object BatchRequestExecutor {
         else
           location.split("/").last
 
-      val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemtible))
+      val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemptible))
 
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
         RunStatus.Success(events, instantiatedVmInfo)
@@ -188,19 +188,15 @@ object BatchRequestExecutor {
         val time = java.time.Instant
           .ofEpochSecond(e.getEventTime.getSeconds, e.getEventTime.getNanos.toLong)
           .atOffset(java.time.ZoneOffset.UTC)
-        val eventType = e.getDescription match {
-          case startedRegex() => CallMetadataKeys.VmStartTime
-          case endedRegex() => CallMetadataKeys.VmEndTime
-          case _ => e.getType
-        }
-        val executionEvents = List(ExecutionEvent(name = eventType, offsetDateTime = time))
 
-        // Add an additional ExecutionEvent to capture other info if the event is a VmStartTime or VmEndTime
-        if (eventType == CallMetadataKeys.VmStartTime || eventType == CallMetadataKeys.VmEndTime) {
-          executionEvents :+ ExecutionEvent(name = e.getDescription, offsetDateTime = time)
-        } else {
-          executionEvents
-        }
+        // If this event represents the VM starting or stopping, add a special event describing that.
+        val startOrEndEvent = (e.getDescription match {
+          case startedRegex() => Option(CallMetadataKeys.VmStartTime)
+          case endedRegex() => Option(CallMetadataKeys.VmEndTime)
+          case _ => None
+        }).map(t => ExecutionEvent(name = t, offsetDateTime = time))
+
+        List(ExecutionEvent(name = e.getDescription, offsetDateTime = time)) ++ startOrEndEvent.toList
       }
     }
   }

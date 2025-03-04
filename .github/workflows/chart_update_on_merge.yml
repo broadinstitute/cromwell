@@ -11,19 +11,8 @@ jobs:
     name: Cromwell Version Auto Updater
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.tag.outputs.tag }}
     steps:
     - uses: sbt/setup-sbt@v1
-
-    - name: Bump the tag to a new version
-      uses: databiosphere/github-actions/actions/bumper@bumper-0.0.6
-      id: tag
-      env:
-        DEFAULT_BUMP: patch
-        GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-        RELEASE_BRANCHES: develop
-        WITH_V: true
     - name: Clone Cromwell
       uses: actions/checkout@v4
       with:
@@ -106,15 +95,3 @@ jobs:
         git commit -am "${{ steps.get-jira-id.outputs.jira-id }}: Auto update to Cromwell $CROMWELL_VERSION"
         git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main
         cd -
-
-
-  report-to-sherlock:
-    # Report new cromwell version to Broad DevOps
-    uses: broadinstitute/sherlock/.github/workflows/client-report-app-version.yaml@main
-    needs: [ chart-update ]
-    with:
-      new-version: ${{ needs.leo-build-tag-publish-job.outputs.tag }}
-      chart-name: 'leonardo'
-    permissions:
-      contents: 'read'
-      id-token: 'write'

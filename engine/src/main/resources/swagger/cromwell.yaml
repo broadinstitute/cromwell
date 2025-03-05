@@ -158,6 +158,24 @@ paths:
           $ref: '#/responses/BadRequest'
         '500':
           $ref: '#/responses/ServerError'
+  '/api/workflows/{version}/{id}/cost':
+    get:
+      operationId: cost
+      summary: Retrieves the current estimated cost of a workflow (Google backends only)
+      parameters:
+        - $ref: '#/parameters/versionParam'
+        - $ref: '#/parameters/singleId'
+      tags:
+        - Workflows
+      responses:
+        '200':
+          $ref: '#/responses/CostAndStatus'
+        '400':
+          $ref: '#/responses/BadRequest'
+        '404':
+          $ref: '#/responses/NotFound'
+        '500':
+          $ref: '#/responses/ServerError'
   '/api/workflows/{version}/{id}/labels':
     get:
       operationId: labels
@@ -978,6 +996,10 @@ responses:
     description: Successful Request
     schema:
       $ref: '#/definitions/WorkflowIdAndStatus'
+  CostAndStatus:
+    description: Successful Request
+    schema:
+      $ref: '#/definitions/WorkflowCostAndStatus'
   InvalidSubmission:
     description: Invalid submission request
   BadRequest:
@@ -1044,6 +1066,35 @@ definitions:
         type: string
         description: The status of the workflow
         example: Submitted
+  WorkflowCostAndStatus:
+    required:
+      - cost
+      - currency
+      - errors
+      - id
+      - status
+    properties:
+      cost:
+        type: number
+        description: The current estimated cost of the workflow
+        example: 0.045
+      currency:
+        type: string
+        description: The currency that the cost is in, currently always USD
+        example: USD
+      errors:
+        type: array
+        items:
+          type: string
+        description: Errors that were encountered while obtaining cost information, if any. If this list is nonempty the estimated cost should be regarded as incomplete.
+      id:
+        type: string
+        description: The identifier of the workflow
+        example: 00001111-2222-3333-aaaa-bbbbccccdddd
+      status:
+        type: string
+        description: The status of the workflow
+        example: Running
   WorkflowMetadataResponse:
     description: Workflow and call level metadata
     properties:

@@ -10,7 +10,7 @@ source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 # Functions:
 #
 #   - cromwell::build::batch::*
-#     Functions for use in other Papi scripts
+#     Functions for use in other Batch scripts
 #
 #   - cromwell::private::batch::batch::*
 #     Functions for use only within this file by cromwell::build::batch::* functions

@@ -187,11 +187,12 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_SBT_EXCLUDE="${BUILD_SBT_EXCLUDE:-}"
 
     case "${CROMWELL_BUILD_TYPE}" in
+        centaurHoricromtalGcpBatch*)
+            echo "### FIND ME inside centaurHoricromtalGcpBatch for CROMWELL_BUILD_TYPE"
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/gcp_batch_horicromtal_application.conf"
+            ;;
         centaurHoricromtalPapiV2beta*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2beta_horicromtal_application.conf"
-            ;;
-        centaurHoricromtalGcpBatch*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/gcp_batch_horicromtal_application.conf"
             ;;
         centaurBlob*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_blob_test.conf"
@@ -283,6 +284,8 @@ cromwell::private::echo_build_variables() {
     echo "CROMWELL_BUILD_PROVIDER='${CROMWELL_BUILD_PROVIDER}'"
     echo "CROMWELL_BUILD_OS='${CROMWELL_BUILD_OS}'"
     echo "CROMWELL_BUILD_URL='${CROMWELL_BUILD_URL}'"
+    echo "CROMWELL_BUILD_CROMWELL_CONFIG='${CROMWELL_BUILD_CROMWELL_CONFIG}'"
+    echo "CROMWELL_BUILD_BACKEND_TYPE='${CROMWELL_BUILD_BACKEND_TYPE}'"
 }
 
 # Create environment variables used by the DatabaseTestKit and cromwell::private::create_centaur_variables()

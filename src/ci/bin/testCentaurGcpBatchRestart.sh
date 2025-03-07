@@ -21,5 +21,3 @@ cromwell::build::run_centaur \
     -i restart \
 
 cromwell::build::generate_code_coverage
-
-cromwell::build::print_workflow_statistics

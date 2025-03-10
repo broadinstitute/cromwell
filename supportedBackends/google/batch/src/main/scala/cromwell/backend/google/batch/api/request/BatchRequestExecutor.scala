@@ -10,13 +10,11 @@ import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
 }
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiResponse}
-import cromwell.backend.google.batch.models.RunStatus
+import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}
 import cromwell.core.ExecutionEvent
 import cromwell.services.cost.InstantiatedVmInfo
 import cromwell.services.metadata.CallMetadataKeys
-import io.grpc.Status
 
-import java.util.regex.Pattern
 import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -28,10 +26,6 @@ trait BatchRequestExecutor {
 }
 
 object BatchRequestExecutor {
-  // The "from" state is *usually* RUNNING, but if a VM is quickly preempted it could be an earlier state like PENDING.
-  private val VM_PREEMPTION_PATTERN = Pattern.compile(
-    "failed due to the following task event: \"Task state is updated from \\S+ to FAILED on zones/\\S+ due to Spot VM preemption with exit code 50001.\""
-  )
 
   class CloudImpl(batchSettings: BatchServiceSettings) extends BatchRequestExecutor with LazyLogging {
 
@@ -128,7 +122,7 @@ object BatchRequestExecutor {
       } catch {
         // A job can't be cancelled but deleted, which is why we consider 404 status as the job being cancelled successfully
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.NOT_FOUND =>
-          BatchApiResponse.StatusQueried(RunStatus.Aborted(io.grpc.Status.NOT_FOUND))
+          BatchApiResponse.StatusQueried(RunStatus.Aborted())
 
         // We don't need to detect preemptible VMs because that's handled automatically by GCP
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
@@ -136,9 +130,6 @@ object BatchRequestExecutor {
       }
 
     private[request] def interpretOperationStatus(job: Job): RunStatus = {
-      def isPreemption(events: List[ExecutionEvent]): Boolean =
-        events.exists(e => VM_PREEMPTION_PATTERN.matcher(e.name).find())
-
       lazy val events = getEventList(
         Option(job)
           .flatMap(e => Option(e.getStatus))
@@ -170,12 +161,12 @@ object BatchRequestExecutor {
       } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
         RunStatus.Running(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
-        if (isPreemption(events)) {
-          RunStatus.Preempted(Status.OK, events, instantiatedVmInfo)
-        } else {
-          // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
-          RunStatus.Failed(Status.OK, events, instantiatedVmInfo)
-        }
+        val batchExitCode =
+          events
+            .flatMap(e => GcpBatchExitCode.fromEventMessage(e.name))
+            .headOption
+            .getOrElse(GcpBatchExitCode.Success)
+        RunStatus.Failed(batchExitCode, events, instantiatedVmInfo)
       } else {
         RunStatus.Initializing(events, instantiatedVmInfo)
       }

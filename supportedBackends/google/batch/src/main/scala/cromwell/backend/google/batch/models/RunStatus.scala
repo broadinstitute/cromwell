@@ -1,7 +1,6 @@
 package cromwell.backend.google.batch.models
 
 import cromwell.core.ExecutionEvent
-import io.grpc.Status
 import cromwell.services.cost.InstantiatedVmInfo
 
 sealed trait RunStatus {
@@ -31,30 +30,20 @@ object RunStatus {
     override def toString = "Success"
   }
 
-  sealed trait UnsuccessfulRunStatus extends TerminalRunStatus {
-    val errorCode: Status
-  }
+  sealed trait UnsuccessfulRunStatus extends TerminalRunStatus
 
   final case class Failed(
-    errorCode: Status,
+    errorCode: GcpBatchExitCode,
     eventList: Seq[ExecutionEvent],
     instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
   ) extends UnsuccessfulRunStatus {
     override def toString = "Failed"
   }
 
-  final case class Aborted(errorCode: Status, instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
+  final case class Aborted(instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
       extends UnsuccessfulRunStatus {
     override def toString = "Aborted"
 
     override def eventList: Seq[ExecutionEvent] = List.empty
-  }
-
-  final case class Preempted(
-    errorCode: Status,
-    eventList: Seq[ExecutionEvent],
-    instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
-  ) extends UnsuccessfulRunStatus {
-    override def toString = "Preempted"
   }
 }

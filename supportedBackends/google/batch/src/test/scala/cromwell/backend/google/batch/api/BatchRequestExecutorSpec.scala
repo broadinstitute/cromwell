@@ -13,7 +13,7 @@ import com.google.cloud.batch.v1._
 import com.google.protobuf.Timestamp
 import common.mock.MockSugar
 import cromwell.backend.google.batch.api.BatchApiResponse
-import cromwell.backend.google.batch.models.RunStatus
+import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.doReturn
 import org.scalatest.PrivateMethodTester
@@ -124,11 +124,13 @@ class BatchRequestExecutorSpec
 
     // Verify the event
     result.status match {
-      case RunStatus.Preempted(_, events, _) =>
+      case failedStatus: RunStatus.Failed =>
+        val events = failedStatus.eventList
         events.length shouldBe 1
         events.map(_.name).head shouldBe preemptionError
         events.map(_.offsetDateTime.toString).head shouldBe "1970-01-01T00:00:04Z"
-      case _ => fail("Expected RunStatus.Preempted with events")
+        failedStatus.errorCode shouldBe GcpBatchExitCode.VMPreemption
+      case _ => fail("Expected RunStatus.Failed")
     }
   }
 

@@ -34,6 +34,8 @@ services:
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_BATCH_AUTH_MODE
+      - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]
       interval: 2s
@@ -68,6 +70,8 @@ services:
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_BATCH_AUTH_MODE
+      - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     depends_on:
       db-mstr:
         condition: service_healthy
@@ -110,6 +114,8 @@ services:
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - CROMWELL_BUILD_BATCH_AUTH_MODE
+      - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}"]
       interval: 2s

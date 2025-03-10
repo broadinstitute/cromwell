@@ -29,6 +29,10 @@ object GcpBatchExitCode {
     VMRecreatedDuringExecution
   )
 
+  // Special case non-error code - this does not correspond to any messages we get from Batch,
+  // this is what we use for tasks that don't error out at the Batch layer.
+  case object Success extends GcpBatchExitCode(0)
+
   def fromEventMessage(message: String): Option[GcpBatchExitCode] =
     values.find { target =>
       message.contains(s"exit code ${target.code}")

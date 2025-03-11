@@ -16,11 +16,11 @@ on:
 permissions:
   contents: read
 
-#concurrency:
-#  # Don't run this workflow concurrently on the same branch
-#  group: ${{ github.workflow }}-${{ github.ref }}
-#  # For PRs, don't wait for completion of existing runs, cancel them instead
-#  cancel-in-progress: ${{ github.ref != 'develop' }}
+concurrency:
+  # Don't run this workflow concurrently on the same branch
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # For PRs, don't wait for completion of existing runs, cancel them instead
+  cancel-in-progress: ${{ github.ref != 'develop' }}
 
 jobs:
   integration-tests:

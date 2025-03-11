@@ -57,7 +57,7 @@ final class GcpBatchBackendSingletonActor(
       ()
 
     case apiQuery: BatchApiRequest =>
-      log.info("Forwarding API query to Batch request manager actor")
+      log.debug("Forwarding API query to Batch request manager actor")
       batchApiRequestManager.forward(apiQuery)
 
     case other =>

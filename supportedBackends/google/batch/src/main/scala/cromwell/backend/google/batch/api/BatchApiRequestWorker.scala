@@ -31,7 +31,7 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
 
   override def receive = {
     case BatchApiWorkBatch(workBatch) =>
-      log.info(s"Got a Batch request batch with ${workBatch.size} requests.")
+      log.debug(s"Got a Batch request batch with ${workBatch.size} requests.")
       handleBatch(workBatch).andThen(interstitialRecombobulation)
       ()
     case NoWorkToDo =>
@@ -53,7 +53,7 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
   // TODO: FSMify this actor?
   private def interstitialRecombobulation: PartialFunction[Try[List[Try[Unit]]], Unit] = {
     case Success(allSuccesses) if allSuccesses.forall(_.isSuccess) =>
-      log.info(s"All status polls completed successfully.")
+      log.debug(s"All status polls completed successfully.")
       scheduleCheckForWork()
     case Success(someFailures) =>
       val errors = someFailures collect { case Failure(t) => t.getMessage }
@@ -65,10 +65,9 @@ class BatchApiRequestWorker(val pollingManager: ActorRef,
       )
       scheduleCheckForWork()
     case Failure(t) =>
-      log.info(s"### FIND ME: we have hit programmer error. Stack trace: ${t.getStackTrace.mkString}")
       // NB: Should be impossible since we only ever do completionPromise.trySuccess()
       val msg =
-        "Programmer Error in BatchApiRequestWorker.scala: Completion promise unexpectedly set to Failure: {}. Don't do this, otherwise the Future.sequence is short-circuited on the first failure"
+        "Programmer Error: Completion promise unexpectedly set to Failure: {}. Don't do this, otherwise the Future.sequence is short-circuited on the first failure"
       log.error(msg, t.getMessage)
       scheduleCheckForWork()
   }

@@ -121,7 +121,7 @@ object BatchRequestExecutor {
       try {
         val job = client.getJob(request)
 
-        logger.info(s"Batch Job Status ${job.getName}: ${job.getStatus}")
+        logger.debug(s"Batch Job Status ${job.getName}: ${job.getStatus}")
 
         val result = interpretOperationStatus(job)
         BatchApiResponse.StatusQueried(result)

@@ -214,20 +214,18 @@ class BatchApiRequestManager(val qps: Int Refined Positive,
   }
 
   private def handleWorkerAskingForWork(batchRequestWorkerActor: ActorRef, maxBatchSize: Int): Unit = {
-    if(workQueue.nonEmpty) {
-      log.info(
-        "Request for Batch requests received from {} (max batch size is {}, current queue size is {})",
-        batchRequestWorkerActor.path.name,
-        maxBatchSize,
-        workQueue.size
-      )
-    }
+    log.debug(
+      "Request for Batch requests received from {} (max batch size is {}, current queue size is {})",
+      batchRequestWorkerActor.path.name,
+      maxBatchSize,
+      workQueue.size
+    )
 
     workInProgress -= batchRequestWorkerActor
     val beheaded = beheadWorkQueue(maxBatchSize)
     beheaded.workToDo match {
       case Some(work) =>
-        log.info("Sending work to Batch request worker {}", batchRequestWorkerActor.path.name)
+        log.debug("Sending work to Batch request worker {}", batchRequestWorkerActor.path.name)
         val workBatch = BatchApiWorkBatch(work)
         batchRequestWorkerActor ! workBatch
         workInProgress += (batchRequestWorkerActor -> workBatch)

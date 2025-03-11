@@ -1186,7 +1186,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       GcpBatchExitCode.VMRecreatedDuringExecution,
       GcpBatchExitCode.VMRebootedDuringExecution
     ).contains(failed.errorCode)
-    val taskFailedBeforeStarting = failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
+    val taskFailedBeforeStarting = !failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
     errorTypeIsAutoRetryable && taskFailedBeforeStarting
   }
 

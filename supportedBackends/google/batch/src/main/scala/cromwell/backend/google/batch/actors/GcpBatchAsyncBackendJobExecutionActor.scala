@@ -1191,9 +1191,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   private def handleAutoRetry(failed: RunStatus.Failed, returnCode: Option[Int]) = {
-    val msg =
-      "Task failed immediately due to a transient GCP Batch error " +
-        s"${failed.errorCode}(${failed.errorCode.code}) and will be resubmitted."
+    // This message doesn't contain information about which error because that's added inside StandardException
+    val msg = "Task failed immediately due to a transient GCP Batch error and will be resubmitted."
     FailedRetryableExecutionHandle(
       StandardException(failed.errorCode, msg, jobTag, returnCode, standardPaths.error),
       returnCode,

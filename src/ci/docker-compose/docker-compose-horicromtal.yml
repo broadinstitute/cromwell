@@ -33,6 +33,7 @@ services:
       - CROMWELL_BUILD_PAPI_AUTH_MODE
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
+      - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - GOOGLE_APPLICATION_CREDENTIALS
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]

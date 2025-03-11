@@ -1094,7 +1094,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       FailedNonRetryableExecutionHandle(
         StandardException(
           runStatus.errorCode,
-          "",
+          "", // We have no additional context to provide beyond what's already included by StandardException
           jobTag,
           returnCode,
           standardPaths.error

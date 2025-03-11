@@ -1107,9 +1107,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         runStatus match {
           case _: RunStatus.Aborted => AbortedExecutionHandle
           case failedStatus: RunStatus.Failed =>
-            if (failedStatus.errorCode == GcpBatchExitCode.VMPreemption && preemptible)
+            if (failedStatus.errorCode == GcpBatchExitCode.VMPreemption && preemptible) {
               handlePreemption(failedStatus, returnCode, prettyPrintedError)
-            else
+            } else if (shouldAutoRetryFailure(failedStatus)) {
+              handleAutoRetry(failedStatus, returnCode)
+            } else
               handleFailedRunStatus(failedStatus, returnCode)
           case unknown =>
             throw new RuntimeException(
@@ -1170,6 +1172,27 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           None
         )
     }
+  }
+
+  // Check whether this failure should be automatically resubmitted without counting against maxRetries.
+  // Guidance: Resubmit if the task has a known-transient failure type and has not yet cost the user money.
+  private def shouldAutoRetryFailure(failed: RunStatus.Failed): Boolean = {
+    val errorTypeIsAutoRetryable = List(
+      GcpBatchExitCode.VMRecreatedDuringExecution,
+      GcpBatchExitCode.VMRebootedDuringExecution
+    ).contains(failed.errorCode)
+    val taskFailedBeforeStarting = failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
+    errorTypeIsAutoRetryable && taskFailedBeforeStarting
+  }
+
+  private def handleAutoRetry(failed: RunStatus.Failed, returnCode: Option[Int]) = {
+    val msg = s"Task failed immediately due to a transient GCP Batch error (${failed.errorCode.code}) " +
+      "and will be resubmitted."
+    FailedRetryableExecutionHandle(
+      StandardException(failed.errorCode.code, msg, jobTag, returnCode, standardPaths.error),
+      returnCode,
+      kvPairsToSave = None
+    )
   }
 
   override lazy val startMetadataKeyValues: Map[String, Any] =

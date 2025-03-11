@@ -1128,13 +1128,20 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     )
     val outputValues = Seq(
       WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
-      WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"), WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"))
+      WomArray(
+        WomArrayType(WomSingleFileType),
+        Seq(
+          WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
+          WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3")
+        )
       ),
-      WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
-             Map(
-               WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4") -> WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5")
-             )
+      WomMap(
+        WomMapType(WomSingleFileType, WomSingleFileType),
+        Map(
+          WomSingleFile(
+            s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4"
+          ) -> WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5")
+        )
       )
     )
 
@@ -1175,13 +1182,22 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     result should have size 3
     result should contain(WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"))
     result should contain(
-      WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"), WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"))
+      WomArray(
+        WomArrayType(WomSingleFileType),
+        Seq(
+          WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
+          WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3")
+        )
       )
     )
     result should contain(
-      WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
-             Map(WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4") -> WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"))
+      WomMap(
+        WomMapType(WomSingleFileType, WomSingleFileType),
+        Map(
+          WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4") -> WomSingleFile(
+            "gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"
+          )
+        )
       )
     )
   }

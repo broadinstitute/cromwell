@@ -33,6 +33,7 @@ services:
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - CROMWELL_BUILD_BATCH_AUTH_MODE
       - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
+      - GOOGLE_APPLICATION_CREDENTIALS
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]
       interval: 2s
@@ -66,6 +67,7 @@ services:
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - CROMWELL_BUILD_BATCH_AUTH_MODE
       - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
+      - GOOGLE_APPLICATION_CREDENTIALS
     depends_on:
       db-mstr:
         condition: service_healthy
@@ -107,6 +109,7 @@ services:
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - CROMWELL_BUILD_BATCH_AUTH_MODE
       - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
+      - GOOGLE_APPLICATION_CREDENTIALS
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}"]
       interval: 2s

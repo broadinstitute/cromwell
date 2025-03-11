@@ -15,7 +15,7 @@ import common.mock.MockSugar
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle}
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.google.batch.actors.GcpBatchAsyncBackendJobExecutionActor.GcpBatchPendingExecutionHandle
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
@@ -501,33 +501,37 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     failedHandle.returnCode shouldBe None
   }
 
-  // TODO fix tests
-//  it should "handle Failure Status for various errors" in {
-//
-//    val actorRef = buildPreemptibleTestActorRef(1, 1)
-//    val batchBackend = actorRef.underlyingActor
-//    val runId = generateStandardAsyncJob
-//    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
-//
-//    def checkFailedResult(errorCode: GcpBatchExitCode, errorMessage: Option[String]): ExecutionHandle = {
-//      val failed = RunStatus.Failed(
-//        errorCode,
-//        Seq.empty
-//      )
-//      Await.result(batchBackend.handleExecutionResult(failed, handle), timeout)
-//    }
-//
-//    checkFailedResult(Status.ABORTED, Option("15: Other type of error."))
-//      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-//    checkFailedResult(Status.OUT_OF_RANGE, Option("14: Wrong errorCode."))
-//      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-//    checkFailedResult(Status.ABORTED, Option("Weird error message."))
-//      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-//    checkFailedResult(Status.ABORTED, Option("UnparsableInt: Even weirder error message."))
-//      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-//    checkFailedResult(Status.ABORTED, None).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-//    actorRef.stop()
-//  }
+  it should "handle Failure Status for various errors" in {
+
+    val actorRef = buildPreemptibleTestActorRef(1, 1)
+    val batchBackend = actorRef.underlyingActor
+    val runId = generateStandardAsyncJob
+    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
+
+    def checkFailedResult(errorCode: GcpBatchExitCode, events: List[ExecutionEvent] = List.empty): ExecutionHandle = {
+      val failed = RunStatus.Failed(
+        errorCode,
+        events
+      )
+      Await.result(batchBackend.handleExecutionResult(failed, handle), timeout)
+    }
+
+    // Should retry
+    checkFailedResult(GcpBatchExitCode.VMPreemption)
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution) // no VM start time - task has not started
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+
+    // Should not retry
+    checkFailedResult(GcpBatchExitCode.Success)
+      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.TaskRunsOverMaximumRuntime)
+      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution,
+                      List(ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now()))
+    ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    actorRef.stop()
+  }
 
   it should "map GCS paths and *only* GCS paths to local" in {
     val wdlString =

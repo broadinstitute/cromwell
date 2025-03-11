@@ -1086,58 +1086,57 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   // Cause: com.google.api.client.googleapis.json.GoogleJsonResponseException: 403 Forbidden
   // Will be addressed by another ticket
   it should "convert local Paths back to corresponding GCS paths in BatchOutputs" in {
-    pending
 
     val batchOutputs = Set(
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file1",
-        gcsPath("gs://path/to/file1"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file1"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file2",
-        gcsPath("gs://path/to/file2"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file2"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file3",
-        gcsPath("gs://path/to/file3"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file3"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file4",
-        gcsPath("gs://path/to/file4"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file4"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file5",
-        gcsPath("gs://path/to/file5"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file5"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"),
         workingDisk,
         optional = false,
         secondary = false
       )
     )
     val outputValues = Seq(
-      WomSingleFile(s"$MountPoint/path/to/file1"),
+      WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
       WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile(s"$MountPoint/path/to/file2"), WomSingleFile(s"$MountPoint/path/to/file3"))
+               Seq(WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"), WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"))
       ),
       WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
              Map(
-               WomSingleFile(s"$MountPoint/path/to/file4") -> WomSingleFile(s"$MountPoint/path/to/file5")
+               WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4") -> WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5")
              )
       )
     )
@@ -1177,15 +1176,15 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val result = outputValues map wdlValueToGcsPath(batchOutputs)
     result should have size 3
-    result should contain(WomSingleFile("gs://path/to/file1"))
+    result should contain(WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"))
     result should contain(
       WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile("gs://path/to/file2"), WomSingleFile("gs://path/to/file3"))
+               Seq(WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"), WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"))
       )
     )
     result should contain(
       WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
-             Map(WomSingleFile("gs://path/to/file4") -> WomSingleFile("gs://path/to/file5"))
+             Map(WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4") -> WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"))
       )
     )
   }

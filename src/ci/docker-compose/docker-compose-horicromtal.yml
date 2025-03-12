@@ -35,6 +35,7 @@ services:
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - GOOGLE_APPLICATION_CREDENTIALS
+      - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]
       interval: 2s
@@ -70,6 +71,7 @@ services:
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - GOOGLE_APPLICATION_CREDENTIALS
+      - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     depends_on:
       db-mstr:
         condition: service_healthy
@@ -113,6 +115,7 @@ services:
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
       - GOOGLE_APPLICATION_CREDENTIALS
+      - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}"]
       interval: 2s

@@ -1243,7 +1243,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         case batchOutput if batchOutput.name == makeSafeReferenceName(path) =>
           val pathAsString = batchOutput.cloudPath.pathAsString
 
-          // TODO: batchOutput.cloudPath.exists invokes GCP, which causes a test ported from papi-common to fail
           if (batchOutput.isFileParameter && !batchOutput.cloudPath.exists) {
             // This is not an error if the path represents a `File?` optional output (the Batch delocalization script
             // should have failed if this file output was not optional but missing). Throw to produce the correct "empty

@@ -31,3 +31,5 @@ cromwell::build::run_centaur \
     # we run lots_of_inputs, which tests 400 inputs instead of the 10,000 in lots_of_inputs_papiv2
 
 cromwell::build::generate_code_coverage
+
+cromwell::build::print_workflow_statistics

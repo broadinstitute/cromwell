@@ -69,6 +69,9 @@ jobs:
           - build_type: centaurHoricromtalPapiV2beta
             build_mysql: 8.4
             friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 8.4
+          - build_type: centaurHoricromtalGcpBatch
+            build_mysql: 8.4
+            friendly_name: Centaur Horicromtal GCP Batch with MySQL 8.4
           - build_type: horicromtalDeadlock
             friendly_name: Horicromtal Deadlock
           - build_type: singleWorkflowRunner

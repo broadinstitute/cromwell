@@ -183,11 +183,16 @@ trait AwsBatchJobDefinitionBuilder {
                   efsMakeMD5: Boolean,
                   tagResources: Boolean,
                   logGroupName: String,
-                  sharedMemorySize: MemorySize
+                  sharedMemorySize: MemorySize,
+                  fuseMount: Boolean,
+                  jobTimeout: Int
     ): String =
       s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env
           .map(_.toString)
-          .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}:${tagResources.toString}:$logGroupName:${sharedMemorySize.to(MemoryUnit.MB).amount.toInt}"
+          .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}:${tagResources.toString}:$logGroupName:${sharedMemorySize
+          .to(MemoryUnit.MB)
+          .amount
+          .toInt}:${fuseMount.toString}:${jobTimeout}"
 
     val environment = List.empty[KeyValuePair]
     val cmdName = context.runtimeAttributes.fileSystem match {
@@ -223,10 +228,32 @@ trait AwsBatchJobDefinitionBuilder {
       efsMakeMD5,
       tagResources,
       logGroupName,
-      context.runtimeAttributes.sharedMemorySize
+      context.runtimeAttributes.sharedMemorySize,
+      context.runtimeAttributes.fuseMount,
+      context.runtimeAttributes.jobTimeout
     )
-    // To reuse job definition for gpu and gpu-runs, we will create a job definition that does not gpu requirements
-    // since aws batch does not allow you to set gpu as 0 when you dont need it. you will always need cpu and memory
+
+    val linuxParametersBuilder = LinuxParameters
+      .builder()
+      .sharedMemorySize(context.runtimeAttributes.sharedMemorySize.to(MemoryUnit.MB).amount.toInt)
+
+    if (context.runtimeAttributes.fuseMount) {
+      linuxParametersBuilder
+        .devices(
+          List(
+            software.amazon.awssdk.services.batch.model.Device
+              .builder()
+              .hostPath("/dev/fuse")
+              .containerPath("/dev/fuse")
+              .build()
+          ).asJava
+        )
+    }
+
+    val linuxParameters = linuxParametersBuilder.build()
+    // simple true / false for now, depending on a single attribute
+    val privileged = context.runtimeAttributes.fuseMount
+
     (ContainerProperties
        .builder()
        .image(context.runtimeAttributes.dockerImage)
@@ -248,12 +275,8 @@ trait AwsBatchJobDefinitionBuilder {
        .mountPoints(mountPoints.asJava)
        .environment(environment.asJava)
        .ulimits(ulimits.asJava)
-       .linuxParameters(
-         LinuxParameters
-           .builder()
-           .sharedMemorySize(context.runtimeAttributes.sharedMemorySize.to(MemoryUnit.MB).amount.toInt)
-           .build() // Convert MemorySize to MB
-       ),
+       .linuxParameters(linuxParameters)
+       .privileged(privileged),
      containerPropsName
     )
   }

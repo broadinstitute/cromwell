@@ -36,14 +36,31 @@ import cromwell.backend.BackendInitializationData
 import cromwell.backend.impl.aws.AwsBatchBackendInitializationData
 import cromwell.backend.impl.aws.AWSBatchStorageSystems
 import cromwell.core.callcaching.FileHashStrategy
+import cromwell.backend.impl.aws.AwsBatchJobCachingActorHelper
+import cromwell.backend.io._
 import cromwell.core.io.DefaultIoCommandBuilder
+import common.validation.Validation._
 import scala.util.Try
 import cromwell.backend.standard.callcaching.StandardFileHashingActor.SingleFileHashRequest
-import cromwell.core.path.DefaultPathBuilder
+
 import org.slf4j.{Logger, LoggerFactory}
+import scala.util.Random
+import wom.types.{
+  WomArrayType,
+  WomCompositeType,
+  WomMapType,
+  WomOptionalType,
+  WomPairType,
+  WomPrimitiveFileType,
+  WomPrimitiveType,
+  WomSingleFileType,
+  WomType
+}
+import wom.values._
 
 class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorParams)
-    extends StandardFileHashingActor(standardParams) {
+    extends StandardFileHashingActor(standardParams)
+    with AwsBatchJobCachingActorHelper {
 
   override val defaultHashingStrategies: Map[String, FileHashStrategy] = Map(
     ("s3", FileHashStrategy.ETag)
@@ -63,43 +80,89 @@ class AwsBatchBackendFileHashingActor(standardParams: StandardFileHashingActorPa
     .as[AwsBatchBackendInitializationData](standardParams.backendInitializationDataOption)
     .configuration
 
-  // custom strategy to handle efs (local) files, in case sibling-md5 file is present.
-  //  if valid md5 is found : return the hash
+  // adapted from the WomExpression trait:
+  private def areAllFilesOptional(womType: WomType): Boolean = {
+    def innerAreAllFileTypesInWomTypeOptional(womType: WomType): Boolean = womType match {
+      case WomOptionalType(_: WomPrimitiveFileType) =>
+        true
+      case _: WomPrimitiveFileType =>
+        false
+      case _: WomPrimitiveType =>
+        true // WomPairTypes and WomCompositeTypes may have non-File components here which is fine.
+      case WomArrayType(inner) => innerAreAllFileTypesInWomTypeOptional(inner)
+      case WomMapType(_, inner) => innerAreAllFileTypesInWomTypeOptional(inner)
+      case WomPairType(leftType, rightType) =>
+        innerAreAllFileTypesInWomTypeOptional(leftType) && innerAreAllFileTypesInWomTypeOptional(rightType)
+      case WomCompositeType(typeMap, _) => typeMap.values.forall(innerAreAllFileTypesInWomTypeOptional)
+      case _ => false
+    }
+
+    // At the outermost level, primitives are never optional.
+    womType match {
+      case _: WomPrimitiveType =>
+        false
+      case _ => innerAreAllFileTypesInWomTypeOptional(womType)
+    }
+  }
+
+  // custom strategy to handle optional and efs (local) files
+  //  if optional file is missing : return hash of empty string (valid)
+  //  if valid md5 is found for efs file: return the hash
   //  if no md5 is found : return None (pass request to parent hashing actor)
   //  if outdated md5 is found : return invalid string (assume file has been altered after md5 creation)
   //  if file is missing : return invalid string
   override def customHashStrategy(fileRequest: SingleFileHashRequest): Option[Try[String]] = {
-    val file = DefaultPathBuilder.get(fileRequest.file.valueString)
+    val file = getPath(fileRequest.file.value).get
+
+    // the call inputs are mapped as path => optional
+    val callInputFiles: Map[String, Boolean] = standardParams.jobDescriptor.fullyQualifiedInputs.flatMap {
+      case (_, womFile) =>
+        // Collect all WomArrays of WomFiles
+        val arrays: Seq[WomArray] = womFile.collectAsSeq { case womFile: WomFile =>
+          val files: List[WomSingleFile] = DirectoryFunctions
+            .listWomSingleFiles(womFile, callPaths.workflowPaths)
+            .toTry(s"Error getting single files for $womFile")
+            .get
+          WomArray(WomArrayType(WomSingleFileType), files)
+        }
+        // Determine if all files in the womFile are optional
+        val isOptional = areAllFilesOptional(womFile.womType)
+        // Flatten arrays and map each file path to its optional status
+        arrays.flatMap(_.value).collect { case file: WomFile =>
+          file.toString -> isOptional
+        }
+    }.toMap
+
+    // optional files are allowed to be missing
     if (
-      aws_config.efsMntPoint.isDefined && file.toString.startsWith(
-        aws_config.efsMntPoint.getOrElse("--")
-      ) && aws_config.checkSiblingMd5.getOrElse(false)
+      callInputFiles.contains(fileRequest.file.toString) && callInputFiles(fileRequest.file.toString) && !file.exists
+    ) {
+      // return hash of empty string
+      Some("".md5Sum).map(str => Try(str))
+      // the file is an efs file and sibling md5 is enabled
+    } else if (
+      file.toString.startsWith(aws_config.efsMntPoint.getOrElse("--")) && aws_config.checkSiblingMd5.getOrElse(false)
     ) {
       val md5 = file.sibling(s"${file.toString}.md5")
-      // check existance of the file :
+      // check existance of the main file :
       if (!file.exists) {
-        Log.debug(s"File Missing: ${file.toString}")
-        // if missing, cache hit is invalid; return invalid md5
-        Some("File Missing").map(str => Try(str))
+        // cache hit is invalid; return invalid (random) md5
+        Some(Random.alphanumeric.take(32).mkString.md5Sum).map(str => Try(str))
       }
       // check existence of the sibling file and make sure it's newer than main file
       else if (md5.exists && md5.lastModifiedTime.isAfter(file.lastModifiedTime)) {
         // read the file.
-        Log.debug("Found valid sibling file for " + file.toString)
         val md5_value: Option[String] = Some(md5.contentAsString.split("\\s+")(0))
         md5_value.map(str => Try(str))
       } else if (md5.exists && md5.lastModifiedTime.isBefore(file.lastModifiedTime)) {
-        // sibling file is outdated, return invalid md5
-        Log.debug("Found outdated sibling file for " + file.toString)
-        Some("Checksum File Outdated").map(str => Try(str))
+        // sibling file is outdated, return invalid (random) string as md5
+        Some(Random.alphanumeric.take(32).mkString.md5Sum).map(str => Try(str))
       } else {
-        Log.debug("Found no sibling file for " + file.toString)
         // File present, but no sibling found, fall back to default.
         None
       }
-
     } else {
-      // Detected non-EFS file: return None
+      // non-efs file or sibling md5 is disabled : fall back to default
       None
     }
   }

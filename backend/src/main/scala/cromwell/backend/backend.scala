@@ -146,6 +146,8 @@ object CommonBackendConfigurationAttributes {
     "default-runtime-attributes.maxRetries",
     "default-runtime-attributes.awsBatchEvaluateOnExit",
     "default-runtime-attributes.sharedMemorySize",
+    "default-runtime-attributes.fuseMount",
+    "default-runtime-attributes.jobTimeout",
     "default-runtime-attributes.ulimits",
     "default-runtime-attributes.efsDelocalize",
     "default-runtime-attributes.efsMakeMD5",

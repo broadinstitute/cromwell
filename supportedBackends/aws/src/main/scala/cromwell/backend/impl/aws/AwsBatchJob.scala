@@ -64,7 +64,7 @@ import java.nio.file.attribute.PosixFilePermission
 import java.security.MessageDigest
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
-import scala.util.Try
+import scala.util.{Random, Try}
 
 /**
   *  The actual job for submission in AWS batch. `AwsBatchJob` is the primary interface to AWS Batch. It creates the
@@ -136,34 +136,35 @@ final case class AwsBatchJob(
     val conf: Config = ConfigFactory.load();
 
     /* generate a series of s3 copy statements to copy any s3 files into the container. */
-    val inputCopyCommand = inputs
-      .map {
+    val inputCopyCommand = Random
+      .shuffle(inputs.map {
         case input: AwsBatchFileInput if input.s3key.startsWith("s3://") && input.s3key.endsWith(".tmp") =>
           // we are localizing a tmp file which may contain workdirectory paths that need to be reconfigured
           s"""
              |_s3_localize_with_retry "${input.s3key}" "$workDir/${input.local}"
              |sed -i 's#${AwsBatchWorkingDisk.MountPoint.pathAsString}#$workDir#g' "$workDir/${input.local}"
              |""".stripMargin
-
+        // s3 files : isOptional and locOptional are handled in localization script.
         case input: AwsBatchFileInput if input.s3key.startsWith("s3://") =>
-          // regular s3 objects : download to working dir.
-          s"""_s3_localize_with_retry "${input.s3key}" "${input.mount.mountPoint.pathAsString}/${input.local}" """.stripMargin
+          s"""_s3_localize_with_retry "${input.s3key}" "${input.mount.mountPoint.pathAsString}/${input.local}" "${input.optional}" "${input.locOptional}" """.stripMargin
             .replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
         case input: AwsBatchFileInput if efsMntPoint.isDefined && input.s3key.startsWith(efsMntPoint.get) =>
           // EFS located file : test for presence on provided path.
           Log.debug("EFS input file detected: " + input.s3key + " / " + input.local.pathAsString)
-          s"""test -e "${input.s3key}" || (echo 'input file: ${input.s3key} does not exist' && LOCALIZATION_FAILED=1)""".stripMargin
+          s"""_check_efs_infile "${input.s3key}" "${input.optional}" """.stripMargin
 
         case input: AwsBatchFileInput =>
           // an entry in 'disks' => keep mount as it is..
           // here we don't need a copy command but the centaurTests expect us to verify the existence of the file
           val filePath = input.local.pathAsString
           Log.debug("input entry in disks detected " + input.s3key + " / " + input.local.pathAsString)
-          s"""test -e "$filePath" || (echo 'input file: $filePath does not exist' && LOCALIZATION_FAILED=1)""".stripMargin
+          // s"""test -e "$filePath" || (echo 'input file: $filePath does not exist' && LOCALIZATION_FAILED=1)""".stripMargin
+          // can use same efs routine
+          s"""_check_efs_infile "$filePath" "${input.optional}" """.stripMargin
 
         case _ => ""
-      }
+      })
       .toList
       .mkString("\n")
 
@@ -197,6 +198,10 @@ final case class AwsBatchJob(
          |  local s3_path="$$1"
          |  # destination must be the path to a file and not just the directory you want the file in
          |  local destination="$$2"
+         |  # if third option is specified, it is the optional tag (true / false)
+         |  local is_optional="$${3:-false}"
+         |  # if fourth option is specified, it is the locOptional tag (true / false)
+         |  local loc_optional="$${4:-false}"
          |
          |  for i in {1..6};
          |  do
@@ -204,13 +209,28 @@ final case class AwsBatchJob(
          |    if [ "$$i" -eq 6 ]; then
          |        echo "failed to copy $$s3_path after $$(( $$i - 1 )) attempts."
          |        LOCALIZATION_FAILED=1
-         |        break
+         |        return
          |    fi
          |    # check validity of source path
          |    if ! [[ "$$s3_path" =~ s3://([^/]+)/(.+) ]]; then
          |      echo "$$s3_path is not an S3 path with a bucket and key."
          |      LOCALIZATION_FAILED=1
-         |      break
+         |      return
+         |    fi
+         |    ## if missing on s3 : check if optional:
+         |    if ! $awsCmd s3 ls "$$s3_path" > /dev/null 2>&1 ; then
+         |      if [[ "$$is_optional" == "true" ]]; then
+         |        echo "Optional file '$$s3_path' does not exist. skipping localization"
+         |      else
+         |        echo "$$s3_path does not exist. skipping localization"
+         |        LOCALIZATION_FAILED=1
+         |      fi
+         |      return
+         |    fi
+         |    # if localization is optional : skip
+         |    if [[ "$$loc_optional" == "true" ]]; then
+         |       echo "File $$s3_path does not have to be localized. Skipping localization"
+         |       return 
          |    fi
          |    # copy
          |    $awsCmd s3 cp --no-progress "$$s3_path" "$$destination"  ||
@@ -219,7 +239,7 @@ final case class AwsBatchJob(
          |    _check_data_integrity "$$destination" "$$s3_path" ||
          |       { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # copy succeeded
-         |    break
+         |    return
          |  done
          |}
          |
@@ -228,14 +248,9 @@ final case class AwsBatchJob(
          |  local local_path="$$1"
          |  # destination must be the path to a file and not just the directory you want the file in
          |  local destination="$$2"
-         |
-         |  # if file/folder does not exist, return immediately
-         |  if [[ ! -e "$$local_path" ]]; then
-         |    echo "$$local_path does not exist. skipping delocalization"
-         |    DELOCALIZATION_FAILED=1
-         |    return
-         |  fi
-         |
+         |  # if third options is specified, it is the optional tag (true / false)
+         |  local is_optional="$${3:-false}"
+         |         
          |  # get the multipart chunk size
          |  chunk_size=$$(_get_multipart_chunk_size "$$local_path")
          |  local MP_THRESHOLD=${mp_threshold}
@@ -250,13 +265,13 @@ final case class AwsBatchJob(
          |    if [ "$$i" -eq 6 ]; then
          |        echo "failed to delocalize $$local_path after $$(( $$i - 1 )) attempts."
          |        DELOCALIZATION_FAILED=1
-         |        break
+         |        return
          |    fi
          |    # if destination is not a bucket : abort
          |    if ! [[ "$$destination" =~ s3://([^/]+)/(.+) ]]; then
          |     echo "$$destination is not an S3 path with a bucket and key."
          |      DELOCALIZATION_FAILED=1
-         |      break
+         |      return
          |    fi
          |    # copy ok or try again.
          |    if [[ -d "$$local_path" ]]; then
@@ -273,20 +288,70 @@ final case class AwsBatchJob(
          |               { echo "data content length difference detected in attempt $$i to copy $$local_path/$$FILE failed" && sleep $$((7 * "$$i")) && continue 2; }
          |       done
          |       IFS="$$SAVEIFS"
-         |    else
+         |    # files : if exists or non-optional : must succeed
+         |    elif [[ "$$is_optional" == "false" || -e "$$local_path" ]]; then
          |      $awsCmd s3 cp --no-progress "$$local_path" "$$destination" ||
          |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |      # check content length for data integrity
          |      _check_data_integrity "$$local_path" "$$destination" ||
-         |         { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
+         |         { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }         
+         |    elif [[ "$$is_optional" == "true" && ! -e "$$local_path" ]]; then
+         |      echo "Optional file '$$local_path' does not exist. skipping delocalization"
+         |    # not optional, but missing : fail
+         |    elif [[ "$$is_optional" == "false" && ! -e "$$local_path" ]]; then
+         |      echo "$$local_path does not exist. skipping delocalization"
+         |      DELOCALIZATION_FAILED=1
          |    fi
-         |    # copy succeeded
-         |    break
+         |    # copy succeeded or not retrying
+         |    return
          |  done
+         |}
+         |
+         |function _check_efs_outfile() {
+         |  local outfile="$$1"
+         |  local need_md5="$$2"
+         |  local is_optional="$$3"
+         |  # if file exists and md5 needed: must succeed
+         |  if [[ -e "$$outfile" && "$$need_md5" == "true" ]]; then 
+         |      # only create if missing or outdated
+         |      if [[ ! -f "$$outfile.md5" || "$$outfile" -nt "$$outfile.md5" ]]; then
+         |          md5sum "$$outfile" > "$$outfile.md5" || (echo "Could not generate $$outfile.md5" && DELOCALIZATION_FAILED=1 );
+         |      else 
+         |          echo "md5sum file exists. skipping md5sum generation."
+         |      fi
+         |  # if file does not exist : ok if optional file (mention) ; fail if mandatory
+         |  elif [[ ! -e "$$outfile" ]]; then
+         |      if [[ "$$is_optional" == "true" ]]; then
+         |         echo "optional output file: $$outfile does not exist"
+         |      else
+         |          echo "mandatory output file: $$outfile does not exist" 
+         |          DELOCALIZATION_FAILED=1
+         |      fi
+         |  fi
+         |}
+         |
+         |function _check_efs_infile() {
+         |  local infile="$$1"
+         |  local is_optional="$$2"
+         |  # if file exists : ok
+         |  if [[ -e "$$infile" ]]; then
+         |      return 
+         |  # if file does not exist : ok if optional file (mention) ; fail if mandatory
+         |  elif [[ "$$is_optional" == "true" ]]; then
+         |     echo "optional input file: $$infile does not exist"
+         |  else
+         |      echo "mandatory input file: $$infile does not exist" 
+         |      LOCALIZATION_FAILED=1
+         |  fi
          |}
          |
          |function _get_multipart_chunk_size() {
          |  local file_path="$$1"
+         |  # missing files : skip.
+         |  if [[ ! -e "$$file_path" ]]; then
+         |    echo $$(( 5 * 1024 * 1024 ))
+         |    return
+         |  fi
          |  # file size
          |  file_size=$$(stat --printf="%s" "$$file_path")
          |  # chunk_size : you can have at most 10K parts with at least one 5MB part
@@ -309,7 +374,7 @@ final case class AwsBatchJob(
          |  else
          |      # this is already checked in the caller function
          |      echo "$$s3_path is not an S3 path with a bucket and key."
-         |      exit 1
+         |      return 1
          |  fi
          |  s3_content_length=$$($awsCmd s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') ||
          |        { echo "Attempt to get head of object failed for $$s3_path." && return 1; }
@@ -470,8 +535,7 @@ final case class AwsBatchJob(
               "s3://"
             ) && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
           // output is on working disk mount
-          Log.debug("output Data on working disk mount" + output.local.pathAsString)
-          s"""_s3_delocalize_with_retry "$workDir/${output.local.pathAsString}" "${output.s3key}" """.stripMargin
+          s"""_s3_delocalize_with_retry "$workDir/${output.local.pathAsString}" "${output.s3key}" "${output.optional}" """.stripMargin
 
         // files on EFS mounts are optionally delocalized.
         case output: AwsBatchFileOutput
@@ -480,35 +544,14 @@ final case class AwsBatchJob(
             "EFS output file detected: " + output.s3key + s" / ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}"
           )
           // EFS located file : test existence or delocalize.
-          var test_cmd = ""
           if (efsDelocalize.isDefined && efsDelocalize.getOrElse(false)) {
             Log.debug("efs-delocalization enabled")
-            test_cmd =
-              s"""_s3_delocalize_with_retry "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" "${output.s3key}" """.stripMargin
+            s"""_s3_delocalize_with_retry "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" "${output.s3key}" "${output.optional}" """.stripMargin
           } else {
             Log.debug("efs-delocalization disabled")
-            // check file for existence
-            test_cmd =
-              s"""test -e "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" || (echo 'output file: ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString} does not exist' && DELOCALIZATION_FAILED=1)""".stripMargin
+            s"""_check_efs_outfile "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" "${efsMakeMD5
+                .getOrElse(false)}" "${output.optional}" """.stripMargin
           }
-          // need to make md5sum?
-          var md5_cmd = ""
-          if (efsMakeMD5.isDefined && efsMakeMD5.getOrElse(false)) {
-            Log.debug("Add cmd to create MD5 sibling if missing or outdated.")
-            md5_cmd =
-              s"""
-                 |if [[ ! -f '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' -nt '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' ]]; then
-                 |   md5sum '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}' > '${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' || (echo 'Could not generate ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}.md5' && DELOCALIZATION_FAILED=1 );
-                 |fi
-                 |""".stripMargin
-          } else {
-            md5_cmd = ""
-          }
-          // return combined result
-          s"""
-             |${test_cmd}
-             |${md5_cmd}
-             | """.stripMargin
 
         case output: AwsBatchFileOutput =>
           // output on a different mount
@@ -538,6 +581,7 @@ final case class AwsBatchJob(
          |echo '*** DELOCALIZING OUTPUTS ***'
          |DELOCALIZATION_FAILED=0
          |$outputCopyCommand
+         |echo "DELOCALIZATION RESULT: $$DELOCALIZATION_FAILED"
          |if [[ $$DELOCALIZATION_FAILED -eq 1 ]]; then
          |  echo '*** DELOCALIZATION FAILED ***'
          |  echo '*** EXITING WITH RETURN CODE 1***'
@@ -649,6 +693,11 @@ final case class AwsBatchJob(
           )
         )
         submitJobRequest = submitJobRequest.tags(tags.asJava).propagateTags(true)
+      }
+      // JobTimeout provided (positive value) : add to request
+      if (runtimeAttributes.jobTimeout > 0) {
+        submitJobRequest =
+          submitJobRequest.timeout(JobTimeout.builder().attemptDurationSeconds(runtimeAttributes.jobTimeout).build())
       }
       // submit
       val submit: F[SubmitJobResponse] =

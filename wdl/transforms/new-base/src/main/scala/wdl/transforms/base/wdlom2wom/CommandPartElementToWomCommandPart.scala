@@ -11,7 +11,7 @@ import wdl.transforms.base.linking.graph.LinkedGraphMaker
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.LocalName
-import wom.types.{WomArrayType, WomPrimitiveType, WomType}
+import wom.types.{WomArrayType, WomOptionalType,  WomPrimitiveType, WomType}
 import wom.values.{WomArray, WomBoolean, WomOptionalValue, WomPrimitive, WomValue}
 import wom.{CommandPart, InstantiatedCommand}
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._
@@ -100,6 +100,15 @@ case class WdlomWomPlaceholderCommandPart(attributes: PlaceholderAttributeSet, e
                               createdFiles = value.sideEffectFiles.toList
           ).validNel
         case None => "Array value was given but no 'sep' attribute was provided".invalidNel
+      }
+    case WomArray(WomArrayType(WomOptionalType(_)), arrayValue) =>
+      attributes.sepAttribute match {
+        case Some(separator) =>
+          // there is no actual checking for existence of the files. that's up to the job.
+          InstantiatedCommand(commandString = arrayValue.map(valueMapper(_).valueString).mkString(separator),
+                              createdFiles = value.sideEffectFiles.toList
+          ).validNel
+        case None => "Array[File?] value was given but no 'sep' attribute was provided".invalidNel
       }
     case other =>
       s"Cannot interpolate ${other.womType.stableName} into a command string with attribute set [$attributes]".invalidNel

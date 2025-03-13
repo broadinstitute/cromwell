@@ -190,6 +190,52 @@ task gpu_queue_task {
 the gpuCount value will be passed to AWS Batch as part of [resourceRequirements](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#ContainerProperties-resourceRequirements).
 You will need to use this feature in conjunction with a aws queue that has GPU instances (see [compute-environment](/supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/DEPLOY.md#compute-environment) for more inforamtion)
 
+### FUSE support
+
+When cromwell is configured to use ECS for running tasks, FUSE can be enabled.  The option essentially passes the "privileved" tag to the job definition, and adds /dev/fuse to the mountpoints. 
+
+One relevant example could be to use mount-s3 inside your task, to bypass large localization tasks for tools that do not allow s3-urls as inputs. Enable it by setting "fuseMount" to true in the (default) runtime attributes:
+
+```
+task myTask {
+    input {
+      String myS3file
+    }
+    # workaround to have  { } in commands
+    String lcb="{"
+    String rcb="}"
+    command {
+      #!/usr/bin/env bash
+      # install aws mount-s3
+      apt update -y
+      wget -q https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
+      apt-get install -y ./mount-s3.deb
+
+      # make a ramdisk
+      mkdir -p mp-cache-tmpfs
+      mount -o uid=$(id --user),mode=700,size=2000M -t tmpfs none mp-cache-tmpfs
+
+      # mount the bucket to access "myS3file" locally, using ramdisk for caching
+      mkdir -p bucket
+      B=$(echo ~{myS3file} | cut -d '/' -f 3)
+      mount-s3 "$B" bucket --cache mp-cache-tmpfs --metadata-ttl indefinite
+
+      # convert the s3 path to the local path
+      s3_path=~{myS3file}
+      local_path="$~{lcb}s3_path/s3:\/\/$B/bucket~{rcb}"
+      echo "~{myS3file} is accessible as : $local_path"
+
+    }
+}
+runtime {
+    queueArn: "arn:aws:batch:us-west-2:12345678910:job-queue/quekx-queue"
+    docker: "xxxx"
+    cpu: "1"
+    memory: "2 GB"
+    fuseMount: true
+}
+```
+
 
 ### Shared Memory Support
 
@@ -207,6 +253,26 @@ task gpu_queue_task {
   runtime {
     sharedMemorySize: "1024 MB"
   }
+}
+```
+
+### Job TimeOut Support
+
+Cromwell supports the [AWS Batch jobTimeout](https://docs.aws.amazon.com/batch/latest/userguide/job_timeouts.html) parameter. This allows to automatically terminate jobs that have been running for more than the specified (expected) timeout. The timeout is specified in seconds. Timeout can be specified as a default for the workflow or per task. Values under 60s are not allowed by AWS and ignored in cromwell. 
+
+default runtime attribute: 
+```
+{
+  "default_runtime_attributes": {
+    "jobTimeout" : 3600
+  }
+}
+```
+
+task runtime attribute: 
+```
+runtime {
+  jobTimeout: 3600
 }
 ```
 

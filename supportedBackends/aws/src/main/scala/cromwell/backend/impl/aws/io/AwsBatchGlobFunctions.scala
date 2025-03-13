@@ -72,17 +72,23 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
       .lastOption
       .getOrElse("")
     val globPatternName = globName(s"${pattern}-${wfid}")
-    var globbedDirPath =
-      Paths.get(pattern).getParent()
+    var globbedDirPath = Paths.get(pattern).getParent() match {
+      case null => Paths.get(".")
+      case parent => parent
+    }
     while (globbedDirPath.toString().contains("*")) {
-      globbedDirPath = globbedDirPath.getParent()
+      globbedDirPath = globbedDirPath.getParent() match {
+        case null => Paths.get(".")
+        case parent => parent
+      }
     }
     val globbedDir: String = globbedDirPath.toString()
     val listFilePath = if (pattern.startsWith("/mnt/efs/")) {
         DefaultPathBuilder.get(globbedDir + "/." + globPatternName + ".list")
     } else {
         callContext.root.resolve(
-        s"${globbedDir}/.${globPatternName}.list".stripPrefix("/")
+        // strip ./ (no parent), then "/" (for relative location)
+        s"${globbedDir}/.${globPatternName}.list".stripPrefix("./").stripPrefix("/")
       )
     }
     asyncIo.readLinesAsync(listFilePath.toRealPath()) map { lines =>
@@ -93,7 +99,7 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
         } else {
             callContext.root
             .resolve(
-              s"${globbedDir}/.${globPatternName}/${fileName}".stripPrefix("/")
+              s"${globbedDir}/.${globPatternName}/${fileName}".stripPrefix("./").stripPrefix("/")
             )
             .pathAsString
         }

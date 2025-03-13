@@ -37,4 +37,8 @@ object AwsBatchMetadataKeys {
   // val EndpointUrl = "batch:endpointUrl"
   val MonitoringScript = "batch:monitoringScript"
   val MonitoringLog = "monitoringLog"
+  val LogStreamName = "logConfig:logStreamName"
+  val LogGroupName = "logConfig:logGroupName"
+  //val JobStatusReason = "jobStatusReason"
+  val LogStreamRegion = "logConfig:region"
 }

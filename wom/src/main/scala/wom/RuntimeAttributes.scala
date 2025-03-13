@@ -12,6 +12,9 @@ object RuntimeAttributesKeys {
   val GpuKey = "gpuCount"
   val GpuTypeKey = "gpuType"
 
+  val fuseMountKey = "fuseMount"
+  val jobTimeoutKey = "jobTimeout"
+
   val MemoryKey = "memory"
   val FailOnStderrKey = "failOnStderr"
   val ContinueOnReturnCodeKey = "continueOnReturnCode"

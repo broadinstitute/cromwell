@@ -38,16 +38,24 @@ import cromwell.backend.impl.aws.{
   AWSBatchStorageSystems
 }
 import cromwell.backend.io.JobPaths
+// import cromwell.backend.impl.aws.io._
+
 import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardCacheHitCopyingActorParams}
 import cromwell.core.CallOutputs
 import cromwell.core.io.{DefaultIoCommandBuilder, IoCommand, IoCommandBuilder}
-import cromwell.core.path.Path
+import cromwell.core.path.{Path, PathCopier} // ,DefaultPathBuilder}
 import cromwell.core.simpleton.{WomValueBuilder, WomValueSimpleton}
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
-import wom.values.WomFile
+import wom.values._ //WomFile
+import wom.types._
+import wom.callable.Callable.OutputDefinition
+import wom.expression.NoIoFunctionSet
+//import java.net.{URLDecoder}
+//import cromwell.filesystems.s3.S3Path
 
+import cats.syntax.validated._
 import scala.language.postfixOps
-import scala.util.Try
+import scala.util.{Try} //, Success}
 
 class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyingActorParams)
     extends StandardCacheHitCopyingActor(standardParams)
@@ -63,20 +71,172 @@ class AwsBatchBackendCacheHitCopyingActor(standardParams: StandardCacheHitCopyin
   }
   private val cachingStrategy = batchAttributes.duplicationStrategy
 
+  
+
+
+  // taken from the WomExpression trait:
+  private def areAllFilesOptional(womType: WomType): Boolean = {
+    def innerAreAllFileTypesInWomTypeOptional(womType: WomType): Boolean = womType match {
+      case WomOptionalType(_: WomPrimitiveFileType) => 
+          true
+      case _: WomPrimitiveFileType => 
+          false
+      case _: WomPrimitiveType =>
+          true // WomPairTypes and WomCompositeTypes may have non-File components here which is fine.
+      case WomArrayType(inner) => innerAreAllFileTypesInWomTypeOptional(inner)
+      case WomMapType(_, inner) => innerAreAllFileTypesInWomTypeOptional(inner)
+      case WomPairType(leftType, rightType) =>
+        innerAreAllFileTypesInWomTypeOptional(leftType) && innerAreAllFileTypesInWomTypeOptional(rightType)
+      case WomCompositeType(typeMap, _) => typeMap.values.forall(innerAreAllFileTypesInWomTypeOptional)
+      case _ => false
+    }
+
+    // At the outermost level, primitives are never optional.
+    womType match {
+      case _: WomPrimitiveType => 
+          false
+      case _ => innerAreAllFileTypesInWomTypeOptional(womType)
+    }
+  }
+  // taken from AwsBatchAsyncBackendJobExectuionHandler
+  private def evaluateFiles(output: OutputDefinition): List[(WomFile, Boolean)] = {
+    // mixed mandatory/optional types are cast to mandatory.
+    val is_optional = areAllFilesOptional(output.womType)
+    Try(
+      output.expression
+        .evaluateFiles(
+          jobDescriptor.localInputs,
+          NoIoFunctionSet,
+          output.womType
+        )
+        .map(_.toList map { womFile => 
+          // Pair each WomFile with the optional status
+          (womFile.file, is_optional) 
+        })
+    ).getOrElse(List.empty[(WomFile, Boolean)].validNel)
+     .getOrElse(List.empty)
+  }
+  
+
+
+  val womFileOutputsEvaluated = jobDescriptor.taskCall.callable.outputs
+    .flatMap(evaluateFiles)  
+
+  // then get paths into a map of path => optional
+  val womFileMap: Map[String, Boolean] = womFileOutputsEvaluated.map { case (womFile, isOptional) => 
+    womFile.value -> isOptional
+  }.toMap
+  
+  
+
+
+  // starting from the womFileMap and simpletons, determine if the file is optional.
+  // in womFileMap, the key is the path as speccified in the WDL (inside working dir), eg "new_dir/outfile.txt"
+  // in WomValueSimpletons, the key is the full source path for cache copy, eg "s3://bucket/cromwell_temp/wf-id/call-id/new_dir/outfile.txt"
+  // strategy : 
+  //    - check all keys in womFileMap. if simpleton ends with key, use optional_status from womFileMap (the value)
+  //    - as soon as a mandatory file is found : break and return false
+  //    - keep checking until the end otherwise, as multiple files can have nested suffixes (eg "new_dir/outfile.txt" and "outfile.txt")
+  //    - if the key is found and optional : return true ; else return false
+  def is_optional(womFile: String, womFileMap: Map[String, Boolean]): Boolean = {
+    var isOptional = false
+    for ((key, value) <- womFileMap) {
+      if (womFile.endsWith(key)) {
+        if (!value) {
+          return false
+        }
+        isOptional = value
+      }
+    }
+    return isOptional
+  }
+
+  // check if the file is on efs (local) or s3
+  def is_efs(womFile: String): Boolean = {
+    // get efs mount point/ disk from config
+    val efs_mount = configuration.efsMntPoint.getOrElse("--")
+    return womFile.startsWith(efs_mount)
+  }
+ 
+
   override def processSimpletons(womValueSimpletons: Seq[WomValueSimpleton],
                                  sourceCallRootPath: Path
   ): Try[(CallOutputs, Set[IoCommand[_]])] =
     (batchAttributes.fileSystem, cachingStrategy) match {
+      ///////////////////////
+      // CACHE = REFERENCE //
+      ///////////////////////
       case (AWSBatchStorageSystems.s3, UseOriginalCachedOutputs) => 
-        val touchCommands: Seq[Try[IoCommand[_]]] = womValueSimpletons collect {
-          // only work on WomFiles, skip others? 
-          case WomValueSimpleton(_, wdlFile: WomFile) =>
-              getPath(wdlFile.value).flatMap(S3BatchCommandBuilder.existsOrThrowCommand)
+        val touchCommands: Seq[Try[(WomValueSimpleton,IoCommand[_])]] = womValueSimpletons collect {
+          // only work on WomFiles 
+          case WomValueSimpleton(key, wdlFile: WomFile) =>
+              val sourcePath = getPath(wdlFile.value).get
+              // reference, so source == destination
+              val destinationPath = sourcePath
+              val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
+              if (is_optional(wdlFile.value,womFileMap)) {
+                // can I use this instead of noopCommand (from super) : case nonFileSimpleton => (List(nonFileSimpleton), Set.empty[IoCommand[_]])
+                Try(destinationSimpleton -> S3BatchCommandBuilder.noopCommand(destinationPath).get)
+              } else {
+                Try(destinationSimpleton -> S3BatchCommandBuilder.existsOrThrowCommand(destinationPath).get)
+              }
+          case nonFileSimpleton => 
+              Try(nonFileSimpleton -> S3BatchCommandBuilder.noopCommand(getPath("").get).get)
         }
+        // group touchcommands 
+        TryUtil.sequence(touchCommands) map { simpletonsAndCommands =>
+          val (destinationSimpletons, ioCommands) = simpletonsAndCommands.unzip
+          WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, destinationSimpletons) -> ioCommands.toSet
+        }
+      ///////////////////
+      // CACHE == COPY //
+      ///////////////////
+      case (AWSBatchStorageSystems.s3, CopyCachedOutputs) => 
+        val copyCommands: Seq[Try[(WomValueSimpleton, IoCommand[_])]] = womValueSimpletons collect {
+          // only work on WomFiles 
+          case WomValueSimpleton(key, wdlFile: WomFile) =>
+              val sourcePath = getPath(wdlFile.value).get
+              // on efs : existOrthrow (mandatory) or noop (optional)
+              if (is_efs(wdlFile.value)) {
+                // on efs : source == destination
+                val destinationPath = sourcePath
+                val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
+                if (is_optional(wdlFile.value,womFileMap)) {
+                  Try(destinationSimpleton -> S3BatchCommandBuilder.noopCommand(destinationPath).get)
+                } else {
+                  Try(destinationSimpleton -> S3BatchCommandBuilder.existsOrThrowCommand(destinationPath).get)
+                }
+              } 
+              // on s3 : copy (mandatory) or copy if exists (optional)
+              else {
+                val destinationPath = PathCopier.getDestinationFilePath(sourceCallRootPath, sourcePath, destinationCallRootPath)
+                val destinationSimpleton = WomValueSimpleton(key, WomSingleFile(destinationPath.pathAsString))
 
-        TryUtil.sequence(touchCommands) map {
-          WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, womValueSimpletons) -> _.toSet
+                // optional
+                if (is_optional(wdlFile.value,womFileMap)) {
+                  val fileExists = sourcePath.exists
+                  if (fileExists) {
+                    Try(destinationSimpleton -> S3BatchCommandBuilder.copyCommand(sourcePath, destinationPath).get)
+                  } else {
+                    Try(destinationSimpleton -> S3BatchCommandBuilder.noopCommand(destinationPath).get)
+                  }
+                  
+                // mandatory
+                } else {
+                  Try(destinationSimpleton -> S3BatchCommandBuilder.copyCommand(sourcePath, destinationPath).get)
+                }
+              }
+          case nonFileSimpleton =>
+              Try(nonFileSimpleton -> S3BatchCommandBuilder.noopCommand(getPath("").get).get)
         }
+        // get copycommands 
+        TryUtil.sequence(copyCommands) map { simpletonsAndCommands =>
+          val (destinationSimpletons, ioCommands) = simpletonsAndCommands.unzip
+          WomValueBuilder.toJobOutputs(jobDescriptor.taskCall.outputPorts, destinationSimpletons) -> ioCommands.toSet
+        }
+      ///////////////////////
+      // NON-S3 FILESYSTEM //
+      ///////////////////////
       case (_, _) => super.processSimpletons(womValueSimpletons, sourceCallRootPath)
     }
 

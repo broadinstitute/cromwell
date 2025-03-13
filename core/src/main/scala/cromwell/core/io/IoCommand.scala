@@ -195,6 +195,14 @@ abstract class IoExistsOrThrowCommand(val file: Path) extends SingleFileIoComman
 }
 
 /**
+  * No-op Command that does nothing
+  */
+abstract class IoNoopCommand(val file: Path) extends SingleFileIoCommand[Boolean] {
+  override def toString = s"No-op command on ${file.pathAsString} (does nothing)"
+  override lazy val name = "noop"
+}
+
+/**
   * Return the lines of a file in a collection
   */
 abstract class IoReadLinesCommand(val file: Path) extends SingleFileIoCommand[Iterable[String]] {

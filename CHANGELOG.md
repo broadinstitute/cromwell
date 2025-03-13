@@ -71,6 +71,10 @@ downtime accordingly.
    * Default GPU on Life Sciences is now Nvidia P100
    * Default GPU on GCP Batch is now Nvidia T4
 
+### AWS ECR Remote Hashing Support
+
+Cromwell now supports remote hashing for both public and private AWS ECR containers.
+
 ## 87 Release Notes
 
 ### GCP Batch

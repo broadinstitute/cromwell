@@ -14,5 +14,5 @@ metadata {
   workflowName: requester_pays_localization
   status: Failed
   "failures.0.message": "Workflow failed"
-  "failures.0.causedBy.0.message": ~~"The job was stopped before the command finished. Job exited without an error, exit code 0. GCP Batch task exited with Success(0)."
+  "failures.0.causedBy.0.message": ~~"The job was stopped before the command finished. GCP Batch task exited with Success(0)."
 }

@@ -1,6 +1,5 @@
 package cromwell.backend.google.batch.actors
 
-import _root_.io.grpc.{Status => GrpcStatus}
 import akka.actor.{ActorLogging, ActorRef}
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
 import akka.pattern.AskSupport
@@ -35,9 +34,9 @@ import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
-import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -68,7 +67,7 @@ import scala.util.{Failure, Success, Try}
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
-  def StandardException(errorCode: GrpcStatus,
+  def StandardException(errorCode: GcpBatchExitCode,
                         message: String,
                         jobTag: String,
                         returnCodeOption: Option[Int],
@@ -80,7 +79,9 @@ object GcpBatchAsyncBackendJobExecutionActor {
       case None => "The job was stopped before the command finished."
     }
 
-    new Exception(s"Task $jobTag failed. $returnCodeMessage Batch error code ${errorCode.getCode.value}. $message")
+    new Exception(
+      s"Task $jobTag failed. $returnCodeMessage GCP Batch task exited with ${errorCode}(${errorCode.code}). ${message}"
+    )
   }
 
   // GCS path regexes comments:
@@ -1087,14 +1088,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private lazy val standardPaths = jobPaths.standardPaths
 
   override def handleExecutionFailure(runStatus: RunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
-    val prettyPrintedError = "Job failed with an unknown reason"
 
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
-    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus, returnCode: Option[Int]): ExecutionHandle =
+    def handleFailedRunStatus(runStatus: RunStatus.Failed, returnCode: Option[Int]): ExecutionHandle =
       FailedNonRetryableExecutionHandle(
         StandardException(
           runStatus.errorCode,
-          prettyPrintedError,
+          "", // We have no additional context to provide beyond what's already included by StandardException
           jobTag,
           returnCode,
           standardPaths.error
@@ -1107,12 +1107,16 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       Try {
         runStatus match {
           case _: RunStatus.Aborted => AbortedExecutionHandle
-          case preemption: RunStatus.Preempted if preemptible =>
-            handlePreemption(preemption, returnCode, prettyPrintedError)
-          case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
+          case failedStatus: RunStatus.Failed =>
+            if (failedStatus.errorCode == GcpBatchExitCode.VMPreemption && preemptible) {
+              handlePreemption(failedStatus, returnCode)
+            } else if (shouldAutoRetryFailure(failedStatus)) {
+              handleAutoRetry(failedStatus, returnCode)
+            } else
+              handleFailedRunStatus(failedStatus, returnCode)
           case unknown =>
             throw new RuntimeException(
-              s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown"
+              s"handleExecutionFailure was called with an unhandled RunStatus type, got $unknown"
             )
         }
       }
@@ -1128,13 +1132,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
 
   private def handlePreemption(
-    runStatus: RunStatus.UnsuccessfulRunStatus,
-    jobReturnCode: Option[Int],
-    prettyPrintedError: String
+    runStatus: RunStatus.Failed,
+    jobReturnCode: Option[Int]
   ): ExecutionHandle = {
     import common.numeric.IntegerUtil._
 
-    val errorCode: GrpcStatus = runStatus.errorCode
+    val errorCode: GcpBatchExitCode = runStatus.errorCode
     previousRetryReasons match {
       case Valid(PreviousRetryReasons(p, ur)) =>
         val thisPreemption = p + 1
@@ -1147,7 +1150,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           // Increment preemption count and unexpectedRetryCount stays the same
           val msg =
             s"$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is " +
-              s"$maxPreemption). Error code $errorCode.$prettyPrintedError"
+              s"$maxPreemption)."
           FailedRetryableExecutionHandle(
             StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
             jobReturnCode,
@@ -1155,7 +1158,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           )
         } else {
           val msg = s"$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The " +
-            s"call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)"
+            s"call will be restarted with a non-preemptible VM."
           FailedRetryableExecutionHandle(
             StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
             jobReturnCode,
@@ -1164,11 +1167,37 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         }
       case Invalid(_) =>
         FailedNonRetryableExecutionHandle(
-          StandardException(errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error),
+          StandardException(errorCode,
+                            "Job failed due to preemption, couldn't get information about previous retry attempts.",
+                            jobTag,
+                            jobReturnCode,
+                            standardPaths.error
+          ),
           jobReturnCode,
           None
         )
     }
+  }
+
+  // Check whether this failure should be automatically resubmitted without counting against maxRetries.
+  // Guidance: Resubmit if the task has a known-transient failure type and has not yet cost the user money.
+  private def shouldAutoRetryFailure(failed: RunStatus.Failed): Boolean = {
+    val errorTypeIsAutoRetryable = List(
+      GcpBatchExitCode.VMRecreatedDuringExecution,
+      GcpBatchExitCode.VMRebootedDuringExecution
+    ).contains(failed.errorCode)
+    val taskFailedBeforeStarting = !failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
+    errorTypeIsAutoRetryable && taskFailedBeforeStarting
+  }
+
+  private def handleAutoRetry(failed: RunStatus.Failed, returnCode: Option[Int]) = {
+    // This message doesn't contain information about which error because that's added inside StandardException
+    val msg = "Task failed immediately due to a transient GCP Batch error and will be resubmitted."
+    FailedRetryableExecutionHandle(
+      StandardException(failed.errorCode, msg, jobTag, returnCode, standardPaths.error),
+      returnCode,
+      kvPairsToSave = None
+    )
   }
 
   override lazy val startMetadataKeyValues: Map[String, Any] =

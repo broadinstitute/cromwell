@@ -11,5 +11,5 @@ metadata {
   "calls.required_files.check_it.executionStatus": "Done"
   "calls.required_files.do_it.executionStatus": "Failed"
   "calls.required_files.do_it.retryableFailure": "false"
-  "calls.required_files.do_it.failures.0.message": ~~"Job exited without an error, exit code 0. Batch error code 0. Job failed with an unknown reason"
+  "calls.required_files.do_it.failures.0.message": ~~"Job exited without an error, exit code 0. GCP Batch task exited with Success(0)."
 }

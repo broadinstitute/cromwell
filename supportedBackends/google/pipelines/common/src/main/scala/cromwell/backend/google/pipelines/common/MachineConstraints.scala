@@ -27,7 +27,7 @@ object MachineConstraints {
           case Some(PipelinesApiRuntimeAttributes.CpuPlatformIntelIceLakeValue) => N2CustomMachineType
           case Some(PipelinesApiRuntimeAttributes.CpuPlatformIntelCascadeLakeValue) => N2CustomMachineType
           case Some(PipelinesApiRuntimeAttributes.CpuPlatformAMDRomeValue) => N2DCustomMachineType
-          case _ => N1CustomMachineType
+          case _ => N2CustomMachineType
         }
       customMachineType.machineType(memory, cpu, jobLogger)
     }

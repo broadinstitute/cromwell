@@ -1,6 +1,7 @@
 package wdl.transforms.base.wdlom2wom
 
 import cats.syntax.validated._
+import common.validation.ErrorOr
 import common.validation.ErrorOr.{ErrorOr, _}
 import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, IdentifierLookup, SelectFirst}
 import wdl.model.draft3.elements._
@@ -16,7 +17,7 @@ import wom.callable.MetaValueElement.MetaValueElementBoolean
 import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.GraphNodePort.OutputPort
 import wom.graph.expression.AnonymousExpressionNode
-import wom.graph.{CallNode, Graph => WomGraph, GraphNode, WomIdentifier}
+import wom.graph.{CallNode, GraphNode, WomIdentifier, Graph => WomGraph}
 import wom.types.WomType
 
 object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
@@ -77,9 +78,16 @@ object WorkflowDefinitionElementToWomWorkflowDefinition extends Util {
       innerGraph
     }
 
-    (withDefaultOutputs map { ig =>
-      WorkflowDefinition(a.definitionElement.name, ig, meta, parameterMeta, b.definitionElement.sourceLocation)
-    }).contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
+    val conversion = (
+      withDefaultOutputs,
+      validateParameterMetaEntries(a.definitionElement.parameterMetaSection, a.definitionElement.inputsSection, a.definitionElement.outputsSection)
+    ) flatMapN {
+      (ig, _) => ErrorOr[WorkflowDefinition] {
+        WorkflowDefinition(a.definitionElement.name, ig, meta, parameterMeta, b.definitionElement.sourceLocation)
+      }
+    }
+
+    conversion.contextualizeErrors(s"process workflow definition '${a.definitionElement.name}'")
   }
 
   final case class GraphLikeConvertInputs(graphElements: Set[WorkflowGraphElement],

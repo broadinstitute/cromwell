@@ -2,6 +2,9 @@
 
 ## 89 Release Notes
 
+### Improvements
+ * Cromwell can now provide estimated costs incurred by a workflow run on GCP, read more in `CostEstimation` in ReadTheDocs.
+
 ### GCP Batch Updates
  * Add 30 GB default VM boot disk size to user-requested boot disk size; this ensures the VM has room for large user command Docker images.
  * Fix a bug that caused Cromwell to treat immediate preemptions as failures.

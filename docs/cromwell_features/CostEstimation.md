@@ -2,7 +2,7 @@ Cromwell provides estimated cloud costs for running and terminal workflows. This
 
 ## Usage
 
-This feature is currently available for **GCP only.** To enable it, add this line to your configuration file:
+This feature is currently available for **GCP only**. To enable it, add this line to your configuration file:
 ```hocon
 services.GcpCostCatalogService.config.enabled = true
 ```

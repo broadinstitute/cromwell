@@ -31,6 +31,7 @@ nav:
 - Command Line: CommandLine.md
 - Feature Documentation:
     - Call Caching: cromwell_features/CallCaching.md
+    - Cost Estimation: cromwell_features/CostEstimation.md
     - Labels: cromwell_features/Labels.md
     - Hog Factors: cromwell_features/HogFactors.md
     - Retry with More Memory: cromwell_features/RetryWithMoreMemory.md

@@ -30,9 +30,11 @@ nav:
     - Support: GettingHelp.md
 - Command Line: CommandLine.md
 - Feature Documentation:
-  - Call Caching: cromwell_features/CallCaching.md
-  - Labels: cromwell_features/Labels.md
-  - Hog Factors: cromwell_features/HogFactors.md
+    - Call Caching: cromwell_features/CallCaching.md
+    - Labels: cromwell_features/Labels.md
+    - Hog Factors: cromwell_features/HogFactors.md
+    - Retry with More Memory: cromwell_features/RetryWithMoreMemory.md
+    - Workflow Callback: cromwell_features/WorkflowCallback.md
 - Runtime Attributes: RuntimeAttributes.md
 - Workflow Options:
   - Overview: wf_options/Overview.md

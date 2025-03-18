@@ -8,6 +8,7 @@
 ### GCP Batch Updates
  * Add 30 GB default VM boot disk size to user-requested boot disk size; this ensures the VM has room for large user command Docker images.
  * Fix a bug that caused Cromwell to treat immediate preemptions as failures.
+ * Automatically retry tasks that fail with transient Batch errors before the VM has started running (that is, before the task has cost the user money). These retries do not count against `maxRetries`.
 
 ## 88 Release Notes
 

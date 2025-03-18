@@ -187,6 +187,9 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_SBT_EXCLUDE="${BUILD_SBT_EXCLUDE:-}"
 
     case "${CROMWELL_BUILD_TYPE}" in
+        centaurHoricromtalGcpBatch*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/gcp_batch_horicromtal_application.conf"
+            ;;
         centaurHoricromtalPapiV2beta*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2beta_horicromtal_application.conf"
             ;;

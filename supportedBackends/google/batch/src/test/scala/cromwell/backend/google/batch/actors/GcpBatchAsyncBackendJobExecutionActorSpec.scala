@@ -1,7 +1,6 @@
 package cromwell.backend.google.batch
 package actors
 
-import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
@@ -16,7 +15,7 @@ import common.mock.MockSugar
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle}
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.google.batch.actors.GcpBatchAsyncBackendJobExecutionActor.GcpBatchPendingExecutionHandle
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
@@ -492,7 +491,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
 
     val failedStatus = RunStatus.Failed(
-      Status.ABORTED,
+      GcpBatchExitCode.Success,
       Seq.empty
     )
     val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
@@ -509,23 +508,28 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val runId = generateStandardAsyncJob
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
 
-    def checkFailedResult(errorCode: Status, errorMessage: Option[String]): ExecutionHandle = {
+    def checkFailedResult(errorCode: GcpBatchExitCode, events: List[ExecutionEvent] = List.empty): ExecutionHandle = {
       val failed = RunStatus.Failed(
         errorCode,
-        Seq.empty
+        events
       )
       Await.result(batchBackend.handleExecutionResult(failed, handle), timeout)
     }
 
-    checkFailedResult(Status.ABORTED, Option("15: Other type of error."))
+    // Should retry
+    checkFailedResult(GcpBatchExitCode.VMPreemption)
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution) // no VM start time - task has not started
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+
+    // Should not retry
+    checkFailedResult(GcpBatchExitCode.Success)
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.OUT_OF_RANGE, Option("14: Wrong errorCode."))
+    checkFailedResult(GcpBatchExitCode.TaskRunsOverMaximumRuntime)
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, Option("Weird error message."))
-      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, Option("UnparsableInt: Even weirder error message."))
-      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, None).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution,
+                      List(ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now()))
+    ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     actorRef.stop()
   }
 
@@ -1082,63 +1086,66 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     }
   }
 
-  // TODO: FIXME
-  // Cause: com.google.api.client.googleapis.json.GoogleJsonResponseException: 403 Forbidden
-  // Will be addressed by another ticket
   it should "convert local Paths back to corresponding GCS paths in BatchOutputs" in {
-    pending
 
     val batchOutputs = Set(
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file1",
-        gcsPath("gs://path/to/file1"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file1"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file2",
-        gcsPath("gs://path/to/file2"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file2"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file3",
-        gcsPath("gs://path/to/file3"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file3"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file4",
-        gcsPath("gs://path/to/file4"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file4"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file5",
-        gcsPath("gs://path/to/file5"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file5"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"),
         workingDisk,
         optional = false,
         secondary = false
       )
     )
     val outputValues = Seq(
-      WomSingleFile(s"$MountPoint/path/to/file1"),
-      WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile(s"$MountPoint/path/to/file2"), WomSingleFile(s"$MountPoint/path/to/file3"))
+      WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
+      WomArray(
+        WomArrayType(WomSingleFileType),
+        Seq(
+          WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
+          WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3")
+        )
       ),
-      WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
-             Map(
-               WomSingleFile(s"$MountPoint/path/to/file4") -> WomSingleFile(s"$MountPoint/path/to/file5")
-             )
+      WomMap(
+        WomMapType(WomSingleFileType, WomSingleFileType),
+        Map(
+          WomSingleFile(
+            s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4"
+          ) -> WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5")
+        )
       )
     )
 
@@ -1177,15 +1184,24 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val result = outputValues map wdlValueToGcsPath(batchOutputs)
     result should have size 3
-    result should contain(WomSingleFile("gs://path/to/file1"))
+    result should contain(WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"))
     result should contain(
-      WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile("gs://path/to/file2"), WomSingleFile("gs://path/to/file3"))
+      WomArray(
+        WomArrayType(WomSingleFileType),
+        Seq(
+          WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
+          WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3")
+        )
       )
     )
     result should contain(
-      WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
-             Map(WomSingleFile("gs://path/to/file4") -> WomSingleFile("gs://path/to/file5"))
+      WomMap(
+        WomMapType(WomSingleFileType, WomSingleFileType),
+        Map(
+          WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4") -> WomSingleFile(
+            "gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"
+          )
+        )
       )
     )
   }
@@ -1625,7 +1641,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val pollResult0 = RunStatus.Initializing(Seq.empty)
     val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
     val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
-    val abortStatus = RunStatus.Aborted(Status.NOT_FOUND)
+    val abortStatus = RunStatus.Aborted()
 
     val serviceRegistryProbe = TestProbe()
 

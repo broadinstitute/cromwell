@@ -229,6 +229,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   private def buildPreemptibleJobDescriptor(preemptible: Int,
                                             previousPreemptions: Int,
                                             previousUnexpectedRetries: Int,
+                                            previousAutoRetries: Int,
                                             failedRetriesCountOpt: Option[Int] = None
   ): BackendJobDescriptor = {
     val attempt = previousPreemptions + previousUnexpectedRetries + 1
@@ -272,6 +273,10 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
                       GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey
             ),
             previousUnexpectedRetries.toString
+          ),
+          GcpBatchBackendLifecycleActorFactory.autoRetryCountKey -> KvPair(
+            ScopedKey(workflowDescriptor.id, KvJobKey(key), GcpBatchBackendLifecycleActorFactory.autoRetryCountKey),
+            previousAutoRetries.toString
           )
         )
         val prefetchedKvEntriesUpd = if (failedRetriesCountOpt.isEmpty) {
@@ -332,6 +337,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,
                                                       attempt - 1,
                                                       previousUnexpectedRetries = 0,
+                                                      previousAutoRetries = 0,
                                                       failedRetriesCountOpt = failedRetriesCountOpt
     )
     val props = Props(
@@ -457,7 +463,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       )
     )
 
-    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0, 0)
     val serviceRegistryProbe = TestProbe()
 
     val backend1 = executionActor(

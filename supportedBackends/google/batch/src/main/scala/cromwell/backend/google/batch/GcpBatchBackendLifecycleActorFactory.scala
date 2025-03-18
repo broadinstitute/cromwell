@@ -140,6 +140,7 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {
   val preemptionCountKey = "PreemptionCount"
   val unexpectedRetryCountKey = "UnexpectedRetryCount"
+  val autoRetryCountKey = "AutoRetryCount"
 
   private[batch] def robustBuildAttributes(buildAttributes: () => GcpBatchConfigurationAttributes,
                                            maxAttempts: Int = 3,

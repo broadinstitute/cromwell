@@ -8,6 +8,15 @@ The [Cromwell documentation has a dedicated site](https://cromwell.readthedocs.i
 
 First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedocs.io/en/stable/tutorials/FiveMinuteIntro/).
 
+### Google LifeSciences is being deprecated in July - migrate to GCP Batch
+
+Our WDL execution engine, Cromwell, currently leverages the Cloud Life Sciences API (sometimes referred to as PAPI) when launching workflows in Terra. 
+Google is replacing Cloud Life Sciences with a next-generation API named GCP Batch [https://cloud.google.com/life-sciences/docs/reference/rest](learn more).
+We have been making changes to make Cromwell work with the new API and are now testing it in Terra.
+Migrating to Batch keeps Cromwell and Terra current with the latest improvements from GCP. We will release Cromwell on Google Batch iteratively, leveraging feedback from our community on the most important use cases.
+
+[See documentation on how to migrate to GCP Batch](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/#migration-from-google-cloud-life-sciences-v2beta-to-google-cloud-batch)
+
 ### Community
 
 Thinking about contributing to Cromwell? Get started by reading our [Contributor Guide](CONTRIBUTING.md).

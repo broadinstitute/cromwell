@@ -192,8 +192,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     case _ => false
   }
 
+  lazy val maxAutoTaskRetries = batchConfiguration.batchAttributes.maxAutoTaskRetries
+
   lazy val autoRetryable: Boolean = previousRetryReasons match {
-    case Valid(PreviousRetryReasons(_, _, ar)) => ar < batchConfiguration.batchAttributes.maxAutoTaskRetries
+    case Valid(PreviousRetryReasons(_, _, ar)) => ar < maxAutoTaskRetries
     case _ => false
   }
 
@@ -1206,7 +1208,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           nextAttemptRetryCountsToKvPairs(p, ur, thisAutoRetry)
 
         // This message doesn't contain information about which error because that's added inside StandardException
-        val msg = "Task failed immediately due to a transient GCP Batch error and will be resubmitted."
+        val remainingAutoRetries = maxAutoTaskRetries - ar
+        val msg =
+          s"Task failed immediately due to a transient GCP Batch error and will be automatically resubmitted up to ${remainingAutoRetries} more times."
         FailedRetryableExecutionHandle(
           StandardException(failed.errorCode, msg, jobTag, returnCode, standardPaths.error),
           returnCode,
@@ -1214,11 +1218,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         )
       case Invalid(_) =>
         FailedNonRetryableExecutionHandle(
-          StandardException(failed.errorCode,
-                            "Job failed due to preemption, couldn't get information about previous retry attempts.",
-                            jobTag,
-                            returnCode,
-                            standardPaths.error
+          StandardException(
+            failed.errorCode,
+            "Job failed due to transient GCP Batch error, couldn't get information about previous retry attempts.",
+            jobTag,
+            returnCode,
+            standardPaths.error
           ),
           returnCode,
           None

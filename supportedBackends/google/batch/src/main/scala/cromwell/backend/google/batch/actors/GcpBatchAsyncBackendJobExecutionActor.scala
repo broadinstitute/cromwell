@@ -192,6 +192,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     case _ => false
   }
 
+  lazy val autoRetryable: Boolean = previousRetryReasons match {
+    case Valid(PreviousRetryReasons(_, _, ar)) => ar < batchConfiguration.batchAttributes.maxAutoTaskRetries
+    case _ => false
+  }
+
   override def tryAbort(job: StandardAsyncJob): Unit =
     abortJob(workflowId = workflowId,
              jobName = JobName.parse(job.jobId),
@@ -1184,13 +1189,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // Check whether this failure should be automatically resubmitted without counting against maxRetries.
   // Guidance: Resubmit if the task has a known-transient failure type and has not yet cost the user money.
   private def shouldAutoRetryFailure(failed: RunStatus.Failed): Boolean = {
-    val errorTypeIsAutoRetryable = List(
+    lazy val errorTypeIsAutoRetryable = List(
       GcpBatchExitCode.VMPreemption,
       GcpBatchExitCode.VMRecreatedDuringExecution,
       GcpBatchExitCode.VMRebootedDuringExecution
     ).contains(failed.errorCode)
-    val taskFailedBeforeStarting = !failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
-    errorTypeIsAutoRetryable && taskFailedBeforeStarting
+    lazy val taskFailedBeforeStarting = !failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
+    autoRetryable && errorTypeIsAutoRetryable && taskFailedBeforeStarting
   }
 
   private def handleAutoRetry(failed: RunStatus.Failed, returnCode: Option[Int]) =

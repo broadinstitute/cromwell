@@ -229,7 +229,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   private def buildPreemptibleJobDescriptor(preemptible: Int,
                                             previousPreemptions: Int,
                                             previousUnexpectedRetries: Int,
-                                            previousAutoRetries: Int,
+                                            previousTransientRetries: Int,
                                             failedRetriesCountOpt: Option[Int] = None
   ): BackendJobDescriptor = {
     val attempt = previousPreemptions + previousUnexpectedRetries + 1
@@ -274,9 +274,12 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
             ),
             previousUnexpectedRetries.toString
           ),
-          GcpBatchBackendLifecycleActorFactory.autoRetryCountKey -> KvPair(
-            ScopedKey(workflowDescriptor.id, KvJobKey(key), GcpBatchBackendLifecycleActorFactory.autoRetryCountKey),
-            previousAutoRetries.toString
+          GcpBatchBackendLifecycleActorFactory.transientRetryCountKey -> KvPair(
+            ScopedKey(workflowDescriptor.id,
+                      KvJobKey(key),
+                      GcpBatchBackendLifecycleActorFactory.transientRetryCountKey
+            ),
+            previousTransientRetries.toString
           )
         )
         val prefetchedKvEntriesUpd = if (failedRetriesCountOpt.isEmpty) {
@@ -331,14 +334,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
   def buildPreemptibleTestActorRef(attempt: Int,
                                    preemptible: Int,
-                                   previousAutoRetriesCount: Int = 0,
+                                   previousTransientRetriesCount: Int = 0,
                                    failedRetriesCountOpt: Option[Int] = None
   ): TestActorRef[TestableGcpBatchJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,
                                                       attempt - 1,
                                                       previousUnexpectedRetries = 0,
-                                                      previousAutoRetries = previousAutoRetriesCount,
+                                                      previousTransientRetries = previousTransientRetriesCount,
                                                       failedRetriesCountOpt = failedRetriesCountOpt
     )
     val props = Props(
@@ -508,8 +511,8 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     failedHandle.returnCode shouldBe None
   }
 
-  it should "auto-retry when appropriate" in {
-    val actorRef = buildPreemptibleTestActorRef(attempt = 2, preemptible = 0, previousAutoRetriesCount = 1)
+  it should "retry transient failures when appropriate" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 2, preemptible = 0, previousTransientRetriesCount = 1)
     val batchBackend = actorRef.underlyingActor
     val runId = generateStandardAsyncJob
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
@@ -526,12 +529,12 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     failedHandle.kvPairsToSave.map { pairs =>
       pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "0")
       pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "0")
-      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.autoRetryCountKey && p.value == "2")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "2")
     }
   }
 
-  it should "not auto-retry after 10 attempts" in {
-    val actorRef = buildPreemptibleTestActorRef(attempt = 11, preemptible = 0, previousAutoRetriesCount = 10)
+  it should "not retry transient failures after 10 attempts" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 11, preemptible = 0, previousTransientRetriesCount = 10)
     val batchBackend = actorRef.underlyingActor
     val runId = generateStandardAsyncJob
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
@@ -548,12 +551,12 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     failedHandle.kvPairsToSave.map { pairs =>
       pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "0")
       pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "1")
-      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.autoRetryCountKey && p.value == "10")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "10")
     }
   }
 
-  it should "choose auto-retry over preemptible retry when task has not started" in {
-    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, previousAutoRetriesCount = 0)
+  it should "choose transient retry over preemptible retry when task has not started" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, previousTransientRetriesCount = 0)
     val batchBackend = actorRef.underlyingActor
     val runId = generateStandardAsyncJob
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
@@ -570,12 +573,12 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     failedHandle.kvPairsToSave.map { pairs =>
       pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "0")
       pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "0")
-      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.autoRetryCountKey && p.value == "1")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "1")
     }
   }
 
-  it should "choose preemptible over auto-retry when task started before failing" in {
-    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, previousAutoRetriesCount = 0)
+  it should "choose preemptible over transient retry when task started before failing" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, previousTransientRetriesCount = 0)
     val batchBackend = actorRef.underlyingActor
     val runId = generateStandardAsyncJob
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
@@ -592,7 +595,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     failedHandle.kvPairsToSave.map { pairs =>
       pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "2")
       pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "0")
-      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.autoRetryCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "0")
     }
   }
 

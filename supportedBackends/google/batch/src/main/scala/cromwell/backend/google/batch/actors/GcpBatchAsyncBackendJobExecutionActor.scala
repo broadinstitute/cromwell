@@ -192,10 +192,10 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     case _ => false
   }
 
-  lazy val maxAutoTaskRetries = batchConfiguration.batchAttributes.maxAutoTaskRetries
+  lazy val maxTransientErrorRetries = batchConfiguration.batchAttributes.maxTransientErrorRetries
 
-  lazy val autoRetryable: Boolean = previousRetryReasons match {
-    case Valid(PreviousRetryReasons(_, _, ar)) => ar < maxAutoTaskRetries
+  lazy val transientErrorRetryable: Boolean = previousRetryReasons match {
+    case Valid(PreviousRetryReasons(_, _, ar)) => ar < maxTransientErrorRetries
     case _ => false
   }
 
@@ -1115,8 +1115,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         runStatus match {
           case _: RunStatus.Aborted => AbortedExecutionHandle
           case failedStatus: RunStatus.Failed =>
-            if (shouldAutoRetryFailure(failedStatus)) {
-              handleAutoRetry(failedStatus, returnCode)
+            if (isTransientFailure(failedStatus)) {
+              handleTransientErrorRetry(failedStatus, returnCode)
             } else if (failedStatus.errorCode == GcpBatchExitCode.VMPreemption && preemptible) {
               handlePreemption(failedStatus, returnCode)
             } else
@@ -1130,7 +1130,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     }
   }
 
-  private def nextAttemptRetryCountsToKvPairs(p: Int, ur: Int, ar: Int): Seq[KvPair] =
+  private def nextAttemptRetryCountsToKvPairs(p: Int, ur: Int, tr: Int): Seq[KvPair] =
     Seq(
       KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey),
              ur.toString
@@ -1138,7 +1138,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey),
              p.toString
       ),
-      KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.autoRetryCountKey), ar.toString)
+      KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.transientRetryCountKey),
+             tr.toString
+      )
     )
 
   private def handlePreemption(
@@ -1149,12 +1151,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     val errorCode: GcpBatchExitCode = runStatus.errorCode
     previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur, ar)) =>
+      case Valid(PreviousRetryReasons(p, ur, tr)) =>
         val thisPreemption = p + 1
         val taskName = s"${workflowDescriptor.id}:${call.localName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
-        val retryCountsKvPairs = nextAttemptRetryCountsToKvPairs(thisPreemption, ur, ar)
+        val retryCountsKvPairs = nextAttemptRetryCountsToKvPairs(thisPreemption, ur, tr)
         if (thisPreemption < maxPreemption) {
           // Increment preemption count and unexpectedRetryCount stays the same
           val msg =
@@ -1190,27 +1192,27 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // Check whether this failure should be automatically resubmitted without counting against maxRetries.
   // Guidance: Resubmit if the task has a known-transient failure type and has not yet cost the user money.
-  private def shouldAutoRetryFailure(failed: RunStatus.Failed): Boolean = {
-    lazy val errorTypeIsAutoRetryable = List(
+  private def isTransientFailure(failed: RunStatus.Failed): Boolean = {
+    lazy val errorTypeIsTransient = List(
       GcpBatchExitCode.VMPreemption,
       GcpBatchExitCode.VMRecreatedDuringExecution,
       GcpBatchExitCode.VMRebootedDuringExecution
     ).contains(failed.errorCode)
     lazy val taskFailedBeforeStarting = !failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
-    autoRetryable && errorTypeIsAutoRetryable && taskFailedBeforeStarting
+    transientErrorRetryable && errorTypeIsTransient && taskFailedBeforeStarting
   }
 
-  private def handleAutoRetry(failed: RunStatus.Failed, returnCode: Option[Int]) =
+  private def handleTransientErrorRetry(failed: RunStatus.Failed, returnCode: Option[Int]) =
     previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur, ar)) =>
-        val thisAutoRetry = ar + 1
+      case Valid(PreviousRetryReasons(p, ur, tr)) =>
+        val thisTransientRetry = tr + 1
         val retryCountsKvPairs =
-          nextAttemptRetryCountsToKvPairs(p, ur, thisAutoRetry)
+          nextAttemptRetryCountsToKvPairs(p, ur, thisTransientRetry)
 
         // This message doesn't contain information about which error because that's added inside StandardException
-        val remainingAutoRetries = maxAutoTaskRetries - ar
+        val remainingTransientRetries = maxTransientErrorRetries - tr
         val msg =
-          s"Task failed immediately due to a transient GCP Batch error and will be automatically resubmitted up to ${remainingAutoRetries} more times."
+          s"Task failed immediately due to a transient GCP Batch error and will be automatically resubmitted up to ${remainingTransientRetries} more times."
         FailedRetryableExecutionHandle(
           StandardException(failed.errorCode, msg, jobTag, returnCode, standardPaths.error),
           returnCode,

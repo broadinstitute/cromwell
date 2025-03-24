@@ -34,7 +34,8 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
       checkpointingInterval = 1 second,
-      logsPolicy = GcpBatchLogsPolicy.CloudLogging
+      logsPolicy = GcpBatchLogsPolicy.CloudLogging,
+      maxTransientErrorRetries = 10
     )
 
     GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(() => attributes) shouldBe attributes

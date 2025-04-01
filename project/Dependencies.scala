@@ -97,7 +97,7 @@ object Dependencies {
   https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html#mysqld-8-0-29-charset
    */
   private val mysqlV = "8.0.28"
-  private val nettyV = "4.1.72.Final"
+  private val nettyV = "4.1.119.Final"
   private val owlApiV = "5.1.19"
   private val pact4sV = "0.9.0"
   private val postgresV = "42.4.4"
@@ -214,7 +214,7 @@ object Dependencies {
   we include this FS implementation locally and include its dependencies
    */
   val azureBlobNioDependencies = List(
-    "com.azure" % "azure-core" % "1.40.0",
+    "com.azure" % "azure-core" % "1.51.0",
     "com.azure" % "azure-storage-blob" % "12.23.0-beta.1",
     "com.azure" % "azure-storage-common" % "12.22.0-beta.1",
     "com.azure" % "azure-core-test" % "1.26.2",
@@ -710,6 +710,7 @@ object Dependencies {
     "buffer",
     "codec",
     "codec-dns",
+    "codec-haproxy",
     "codec-http",
     "codec-http2",
     "codec-socks",

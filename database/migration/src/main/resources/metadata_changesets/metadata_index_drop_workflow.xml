@@ -9,6 +9,6 @@
             This index is a left-prefix of the newer `IX_METADATA_ENTRY_WEU_MK` and is therefore redundant.
             Drop to save disk space and reduce insert overhead.
         -->
-        <dropIndex tableName="METADATA_WORKFLOW_IDX" indexName="METADATA_ENTRY"/>
+        <dropIndex tableName="METADATA_ENTRY" indexName="METADATA_WORKFLOW_IDX"/>
     </changeSet>
 </databaseChangeLog>

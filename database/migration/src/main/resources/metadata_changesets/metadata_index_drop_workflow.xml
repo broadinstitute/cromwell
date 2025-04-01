@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog objectQuotingStrategy="QUOTE_ALL_OBJECTS"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="metadata_index_drop_workflow" author="anichols" dbms="hsqldb,mariadb,mysql,postgresql">
+        <!--
+            This index is a left-prefix of the newer `IX_METADATA_ENTRY_WEU_MK` and is therefore redundant.
+            Drop to save disk space and reduce insert overhead.
+        -->
+        <dropIndex tableName="METADATA_WORKFLOW_IDX" indexName="METADATA_ENTRY"/>
+    </changeSet>
+</databaseChangeLog>

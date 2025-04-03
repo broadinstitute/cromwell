@@ -235,7 +235,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     val containerSetup: List[Runnable] = containerSetupRunnables(allVolumes)
     val localization: List[Runnable] = localizeRunnables(createParameters, allVolumes)
-    val userRunnable: List[Runnable] = userRunnables(data.createParameters, allVolumes)
+    val userRunnable: List[Runnable] = userRunnables(data.createParameters, allVolumes) // Saloni here
     val memoryRetryRunnable: List[Runnable] = checkForMemoryRetryRunnables(createParameters, allVolumes)
     val deLocalization: List[Runnable] = deLocalizeRunnables(createParameters, allVolumes)
     val monitoringSetup: List[Runnable] = monitoringSetupRunnables(createParameters, allVolumes)

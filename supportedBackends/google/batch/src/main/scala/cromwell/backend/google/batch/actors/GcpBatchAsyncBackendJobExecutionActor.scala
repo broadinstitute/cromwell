@@ -770,10 +770,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def scriptPreamble: ErrorOr[ScriptPreambleData] =
     if (monitoringOutput.isDefined)
-      ScriptPreambleData(s"""|touch $DockerMonitoringLogPath
+      ScriptPreambleData(s"""|ln -s $commandDirectory /cromwell_root
+                             |
+                             |touch $DockerMonitoringLogPath
                              |chmod u+x $DockerMonitoringScriptPath
                              |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin).valid
-    else ScriptPreambleData("").valid
+    else ScriptPreambleData(s"ln -s $commandDirectory /cromwell_root").valid
 
   private[actors] def generateInputs(): Set[GcpBatchInput] = {
     // We need to tell Batch about files that were created as part of command instantiation (these need to be defined

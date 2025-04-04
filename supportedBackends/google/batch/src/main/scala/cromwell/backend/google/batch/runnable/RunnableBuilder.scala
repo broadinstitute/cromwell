@@ -67,8 +67,6 @@ object RunnableBuilder {
           .map(_.mkString(":", ",", ""))
           .getOrElse("")
 
-//        println(s"#### FIND ME: is it reaching here? In 'withVolumes' -> $mountPath:$mountPath$mountOptions")
-
         s"$mountPath:$mountPath$mountOptions"
       }
 
@@ -76,31 +74,6 @@ object RunnableBuilder {
         builder.getContainerBuilder.addAllVolumes(formattedVolumes.asJava)
       )
     }
-
-//    def withUserVolumes(volumes: List[Volume]): Runnable.Builder = {
-//      val formattedVolumes = volumes.map { volume =>
-//        val mountPath = volume.getMountPath
-//
-//        val mountOptions = Option(volume.getMountOptionsList)
-//          .map(_.asScala)
-//          .filter(_.nonEmpty)
-//          .map(_.mkString(":", ",", ""))
-//          .getOrElse("")
-//
-//        val path = if (mountPath == "/mnt/disks/cromwell_root")
-//          s"$mountPath:/cromwell_root$mountOptions"
-//        else s"$mountPath:$mountPath$mountOptions"
-//
-//        println(s"#### FIND ME: is it reaching here? In 'withUserVolumes' -> $path")
-//
-//        //        s"$mountPath:$mountPath$mountOptions"
-//        path
-//      }
-//
-//      builder.setContainer(
-//        builder.getContainerBuilder.addAllVolumes(formattedVolumes.asJava)
-//      )
-//    }
 
     def withLabels(labels: Map[String, String]): Runnable.Builder = builder.putAllLabels(labels.asJava)
 
@@ -207,7 +180,7 @@ object RunnableBuilder {
       .newBuilder()
       .setContainer(container)
       .setEnvironment(environment)
-      .withVolumes(volumes) // .withUserVolumes(volumes)
+      .withVolumes(volumes)
       .putLabels(Key.Tag, Value.UserRunnable)
   }
 
@@ -350,8 +323,6 @@ object RunnableBuilder {
           case volume => s" -v ${shellEscaped(volume).replaceAll(":r[o|w]", "")}"
         } mkString ""
     }
-
-//    println(s"#### FIND ME in 'toDockerRun' -> mountArgs: ${mountArgs}")
 
     List("docker run", mountArgs, entrypointArg, imageArg, commandArgs).mkString
   }

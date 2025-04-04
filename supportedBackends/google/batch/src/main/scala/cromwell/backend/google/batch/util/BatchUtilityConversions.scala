@@ -48,8 +48,6 @@ trait BatchUtilityConversions {
       .setDeviceName(disk.name)
       .setMountPath(disk.mountPoint.pathAsString)
 
-//    println(s"#### FIND ME in 'toVolume' -> mount path: ${disk.mountPoint.pathAsString}")
-
     disk match {
       case _: GcpBatchReferenceFilesDisk =>
         volume

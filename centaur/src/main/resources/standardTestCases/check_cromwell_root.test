@@ -11,6 +11,4 @@ files {
 metadata {
   workflowName: check_cromwell_root
   status: Succeeded
-
-  "outputs.check_cromwell_root.print_cromwell_root.cromwell_root_path": "/cromwell_root"
 }

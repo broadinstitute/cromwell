@@ -770,7 +770,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def scriptPreamble: ErrorOr[ScriptPreambleData] =
     /*
-       Note: In LifeSciences, the 'cromwell_root' is located at '/cromwell_root', but in the Batch backend it has moved to
+       Note: In LifeSciences, 'cromwell_root' is located at '/cromwell_root', but in the Batch backend it has moved to
        '/mnt/disk/cromwell_root'. WDLs that rely on the original path break when run on the Batch. To maintain backward
        and forward compatibility we create a symlink between '/mnt/disk/cromwell_root' and '/cromwell_root'.
      */

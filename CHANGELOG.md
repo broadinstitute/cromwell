@@ -10,6 +10,9 @@
  * Fix a bug that caused Cromwell to treat immediate preemptions as failures.
  * Automatically retry tasks that fail with transient Batch errors before the VM has started running (that is, before the task has cost the user money). These retries do not count against `maxRetries`.
 
+### Other Changes
+* Removes a database index `METADATA_WORKFLOW_IDX` that is now redundant since the introduction of `IX_METADATA_ENTRY_WEU_MK`. 
+
 ## 88 Release Notes
 
 ### Important Upgrade Note: Database Schema Change

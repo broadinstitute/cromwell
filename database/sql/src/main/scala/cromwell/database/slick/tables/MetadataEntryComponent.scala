@@ -55,9 +55,6 @@ trait MetadataEntryComponent {
                       metadataEntryId.?
     ) <> (MetadataEntry.tupled, MetadataEntry.unapply)
 
-    // TODO: rename index via liquibase
-    def ixMetadataEntryWeu = index("METADATA_WORKFLOW_IDX", workflowExecutionUuid, unique = false)
-
     /**
       * Index designed to accelerate common key-specific queries across an entire workflow, such as:
       * - Get workflow-level `outputs%` keys (no tasks, requireEmptyJobKey = true)
@@ -107,7 +104,7 @@ trait MetadataEntryComponent {
 
         for {
           metadata <- metadataEntries
-          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `IX_METADATA_ENTRY_WEU_MK`
         } yield metadata
       }.size
     )
@@ -135,7 +132,7 @@ trait MetadataEntryComponent {
 
         for {
           metadata <- metadataEntries
-          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `IX_METADATA_ENTRY_WEU_MK`
           if metadata.metadataKey === metadataKey
           if metadata.callFullyQualifiedName.isEmpty
           if metadata.jobIndex.isEmpty
@@ -175,7 +172,7 @@ trait MetadataEntryComponent {
 
         for {
           metadata <- metadataEntries
-          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `IX_METADATA_ENTRY_WEU_MK`
           if metadata.callFullyQualifiedName === callFullyQualifiedName
           if hasSameIndex(metadata, jobIndex)
           if hasSameAttempt(metadata, jobAttempt)
@@ -217,7 +214,7 @@ trait MetadataEntryComponent {
 
         for {
           metadata <- metadataEntries
-          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `METADATA_WORKFLOW_IDX`
+          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `IX_METADATA_ENTRY_WEU_MK`
           if metadata.metadataKey === metadataKey
           if metadata.callFullyQualifiedName === callFullyQualifiedName
           if hasSameIndex(metadata, jobIndex)

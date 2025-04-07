@@ -9,7 +9,7 @@
  * Add 30 GB default VM boot disk size to user-requested boot disk size; this ensures the VM has room for large user command Docker images.
  * Fix a bug that caused Cromwell to treat immediate preemptions as failures.
  * Automatically retry tasks that fail with transient Batch errors before the VM has started running (that is, before the task has cost the user money). These retries do not count against `maxRetries`.
- * Symlink to `/cromwell_root` - In LifeSciences, cromwell_root is located at `/cromwell_root`, but in the Batch backend it has moved to `/mnt/disk/cromwell_root`. To ensure WDLs that rely on the original 
+ * Symlink to `/cromwell_root` - In LifeSciences, the Cromwell root directory that user scripts are run from is located at `/cromwell_root`, but in the Batch backend it has moved to `/mnt/disk/cromwell_root`. To ensure WDLs that rely on the original 
 path don't break when run on the Batch, and to also maintain forward compatibility we have created a symlink between `/mnt/disk/cromwell_root` and `/cromwell_root`.
 
 ### Other Changes

@@ -1,7 +1,7 @@
 task hello {
   String addressee
   command {
-    echo "Hello ${addressee}!"
+    echo "Hello there ${addressee}!"
   }
   output {
     String salutation = read_string(stdout())

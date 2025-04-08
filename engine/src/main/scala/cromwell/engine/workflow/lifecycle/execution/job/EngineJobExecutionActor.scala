@@ -666,7 +666,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def disableCallCaching(reason: Option[Throwable] = None) = {
     log.warning(s"BT-322 {} disabling call caching due to error", jobTag)
-    reason foreach { e => log.warning("{}: Hash error ({}), disabling call caching for this job.", jobTag, e.getMessage) }
+    reason foreach { e =>
+      log.warning("{}: Hash error ({}), disabling call caching for this job.", jobTag, e.getMessage)
+    }
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
     writeToMetadata(Map(callCachingHitResultMetadataKey -> false))

@@ -769,11 +769,18 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private var hasDockerCredentials: Boolean = false
 
   override def scriptPreamble: ErrorOr[ScriptPreambleData] =
+    /*
+       Note: In LifeSciences, 'cromwell_root' is located at '/cromwell_root', but in the Batch backend it has moved to
+       '/mnt/disk/cromwell_root'. WDLs that rely on the original path break when run on the Batch. To maintain backward
+       and forward compatibility we create a symlink between '/mnt/disk/cromwell_root' and '/cromwell_root'.
+     */
     if (monitoringOutput.isDefined)
-      ScriptPreambleData(s"""|touch $DockerMonitoringLogPath
+      ScriptPreambleData(s"""|ln -s $commandDirectory /cromwell_root
+                             |
+                             |touch $DockerMonitoringLogPath
                              |chmod u+x $DockerMonitoringScriptPath
                              |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin).valid
-    else ScriptPreambleData("").valid
+    else ScriptPreambleData(s"ln -s $commandDirectory /cromwell_root").valid
 
   private[actors] def generateInputs(): Set[GcpBatchInput] = {
     // We need to tell Batch about files that were created as part of command instantiation (these need to be defined

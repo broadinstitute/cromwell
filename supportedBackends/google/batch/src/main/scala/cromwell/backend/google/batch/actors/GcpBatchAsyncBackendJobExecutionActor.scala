@@ -165,6 +165,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def receive: Receive =
     runCreationClientReceive orElse pollingActorClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
 
+  jobLogger.info("AN-436 Instantiated class")
+
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
    * in the state type.
    */

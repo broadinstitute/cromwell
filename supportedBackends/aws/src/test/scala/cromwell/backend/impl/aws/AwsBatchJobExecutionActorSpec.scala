@@ -35,8 +35,17 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit._
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, JobFailedNonRetryableResponse}
 import cromwell.backend.impl.aws.ControllableFailingJabjea.JabjeaExplode
-import cromwell.backend.standard.{DefaultStandardSyncExecutionActorParams, StandardSyncExecutionActor, StandardSyncExecutionActorParams}
-import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, MinimumRuntimeSettings}
+import cromwell.backend.standard.{
+  DefaultStandardSyncExecutionActorParams,
+  StandardSyncExecutionActor,
+  StandardSyncExecutionActorParams
+}
+import cromwell.backend.{
+  BackendJobDescriptor,
+  BackendJobDescriptorKey,
+  BackendWorkflowDescriptor,
+  MinimumRuntimeSettings
+}
 import cromwell.core.{HogGroup, TestKitSuite, WorkflowId}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -56,17 +65,20 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
   private val TimeoutDuration = 10.seconds.dilated
   implicit val ec: ExecutionContext = system.dispatcher
 
-  def jobDescriptor() = {
+  def jobDescriptor() =
     BackendJobDescriptor(
       BackendWorkflowDescriptor(WorkflowId.randomId(), null, Map.empty, null, null, HogGroup("asdf"), List.empty, None),
-      BackendJobDescriptorKey(CommandCallNode(WomIdentifier.apply("asdf"), null, Set.empty, List.empty, Set.empty, null, None), None, 0),
+      BackendJobDescriptorKey(
+        CommandCallNode(WomIdentifier.apply("asdf"), null, Set.empty, List.empty, Set.empty, null, None),
+        None,
+        0
+      ),
       null,
       Map.empty,
       null,
       null,
       null
     )
-  }
 
   it should "catch failures in execution actor initialization and fail the job accordingly" in {
     val workflowInfo = mock[AwsBatchConfiguration]

@@ -9,8 +9,8 @@ import cromwell.backend.standard.{
   StandardSyncExecutionActor,
   StandardSyncExecutionActorParams
 }
-import cromwell.backend.{BackendJobDescriptor, MinimumRuntimeSettings}
-import cromwell.core.TestKitSuite
+import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, MinimumRuntimeSettings}
+import cromwell.core.{HogGroup, TestKitSuite}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import common.mock.MockSugar
@@ -29,7 +29,15 @@ class PipelinesApiJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLik
   implicit val ec: ExecutionContext = system.dispatcher
 
   it should "catch failures in PABJEA initialization and fail the job accordingly" in {
-    val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
+    val jobDescriptor = BackendJobDescriptor(
+      BackendWorkflowDescriptor(null, null, Map.empty, null, null, HogGroup("asdf"), List.empty, None),
+      null,
+      null,
+      Map.empty,
+      null,
+      null,
+      null
+    )
     val jesWorkflowInfo = mock[PipelinesApiConfiguration]
     val initializationData = mock[PipelinesApiBackendInitializationData]
     val serviceRegistryActor = system.actorOf(Props.empty, "serviceRegistryActor-initialization")

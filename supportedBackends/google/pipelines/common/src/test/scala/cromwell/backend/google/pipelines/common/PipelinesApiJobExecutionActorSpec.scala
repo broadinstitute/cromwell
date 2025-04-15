@@ -4,8 +4,17 @@ import akka.actor.{Actor, ActorRef, Props}
 import akka.testkit._
 import cromwell.backend.BackendJobExecutionActor.{ExecuteJobCommand, JobFailedNonRetryableResponse}
 import cromwell.backend.google.pipelines.common.ControllableFailingPabjea.JabjeaExplode
-import cromwell.backend.standard.{DefaultStandardSyncExecutionActorParams, StandardSyncExecutionActor, StandardSyncExecutionActorParams}
-import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor, MinimumRuntimeSettings}
+import cromwell.backend.standard.{
+  DefaultStandardSyncExecutionActorParams,
+  StandardSyncExecutionActor,
+  StandardSyncExecutionActorParams
+}
+import cromwell.backend.{
+  BackendJobDescriptor,
+  BackendJobDescriptorKey,
+  BackendWorkflowDescriptor,
+  MinimumRuntimeSettings
+}
 import cromwell.core.{HogGroup, TestKitSuite, WorkflowId}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers

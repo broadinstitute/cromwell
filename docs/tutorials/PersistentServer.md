@@ -36,7 +36,7 @@ Test it by running your server with the updated `application.conf`:
 java -Dconfig.file=/path/to/application.conf/ -jar cromwell-[version].jar ...
 ```
 
-### Rootless database: Podman Quadlet
+### Rootless database option: Podman Quadlet
 
 Podman uses [the same underlying technology](https://www.redhat.com/en/blog/containers-are-linux) as Docker, but its architecture allows running without root. Setting up Podman in your environment is beyond the scope of this tutorial, but once you have it going you can plug in this Quadlet.
 

@@ -40,11 +40,17 @@ import cromwell.backend.standard.{
   StandardSyncExecutionActor,
   StandardSyncExecutionActorParams
 }
-import cromwell.backend.{BackendJobDescriptor, MinimumRuntimeSettings}
-import cromwell.core.TestKitSuite
+import cromwell.backend.{
+  BackendJobDescriptor,
+  BackendJobDescriptorKey,
+  BackendWorkflowDescriptor,
+  MinimumRuntimeSettings
+}
+import cromwell.core.{HogGroup, TestKitSuite, WorkflowId}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import common.mock.MockSugar
+import wom.graph.{CommandCallNode, WomIdentifier}
 
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Promise}
@@ -59,8 +65,22 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
   private val TimeoutDuration = 10.seconds.dilated
   implicit val ec: ExecutionContext = system.dispatcher
 
+  def jobDescriptor() =
+    BackendJobDescriptor(
+      BackendWorkflowDescriptor(WorkflowId.randomId(), null, Map.empty, null, null, HogGroup("asdf"), List.empty, None),
+      BackendJobDescriptorKey(
+        CommandCallNode(WomIdentifier.apply("asdf"), null, Set.empty, List.empty, Set.empty, null, None),
+        None,
+        0
+      ),
+      null,
+      Map.empty,
+      null,
+      null,
+      null
+    )
+
   it should "catch failures in execution actor initialization and fail the job accordingly" in {
-    val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val workflowInfo = mock[AwsBatchConfiguration]
     val initializationData = mock[AwsBatchBackendInitializationData]
     val serviceRegistryActor = system.actorOf(Props.empty, "serviceRegistryActor-initialization")
@@ -75,7 +95,7 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
       AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey,
       serviceRegistryActor,
       ioActor,
-      jobDescriptor,
+      jobDescriptor(),
       null,
       Option(initializationData),
       backendSingletonActor,
@@ -103,7 +123,6 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
   }
 
   it should "catch failures at a random point during execution actor processing and fail the job accordingly" in {
-    val jobDescriptor = BackendJobDescriptor(null, null, null, Map.empty, null, null, null)
     val workflowInfo = mock[AwsBatchConfiguration]
     val initializationData = mock[AwsBatchBackendInitializationData]
     val serviceRegistryActor = system.actorOf(Props.empty, "serviceRegistryActor-random")
@@ -119,7 +138,7 @@ class AwsBatchJobExecutionActorSpec extends TestKitSuite with AnyFlatSpecLike wi
       AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey,
       serviceRegistryActor,
       ioActor,
-      jobDescriptor,
+      jobDescriptor(),
       null,
       Option(initializationData),
       backendSingletonActor,

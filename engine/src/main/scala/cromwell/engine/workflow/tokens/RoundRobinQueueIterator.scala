@@ -7,8 +7,10 @@ import cromwell.engine.workflow.tokens.TokenQueue.{DequeueResult, LeasedActor}
   * It will keep rotating the list until it finds a queue with an element that can be dequeued.
   * If no queue can be dequeued, the iterator is empty.
   */
-final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initialPointer: Int)
-    extends Iterator[LeasedActor] {
+final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue],
+                                    initialPointer: Int,
+                                    excludedGroups: List[String]
+) extends Iterator[LeasedActor] {
   // Assumes the number of queues won't change during iteration (it really shouldn't !)
   private val numberOfQueues = initialTokenQueue.size
   // Indicate the index of next queue to try to dequeue from.
@@ -29,7 +31,9 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
     */
   def updatedPointer = pointer
 
-  def hasNext = tokenQueues.exists(_.available)
+  // check if there is a request whose hog group has tokens available and is not in excluded groups list
+  def hasNext = tokenQueues.exists(_.available(excludedGroups))
+
   def next() = findFirst.getOrElse(unexpectedlyEmpty)
 
   def unexpectedlyEmpty: LeasedActor =
@@ -44,7 +48,8 @@ final class RoundRobinQueueIterator(initialTokenQueue: List[TokenQueue], initial
     // For instance, if we have 5 queues and pointer is 2, we want to try indices (2, 3, 4, 0, 1)
 
     val indexStream = ((pointer until numberOfQueues) ++ (0 until pointer)).to(LazyList)
-    val dequeuedTokenStream = indexStream.map(index => tokenQueues(index).dequeue -> index)
+    val dequeuedTokenStream: Seq[(DequeueResult, Int)] =
+      indexStream.map(index => tokenQueues(index).dequeue(excludedGroups) -> index)
 
     val firstLeasedActor = dequeuedTokenStream.collectFirst {
       case (DequeueResult(Some(dequeuedActor), newTokenQueue), index) =>

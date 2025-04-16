@@ -2,7 +2,7 @@
 
 Workflow options can affect the execution of a single workflow without having to change configuration options or restart Cromwell. 
 
-You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the [CLI](../CommandLine.md) or the [REST endpoint](../api/RESTAPI.md):
+You provide workflow options to Cromwell in a JSON format. This can be supplied at workflow-submit time either via the [CLI](../CommandLine.md) or the Submit endpoint:
 
 ```json
 {
@@ -75,13 +75,13 @@ Example `options.json`:
 ```
 
 ## Output Copying
-|Option| Value                             | Description                                                                                                                                                                                                                                                                                                                |
-|---|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|`final_workflow_outputs_dir`| A directory available to Cromwell | Specifies a path where final workflow outputs will be written. If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.                                                                                                                                        |
-|`final_workflow_outputs_mode`| `"copy"` or `"move"`               | `"copy"` is the default and preserves the source files. `"move"` performs a copy-delete sequence to clean up the source.<br/><br/>Note: as of this writing, the `/outputs` endpoint points to the source location. It is planned that for the `"move"` option only, `/outputs` will point to the destination.
-|`use_relative_output_paths`| A boolean                         | When set to `true` this will copy all the outputs relative to their execution directory. my_final_workflow_outputs_dir/~~MyWorkflow/af76876d8-6e8768fa/call-MyTask/execution/~~output_of_interest . Cromwell will throw an exception when this leads to collisions. When the option is not set it will default to `false`. |
-|`final_workflow_log_dir`| A directory available to Cromwell | Specifies a path where per-workflow logs will be written. If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.                                                                                                                |
-|`final_call_logs_dir`| A directory available to Cromwell | Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.                                                                                                                                                     |
+| Option                               | Value                             | Description                                                                                                                                                                                                                                                                                                                |
+|--------------------------------------|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `final_workflow_outputs_dir`         | A directory available to Cromwell | Specifies a path where final workflow outputs will be written. If this is not specified, workflow outputs will not be copied out of the Cromwell workflow execution directory/path.                                                                                                                                        |
+| `final_workflow_outputs_dir_metadata`| `"source"` or `"destination"`     | Specifies whether the `/outputs` endpoint returns the source or destination of the copy. `"source"` is the original behavior, and the default when the parameter is not supplied.
+| `use_relative_output_paths`          | A boolean                         | When set to `true` this will copy all the outputs relative to their execution directory. my_final_workflow_outputs_dir/~~MyWorkflow/af76876d8-6e8768fa/call-MyTask/execution/~~output_of_interest . Cromwell will throw an exception when this leads to collisions. When the option is not set it will default to `false`. |
+| `final_workflow_log_dir`             | A directory available to Cromwell | Specifies a path where per-workflow logs will be written. If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.                                                                                                                |
+| `final_call_logs_dir`                | A directory available to Cromwell | Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.                                                                                                                                                     |
 
 Note that these directories should be using the same filesystem as the workflow. Eg if you run on Google's PAPI, you should provide `gs://...` paths.
 
@@ -89,7 +89,7 @@ Example `options.json`:
 ```json
 {
     "final_workflow_outputs_dir": "/Users/michael_scott/cromwell/outputs",
-    "final_workflow_outputs_mode": "copy",
+    "final_workflow_outputs_dir_metadata": "source",
     "use_relative_output_paths": true,
     "final_workflow_log_dir": "/Users/michael_scott/cromwell/wf_logs",
     "final_call_logs_dir": "/Users/michael_scott/cromwell/call_logs"

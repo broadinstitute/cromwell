@@ -2,15 +2,17 @@ name: chart-update-on-merge
 
 on:
   pull_request:
+    branches: [ develop ]
     types:
       - closed
 
 jobs:
   chart-update:
-    name: Cromwhelm Chart Auto Updater
+    name: Cromwell Version Auto Updater
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+    - uses: sbt/setup-sbt@v1
     - name: Clone Cromwell
       uses: actions/checkout@v4
       with:
@@ -24,7 +26,9 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '17'
-    - name: Clone Cromwhelm
+    - name: (DISABLED) Clone Cromwhelm
+      # WX-1837 disabling CI for this chart, used by AoU RWB only
+      if: false
       uses: actions/checkout@v2
       with:
         repository: broadinstitute/cromwhelm
@@ -73,7 +77,9 @@ jobs:
         repository: broadinstitute/terra-helmfile
         event-type: update-service
         client-payload: '{"service": "cromiam", "version": "${{ env.CROMWELL_VERSION }}", "dev_only": false}'
-    - name: Edit & push cromwhelm chart
+    - name: (DISABLED) Edit & push cromwhelm chart
+      # WX-1837 disabling CI for this chart, used by AoU RWB only
+      if: false
       env:
         BROADBOT_GITHUB_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
       run: |
@@ -88,46 +94,4 @@ jobs:
         git config --global user.email "broadbot@broadinstitute.org"
         git commit -am "${{ steps.get-jira-id.outputs.jira-id }}: Auto update to Cromwell $CROMWELL_VERSION"
         git push https://broadbot:$BROADBOT_GITHUB_TOKEN@github.com/broadinstitute/cromwhelm.git main
-        cd -
-
-    - name: Clone terra-helmfile
-      uses: actions/checkout@v3
-      with:
-        repository: broadinstitute/terra-helmfile
-        token: ${{ secrets.BROADBOT_GITHUB_TOKEN }} # Has to be set at checkout AND later when pushing to work
-        path: terra-helmfile
-
-    - name: Update workflows-app in terra-helmfile
-      run: |
-        set -e
-        cd terra-helmfile
-        sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" charts/workflows-app/values.yaml
-        cd -
-
-    - name: Update cromwell-runner-app in terra-helmfile
-      run: |
-        set -e
-        cd terra-helmfile
-        sed -i "s|image: broadinstitute/cromwell:.*|image: broadinstitute/cromwell:$CROMWELL_VERSION|" charts/cromwell-runner-app/values.yaml
-        cd -
-        
-
-    - name: Make PR in terra-helmfile
-      env:
-        BROADBOT_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-        GH_TOKEN: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-      run: |
-        set -e
-        JIRA_ID=${{ steps.get-jira-id.outputs.jira-id }}
-        if [[ $JIRA_ID == "missing" ]]; then
-          echo "JIRA_ID missing, PR to terra-helmfile will not be created"
-          exit 0;
-        fi
-        cd terra-helmfile
-        git checkout -b ${JIRA_ID}-cromwell-update-$CROMWELL_VERSION
-        git config --global user.name "broadbot"
-        git config --global user.email "broadbot@broadinstitute.org"
-        git commit -am "${JIRA_ID}: Auto update Cromwell to $CROMWELL_VERSION in workflows-app and cromwell-runner-app"
-        git push -u origin ${JIRA_ID}-cromwell-update-$CROMWELL_VERSION
-        gh pr create --title "${JIRA_ID}: auto update Cromwell version to $CROMWELL_VERSION in workflows-app and cromwell-runner-app" --body "${JIRA_ID} helm chart update" --label "automerge"
         cd -

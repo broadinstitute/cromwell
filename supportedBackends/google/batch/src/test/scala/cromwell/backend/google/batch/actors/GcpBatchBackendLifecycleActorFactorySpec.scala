@@ -1,7 +1,7 @@
 package cromwell.backend.google.batch.actors
 
-import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory;
-import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes;
+import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
+import cromwell.backend.google.batch.models.{GcpBatchConfigurationAttributes, GcpBatchLogsPolicy}
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -19,7 +19,6 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       project = "project",
       computeServiceAccount = "computeServiceAccount",
       auths = null,
-      restrictMetadataAccess = true,
       dockerhubToken = "test",
       enableFuse = true,
       executionBucket = "executionBucket",
@@ -34,8 +33,9 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       virtualPrivateCloudConfiguration = null,
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
-      dockerImageToCacheDiskImageMappingOpt = None,
-      checkpointingInterval = 1 second
+      checkpointingInterval = 1 second,
+      logsPolicy = GcpBatchLogsPolicy.CloudLogging,
+      maxTransientErrorRetries = 10
     )
 
     GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(() => attributes) shouldBe attributes

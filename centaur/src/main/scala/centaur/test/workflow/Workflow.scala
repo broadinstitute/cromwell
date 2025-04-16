@@ -25,7 +25,8 @@ final case class Workflow private (testName: String,
                                    allowOtherOutputs: Boolean,
                                    skipDescribeEndpointValidation: Boolean,
                                    submittedWorkflowTracker: SubmittedWorkflowTracker,
-                                   maximumAllowedTime: Option[FiniteDuration]
+                                   maximumAllowedTime: Option[FiniteDuration],
+                                   cost: Option[List[BigDecimal]] = None
 ) {
 
   def toWorkflowSubmission: WorkflowSingleSubmission = WorkflowSingleSubmission(
@@ -65,7 +66,7 @@ object Workflow {
       case Result.Success(n) =>
         // If backend is provided, Centaur will only run this test if that backend is available on Cromwell
         val backendsRequirement = BackendsRequirement.fromConfig(
-          conf.get[String]("backendsMode").map(_.toLowerCase).valueOrElse("all"),
+          conf.get[String]("backendsMode").map(_.toLowerCase).valueOrElse("any"),
           conf.get[List[String]]("backends").valueOrElse(List.empty[String]).map(_.toLowerCase)
         )
         // If basePath is provided it'll be used as basis for finding other files, otherwise use the dir the config was in
@@ -94,6 +95,7 @@ object Workflow {
         val validateDescription: Boolean = conf.get[Boolean]("skipDescribeEndpointValidation").valueOrElse(false)
 
         val maximumTime: Option[FiniteDuration] = conf.get[Option[FiniteDuration]]("maximumTime").value
+        val cost: Option[List[BigDecimal]] = conf.get[Option[List[BigDecimal]]]("cost").value
 
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
           (f, d, m, retryTestFailures) =>
@@ -107,7 +109,8 @@ object Workflow {
                      allowOtherOutputs,
                      validateDescription,
                      submittedWorkflowTracker,
-                     maximumTime
+                     maximumTime,
+                     cost
             )
         }
 

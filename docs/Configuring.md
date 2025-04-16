@@ -199,6 +199,10 @@ database {
 }
 ```
 
+Note: Cromwell supports MySQL versions 8.0 and 8.4.
+
+Cromwell intends to support all currently-maintained LTS versions.
+
 To see the full list of possible parameters and values for the `db` stanza see [the slick documentation](http://slick.lightbend.com/doc/3.2.0/api/index.html#slick.jdbc.JdbcBackend$DatabaseFactoryDef@forConfig(String,Config,Driver):Database).
 
 **Cromwell server on MySQL Database**
@@ -459,6 +463,110 @@ When `invalidate-bad-cache-results=true` (default: `true`), Cromwell will invali
 
 Cromwell also accepts [Workflow Options](wf_options/Overview#call-caching-options) to override the cache read/write behavior.  
 
+#### File hashing strategy options
+
+When determining whether a job has already been run, Cromwell obtains hashes of job input files to compare file contents. 
+Users can configure which algorithm is used to hash files. This is configured separately for each backend and each 
+filesystem supported by that backend, and the available options are different depending on whether the backend is local or 
+cloud-based.
+
+The configuration should be added to the backend's `config` section:
+
+```HOCON
+backend {
+  providers {
+    GcpBatch {
+      config {
+        filesystems {
+          gcs {
+            caching {
+              hashing-strategy = ["md5", "identity"]
+            }              
+          }
+          drs {
+            caching {
+              hashing-strategy = "crc32c"
+            }              
+          }
+        }
+      }
+    }
+    Local {
+      config {
+        filesystems {
+          local {
+            caching {
+              hashing-strategy = "md5"
+            }              
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+##### Call cache strategy options for cloud storage
+
+Cromwell supports configuring one or more strategies for hashing cloud files. If a list of strategies is provided,
+Cromwell will try each algorithm in the order listed until it finds an available hash. This is meant to support file 
+types that aren't guaranteed to have a single type of hash. Cromwell will never download a file in order to compute its
+hash, all cloud hashing strategies are dependent on file metadata.
+
+Each filesystem supports a limited set of hash strategies.
+* `gcs` Google Storage supports:
+    * `crc32c` default, guaranteed to exist
+    * `md5` will not exist for files created via multipart upload (Cromwell itself does not use multi-part upload)
+    * `identity` uses the bucket name, blob name, and generation to uniquely identify a storage object. This is a *stronger* 
+requirement than is typically used for call caching - when `identity` is used, Cromwell will not call cache across tasks
+that have input files with merely the same contents, the inputs must be literally the same GS object. This may break 
+call caching for tasks that use intermediate files as input.
+* `s3` AWS S3 supports:
+    * `etag` default, guaranteed to exist
+* `drs` Data Repository Service supports:
+    * `crc32c`
+    * `md5`
+    * `etag`
+    * `sha256`
+    * Given the diversity of DRS datasets, no hash is guaranteed to exist for all files. The default hash strategy for DRS
+is `["crc32c", "md5", "sha256", "etag"]`
+
+###### Notes on GCS Hashing Strategy
+
+For some high-throughput production use cases that run many, many copies of the same task differing by only one input file, 
+the collision rate of `crc32c` may be unacceptably high. To dramatically reduce the chance of collision at the cost of 
+reducing the collection of tasks that can be call cached, we recommend `hashing-strategy: ["md5", "identity"]`. This 
+will use `md5` hashes when they exist, and fall back to the very strict `identity` strategy when they do not (ex. if
+a file was created by multipart upload). Because all GCS files created by Cromwell are guaranteed to have `md5`, 
+`identity` comes into play only for user-provided workflow input files.
+
+##### Call cache strategy options for local filesystem
+
+Cromwell supports configuring a single strategy for hashing local files. If no configuration is provided, `md5` 
+will be used. See Local Filesystem Options below for additional configuration that interacts with this setting.
+
+* hash based options. These read the entire file. These strategies work with containers.
+    * `xxh64` (community-supported*). This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
+      algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
+      md5.
+    * `md5`. The well-known md5sum algorithm 
+* Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file
+  caching strategy and can therefore do not work with containers by default.
+    * `path` creates a md5 hash of the path.
+    * `path+modtime` creates a md5 hash of the path and its modification time.
+* Fingerprinting. This strategy works with containers.
+    * `fingerprint` (community-supported*) tries to create a fingerprint for each file by taking its last modified time (milliseconds since
+      epoch in hexadecimal) + size (bytes in hexadecimal) + the xxh64 sum of the first 10 MB** of the file.
+      It is much more lightweight than the hash based options while still unique enough that collisions are unlikely. This
+      strategy works well for workflows that generate multi-gigabyte files and where hashing these files on the
+      cromwell instance provides CPU or I/O problems.
+      NOTE: This strategy requires hard-linking as a duplication strategy, as copying changes the last modified time.
+
+(*) The `fingerprint` and `xxh64` strategies are features that are community supported by Cromwell's HPC community. There
+is no official support from the core Cromwell team.
+
+(**) This value is configurable, see below.
+
 ### Local filesystem options
 
 When running a job on the Config (Shared Filesystem) backend, Cromwell provides some additional options in the backend's 
@@ -510,30 +618,6 @@ config section:
         }
       }
 ```
-
-#### Call cache strategy options for local filesystem
-
-* hash based options. These read the entire file. These strategies work with containers.
-    * `xxh64` (community-supported*). This uses the 64-bit implementation of the [xxHash](https://www.xxhash.com)
-             algorithm. This algorithm is optimized for file integrity hashing and provides a more than 10x speed improvement over
-             md5.
-    * `md5`. The well-known md5sum algorithm
-* Path based options. These are based on filepath. Extremely lightweight, but only work with the `soft-link` file 
-caching strategy and can therefore do not work with containers by default.
-    * `path` creates a md5 hash of the path.
-    * `path+modtime` creates a md5 hash of the path and its modification time.
-* Fingerprinting. This strategy works with containers.
-    * `fingerprint` (community-supported*) tries to create a fingerprint for each file by taking its last modified time (milliseconds since
-       epoch in hexadecimal) + size (bytes in hexadecimal) + the xxh64 sum of the first 10 MB** of the file. 
-       It is much more lightweight than the hash based options while still unique enough that collisions are unlikely. This 
-       strategy works well for workflows that generate multi-gigabyte files and where hashing these files on the 
-       cromwell instance provides CPU or I/O problems. 
-       NOTE: This strategy requires hard-linking as a dupliation strategy, as copying changes the last modified time.
-
-(*) The `fingerprint` and `xxh64` strategies are features that are community supported by Cromwell's HPC community. There
-is no official support from the core Cromwell team.
-
-(**) This value is configurable.
  
 ### Workflow log directory
 

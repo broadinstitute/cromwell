@@ -1,5 +1,6 @@
 package cromwell.backend.google.pipelines.v2beta
 
+import akka.actor.ActorRef
 import cats.data.NonEmptyList
 import cats.implicits._
 import com.google.cloud.storage.contrib.nio.CloudStorageOptions
@@ -11,6 +12,7 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.C
 import cromwell.backend.google.pipelines.common.io.PipelinesApiWorkingDisk
 import cromwell.backend.google.pipelines.v2beta.PipelinesApiAsyncBackendJobExecutionActor._
 import cromwell.backend.standard.StandardAsyncExecutionActorParams
+import cromwell.backend.google.pipelines.common.PapiPollResultMonitorActor
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
@@ -20,18 +22,9 @@ import org.apache.commons.csv.{CSVFormat, CSVPrinter}
 import org.apache.commons.io.output.ByteArrayOutputStream
 import wom.core.FullyQualifiedName
 import wom.expression.FileEvaluation
-import wom.values.{
-  GlobFunctions,
-  WomFile,
-  WomGlobFile,
-  WomMaybeListedDirectory,
-  WomMaybePopulatedFile,
-  WomSingleFile,
-  WomUnlistedDirectory
-}
+import wom.values.{GlobFunctions, WomFile, WomGlobFile, WomSingleFile, WomUnlistedDirectory}
 
 import java.nio.charset.Charset
-
 import java.io.{FileNotFoundException, OutputStreamWriter}
 import scala.concurrent.Future
 import scala.io.Source
@@ -42,6 +35,8 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams)
     with PipelinesApiReferenceFilesMappingOperations {
 
+  jobLogger.info("AN-436 Instantiated class")
+
   // The original implementation assumes the WomFiles are all WomMaybePopulatedFiles and wraps everything in a PipelinesApiFileInput
   // In v2 we can differentiate files from directories
   override protected def pipelinesApiInputsFromWomFiles(inputName: String,
@@ -50,8 +45,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
                                                         jobDescriptor: BackendJobDescriptor
   ): Iterable[PipelinesApiInput] =
     (remotePathArray zip localPathArray) flatMap {
-      case (remotePath: WomMaybeListedDirectory, localPath) =>
-        maybeListedDirectoryToPipelinesParameters(inputName, remotePath, localPath.valueString)
       case (remotePath: WomUnlistedDirectory, localPath) =>
         Seq(
           PipelinesApiDirectoryInput(inputName,
@@ -60,8 +53,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
                                      workingDisk
           )
         )
-      case (remotePath: WomMaybePopulatedFile, localPath) =>
-        maybePopulatedFileToPipelinesParameters(inputName, remotePath, localPath.valueString)
       case (remotePath, localPath) =>
         Seq(
           PipelinesApiFileInput(inputName,
@@ -79,6 +70,18 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
         case womFile: WomFile if !inputsToNotLocalize.contains(womFile) => womFile
       }
   }
+
+  override val pollingResultMonitorActor: Option[ActorRef] = Option(
+    context.actorOf(
+      PapiPollResultMonitorActor.props(serviceRegistryActor,
+                                       workflowDescriptor,
+                                       jobDescriptor,
+                                       validatedRuntimeAttributes,
+                                       platform,
+                                       jobLogger
+      )
+    )
+  )
 
   private lazy val gcsTransferLibrary =
     Source.fromInputStream(Thread.currentThread.getContextClassLoader.getResourceAsStream("gcs_transfer.sh")).mkString
@@ -411,54 +414,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
         }
       }
     }
-
-  private def maybePopulatedFileToPipelinesParameters(inputName: String,
-                                                      maybePopulatedFile: WomMaybePopulatedFile,
-                                                      localPath: String
-  ) = {
-    val secondaryFiles = maybePopulatedFile.secondaryFiles.flatMap { secondaryFile =>
-      pipelinesApiInputsFromWomFiles(secondaryFile.valueString,
-                                     List(secondaryFile),
-                                     List(relativeLocalizationPath(secondaryFile)),
-                                     jobDescriptor
-      )
-    }
-
-    Seq(
-      PipelinesApiFileInput(inputName,
-                            getPath(maybePopulatedFile.valueString).get,
-                            DefaultPathBuilder.get(localPath),
-                            workingDisk
-      )
-    ) ++ secondaryFiles
-  }
-
-  private def maybeListedDirectoryToPipelinesParameters(inputName: String,
-                                                        womMaybeListedDirectory: WomMaybeListedDirectory,
-                                                        localPath: String
-  ) = womMaybeListedDirectory match {
-    // If there is a path, simply localize as a directory
-    case WomMaybeListedDirectory(Some(path), _, _, _) =>
-      List(PipelinesApiDirectoryInput(inputName, getPath(path).get, DefaultPathBuilder.get(localPath), workingDisk))
-
-    // If there is a listing, recurse and call pipelinesApiInputsFromWomFiles on all the listed files
-    case WomMaybeListedDirectory(_, Some(listing), _, _) if listing.nonEmpty =>
-      listing.flatMap {
-        case womFile: WomFile if isAdHocFile(womFile) =>
-          pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
-                                         List(womFile),
-                                         List(fileName(womFile)),
-                                         jobDescriptor
-          )
-        case womFile: WomFile =>
-          pipelinesApiInputsFromWomFiles(makeSafeReferenceName(womFile.valueString),
-                                         List(womFile),
-                                         List(relativeLocalizationPath(womFile)),
-                                         jobDescriptor
-          )
-      }
-    case _ => List.empty
-  }
 
   override def generateSingleFileOutputs(womFile: WomSingleFile,
                                          fileEvaluation: FileEvaluation

@@ -159,6 +159,21 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
       }
   }
 
+  behavior of "REST API /cost endpoint"
+  it should "return 200 with basic cost info" in {
+    Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/cost") ~>
+      akkaHttpService.metadataRoutes ~>
+      check {
+        status should be(StatusCodes.OK)
+
+        val costResponse = responseAs[JsObject]
+        costResponse.fields("id") should be(JsString(CromwellApiServiceSpec.ExistingWorkflowId.toString))
+        costResponse.fields("currency") should be(JsString("USD"))
+        costResponse.fields("cost") should be(JsNumber(3.5))
+        costResponse.fields("status") should be(JsString("Succeeded"))
+      }
+  }
+
   behavior of "REST API /logs endpoint"
   it should "return 200 with paths to stdout/stderr/backend log" in {
     Get(s"/workflows/$version/${CromwellApiServiceSpec.ExistingWorkflowId}/logs") ~>
@@ -558,7 +573,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         |}
       """.stripMargin
 
-    val unsummarizedId = CromwellApiServiceSpec.ExistingWorkflowId
+    val unsummarizedId = CromwellApiServiceSpec.UnsummarizedWorkflowId
     Patch(s"/workflows/$version/$unsummarizedId/labels",
           HttpEntity(ContentTypes.`application/json`, validLabelsJson)
     ) ~>

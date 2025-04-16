@@ -1,0 +1,23 @@
+name: recursive_imports_cost_batch
+testFormat: workflowsuccessandverifycost
+backends: [GCPBATCH]
+
+files {
+  workflow: recursive_imports/recursive_imports.wdl
+  imports: [
+    forkjoin/forkjoin.wdl,
+    sub_workflow_hello_world/sub_workflow_hello_world.wdl,
+    sub_workflow_hello_world/sub_workflow_hello_world_import.wdl,
+    sub_workflow_interactions/sub_workflow_interactions_import.wdl,
+    sub_workflow_interactions/sub_workflow_interactions.wdl
+  ]
+  # Adds option to disable call-caching
+   options: recursive_imports/recursive_imports_cost.options
+}
+
+metadata {
+  workflowName: recursive_imports
+  status: Succeeded
+}
+
+cost: [0.0011, 0.0023]

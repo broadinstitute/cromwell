@@ -23,6 +23,7 @@ import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
 import cromwell.backend.async._
 import cromwell.backend.standard.StandardAdHocValue._
+import cromwell.backend.standard.pollmonitoring.{AsyncJobHasFinished, ProcessThisPollResult}
 import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.validation._
 import cromwell.core._
@@ -31,23 +32,18 @@ import cromwell.core.path.Path
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-import cromwell.services.metrics.bard.BardEventing.BardEventRequest
-import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import eu.timepit.refined.refineV
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
-import wdl4s.parser.MemoryUnit
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
 
-import java.time.OffsetDateTime
-import java.time.temporal.ChronoUnit
 import java.io.IOException
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -68,14 +64,13 @@ case class DefaultStandardAsyncExecutionActorParams(
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val backendSingletonActorOption: Option[ActorRef],
   override val completionPromise: Promise[BackendJobExecutionResponse],
+  override val groupMetricsActor: ActorRef,
   override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardAsyncExecutionActorParams
 
 // Typically we want to "executeInSubshell" for encapsulation of bash code.
 // Override to `false` when we need the script to set an environment variable in the parent shell.
 case class ScriptPreambleData(bashString: String, executeInSubshell: Boolean = true)
-
-case class StartAndEndTimes(jobStart: OffsetDateTime, cpuStart: Option[OffsetDateTime], jobEnd: OffsetDateTime)
 
 /**
   * An extension of the generic AsyncBackendJobExecutionActor providing a standard abstract implementation of an
@@ -903,14 +898,6 @@ trait StandardAsyncExecutionActor
   def getTerminalEvents(runStatus: StandardAsyncRunState): Seq[ExecutionEvent] = Seq.empty
 
   /**
-    * Get the min and max event times from a terminal run status
-    *
-    * @param runStatus The terminal run status, as defined by isTerminal.
-    * @return The min and max event times, if events exist.
-    */
-  def getStartAndEndTimes(runStatus: StandardAsyncRunState): Option[StartAndEndTimes] = None
-
-  /**
     * Returns true if the status represents a completion.
     *
     * Select meanings by backend:
@@ -943,9 +930,8 @@ trait StandardAsyncExecutionActor
     * @param handle The handle of the running job.
     * @return A set of actions when the job is complete
     */
-  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit = tellBard(
-    runStatus
-  )
+  def onTaskComplete(runStatus: StandardAsyncRunState, handle: StandardAsyncPendingExecutionHandle): Unit =
+    pollingResultMonitorActor.foreach(helper => helper.tell(AsyncJobHasFinished(runStatus), self))
 
   /**
     * Attempts to abort a job when an abort signal is retrieved.
@@ -1056,6 +1042,12 @@ trait StandardAsyncExecutionActor
     * @return True if evaluateOutputs should be retried later.
     */
   def retryEvaluateOutputs(exception: Exception): Boolean = false
+
+  /**
+   * Checks if the job has run into any cloud quota exhaustion and records it to GroupMetrics table
+   * @param runStatus The run status
+   */
+  def checkAndRecordQuotaExhaustion(runStatus: StandardAsyncRunState): Unit = ()
 
   /**
     * Process a successful run, as defined by `isSuccess`.
@@ -1329,6 +1321,12 @@ trait StandardAsyncExecutionActor
       tellMetadata(Map(CallMetadataKeys.BackendStatus -> state))
     }
 
+    // record if group has run into cloud quota exhaustion
+    checkAndRecordQuotaExhaustion(state)
+
+    // present the poll result to the cost helper. It will keep track of vm start/stop times and may emit some metadata.
+    pollingResultMonitorActor.foreach(helper => helper.tell(ProcessThisPollResult[StandardAsyncRunState](state), self))
+
     state match {
       case _ if isTerminal(state) =>
         val metadata = getTerminalMetadata(state)
@@ -1341,6 +1339,10 @@ trait StandardAsyncExecutionActor
         ) // Copy the current handle with updated previous status.
     }
   }
+
+  // If present, polling results will be presented to this helper.
+  // Subclasses can use this to emit proper metadata based on polling responses.
+  protected val pollingResultMonitorActor: Option[ActorRef] = Option.empty
 
   /**
     * Process a poll failure.
@@ -1526,40 +1528,6 @@ trait StandardAsyncExecutionActor
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id, Option(jobDescriptor.key), metadataKeyValues)
   }
-
-  def tellBard(state: StandardAsyncRunState): Unit =
-    getStartAndEndTimes(state) match {
-      case Some(startAndEndTimes: StartAndEndTimes) =>
-        val dockerImage =
-          RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
-        val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
-        val memory = RuntimeAttributesValidation
-          .extract(MemoryValidation.instance(), validatedRuntimeAttributes)
-          .to(MemoryUnit.Bytes)
-          .amount
-        serviceRegistryActor ! BardEventRequest(
-          TaskSummaryEvent(
-            workflowDescriptor.id.id,
-            workflowDescriptor.possibleParentWorkflowId.map(_.id),
-            workflowDescriptor.rootWorkflowId.id,
-            jobDescriptor.key.tag,
-            jobDescriptor.key.call.fullyQualifiedName,
-            jobDescriptor.key.index,
-            jobDescriptor.key.attempt,
-            state.getClass.getSimpleName,
-            platform.map(_.runtimeKey),
-            dockerImage,
-            cpus,
-            memory,
-            startAndEndTimes.jobStart.toString,
-            startAndEndTimes.cpuStart.map(_.toString),
-            startAndEndTimes.jobEnd.toString,
-            startAndEndTimes.jobStart.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS),
-            startAndEndTimes.cpuStart.map(_.until(startAndEndTimes.jobEnd, ChronoUnit.SECONDS))
-          )
-        )
-      case _ => ()
-    }
 
   implicit override protected lazy val ec: ExecutionContextExecutor = context.dispatcher
 }

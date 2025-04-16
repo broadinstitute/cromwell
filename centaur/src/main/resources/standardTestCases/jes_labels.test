@@ -1,7 +1,7 @@
 name: jes_labels
 testFormat: workflowsuccess
 tags: [ labels ]
-backends: [Papi]
+backends: [Papi, GCPBATCH_ALT]
 
 files {
   workflow: labels/jes_labels.wdl

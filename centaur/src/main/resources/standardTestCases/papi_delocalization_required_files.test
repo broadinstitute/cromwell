@@ -1,6 +1,7 @@
 name: papi_delocalization_required_files
 testFormat: workflowfailure
-backends: [Papiv2]
+# Different error messages for GCP Batch
+backends: [Papiv2, GCPBATCH_ALT]
 
 files {
   workflow: papi_delocalization_required_files/papi_delocalization_required_files.wdl

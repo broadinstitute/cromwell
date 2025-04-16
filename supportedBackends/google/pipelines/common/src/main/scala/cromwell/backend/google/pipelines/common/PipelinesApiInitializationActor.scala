@@ -5,7 +5,6 @@ import com.google.api.client.http.{HttpRequest, HttpResponse}
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
 import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
 import com.google.api.services.cloudresourcemanager.CloudResourceManager
-import com.google.api.services.genomics.v2alpha1.GenomicsScopes
 import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
@@ -68,8 +67,7 @@ class PipelinesApiInitializationActor(pipelinesParams: PipelinesApiInitializatio
   private lazy val genomicsCredentials: Future[Credentials] = pipelinesConfiguration.papiAttributes.auths.genomics
     .retryCredentials(workflowOptions,
                       List(
-                        CloudLifeSciencesScopes.CLOUD_PLATFORM,
-                        GenomicsScopes.GENOMICS
+                        CloudLifeSciencesScopes.CLOUD_PLATFORM
                       )
     )
 

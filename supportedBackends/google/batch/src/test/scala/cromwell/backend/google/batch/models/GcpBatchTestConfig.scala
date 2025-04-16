@@ -33,7 +33,7 @@ object GcpBatchTestConfig {
       |    continueOnReturnCode: 0
       |    docker: "ubuntu:latest"
       |    memory: "2048 MB"
-      |    bootDiskSizeGb: 10
+      |    bootDiskSizeGb: 30
       |    disks: "local-disk 10 SSD"
       |    noAddress: false
       |    preemptible: 0
@@ -82,9 +82,9 @@ object GcpBatchTestConfig {
        |}
        |
        |backend {
-       |  default = "batch"
+       |  default = "GCPBATCH"
        |  providers {
-       |    batch {
+       |    GCPBATCH {
        |      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
        |      config {
        |      $BatchBackendConfigString
@@ -108,7 +108,7 @@ object GcpBatchTestConfig {
     Await.result(BatchBackendConfigurationDescriptor.pathBuilders(WorkflowOptions.empty), 5.seconds)
   val googleConfiguration: GoogleConfiguration = GoogleConfiguration(BatchGlobalConfig)
   val batchAttributes: GcpBatchConfigurationAttributes =
-    GcpBatchConfigurationAttributes(googleConfiguration, BatchBackendConfig, "batch")
+    GcpBatchConfigurationAttributes(googleConfiguration, BatchBackendConfig, "GCPBATCH")
   val gcpBatchConfiguration =
     new GcpBatchConfiguration(BatchBackendConfigurationDescriptor, googleConfiguration, batchAttributes)
 }

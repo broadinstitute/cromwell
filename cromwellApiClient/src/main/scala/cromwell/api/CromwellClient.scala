@@ -18,6 +18,16 @@ import spray.json._
 
 import scala.concurrent.ExecutionContext
 
+import model.CallCacheDiffJsonSupport._
+import model.CromwellBackendsJsonSupport._
+import model.CromwellStatusJsonSupport._
+import model.CromwellVersionJsonSupport._
+import model.WorkflowLabelsJsonSupport._
+import model.WorkflowOutputsJsonSupport._
+import model.WorkflowDescriptionJsonSupport._
+import model.CromwellQueryResultJsonSupport._
+import model.WorkflowCostJsonSupport._
+
 class CromwellClient(val cromwellUrl: URL,
                      val apiVersion: String,
                      val defaultCredentials: Option[HttpCredentials] = None
@@ -49,6 +59,7 @@ class CromwellClient(val cromwellUrl: URL,
 
   def abortEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "abort")
   def statusEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "status")
+  def costEndpoint(workflowId: WorkflowId): Uri = workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "cost")
   def metadataEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri =
     workflowSpecificGetEndpoint(workflowsEndpoint, workflowId, "metadata", args)
   def outputsEndpoint(workflowId: WorkflowId, args: Option[Map[String, List[String]]] = None): Uri =
@@ -68,15 +79,6 @@ class CromwellClient(val cromwellUrl: URL,
   }
   lazy val backendsEndpoint = s"$workflowsEndpoint/backends"
   lazy val versionEndpoint = s"$engineEndpoint/version"
-
-  import model.CallCacheDiffJsonSupport._
-  import model.CromwellBackendsJsonSupport._
-  import model.CromwellStatusJsonSupport._
-  import model.CromwellVersionJsonSupport._
-  import model.WorkflowLabelsJsonSupport._
-  import model.WorkflowOutputsJsonSupport._
-  import model.WorkflowDescriptionJsonSupport._
-  import model.CromwellQueryResultJsonSupport._
 
   def submit(workflow: WorkflowSubmission)(implicit ec: ExecutionContext): FailureResponseOrT[SubmittedWorkflow] = {
     val requestEntity = requestEntityForSubmit(workflow)
@@ -132,6 +134,9 @@ class CromwellClient(val cromwellUrl: URL,
 
   def status(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowStatus] =
     simpleRequest[CromwellStatus](statusEndpoint(workflowId)) map WorkflowStatus.apply
+
+  def cost(workflowId: WorkflowId)(implicit ec: ExecutionContext): FailureResponseOrT[WorkflowCost] =
+    simpleRequest[WorkflowCost](costEndpoint(workflowId))
 
   def metadata(workflowId: WorkflowId,
                args: Option[Map[String, List[String]]] = None,

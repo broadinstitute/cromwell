@@ -4,6 +4,7 @@ import cats.implicits.{catsSyntaxValidatedId, toTraverseOps}
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.google.batch.io.{GcpBatchAttachedDisk, GcpBatchWorkingDisk}
+import cromwell.backend.google.batch.models.GcpBatchRuntimeAttributes.BootDiskSizeKey
 import cromwell.backend.google.batch.models.GpuResource.GpuType
 import cromwell.backend.google.batch.util.{GpuTypeValidation, GpuValidation}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
@@ -18,17 +19,14 @@ import wom.values.{WomArray, WomBoolean, WomInteger, WomString, WomValue}
 
 object GpuResource {
 
-  val DefaultNvidiaDriverVersion = "418.87.00"
-
   final case class GpuType(name: String) {
     override def toString: String = name
   }
 
   object GpuType {
-    val NVIDIATeslaP100 = GpuType("nvidia-tesla-p100")
-    val NVIDIATeslaK80 = GpuType("nvidia-tesla-k80")
+    val NVIDIATeslaT4 = GpuType("nvidia-tesla-t4")
 
-    val DefaultGpuType: GpuType = NVIDIATeslaK80
+    val DefaultGpuType: GpuType = NVIDIATeslaT4
     val DefaultGpuCount: Int Refined Positive = refineMV[Positive](1)
     val MoreDetailsURL = "https://cloud.google.com/compute/docs/gpus/"
   }
@@ -48,14 +46,12 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            failOnStderr: Boolean,
                                            continueOnReturnCode: ContinueOnReturnCode,
                                            noAddress: Boolean,
-                                           useDockerImageCache: Option[Boolean],
                                            checkpointFilename: Option[String]
 )
 
 object GcpBatchRuntimeAttributes {
 
   val ZonesKey = "zones"
-
   private val ZonesDefaultValue = WomString("us-central1-b")
 
   val PreemptibleKey = "preemptible"
@@ -63,8 +59,8 @@ object GcpBatchRuntimeAttributes {
   private val PreemptibleDefaultValue = WomInteger(0)
 
   val BootDiskSizeKey = "bootDiskSizeGb"
-  private val bootDiskValidationInstance = new IntRuntimeAttributesValidation(BootDiskSizeKey)
-  private val BootDiskDefaultValue = WomInteger(10)
+  // This is the smallest size we will actually get, see https://cloud.google.com/batch/docs/vm-os-environment-overview#default
+  val BootDiskDefaultValue = WomInteger(30)
 
   val NoAddressKey = "noAddress"
   private val noAddressValidationInstance = new BooleanRuntimeAttributesValidation(NoAddressKey)
@@ -77,12 +73,8 @@ object GcpBatchRuntimeAttributes {
   private val cpuPlatformValidationInstance = new StringRuntimeAttributesValidation(CpuPlatformKey).optional
   // via `gcloud compute zones describe us-central1-a`
   val CpuPlatformIntelCascadeLakeValue = "Intel Cascade Lake"
+  val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
-
-  val UseDockerImageCacheKey = "useDockerImageCache"
-  private val useDockerImageCacheValidationInstance = new BooleanRuntimeAttributesValidation(
-    UseDockerImageCacheKey
-  ).optional
 
   val CheckpointFileKey = "checkpointFile"
   private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional
@@ -99,10 +91,6 @@ object GcpBatchRuntimeAttributes {
     cpuPlatformValidationInstance
   private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] =
     GpuTypeValidation.optional
-
-  val GpuDriverVersionKey = "nvidiaDriverVersion"
-  private def gpuDriverValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
-    new StringRuntimeAttributesValidation(GpuDriverVersionKey).optional
 
   private def gpuCountValidation(
     runtimeConfig: Option[Config]
@@ -137,8 +125,7 @@ object GcpBatchRuntimeAttributes {
     )
 
   private def bootDiskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
-    bootDiskValidationInstance
-      .withDefault(bootDiskValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse BootDiskDefaultValue)
+    new BootDiskSizeValidation(runtimeConfig)
 
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
     noAddressValidationInstance
@@ -147,11 +134,6 @@ object GcpBatchRuntimeAttributes {
           .configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue
       )
 
-  private def useDockerImageCacheValidation(
-    runtimeConfig: Option[Config]
-  ): OptionalRuntimeAttributesValidation[Boolean] =
-    useDockerImageCacheValidationInstance
-
   def runtimeAttributesBuilder(batchConfiguration: GcpBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
     val runtimeConfig = batchConfiguration.runtimeConfig
     StandardValidatedRuntimeAttributesBuilder
@@ -159,7 +141,6 @@ object GcpBatchRuntimeAttributes {
       .withValidation(
         gpuCountValidation(runtimeConfig),
         gpuTypeValidation(runtimeConfig),
-        gpuDriverValidation(runtimeConfig),
         cpuValidation(runtimeConfig),
         cpuPlatformValidation(runtimeConfig),
         disksValidation(runtimeConfig),
@@ -168,7 +149,6 @@ object GcpBatchRuntimeAttributes {
         preemptibleValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
         bootDiskSizeValidation(runtimeConfig),
-        useDockerImageCacheValidation(runtimeConfig),
         checkpointFileValidationInstance,
         dockerValidation
       )
@@ -191,10 +171,8 @@ object GcpBatchRuntimeAttributes {
       .extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     lazy val gpuCount: Option[Int Refined Positive] = RuntimeAttributesValidation
       .extractOption(gpuCountValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
-    lazy val gpuDriver: Option[String] =
-      RuntimeAttributesValidation.extractOption(gpuDriverValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
 
-    val gpuResource: Option[GpuResource] = if (gpuType.isDefined || gpuCount.isDefined || gpuDriver.isDefined) {
+    val gpuResource: Option[GpuResource] = if (gpuType.isDefined || gpuCount.isDefined) {
       Option(
         GpuResource(gpuType.getOrElse(GpuType.DefaultGpuType),
                     gpuCount
@@ -223,10 +201,6 @@ object GcpBatchRuntimeAttributes {
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[GcpBatchAttachedDisk] =
       RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val useDockerImageCache: Option[Boolean] = RuntimeAttributesValidation.extractOption(
-      useDockerImageCacheValidation(runtimeAttrsConfig).key,
-      validatedRuntimeAttributes
-    )
 
     new GcpBatchRuntimeAttributes(
       cpu = cpu,
@@ -241,7 +215,6 @@ object GcpBatchRuntimeAttributes {
       failOnStderr = failOnStderr,
       continueOnReturnCode = continueOnReturnCode,
       noAddress = noAddress,
-      useDockerImageCache = useDockerImageCache,
       checkpointFilename = checkpointFileName
     )
   }
@@ -295,4 +268,23 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[GcpBatchAttachedD
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be a comma separated String or Array[String]"
+}
+
+class BootDiskSizeValidation(runtimeConfig: Option[Config]) extends IntRuntimeAttributesValidation(BootDiskSizeKey) {
+
+  override protected def staticDefaultOption: Option[WomInteger] = Option(WomInteger(0))
+
+  private def defaultBootDiskSize: Int = {
+    val configDefault: Option[WomInteger] = this.configDefaultWomValue(runtimeConfig) match {
+      case Some(i: WomInteger) => Some(i)
+      case _ => None
+    }
+    configDefault.getOrElse(GcpBatchRuntimeAttributes.BootDiskDefaultValue).value
+  }
+
+  // If the user doesn't provide a boot disk size, use the default. If they DO provide a boot disk size,
+  // add the default to it to account for the space taken by the user Docker image. See AN-345.
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = { case WomInteger(value) =>
+    (value + defaultBootDiskSize).validNel
+  }
 }

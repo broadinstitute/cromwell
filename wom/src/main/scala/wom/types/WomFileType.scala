@@ -52,7 +52,6 @@ case object WomSingleFileType extends WomPrimitiveFileType {
   }
 
   override def equalsType(rhs: WomType): Try[WomType] = rhs match {
-    case wct: WomCoproductType => wct.typeExists(WomStringType)
     case WomSingleFileType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
     case WomOptionalType(memberType) => equalsType(memberType)
@@ -77,7 +76,6 @@ case object WomGlobFileType extends WomPrimitiveFileType {
   }
 
   override def equalsType(rhs: WomType): Try[WomType] = rhs match {
-    case wct: WomCoproductType => wct.typeExists(WomStringType)
     case WomGlobFileType => Success(WomBooleanType)
     case WomStringType => Success(WomBooleanType)
     case WomOptionalType(memberType) => equalsType(memberType)
@@ -88,25 +86,5 @@ case object WomGlobFileType extends WomPrimitiveFileType {
     case WomStringType => Success(WomGlobFileType)
     case WomOptionalType(memberType) => add(memberType)
     case _ => invalid(s"$this + $rhs")
-  }
-}
-
-case object WomMaybeListedDirectoryType extends WomFileType {
-  override protected def coercion: PartialFunction[Any, WomMaybeListedDirectory] = {
-    case s: String => WomMaybeListedDirectory(s.trim)
-    case s: JsString => WomMaybeListedDirectory(s.value.trim)
-    case s: WomString => WomMaybeListedDirectory(s.valueString.trim)
-    case d: WomUnlistedDirectory => WomMaybeListedDirectory(d.value)
-    case d: WomMaybeListedDirectory => d
-  }
-}
-
-case object WomMaybePopulatedFileType extends WomFileType {
-  override protected def coercion: PartialFunction[Any, WomMaybePopulatedFile] = {
-    case s: String => WomMaybePopulatedFile(s.trim)
-    case s: JsString => WomMaybePopulatedFile(s.value.trim)
-    case s: WomString => WomMaybePopulatedFile(s.valueString.trim)
-    case f: WomSingleFile => WomMaybePopulatedFile(f.value)
-    case f: WomMaybePopulatedFile => f
   }
 }

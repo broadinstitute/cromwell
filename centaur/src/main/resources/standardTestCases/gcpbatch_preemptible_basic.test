@@ -1,0 +1,11 @@
+name: gcpbatch_preemptible_basic
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: preemptible_basic/gcpbatch_preemptible_basic.wdl
+}
+
+metadata {
+  status: Succeeded
+}

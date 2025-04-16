@@ -27,6 +27,7 @@ case class DefaultStandardSyncExecutionActorParams(
   override val backendInitializationDataOption: Option[BackendInitializationData],
   override val backendSingletonActorOption: Option[ActorRef],
   override val asyncJobExecutionActorClass: Class[_ <: StandardAsyncExecutionActor],
+  override val groupMetricsActor: ActorRef,
   override val minimumRuntimeSettings: MinimumRuntimeSettings
 ) extends StandardSyncExecutionActorParams
 
@@ -150,6 +151,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
       standardParams.backendInitializationDataOption,
       standardParams.backendSingletonActorOption,
       completionPromise,
+      standardParams.groupMetricsActor,
       standardParams.minimumRuntimeSettings
     )
 
@@ -164,6 +166,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   def createAsyncRef(): ActorRef = {
     val props = createAsyncProps().withDispatcher(Dispatcher.BackendDispatcher)
     val name = createAsyncRefName()
+    jobLogger.info("AN-436 About to instantiate class")
     context.actorOf(props, name)
   }
 

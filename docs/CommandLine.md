@@ -34,7 +34,7 @@ The Cromwell jar file can be built as described in [Building](Building).
 
 ## `server`
 
-`server` mode accepts no arguments and runs Cromwell as a web server that accepts REST requests. The default mode for most applications of Cromwell, suitable for production use. See the documentation for [Cromwell's REST endpoints](/api/RESTAPI) for how to interact with Cromwell in `server` mode.
+`server` mode accepts no arguments and runs Cromwell as a web server that accepts REST requests. The default mode for most applications of Cromwell, suitable for production use. Cromwell self-documents its API with Swagger, viewable at `http://localhost:8000` or equivalent depending on your setup. 
 
 ## `run`
 
@@ -65,7 +65,7 @@ If you use sub-workflows within your primary workflow then you must include a ZI
 See the documentation on [Imports](Imports) for more information.
 
 * **`--metadata-output`**  
-You can specify a filename where Cromwell will write workflow metadata JSON such as start/end timestamps, status, inputs and outputs. By default Cromwell does not write workflow metadata. The metadata format in the `--metadata-output` file is the same as described for the [REST API](api/RESTAPI#get-workflow-and-call-level-metadata-for-a-specified-workflow).
+You can specify a filename where Cromwell will write workflow metadata JSON such as start/end timestamps, status, inputs and outputs. By default Cromwell does not write workflow metadata. The metadata format in the `--metadata-output` file is the same as described for the `/metadata` endpoint.
 
 * **`--version`**  
 The `--version` option prints the version of Cromwell and exits.

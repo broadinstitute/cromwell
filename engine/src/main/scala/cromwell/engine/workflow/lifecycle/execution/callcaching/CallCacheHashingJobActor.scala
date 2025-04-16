@@ -95,7 +95,7 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     case Event(Terminated(_), _) =>
       stopAndStay(None)
     case Event(error: HashingFailedMessage, data) =>
-      log.error("""Failed to hash "{}": {}""", error.file, error.reason.getMessage)
+      log.warning("""Failed to hash "{}": {}""", error.file, error.reason.getMessage)
       sendToCallCacheReadingJobActor(error, data)
       context.parent ! error
       stopAndStay(None)
@@ -364,9 +364,6 @@ object CallCacheHashingJobActor {
           s"Optional(${o.memberType.toHashKeyString})"
         case p: WomPairType =>
           s"Pair(${p.leftType.toHashKeyString},${p.rightType.toHashKeyString})"
-        case c: WomCoproductType =>
-          val hashStrings = c.types.toList.map(_.toHashKeyString).mkString(",")
-          s"Coproduct($hashStrings)"
         case o => o.stableName
       }
   }

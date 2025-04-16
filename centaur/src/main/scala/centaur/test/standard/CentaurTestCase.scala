@@ -25,8 +25,10 @@ case class CentaurTestCase(workflow: Workflow,
   def testFunction: Test[SubmitResponse] = this.testFormat match {
     case WorkflowSuccessTest => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(workflow)
     case WorkflowSuccessAndTimedOutputsTest => TestFormulas.runSuccessfulWorkflowAndVerifyTimeAndOutputs(workflow)
+    case WorkflowSuccessAndVerifyCostTest => TestFormulas.runSuccessfulWorkflowAndVerifyMetadata(workflow, true)
     case WorkflowFailureTest => TestFormulas.runFailingWorkflowAndVerifyMetadata(workflow)
     case RunTwiceExpectingCallCachingTest => TestFormulas.runWorkflowTwiceExpectingCaching(workflow)
+    case RunTwiceExpectingCallCachingNoCostTest => TestFormulas.runWorkflowTwiceExpectingCaching(workflow, true)
     case RunThriceExpectingCallCachingTest => TestFormulas.runWorkflowThriceExpectingCaching(workflow)
     case RunTwiceExpectingNoCallCachingTest => TestFormulas.runWorkflowTwiceExpectingNoCaching(workflow)
     case RunFailingTwiceExpectingNoCallCachingTest => TestFormulas.runFailingWorkflowTwiceExpectingNoCaching(workflow)
@@ -52,8 +54,9 @@ case class CentaurTestCase(workflow: Workflow,
         // Test will run on servers that support all of the test's backends (or more) (default)
         testBackends forall supportedBackends.contains
       case AnyBackendRequired(testBackends) =>
-        // Test will run on servers that support at least one of the test's backends (or more)
-        testBackends exists supportedBackends.contains
+        // Test will run on servers that support at least one of the test's backends (or more),
+        // or if no test backends are specified at all.
+        testBackends.isEmpty || (testBackends exists supportedBackends.contains)
       case OnlyBackendsAllowed(testBackends) =>
         // Test will run on servers that only support backends the test specifies (or fewer)
         supportedBackends forall testBackends.contains

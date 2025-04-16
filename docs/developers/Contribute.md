@@ -72,15 +72,6 @@ _produces this block_
 	* _Example:_ `![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)` _produces this image_  
 	![](https://www.broadinstitute.org/sites/all/themes/custom/at_broad/logo.png)  
 
-### REST API & Menu
-
-**REST API:**
-
-1. Edit the [`cromwell.yaml`](https://github.com/broadinstitute/cromwell/blob/develop/engine/src/main/resources/swagger/cromwell.yaml) to make any changes to the REST API content.  
-2. Regenerate the REST API markdown file by running `sbt generateRestApiDocs` from the main Cromwell directory.
-3. Commit both the changes to the `cromwell.yaml` and the (re)generated [RESTAPI.md](https://github.com/broadinstitute/cromwell/blob/develop/docs/api/RESTAPI.md).
-4. Once your branch is merged to the [`develop` branch](https://github.com/broadinstitute/cromwell/tree/develop), you will see your changes on the [REST API page](api/RESTAPI/).
-
 **Left-side menu:**
 
 To add or remove items from the menu, edit [mkdocs.yml](https://github.com/broadinstitute/cromwell/blob/develop/mkdocs.yml) in Cromwell.
@@ -97,9 +88,3 @@ If not, [kindly ask the team to merge it](https://github.com/broadinstitute/crom
 
 * **Did you add the file(s) to the YAML file?**  
 If not, [add it here](https://github.com/broadinstitute/cromwell/blob/develop/mkdocs.yml).
-
-**_How do I add to the REST API documentation?_**
-
-* **Don't forget to regenerate**  
-After you edit the [`cromwell.yaml`](https://github.com/broadinstitute/cromwell/blob/develop/engine/src/main/resources/swagger/cromwell.yaml), run `sbt generateRestApiDocs` and commit all changes.  
-_Hint:_ Once you have regenerated the docs correctly, the hidden timestamp at the top of the [`RESTAPI.md` file](https://raw.githubusercontent.com/broadinstitute/cromwell/develop/docs/api/RESTAPI.md) will show the current time.

@@ -1,6 +1,6 @@
 name: papi_v2beta_gcsa
 testFormat: WorkflowSuccess
-backends: [papi-v2-gcsa]
+backends: [papi-v2-gcsa, GCPBATCH_ALT]
 
 files {
   workflow: papi_v2_gcsa/papi_v2_gcsa.wdl

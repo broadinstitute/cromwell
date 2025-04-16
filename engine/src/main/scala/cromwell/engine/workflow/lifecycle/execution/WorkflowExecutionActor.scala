@@ -20,11 +20,14 @@ import cromwell.backend._
 import cromwell.backend.standard.callcaching.BlacklistCache
 import cromwell.core.Dispatcher._
 import cromwell.core.ExecutionStatus._
+import cromwell.core.WorkflowOptions.Destination
 import cromwell.core._
 import cromwell.core.io.AsyncIo
 import cromwell.core.logging.WorkflowLogging
+import cromwell.core.path.Path
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
+import cromwell.engine.workflow.lifecycle.OutputsLocationHelper.FileRelocationMap
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData.DataStoreUpdate
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
@@ -34,7 +37,11 @@ import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{
 }
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.{ActiveExecutionStore, ExecutionStore}
-import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse}
+import cromwell.engine.workflow.lifecycle.{
+  EngineLifecycleActorAbortCommand,
+  EngineLifecycleActorAbortedResponse,
+  OutputsLocationHelper
+}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -60,7 +67,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     with CallMetadataHelper
     with StopAndLogSupervisor
     with Timers
-    with CromwellInstrumentation {
+    with CromwellInstrumentation
+    with OutputsLocationHelper {
 
   implicit val ec: ExecutionContextExecutor = context.dispatcher
   override val serviceRegistryActor: ActorRef = params.serviceRegistryActor
@@ -408,6 +416,17 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     import spray.json._
 
     def handleSuccessfulWorkflowOutputs(outputs: Map[GraphOutputNode, WomValue]) = {
+      val fileMap: FileRelocationMap =
+        (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsDirMetadata) match {
+          case (Some(outputDir), Destination) =>
+            outputFilePathMapping(outputDir, workflowDescriptor, params.initializationData, outputs.values.toSeq) map {
+              case (src, dst) =>
+                (src, dst)
+            }
+          case _ =>
+            Map.empty[Path, Path]
+        }
+
       val fullyQualifiedOutputs = outputs map { case (outputNode, value) =>
         outputNode.identifier.fullyQualifiedName.value -> value
       }
@@ -416,7 +435,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         s"""Workflow ${workflowDescriptor.callable.name} complete. Final Outputs:
            |${fullyQualifiedOutputs.stripLarge.toJson.prettyPrint}""".stripMargin
       )
-      pushWorkflowOutputMetadata(fullyQualifiedOutputs)
+
+      // Fully qualified to match `CALL_FQN` column in metadata table
+      pushWorkflowOutputMetadata(fullyQualifiedOutputs, fileMap)
 
       val localOutputs = CallOutputs(outputs map { case (outputNode, value) =>
         outputNode.graphOutputPort -> value
@@ -790,7 +811,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       jobExecutionTokenDispenserActor = params.jobExecutionTokenDispenserActor,
       backendSingleton,
       command,
-      callCachingParameters
+      callCachingParameters,
+      params.groupMetricsActor
     )
 
     val ejeaRef = context.actorOf(ejeaProps, ejeaName)
@@ -831,7 +853,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
         params.rootConfig,
         params.totalJobsByRootWf,
         fileHashCacheActor = params.fileHashCacheActor,
-        blacklistCache = params.blacklistCache
+        blacklistCache = params.blacklistCache,
+        groupMetricsActor = params.groupMetricsActor
       ),
       s"$workflowIdForLogging-SubWorkflowExecutionActor-${key.tag}"
     )
@@ -964,7 +987,8 @@ object WorkflowExecutionActor {
     rootConfig: Config,
     totalJobsByRootWf: AtomicInteger,
     fileHashCacheActor: Option[ActorRef],
-    blacklistCache: Option[BlacklistCache]
+    blacklistCache: Option[BlacklistCache],
+    groupMetricsActor: ActorRef
   )
 
   def props(workflowDescriptor: EngineWorkflowDescriptor,
@@ -983,7 +1007,8 @@ object WorkflowExecutionActor {
             rootConfig: Config,
             totalJobsByRootWf: AtomicInteger,
             fileHashCacheActor: Option[ActorRef],
-            blacklistCache: Option[BlacklistCache]
+            blacklistCache: Option[BlacklistCache],
+            groupMetricsActor: ActorRef
   ): Props =
     Props(
       WorkflowExecutionActor(
@@ -1004,7 +1029,8 @@ object WorkflowExecutionActor {
           rootConfig,
           totalJobsByRootWf,
           fileHashCacheActor = fileHashCacheActor,
-          blacklistCache = blacklistCache
+          blacklistCache = blacklistCache,
+          groupMetricsActor = groupMetricsActor
         )
       )
     ).withDispatcher(EngineDispatcher)

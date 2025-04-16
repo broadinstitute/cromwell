@@ -224,7 +224,6 @@ object WomGraph {
     case WomUnlistedDirectoryType => JsString("gs://bucket/path")
     case WomSingleFileType => JsString("gs://bucket/path/file.txt")
     case WomBooleanType => JsBoolean(true)
-    case WomMaybePopulatedFileType => JsString("x")
     case _: WomOptionalType => JsNull
     case WomMapType(_, valueType) => JsObject(Map("0" -> fakeInput(valueType)))
     case WomArrayType(innerType) => JsArray(Vector(fakeInput(innerType)))

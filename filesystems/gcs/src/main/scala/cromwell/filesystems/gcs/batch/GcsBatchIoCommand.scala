@@ -8,8 +8,14 @@ import com.google.api.services.storage.model.{Objects, RewriteResponse, StorageO
 import com.google.cloud.storage.BlobId
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
+import cromwell.core.callcaching.HashType.HashType
+import cromwell.core.callcaching.{FileHashStrategy, HashType}
+import cromwell.core.io.IoCommand.IOMetricsCallback
 import cromwell.core.io._
 import cromwell.filesystems.gcs._
+import cats.data.NonEmptyList
+import cromwell.core.actor.BatchActor.logger
+import cromwell.filesystems.gcs.batch.GcsBatchIoCommand.InstrumentationPath
 import mouse.all._
 
 import scala.jdk.CollectionConverters._
@@ -59,6 +65,10 @@ sealed trait GcsBatchIoCommand[T, U] extends IoCommand[T] {
     * Use to signal that the request has failed because the user project was not set and that it can be retried with it.
     */
   def withUserProject: GcsBatchIoCommand[T, U]
+}
+
+object GcsBatchIoCommand {
+  val InstrumentationPath = NonEmptyList.of("io", "gcs")
 }
 
 sealed trait SingleFileGcsBatchIoCommand[T, U] extends GcsBatchIoCommand[T, U] with SingleFileIoCommand[T] {
@@ -174,23 +184,48 @@ object GcsBatchSizeCommand {
     file.objectBlobId.map(GcsBatchSizeCommand(file, _))
 }
 
-case class GcsBatchCrc32Command(override val file: GcsPath, override val blob: BlobId, setUserProject: Boolean = false)
-    extends IoHashCommand(file)
+case class GcsBatchHashCommand(override val file: GcsPath,
+                               override val hashStrategy: FileHashStrategy,
+                               val blob: BlobId,
+                               setUserProject: Boolean = false,
+                               callback: IOMetricsCallback
+) extends IoHashCommand(file, hashStrategy)
     with GcsBatchGetCommand[String] {
-  override def mapGoogleResponse(response: StorageObject): ErrorOr[String] =
-    Option(response.getCrc32c) match {
-      case None => s"'${file.pathAsString}' in project '${file.projectId}' returned null CRC32C checksum".invalidNel
-      case Some(crc32c) => crc32c.validNel
+  override def mapGoogleResponse(response: StorageObject): ErrorOr[String] = {
+    Option(response.getMd5Hash) match {
+      case Some(_) =>
+        callback(Set(InstrumentationPath :+ "hash" :+ "md5-exists"))
+      case None =>
+        logger.info(s"No md5 for file ${blob.toGsUtilUri}")
+        callback(Set(InstrumentationPath :+ "hash" :+ "md5-missing"))
     }
 
-  override def withUserProject: GcsBatchCrc32Command = this.copy(setUserProject = true)
+    val fileHash = hashStrategy
+      .getFileHash(
+        response,
+        (resp: StorageObject, hashType: HashType) =>
+          hashType match {
+            case HashType.Crc32c => Option(response.getCrc32c)
+            case HashType.Md5 => Option(response.getMd5Hash)
+            case HashType.Identity => GcsPath.getBlobFingerprint(response)
+            case _ => None
+          }
+      )
+    fileHash match {
+      case Some(hash) => hash.hash.validNel
+      case None =>
+        s"${hashStrategy} yielded no hashes for file '${file.pathAsString}' in project '${file.projectId}'".invalidNel
+    }
+  }
+
+  override def withUserProject: GcsBatchHashCommand = this.copy(setUserProject = true)
 
   override def commandDescription: String = s"GcsBatchCrc32Command file '$file' setUserProject '$setUserProject'"
 }
 
-object GcsBatchCrc32Command {
-  def forPath(file: GcsPath): Try[GcsBatchCrc32Command] =
-    file.objectBlobId.map(GcsBatchCrc32Command(file, _))
+object GcsBatchHashCommand {
+  def forPath(file: GcsPath, hashStrategy: FileHashStrategy, callback: IOMetricsCallback): Try[GcsBatchHashCommand] =
+    file.objectBlobId.map(GcsBatchHashCommand(file, hashStrategy, _, callback = callback))
 }
 
 case class GcsBatchTouchCommand(override val file: GcsPath, override val blob: BlobId, setUserProject: Boolean = false)

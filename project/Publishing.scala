@@ -79,16 +79,13 @@ object Publishing {
           addInstruction(installDebugFacilities(version.value))
         }
 
-        // Add a custom java opt for CromIAM, this avoids the following error on boot (from Akka):
+        // Add a custom java opt, this avoids the following error (from Akka):
         //     class com.typesafe.sslconfig.ssl.DefaultHostnameVerifier (in unnamed module @0x5594a1b5)
         //     cannot access class sun.security.util.HostnameChecker (in module java.base)
         //     because module java.base does not export sun.security.util to unnamed module @0x5594a1b5
         // See https://docs.oracle.com/en/java/javase/17/migrate/migrating-jdk-8-later-jdk-releases.html#GUID-2F61F3A9-0979-46A4-8B49-325BA0EE8B66
         // TODO remove this once we upgrade Akka past 2.5
-        val addOpensJavaOpt =
-          if (projectName == "cromiam")
-            "--add-opens=java.base/sun.security.util=ALL-UNNAMED"
-          else ""
+        val addOpensJavaOpt = "--add-opens=java.base/sun.security.util=ALL-UNNAMED"
 
         /*
         If you use the 'exec' form for an entry point, shell processing is not performed and
@@ -153,7 +150,8 @@ object Publishing {
     import java.time.{ZoneId, ZonedDateTime}
     import java.time.format.DateTimeFormatter
 
-    val buildTime = ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+    val buildTime =
+      ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"))
 
     // It is optimal to use a single `Run` instruction to minimize the number of layers in the image.
     //

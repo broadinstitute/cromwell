@@ -187,6 +187,9 @@ cromwell::private::create_build_variables() {
     CROMWELL_BUILD_SBT_EXCLUDE="${BUILD_SBT_EXCLUDE:-}"
 
     case "${CROMWELL_BUILD_TYPE}" in
+        centaurHoricromtalGcpBatch*)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/gcp_batch_horicromtal_application.conf"
+            ;;
         centaurHoricromtalPapiV2beta*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2beta_horicromtal_application.conf"
             ;;
@@ -543,7 +546,9 @@ cromwell::private::pip_install() {
 
 cromwell::private::upgrade_pip() {
     sudo apt-get install -y python3-pip
-    cromwell::private::pip_install pip --upgrade
+    # as of ubuntu 23 need to pass --user flag
+    # https://mail.openvswitch.org/pipermail/ovs-dev/2024-June/414969.html
+    cromwell::private::pip_install pip --upgrade --user pip
     cromwell::private::pip_install requests[security] --ignore-installed
 }
 

@@ -1,0 +1,30 @@
+# Validate the exhaustive list of files that remain when intermediate files are deleted
+
+name: gcpbatch_exhaustive_delete
+testFormat: workflowsuccess
+# not sure
+backends: [GCPBATCH]
+
+files {
+  workflow: delete_intermediates/exhaustive_delete.wdl
+  options: delete_intermediates/delete_intermediates.options
+}
+
+metadata {
+  workflowName: exhaustive_delete
+  status: Succeeded
+}
+
+fileSystemCheck: "gcs"
+outputExpectations: {
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/delete.txt": 0
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/": 8
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/gcs_delocalization.sh": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/gcs_localization.sh": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/gcs_transfer.sh": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/keep.txt": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/rc": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/script": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/stderr": 1
+  "gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/ci/exhaustive_delete/<<UUID>>/call-exhaustive/stdout": 1
+}

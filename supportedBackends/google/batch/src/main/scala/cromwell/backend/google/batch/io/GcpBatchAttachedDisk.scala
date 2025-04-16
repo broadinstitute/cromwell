@@ -6,12 +6,16 @@ import cats.syntax.validated._
 import common.exception.MessageAggregation
 import common.validation.ErrorOr._
 import cromwell.backend.DiskPatterns._
+import cromwell.backend.google.batch.runnable.RunnableUtils.MountPoint
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import wom.values._
 
 import scala.util.Try
 
 object GcpBatchAttachedDisk {
+  // The mount point for the Cloud Storage bucket
+  val GcsMountPoint = "/mnt/disks/gcs"
+
   def parse(s: String): Try[GcpBatchAttachedDisk] = {
 
     def sizeGbValidation(sizeGbString: String): ErrorOr[Int] = validateLong(sizeGbString).map(_.toInt)
@@ -72,20 +76,20 @@ case class BatchApiEmptyMountedDisk(diskType: DiskType, sizeGb: Int, mountPoint:
 }
 
 object GcpBatchWorkingDisk {
-  val MountPoint: Path = DefaultPathBuilder.get("/mnt/disks/cromwell_root")
+  val MountPointPath: Path = DefaultPathBuilder.get(MountPoint)
   val Name = "local-disk"
   val Default = GcpBatchWorkingDisk(DiskType.SSD, 10)
 }
 
 case class GcpBatchWorkingDisk(diskType: DiskType, sizeGb: Int) extends GcpBatchAttachedDisk {
-  val mountPoint: Path = GcpBatchWorkingDisk.MountPoint
+  val mountPoint: Path = GcpBatchWorkingDisk.MountPointPath
   val name: String = GcpBatchWorkingDisk.Name
 
   override def toString: String = s"$name $sizeGb ${diskType.diskTypeName}"
 }
 
 case class GcpBatchReferenceFilesDisk(image: String, sizeGb: Int) extends GcpBatchAttachedDisk {
-  val mountPoint: Path = DefaultPathBuilder.get(s"/mnt/${image.md5Sum}")
+  val mountPoint: Path = DefaultPathBuilder.get(s"/mnt/disks/${image.md5Sum}")
   val name: String = s"d-${mountPoint.pathAsString.md5Sum}"
   val diskType: DiskType = DiskType.HDD
 }

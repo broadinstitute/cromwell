@@ -1,0 +1,18 @@
+name: gcpbatch_reference_disk_test_unspecified_option
+testFormat: workflowsuccess
+# see https://github.com/broadinstitute/cromwell/pull/7502
+backends: [GCPBATCH-Reference-Disk-Localization]
+
+files {
+  workflow: reference_disk/gcpbatch_reference_disk_test.wdl
+  inputs: reference_disk/reference_disk_test.inputs
+  options: reference_disk/reference_disk_test_unspecified.options.json
+}
+
+metadata {
+  workflowName: wf_reference_disk_test
+  status: Succeeded
+  "outputs.wf_reference_disk_test.is_broad_input_file_a_valid_symlink": false
+  "outputs.wf_reference_disk_test.is_nirvana_input_file_a_valid_symlink": false
+  "outputs.wf_reference_disk_test.is_nirvana_metachar_input_file_a_valid_symlink": false
+}

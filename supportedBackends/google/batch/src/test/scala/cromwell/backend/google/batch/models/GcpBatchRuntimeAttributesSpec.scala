@@ -140,7 +140,7 @@ final class GcpBatchRuntimeAttributesSpec
 
     "validate a valid bootDiskSizeGb entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "bootDiskSizeGb" -> WomInteger(4))
-      val expectedRuntimeAttributes = expectedDefaults.copy(bootDiskSize = 4)
+      val expectedRuntimeAttributes = expectedDefaults.copy(bootDiskSize = 34)
       assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
@@ -278,14 +278,13 @@ trait GcpBatchRuntimeAttributesSpecsMixin {
     gpuResource = None,
     zones = Vector("us-central1-b", "us-central1-a"),
     preemptible = 0,
-    bootDiskSize = 10,
+    bootDiskSize = 30,
     memory = MemorySize(2, MemoryUnit.GB),
     disks = Vector(GcpBatchWorkingDisk(DiskType.SSD, 10)),
     dockerImage = "ubuntu:latest",
     failOnStderr = false,
     continueOnReturnCode = ContinueOnReturnCodeSet(Set(0)),
     noAddress = false,
-    useDockerImageCache = None,
     checkpointFilename = None
   )
 

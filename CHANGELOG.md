@@ -1,55 +1,84 @@
 # Cromwell Change Log
 
+## 89 Release Notes
+
+### Improvements
+ * Cromwell can now provide estimated costs incurred by a workflow run on GCP, read more in `CostEstimation` in ReadTheDocs.
+
+### GCP Batch Updates
+ * Add 30 GB default VM boot disk size to user-requested boot disk size; this ensures the VM has room for large user command Docker images.
+ * Fix a bug that caused Cromwell to treat immediate preemptions as failures.
+ * Automatically retry tasks that fail with transient Batch errors before the VM has started running (that is, before the task has cost the user money). These retries do not count against `maxRetries`.
+ * Symlink to `/cromwell_root` - In LifeSciences, the Cromwell root directory that user scripts are run from is located at `/cromwell_root`, but in the Batch backend it has moved to `/mnt/disk/cromwell_root`. To ensure WDLs that rely on the original 
+path don't break when run on the Batch, and to also maintain forward compatibility we have created a symlink between `/mnt/disk/cromwell_root` and `/cromwell_root`.
+
+### Other Changes
+* Removes a database index `METADATA_WORKFLOW_IDX` that is now redundant since the introduction of `IX_METADATA_ENTRY_WEU_MK`. 
+
 ## 88 Release Notes
 
-### Java 17
+### Important Upgrade Note: Database Schema Change
 
-As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
-containerized using [Eclipse Temurin](https://adoptium.net/temurin/releases/?version=17).
+Cromwell 88 includes a number of database schema changes to support new functionality and improve performance. 
+Users should expect a longer-than-usual database migration due primarily to the `IX_METADATA_ENTRY_WEU_MK` index added 
+to `METADATA_ENTRY`. In pre-release testing, this migration proceeded at about 3 million rows per minute. Please plan 
+downtime accordingly.
 
-### Fixed Optional and String Concatenation Bug
+### GCP Batch Updates
+ * The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
+ * Fixed a bug with not being able to recover jobs on Cromwell restart.
+ * Fixed machine type selection to match the Google Cloud Life Sciences backend, including default n1 non shared-core machine types and correct handling of `cpuPlatform` to select n2 or n2d machine types as appropriate.
+ * Fixed preemption and maxRetries behavior. In particular, once a task has exhausted its allowed preemptible attempts, the task will be scheduled again on a non-preemptible VM.
+ * Fixed error message reporting for failed jobs.
+ * Fixed the "retry with more memory" feature.
+ * Fixed the reference disk feature.
+ * Fixed pulling Docker image metadata from private GCR repositories.
+ * Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
+ * Added a way to use a custom LogsPolicy for the job execution, setting `backend.providers.batch.config.batch.logs-policy` to "CLOUD_LOGGING" (default) keeps the current behavior, or, set it to "PATH" to stream the logs to Google Cloud Storage.
+ * When "CLOUD_LOGGING" is used, many more Cromwell / WDL labels for workflow, root workflow, call, shard etc. are now assigned to GCP Batch log entries.
+ * Fixed subnet selection for networks that use custom subnet creation
+ * Updated runtime attributes documentation to clarify that the `nvidiaDriverVersion` key is ignored on GCP Batch.
 
-As outlined in the [WDL Spec](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter), concatenating a string with an empty optional now correctly evaluates to the empty string.
+### Improvements
+ * A new optional feature prevents Cromwell from starting new jobs in a group that is currently experiencing
+   cloud quota exhaustion. Jobs will be started once the group's quota becomes available. To enable this feature,
+   set `quota-exhaustion-job-start-control.enabled` to true.
+ * Users can now configure which algorithm is used to hash files for call caching purposes. See [Configuring](https://cromwell.readthedocs.io/en/stable/Configuring/) page in
+   ReadTheDocs for details. Default behavior is unchanged.
+ * Cromwell now allows opting into configured soft links on shared file systems such as HPC environments. More details can
+   be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional-docker-soft-links).
+ * Users reported cases where Life Sciences jobs failed due to insufficient quota, instead of queueing and waiting until
+   quota is available (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
+   such as "PAPI error code 9", "no available zones", and/or "quota too low".
+ * If Cromwell can't determine the size of the user command Docker image, it will increase Lifesciences API boot disk 
+   size by 30GB rather than 0. This should reduce incidence of tasks failing due to boot disk filling up.
+ * Resolved a hotspot in Cromwell to make the `size()` engine function perform much faster on file arrays. Common 
+   examples of file arrays could include globs or scatter-gather results.
+* The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`. The index had low cardinality and
+  workflow pickup is faster without it.
+* When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that
+  failure.
+* As outlined in the [WDL Spec](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#prepending-a-string-to-an-optional-parameter), concatenating a string with an empty optional now correctly evaluates to the empty string.
 
-### Improved status reporting behavior
-
-When Cromwell restarts during a workflow that is failing, it no longer reports pending tasks as a reason for that failure. 
-
-### Removed Docker Hub health check
-
-Cromwell's healthcheck requests to Docker Hub were not authenticated, and thus became subject to rate limiting. To eliminate these false alarms, this functionality has been removed.
-
-The config key `services.HealthMonitor.config.check-dockerhub` is therefore obsolete.
-
-There is no change to any other usage of Docker Hub.
-
-### Optional docker soft links
-
-Cromwell now allows opting into configured soft links on shared file systems such as HPC environments. More details can
-be found [here](https://cromwell.readthedocs.io/en/stable/backends/HPC/#optional-docker-soft-links).
-
-### GCP Batch
-
-- The `genomics` configuration entry was renamed to `batch`, see [ReadTheDocs](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/) for more information.
-- Fixes the preemption error handling, now, the correct error message is printed, this also handles the other potential exit codes.
-- Fixes pulling Docker image metadata from private GCR repositories.
-- Fixed `google_project` and `google_compute_service_account` workflow options not taking effect when using GCP Batch backend
-
-### Improved handling of Life Sciences API quota errors
-
-Users reported cases where Life Sciences jobs failed due to insufficient quota, instead of queueing and waiting until
-quota is available (which is the expected behavior). Cromwell will now retry under these conditions, which present with errors
-such as "PAPI error code 9", "no available zones", and/or "quota too low".
-
-### Improved `size()` function performance on arrays
-
-Resolved a hotspot in Cromwell to make the `size()` engine function perform much faster on file arrays. Common examples of file arrays could include globs or scatter-gather results. This enhancement applies only to WDL 1.0 and later, because that's when `size()` added [support for arrays](https://github.com/openwdl/wdl/blob/main/versions/1.0/SPEC.md#acceptable-compound-input-types).
-
-### Database migration
-
-The `IX_WORKFLOW_STORE_ENTRY_WS` index is removed from `WORKFLOW_STORE_ENTRY`.
-
-The index had low cardinality and workflow pickup is faster without it. Migration time depends on workflow store size, but should be very fast for most installations. Terminal workflows are removed from the workflow store, so only running workflows contribute to the cost.
+### Other Changes
+ * As of this version, a distribution of Java 17 is required to run Cromwell. Cromwell is developed, tested, and
+   containerized using [Eclipse Temurin](https://adoptium.net/temurin/releases/?version=17).
+ * `RESTAPI.md` docs have been discontinued. Due to deprecation of the underlying library, Markdown docs will no longer 
+   be generated from the Cromwell API Swagger. The recommended alternative is starting a server and viewing the Swagger directly.
+ * Removed obsolete health checks
+   * Docker Hub: Cromwell's healthcheck requests to Docker Hub were not authenticated, and thus became subject to rate limiting. 
+     To eliminate these false alarms, this functionality has been removed. The config key `services.HealthMonitor.config.check-dockerhub` 
+     is therefore obsolete.
+   * GCS: Cromwell's health check of GCS has been removed. GCS does not have availability issues of note, and in typical 
+     configurations the check does not meaningfully test Cromwell's permissions. The config keys `services.HealthMonitor.config.check-gcs` 
+     and `.gcs-bucket-to-check` are therefore obsolete.
+ * Code relating to the Google Genomics API (aka `v1Alpha`) has been removed since Google has entirely disabled that service.
+   Cloud Life Sciences (aka `v2Beta`, deprecated) and Google Batch (aka `batch`, recommended) remain the two viable GCP backends.
+   Cloud Life Sciences is expected to be unavailable starting in July 2025 and `v2Beta` support will be removed in a future 
+   Cromwell release.
+ * Removed support for Nvidia K80 "Kepler" GPUs, which were [discontinued by GCP in May 2024](https://cloud.google.com/compute/docs/eol/k80-eol).
+   * Default GPU on Life Sciences is now Nvidia P100
+   * Default GPU on GCP Batch is now Nvidia T4
 
 ## 87 Release Notes
 

@@ -35,6 +35,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends MockSug
   val serviceRegistryProbe: TestProbe = TestProbe()
   val ioActor: TestProbe = TestProbe()
   val workflowDockerLookupActor: TestProbe = TestProbe()
+  val groupMetricsActor: TestProbe = TestProbe()
 
   val scopedKeyMaker: ScopedKeyMaker = key =>
     ScopedKey(workflowId, KvJobKey("correct.horse.battery.staple", None, 1), key)
@@ -59,7 +60,8 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends MockSug
         workflowDockerLookupActor = workflowDockerLookupActor.ref,
         serviceRegistryActor = serviceRegistryProbe.ref,
         ioActor = ioActor.ref,
-        scopedKeyMaker
+        scopedKeyMaker,
+        groupMetricsActor.ref
       )
     )
 }
@@ -75,7 +77,8 @@ private[preparation] class TestJobPreparationActor(
   workflowDockerLookupActor: ActorRef,
   serviceRegistryActor: ActorRef,
   ioActor: ActorRef,
-  scopedKeyMaker: ScopedKeyMaker
+  scopedKeyMaker: ScopedKeyMaker,
+  groupMetricsActor: ActorRef
 ) extends JobPreparationActor(
       workflowDescriptor = workflowDescriptor,
       jobKey = jobKey,
@@ -84,7 +87,8 @@ private[preparation] class TestJobPreparationActor(
       initializationData = None,
       serviceRegistryActor = serviceRegistryActor,
       ioActor = ioActor,
-      backendSingletonActor = None
+      backendSingletonActor = None,
+      groupMetricsActor = groupMetricsActor
     ) {
 
   override private[preparation] lazy val kvStoreKeysToPrefetch = kvStoreKeysForPrefetch
@@ -101,7 +105,8 @@ private[preparation] class TestJobPreparationActor(
                                                       initializationData: Option[BackendInitializationData],
                                                       serviceRegistryActor: ActorRef,
                                                       ioActor: ActorRef,
-                                                      backendSingletonActor: Option[ActorRef]
+                                                      backendSingletonActor: Option[ActorRef],
+                                                      groupMetricsActor: ActorRef
   ) = Props.empty
 }
 

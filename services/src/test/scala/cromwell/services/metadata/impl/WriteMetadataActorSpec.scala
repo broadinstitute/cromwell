@@ -372,9 +372,6 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
         Future.failed(WriteMetadataActorSpec.IntermittentException)
       }
 
-    override def metadataEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Nothing =
-      notImplemented()
-
     override def metadataSummaryEntryExists(workflowExecutionUuid: String)(implicit ec: ExecutionContext): Nothing =
       notImplemented()
 

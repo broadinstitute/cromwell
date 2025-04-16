@@ -1,6 +1,6 @@
 name: bucket_name_with_no_trailing_slash
 testFormat: workflowfailure
-backends: [Papiv2]
+backends: [Papiv2, GCPBATCH]
 
 files {
   workflow: attempt_to_localize_bucket_as_file/attempt_to_localize_bucket_as_file.wdl

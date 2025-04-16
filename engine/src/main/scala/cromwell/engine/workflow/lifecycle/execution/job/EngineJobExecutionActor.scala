@@ -75,7 +75,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               jobExecutionTokenDispenserActor: ActorRef,
                               backendSingletonActor: Option[ActorRef],
                               command: BackendJobExecutionActorCommand,
-                              callCachingParameters: CallCachingParameters
+                              callCachingParameters: CallCachingParameters,
+                              groupMetricsActor: ActorRef
 ) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
     with WorkflowLogging
     with CallMetadataHelper
@@ -665,7 +666,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def disableCallCaching(reason: Option[Throwable] = None) = {
     log.warning(s"BT-322 {} disabling call caching due to error", jobTag)
-    reason foreach { e => log.error("{}: Hash error ({}), disabling call caching for this job.", jobTag, e.getMessage) }
+    reason foreach { e =>
+      log.warning("{}: Hash error ({}), disabling call caching for this job.", jobTag, e.getMessage)
+    }
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
     writeToMetadata(Map(callCachingHitResultMetadataKey -> false))
@@ -696,7 +699,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       initializationData,
       serviceRegistryActor = serviceRegistryActor,
       ioActor = ioActor,
-      backendSingletonActor = backendSingletonActor
+      backendSingletonActor = backendSingletonActor,
+      groupMetricsActor = groupMetricsActor
     )
     val jobPreparationActor = createJobPreparationActor(jobPrepProps, jobPreparationActorName)
     jobPreparationActor ! CallPreparation.Start(valueStore)
@@ -1098,7 +1102,8 @@ object EngineJobExecutionActor {
             jobExecutionTokenDispenserActor: ActorRef,
             backendSingletonActor: Option[ActorRef],
             command: BackendJobExecutionActorCommand,
-            callCachingParameters: EngineJobExecutionActor.CallCachingParameters
+            callCachingParameters: EngineJobExecutionActor.CallCachingParameters,
+            groupMetricsActor: ActorRef
   ) =
     Props(
       new EngineJobExecutionActor(
@@ -1116,7 +1121,8 @@ object EngineJobExecutionActor {
         jobExecutionTokenDispenserActor = jobExecutionTokenDispenserActor,
         backendSingletonActor = backendSingletonActor,
         command = command,
-        callCachingParameters = callCachingParameters
+        callCachingParameters = callCachingParameters,
+        groupMetricsActor = groupMetricsActor
       )
     ).withDispatcher(EngineDispatcher)
 

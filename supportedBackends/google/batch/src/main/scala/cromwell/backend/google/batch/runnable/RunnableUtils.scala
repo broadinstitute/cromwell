@@ -9,6 +9,8 @@ object RunnableUtils {
 
   private val config = ConfigFactory.load().getConfig("google")
 
+  val MountPoint: String = "/mnt/disks/cromwell_root"
+
   /**
     * An image with the Google Cloud SDK installed.
     * http://gcr.io/google.com/cloudsdktool/cloud-sdk
@@ -47,7 +49,6 @@ object RunnableUtils {
                     monitoringShutdown: List[Runnable],
                     checkpointingStart: List[Runnable],
                     checkpointingShutdown: List[Runnable],
-                    sshAccess: List[Runnable],
                     isBackground: Runnable => Boolean
   ): List[Runnable] = {
     val toBeSortedRunnables = localization ++ userRunnable ++ memoryRetryRunnable ++ deLocalization
@@ -55,6 +56,6 @@ object RunnableUtils {
       isBackground(runnable)
     }
 
-    sshAccess ++ containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedRunnables ++ checkpointingShutdown ++ monitoringShutdown
+    containerSetup ++ monitoringSetup ++ checkpointingStart ++ sortedRunnables ++ checkpointingShutdown ++ monitoringShutdown
   }
 }

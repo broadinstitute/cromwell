@@ -20,7 +20,8 @@ object GcpBatchExitCode {
 
   case object VMRecreatedDuringExecution extends GcpBatchExitCode(50006)
 
-  val values: List[GcpBatchExitCode] = List(
+  // Includes the above codes that correspond to Batch errors, intentionally excludes the Success code below
+  val batchErrorCodes: List[GcpBatchExitCode] = List(
     VMPreemption,
     VMReportingTimeout,
     VMRebootedDuringExecution,
@@ -29,8 +30,13 @@ object GcpBatchExitCode {
     VMRecreatedDuringExecution
   )
 
+  // Special case non-error code - this does not correspond to any messages we get from Batch,
+  // this is what we use for tasks that don't error out at the Batch layer.
+  case object Success extends GcpBatchExitCode(0)
+
   def fromEventMessage(message: String): Option[GcpBatchExitCode] =
-    values.find { target =>
+    // Note that this will never return Success, because we don't get Success explicitly from GCP.
+    batchErrorCodes.find { target =>
       message.contains(s"exit code ${target.code}")
     }
 

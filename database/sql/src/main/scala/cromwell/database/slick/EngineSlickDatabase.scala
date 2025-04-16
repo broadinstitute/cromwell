@@ -19,6 +19,7 @@ class EngineSlickDatabase(originalDatabaseConfig: Config)
     with JobStoreSlickDatabase
     with CallCachingSlickDatabase
     with SubWorkflowStoreSlickDatabase
-    with DockerHashStoreSlickDatabase {
+    with DockerHashStoreSlickDatabase
+    with GroupMetricsSlickDatabase {
   override lazy val dataAccess = new EngineDataAccessComponent(slickConfig.profile)
 }

@@ -10,6 +10,7 @@ class EngineDataAccessComponent(val driver: JdbcProfile)
     with CallCachingAggregationEntryComponent
     with CallCachingSimpletonEntryComponent
     with DockerHashStoreEntryComponent
+    with GroupMetricsEntryComponent
     with JobKeyValueEntryComponent
     with JobStoreEntryComponent
     with JobStoreSimpletonEntryComponent
@@ -25,6 +26,7 @@ class EngineDataAccessComponent(val driver: JdbcProfile)
       callCachingSimpletonEntries.schema ++
       callCachingAggregationEntries.schema ++
       dockerHashStoreEntries.schema ++
+      groupMetricsEntries.schema ++
       jobKeyValueEntries.schema ++
       jobStoreEntries.schema ++
       jobStoreSimpletonEntries.schema ++

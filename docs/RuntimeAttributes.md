@@ -328,7 +328,13 @@ runtime {
 }
 ```
 
-
+In GCP Batch, preempted jobs can be identified in job metadata (`gcloud batch jobs describe`) by a `statusEvent` with a description that looks like:
+```
+Job state is set from RUNNING to FAILED for job projects/abc/locations/us-central1/jobs/job-abc.Job
+failed due to task failure. Specifically, task with index 0 failed due to the
+following task event: "Task state is updated from RUNNING to FAILED on zones/us-central1-b/instances/8675309
+due to Spot VM preemption with exit code 50001."
+```
 
 
 ### `bootDiskSizeGb`
@@ -395,19 +401,18 @@ Make sure to choose a zone for which the type of GPU you want to attach is avail
 
 The types of compute GPU supported are:
 
-* `nvidia-tesla-k80` 
 * `nvidia-tesla-v100`
 * `nvidia-tesla-p100`
 * `nvidia-tesla-p4`
 * `nvidia-tesla-t4`
 
-For the latest list of supported GPU's, please visit [Google's GPU documentation](nvidia-drivers-us-public).
+On Life Sciences API, the default driver is `418.87.00`. You may specify your own via the `nvidiaDriverVersion` key.  Make sure that driver exists in the `nvidia-drivers-us-public` beforehand, per the [Google Pipelines API documentation](https://cloud.google.com/genomics/reference/rest/Shared.Types/Metadata#VirtualMachine). 
 
-The default driver is `418.87.00`, you may specify your own via the `nvidiaDriverVersion` key.  Make sure that driver exists in the `nvidia-drivers-us-public` beforehand, per the [Google Pipelines API documentation](https://cloud.google.com/genomics/reference/rest/Shared.Types/Metadata#VirtualMachine). 
+On GCP Batch, `nvidiaDriverVersion` is currently ignored; Batch selects the correct driver version automatically.
 
 ```
 runtime {
-    gpuType: "nvidia-tesla-k80"
+    gpuType: "nvidia-tesla-t4"
     gpuCount: 2
     nvidiaDriverVersion: "418.87.00"
     zones: ["us-central1-c"]

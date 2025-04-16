@@ -127,14 +127,14 @@ object DatabaseTestKit extends StrictLogging {
               )
             )
           case MysqlDatabasePlatform =>
-            Option(
-              MySQLContainer(
-                mysqlImageVersion = DockerImageName.parse(s"mysql:${networkDbSystem.dockerImageVersion}"),
-                databaseName = "cromwell_test",
-                username = "cromwell",
-                password = "test"
-              )
+            val mysqlContainer = MySQLContainer(
+              mysqlImageVersion = DockerImageName.parse(s"mysql:${networkDbSystem.dockerImageVersion}"),
+              databaseName = "cromwell_test",
+              username = "cromwell",
+              password = "test"
             )
+            mysqlContainer.container.withCommand("--innodb-print-all-deadlocks=ON")
+            Option(mysqlContainer)
           case PostgresqlDatabasePlatform =>
             Option(
               PostgreSQLContainer(

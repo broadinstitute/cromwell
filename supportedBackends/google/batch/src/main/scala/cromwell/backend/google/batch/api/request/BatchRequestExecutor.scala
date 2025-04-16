@@ -1,6 +1,7 @@
 package cromwell.backend.google.batch.api.request
 
 import com.google.api.gax.rpc.{ApiException, StatusCode}
+import com.google.cloud.batch.v1.AllocationPolicy.ProvisioningModel
 import com.google.cloud.batch.v1._
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
@@ -11,6 +12,8 @@ import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiResponse}
 import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}
 import cromwell.core.ExecutionEvent
+import cromwell.services.cost.InstantiatedVmInfo
+import cromwell.services.metadata.CallMetadataKeys
 
 import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -28,7 +31,6 @@ object BatchRequestExecutor {
 
     def execute(groupedRequests: GcpBatchGroupedRequests)(implicit ec: ExecutionContext): Future[List[Try[Unit]]] = {
       val requests = groupedRequests.entries
-      logger.info(s"Execute ${requests.size} requests")
 
       if (requests.isEmpty) Future.successful(List.empty)
       else nonEmptyExecute(requests)
@@ -120,11 +122,11 @@ object BatchRequestExecutor {
       } catch {
         // A job can't be cancelled but deleted, which is why we consider 404 status as the job being cancelled successfully
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.NOT_FOUND =>
-          BatchApiResponse.StatusQueried(RunStatus.Aborted)
+          BatchApiResponse.StatusQueried(RunStatus.Aborted())
 
         // We don't need to detect preemptible VMs because that's handled automatically by GCP
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
-          BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota)
+          BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota(Seq.empty))
       }
 
     private[request] def interpretOperationStatus(job: Job): RunStatus = {
@@ -135,30 +137,58 @@ object BatchRequestExecutor {
           .map(_.asScala.toList)
           .getOrElse(List.empty)
       )
-      lazy val exitCode = findBatchExitCode(events)
+
+      // Get vm info for this job
+      val allocationPolicy = job.getAllocationPolicy
+
+      // Get instances that can be created with this AllocationPolicy, only instances[0] is supported
+      val instancePolicy = allocationPolicy.getInstances(0).getPolicy
+      val machineType = instancePolicy.getMachineType
+      val preemptible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber
+
+      // location list = [regions/us-central1, zones/us-central1-b], region is the first element
+      val location = allocationPolicy.getLocation.getAllowedLocationsList.get(0)
+      val region =
+        if (location.isEmpty)
+          "us-central1"
+        else
+          location.split("/").last
+
+      val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemptible))
 
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
-        RunStatus.Success(events)
+        RunStatus.Success(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
-        RunStatus.Running
+        RunStatus.Running(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
-        RunStatus.Failed(exitCode, events)
+        val batchExitCode =
+          events
+            .flatMap(e => GcpBatchExitCode.fromEventMessage(e.name))
+            .headOption
+            .getOrElse(GcpBatchExitCode.Success)
+        RunStatus.Failed(batchExitCode, events, instantiatedVmInfo)
       } else {
-        RunStatus.Initializing
+        RunStatus.Initializing(events, instantiatedVmInfo)
       }
     }
 
-    private def findBatchExitCode(events: List[ExecutionEvent]): Option[GcpBatchExitCode] =
+    private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] = {
+      val startedRegex = ".*SCHEDULED to RUNNING.*".r
+      val endedRegex = ".*RUNNING to.*".r // can be SUCCEEDED or FAILED
       events.flatMap { e =>
-        GcpBatchExitCode.fromEventMessage(e.name.toLowerCase)
-      }.headOption
-
-    private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] =
-      events.map { e =>
         val time = java.time.Instant
           .ofEpochSecond(e.getEventTime.getSeconds, e.getEventTime.getNanos.toLong)
           .atOffset(java.time.ZoneOffset.UTC)
-        ExecutionEvent(name = e.getDescription, offsetDateTime = time)
+
+        // If this event represents the VM starting or stopping, add a special event describing that.
+        val startOrEndEvent = (e.getDescription match {
+          case startedRegex() => Option(CallMetadataKeys.VmStartTime)
+          case endedRegex() => Option(CallMetadataKeys.VmEndTime)
+          case _ => None
+        }).map(t => ExecutionEvent(name = t, offsetDateTime = time))
+
+        List(ExecutionEvent(name = e.getDescription, offsetDateTime = time)) ++ startOrEndEvent.toList
       }
+    }
   }
 }

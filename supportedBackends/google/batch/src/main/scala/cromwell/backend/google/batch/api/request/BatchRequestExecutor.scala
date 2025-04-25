@@ -144,6 +144,8 @@ object BatchRequestExecutor {
       // Get instances that can be created with this AllocationPolicy, only instances[0] is supported
       val instancePolicy = allocationPolicy.getInstances(0).getPolicy
       val machineType = instancePolicy.getMachineType
+
+      // SPOT VM is used as preemptible VM instances in Batch
       val preemptible = instancePolicy.getProvisioningModelValue == ProvisioningModel.SPOT.getNumber
 
       // location list = [regions/us-central1, zones/us-central1-b], region is the first element

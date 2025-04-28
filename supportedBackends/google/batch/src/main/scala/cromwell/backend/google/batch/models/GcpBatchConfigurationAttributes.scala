@@ -80,8 +80,6 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
                                                     connectTimeoutMillis: Option[Int Refined Positive]
   )
 
-  final case class ImageMirrorConfiguration(mirrorAddress: String, mirrorAllowlist: List[String], mirrorAll: Boolean)
-
   lazy val Logger: Logger = LoggerFactory.getLogger("BatchConfiguration")
 
   // Default queries per 100 seconds

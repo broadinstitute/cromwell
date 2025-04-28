@@ -20,6 +20,7 @@ import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, Stan
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.{CallOutputs, DockerCredentials}
+import cromwell.docker.DockerMirroring
 import wom.graph.CommandCallNode
 
 import scala.util.{Failure, Success, Try}
@@ -121,6 +122,8 @@ abstract class PipelinesApiBackendLifecycleActorFactory(
         List(dockerCredentials, googleCredentials).flatten
       case _ => List.empty[Any]
     }
+
+  override val dockerMirroring: Option[DockerMirroring] = papiAttributes.dockerMirroringOpt
 }
 
 object PipelinesApiBackendLifecycleActorFactory extends StrictLogging {

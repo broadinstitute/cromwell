@@ -30,6 +30,7 @@ class PipelinesApiBackendLifecycleActorFactorySpec
       cacheHitDuplicationStrategy = null,
       requestWorkers = refineV[Positive](1).toOption.get,
       pipelineTimeout = 1 second,
+      dockerMirroringOpt = None,
       quotaAttempts = 3,
       logFlushPeriod = Option(1 second),
       gcsTransferConfiguration = null,

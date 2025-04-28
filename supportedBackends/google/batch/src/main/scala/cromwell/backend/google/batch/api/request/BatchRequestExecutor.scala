@@ -145,8 +145,9 @@ object BatchRequestExecutor {
       val instancePolicy = allocationPolicy.getInstances(0).getPolicy
       val machineType = instancePolicy.getMachineType
 
-      // SPOT VM is used as preemptible VM instances in Batch
-      val preemptible = instancePolicy.getProvisioningModelValue == ProvisioningModel.SPOT.getNumber
+      // SPOT VM is used as preemptible VM instances in Batch. Check for both SPOT or PREEMPTIBLE just to be safe
+      val preemptible = (instancePolicy.getProvisioningModelValue == ProvisioningModel.SPOT.getNumber) ||
+        (instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber)
 
       // location list = [regions/us-central1, zones/us-central1-b], region is the first element
       val location = allocationPolicy.getLocation.getAllowedLocationsList.get(0)

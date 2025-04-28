@@ -428,6 +428,7 @@ class BatchBackendCacheHitCopyingActorSpec
       cacheHitDuplicationStrategy = CopyCachedOutputs,
       requestWorkers = refineMV[Positive](1),
       batchTimeout = null,
+      dockerMirroringOpt = None,
       logFlushPeriod = None,
       gcsTransferConfiguration = null,
       virtualPrivateCloudConfiguration = VirtualPrivateCloudConfiguration(None, None),

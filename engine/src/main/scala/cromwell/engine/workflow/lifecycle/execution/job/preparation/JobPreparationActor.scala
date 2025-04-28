@@ -13,7 +13,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{Dispatcher, DockerConfiguration}
-import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse, DockerSize}
+import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
@@ -79,6 +79,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private[preparation] lazy val runtimeAttributeDefinitions = factory.runtimeAttributeDefinitions(initializationData)
   private[preparation] lazy val hasDockerDefinition =
     runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)
+  private[preparation] lazy val dockerMirroring = factory.dockerMirroring
 
   startWith(Idle, JobPreparationActorNoData)
 
@@ -146,7 +147,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private[preparation] def evaluateInputsAndAttributes(
     valueStore: ValueStore
   ): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
-    import common.validation.ErrorOr.{ShortCircuitingFlatMap, NestedErrorOr}
+    import common.validation.ErrorOr.{NestedErrorOr, ShortCircuitingFlatMap}
     for {
       evaluatedInputs <- ErrorOr(resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)).flatten
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
@@ -331,12 +332,31 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
     val curriedAddDefaultsToAttributes =
       addDefaultsToAttributes(runtimeAttributeDefinitions, workflowDescriptor.backendDescriptor.workflowOptions) _
+
+    def applyDockerMirroring(attributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
+      val mirroredImageAttribute = for {
+        mirror <- dockerMirroring
+        origDockerStr <- attributes.get(RuntimeAttributesKeys.DockerKey).map(_.valueString)
+        origDockerImg <- DockerImageIdentifier.fromString(origDockerStr) match {
+          case Success(i) => Some(i)
+          case Failure(e) =>
+            workflowLogger.warn(s"Failed to attempt mirroring image ${origDockerStr} due to ${e.toString}")
+            None
+        }
+        mirroredImage <- mirror.mirrorImage(origDockerImg)
+        newDockerImageAttribute = (RuntimeAttributesKeys.DockerKey, WomString(mirroredImage.toString))
+      } yield newDockerImageAttribute
+
+      attributes ++ mirroredImageAttribute.toList
+    }
+
     val unevaluatedRuntimeAttributes = jobKey.call.callable.runtimeAttributes
     evaluateRuntimeAttributes(unevaluatedRuntimeAttributes,
                               expressionLanguageFunctions,
                               inputEvaluation,
                               factory.platform
-    ) map curriedAddDefaultsToAttributes
+    ) map curriedAddDefaultsToAttributes map applyDockerMirroring
+
   }
 }
 

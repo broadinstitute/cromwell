@@ -68,7 +68,7 @@ class BatchRequestExecutorSpec
     val instancePolicy = InstancePolicy
       .newBuilder()
       .setMachineType(machineType)
-      .setProvisioningModel(ProvisioningModel.PREEMPTIBLE)
+      .setProvisioningModel(ProvisioningModel.SPOT)
       .build()
 
     val allocationPolicy = AllocationPolicy

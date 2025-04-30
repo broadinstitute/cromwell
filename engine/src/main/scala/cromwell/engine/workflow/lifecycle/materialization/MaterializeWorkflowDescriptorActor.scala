@@ -20,7 +20,7 @@ import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import common.validation.Validation.MemoryRetryMultiplier
 import cromwell.backend.BackendWorkflowDescriptor
-import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.Dispatcher.{EngineDispatcher, IoDispatcher}
 import cromwell.core.WorkflowOptions.{ReadFromCache, WorkflowOption, WriteToCache}
 import cromwell.core._
 import cromwell.core.callcaching._
@@ -204,7 +204,7 @@ class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: Acto
   override lazy val workflowIdForLogging = workflowId.toPossiblyNotRoot
   override lazy val rootWorkflowIdForLogging = workflowId.toRoot
 
-  val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
+  val IoExecutionContext = context.system.dispatchers.lookup(IoDispatcher)
   implicit val ec = context.dispatcher
 
   protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
@@ -227,7 +227,7 @@ class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: Acto
         case (workflowOptions, pathBuilders) =>
           val futureDescriptor: Future[ErrorOr[EngineWorkflowDescriptor]] = pathBuilders flatMap { pb =>
             val engineIoFunctions =
-              new EngineIoFunctions(pb, new AsyncIo(ioActorProxy, GcsBatchCommandBuilder), iOExecutionContext)
+              new EngineIoFunctions(pb, new AsyncIo(ioActorProxy, GcsBatchCommandBuilder), IoExecutionContext)
             buildWorkflowDescriptor(workflowId,
                                     workflowSourceFiles,
                                     conf,

@@ -340,6 +340,7 @@ object Dependencies {
   private val akkaDependencies = List(
     "com.typesafe.akka" %% "akka-actor" % akkaV,
     "com.typesafe.akka" %% "akka-testkit" % akkaV % Test,
+    "com.lightbend.akka" %% "akka-diagnostics" % "2.2.0",
   )
 
   private val akkaStreamDependencies = List(

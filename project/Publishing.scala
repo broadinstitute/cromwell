@@ -217,9 +217,15 @@ object Publishing {
     "Broad Artifactory Local" at
       s"https://broadinstitute.jfrog.io/broadinstitute/libs-release-local;build.timestamp=$buildTimestamp/"
 
+  // https://doc.akka.io/libraries/akka-diagnostics/current/starvation-detector.html#using-the-starvation-detector
+  private val akkaResolver: Resolver =
+    "Akka library repository" at
+      "https://repo.akka.io/maven"
+
   val additionalResolvers = List(
     broadArtifactoryResolver,
-    broadArtifactoryResolverSnap
+    broadArtifactoryResolverSnap,
+    akkaResolver
   ) ++ Resolver.sonatypeOssRepos("releases")
 
   private val artifactoryCredentialsFile =

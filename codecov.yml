@@ -17,8 +17,6 @@ coverage:
         base: pr
         target: 50%
         threshold: 0% # no required threshold for patch
-      app: # declare a new status context "app"
-        paths: "!centaur/"  # remove all files in "centaur/"
 
 comment: off
 

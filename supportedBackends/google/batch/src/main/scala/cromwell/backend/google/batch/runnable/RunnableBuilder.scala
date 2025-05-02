@@ -164,12 +164,16 @@ object RunnableBuilder extends BatchUtilityConversions {
           .addCommands(scriptContainerPath)
           .setUsername(username)
           .setPassword(password)
+          .setOptions(s"--shm-size=${toMemMib(memory) * 0.8}m") // configure file system to have shared memory 80% of the memory size
       case _ =>
         Container.newBuilder
           .setImageUri(docker)
           .setEntrypoint(jobShell)
           .addCommands(scriptContainerPath)
+          .setOptions(s"--shm-size=${toMemMib(memory) * 0.8}m") // configure file system to have shared memory 80% of the memory size
     }
+
+    logger.info(s"(LM) Setting up container with options: ${container.getOptions}")
 
     // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
     // on the machine to utilize in their command blocks if needed
@@ -180,17 +184,12 @@ object RunnableBuilder extends BatchUtilityConversions {
           Map("MEM_UNIT" -> memory.unit.toString, "MEM_SIZE" -> memory.amount.toString).asJava
         )
 
-    val shm_size = toMemMib(memory) * 0.8
-
-    logger.info(s"Setting shared memory size to ${shm_size}m")
-
     Runnable
       .newBuilder()
       .setContainer(container)
       .setEnvironment(environment)
       .withVolumes(volumes)
       .putLabels(Key.Tag, Value.UserRunnable)
-      .withOptions(f"--shm-size=${shm_size}m") // configure file system to have shared memory 80% of the memory size
   }
 
   def checkForMemoryRetryRunnable(retryLookupKeys: List[String], volumes: List[Volume]): Runnable.Builder =

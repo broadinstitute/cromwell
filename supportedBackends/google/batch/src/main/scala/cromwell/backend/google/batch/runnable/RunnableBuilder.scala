@@ -8,7 +8,6 @@ import cromwell.core.path.Path
 import mouse.all.anySyntaxMouse
 import wom.format.MemorySize
 import cromwell.backend.google.batch.util.BatchUtilityConversions
-import cromwell.core.actor.BatchActor.logger
 
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters._

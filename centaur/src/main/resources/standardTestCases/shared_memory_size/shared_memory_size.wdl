@@ -4,9 +4,9 @@ task checkMemory {
   input {
     Int mem_gb
   }
-  command {
-    df -h /dev/shm
-  }
+  command <<<
+    df -h /dev/shm | tail -1 | awk '{print $2}'
+  >>>
   output {
     String out = read_string(stdout())
   }

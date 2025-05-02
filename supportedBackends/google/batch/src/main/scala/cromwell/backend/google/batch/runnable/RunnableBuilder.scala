@@ -173,8 +173,6 @@ object RunnableBuilder extends BatchUtilityConversions {
           .setOptions(s"--shm-size=${toMemMib(memory) * 0.8}m") // configure file system to have shared memory 80% of the memory size
     }
 
-    logger.info(s"(LM) Setting up container with options: ${container.getOptions}")
-
     // adding memory as environment variables makes it easy for a user to retrieve the new value of memory
     // on the machine to utilize in their command blocks if needed
     val environment =

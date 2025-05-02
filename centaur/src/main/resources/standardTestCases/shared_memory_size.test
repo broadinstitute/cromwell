@@ -1,0 +1,14 @@
+name: shared_memory_size
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: shared_memory_size/shared_memory_size.wdl
+}
+
+metadata {
+  workflowName: shared_memory_size
+  status: Succeeded
+  "outputs.smallGb": "Filesystem      Size  Used Avail Use% Mounted on\nshm             8.0G     0  8.0G   0% /dev/shm"
+  "outputs.bigGb": "Filesystem      Size  Used Avail Use% Mounted on\nshm             4.0G     0  4.0G   0% /dev/shm"
+}

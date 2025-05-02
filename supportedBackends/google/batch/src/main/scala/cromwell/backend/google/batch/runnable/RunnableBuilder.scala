@@ -79,8 +79,6 @@ object RunnableBuilder extends BatchUtilityConversions {
 
     def withLabels(labels: Map[String, String]): Runnable.Builder = builder.putAllLabels(labels.asJava)
 
-    def withOptions(options: String): Runnable.Builder = builder.withOptions(options)
-
     def withTimeout(timeout: Duration): Runnable.Builder = timeout match {
       case _: FiniteDuration =>
         builder.setTimeout(

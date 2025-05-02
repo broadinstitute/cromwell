@@ -987,7 +987,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                               requestFactory = initializationData.requestFactory,
                               jobLogger = jobLogger
       )
-      _ = jobLogger.info(f"LM the batch response is: $response")
       _ = sendGoogleLabelsToMetadata(customLabels)
       _ = sendIncrementMetricsForReferenceFiles(referenceInputsToMountedPathsOpt.map(_.keySet))
 

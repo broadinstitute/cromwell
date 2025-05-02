@@ -8,6 +8,7 @@ import cromwell.core.path.Path
 import mouse.all.anySyntaxMouse
 import wom.format.MemorySize
 import cromwell.backend.google.batch.util.BatchUtilityConversions
+import cromwell.core.actor.BatchActor.logger
 
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters._
@@ -15,7 +16,7 @@ import scala.jdk.CollectionConverters._
 /**
  * Utility singleton to create high level batch runnables.
  */
-object RunnableBuilder extends BatchUtilityConversions{
+object RunnableBuilder extends BatchUtilityConversions {
 
   import RunnableLabels._
   import RunnableUtils._
@@ -179,7 +180,9 @@ object RunnableBuilder extends BatchUtilityConversions{
           Map("MEM_UNIT" -> memory.unit.toString, "MEM_SIZE" -> memory.amount.toString).asJava
         )
 
-    val shm_size =  toMemMib(memory)*0.8
+    val shm_size = toMemMib(memory) * 0.8
+
+    logger.info(s"Setting shared memory size to ${shm_size}m")
 
     Runnable
       .newBuilder()
@@ -187,7 +190,7 @@ object RunnableBuilder extends BatchUtilityConversions{
       .setEnvironment(environment)
       .withVolumes(volumes)
       .putLabels(Key.Tag, Value.UserRunnable)
-      .withOptions( f"--shm-size=${shm_size}m") // configure file system to have shared memory 80% of the memory size
+      .withOptions(f"--shm-size=${shm_size}m") // configure file system to have shared memory 80% of the memory size
   }
 
   def checkForMemoryRetryRunnable(retryLookupKeys: List[String], volumes: List[Volume]): Runnable.Builder =

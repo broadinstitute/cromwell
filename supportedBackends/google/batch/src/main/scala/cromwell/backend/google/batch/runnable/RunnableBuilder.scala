@@ -164,13 +164,17 @@ object RunnableBuilder extends BatchUtilityConversions {
           .addCommands(scriptContainerPath)
           .setUsername(username)
           .setPassword(password)
-          .setOptions(s"--shm-size=${toMemMib(memory) * 0.8}m") // configure file system to have shared memory 80% of the memory size
+          .setOptions(
+            s"--shm-size=${toMemMib(memory) * 0.8}m"
+          ) // configure file system to have shared memory 80% of the memory size
       case _ =>
         Container.newBuilder
           .setImageUri(docker)
           .setEntrypoint(jobShell)
           .addCommands(scriptContainerPath)
-          .setOptions(s"--shm-size=${toMemMib(memory) * 0.8}m") // configure file system to have shared memory 80% of the memory size
+          .setOptions(
+            s"--shm-size=${toMemMib(memory) * 0.8}m"
+          ) // configure file system to have shared memory 80% of the memory size
     }
 
     // adding memory as environment variables makes it easy for a user to retrieve the new value of memory

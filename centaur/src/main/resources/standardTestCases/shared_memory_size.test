@@ -9,6 +9,6 @@ files {
 metadata {
   workflowName: shared_memory_size
   status: Succeeded
-  "outputs.smallGb": "4.0G"
-  "outputs.bigGb": "8.0G"
+  "outputs.shared_memory_size.smallGb": "4.0G"
+  "outputs.shared_memory_size.bigGb": "8.0G"
 }

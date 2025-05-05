@@ -12,10 +12,13 @@ coverage:
         base: pr
         target: 50%
         threshold: 5%
-    patch:
+    patch: # coverage report for the PR changes only
       default:
         base: pr
         target: 50%
-        threshold: 5%
+        threshold: 0% # no required threshold for patch
 
 comment: off
+
+github_checks:
+  annotations: false

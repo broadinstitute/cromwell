@@ -18,9 +18,11 @@ task checkMemory {
 
 workflow shared_memory_size {
   call checkMemory as small { input: mem_gb=5 }
-  call checkMemory as big { input: mem_gb=10 }
+  call checkMemory as medium { input: mem_gb=10 }
+  call checkMemory as big { input: mem_gb=20 }
   output {
     String smallGb = small.out
+    String mediumGb = medium.out
     String bigGb = big.out
   }
 }

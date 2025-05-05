@@ -153,25 +153,25 @@ object RunnableBuilder extends BatchUtilityConversions {
                    memory: MemorySize
   ): Runnable.Builder = {
 
+    val baseContainer = Container.newBuilder
+      .setImageUri(docker)
+      .setEntrypoint(jobShell)
+      .addCommands(scriptContainerPath)
+
+    // Set the shared memory size to 80% of the memory requested
+    // if this leaves less than 2GB of memory left over, leave it as the memory - 2GB
+    val memoryMb = toMemMib(memory)
+    val containerWithOpt =
+      if (memoryMb >= 10000) {
+        baseContainer.setOptions(s"--shm-size=${memoryMb * 0.8}m")
+      } else {
+        baseContainer.setOptions(s"--shm-size=${math.max(memoryMb - 2000, 64)}m")
+      }
+
     val container = (dockerhubCredentials._1, dockerhubCredentials._2) match {
       case (username, password) if username.nonEmpty && password.nonEmpty =>
-        Container.newBuilder
-          .setImageUri(docker)
-          .setEntrypoint(jobShell)
-          .addCommands(scriptContainerPath)
-          .setUsername(username)
-          .setPassword(password)
-          .setOptions(
-            s"--shm-size=${toMemMib(memory) * 0.8}m"
-          ) // configure file system to have shared memory 80% of the memory size
-      case _ =>
-        Container.newBuilder
-          .setImageUri(docker)
-          .setEntrypoint(jobShell)
-          .addCommands(scriptContainerPath)
-          .setOptions(
-            s"--shm-size=${toMemMib(memory) * 0.8}m"
-          ) // configure file system to have shared memory 80% of the memory size
+        containerWithOpt.setUsername(username).setPassword(password)
+      case _ => containerWithOpt
     }
 
     // adding memory as environment variables makes it easy for a user to retrieve the new value of memory

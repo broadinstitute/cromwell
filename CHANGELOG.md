@@ -12,6 +12,7 @@
  * Symlink to `/cromwell_root` - In LifeSciences, the Cromwell root directory that user scripts are run from is located at `/cromwell_root`, but in the Batch backend it has moved to `/mnt/disk/cromwell_root`. To ensure WDLs that rely on the original 
 path don't break when run on the Batch, and to also maintain forward compatibility we have created a symlink between `/mnt/disk/cromwell_root` and `/cromwell_root`.
  * Fixed a bug that caused Cromwell to overestimate the workflow cost for Batch jobs that used preemptible machines. 
+ * Allocated more memory to the shared memory filesystem (`/dev/shm`) proportional to the machine size
 
 ### Other Changes
 * Removes a database index `METADATA_WORKFLOW_IDX` that is now redundant since the introduction of `IX_METADATA_ENTRY_WEU_MK`. 

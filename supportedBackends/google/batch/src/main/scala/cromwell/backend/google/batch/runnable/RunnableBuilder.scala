@@ -160,6 +160,7 @@ object RunnableBuilder extends BatchUtilityConversions {
 
     // Set the shared memory size to 80% of the memory requested
     // if this leaves less than 2GB of memory left over, leave it as the memory - 2GB
+    // Required for certain Python tools [AN-527]
     val memoryMb = toMemMib(memory)
     val containerWithOpt =
       if (memoryMb >= 10000) {

@@ -19,7 +19,8 @@ case class CentaurTestException private (message: String,
                                          workflowIdOption: Option[String],
                                          metadataJsonOption: Option[String],
                                          causeOption: Option[Exception]
-) extends RuntimeException(message, causeOption.orNull) with NoStackTrace
+) extends RuntimeException(message, causeOption.orNull)
+    with NoStackTrace
 
 object CentaurTestException {
 

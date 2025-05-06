@@ -1,6 +1,6 @@
 package cromwell.backend.google.pipelines.common.api.clients
 
-import akka.actor.{Actor, ActorLogging, ActorRef}
+import akka.actor.{Actor, ActorRef}
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestFactory.CreatePipelineParameters
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{
@@ -10,7 +10,7 @@ import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.{
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, PipelinesApiRequestManager}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId
-import cromwell.core.logging.JobLogger
+import cromwell.core.logging.{JobLogger, JobLogging}
 
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -33,7 +33,7 @@ object PipelinesApiRunCreationClient {
   * Be sure to make the main class's receive look like:
   *   override def receive = runCreationClientReceive orElse { ... }
   */
-trait PipelinesApiRunCreationClient { this: Actor with ActorLogging with PapiInstrumentation =>
+trait PipelinesApiRunCreationClient { this: Actor with JobLogging with PapiInstrumentation =>
   private var runCreationClientPromise: Option[Promise[StandardAsyncJob]] = None
 
   val papiApiActor: ActorRef
@@ -41,9 +41,12 @@ trait PipelinesApiRunCreationClient { this: Actor with ActorLogging with PapiIns
 
   def runCreationClientReceive: Actor.Receive = {
     case job: StandardAsyncJob =>
+      jobLogger.info("AN-522 RunCreation success, received StandardAsyncJob")
       runSuccess()
       completePromise(Success(job))
-    case PipelinesApiRunCreationQueryFailed(_, e) => completePromise(Failure(e))
+    case PipelinesApiRunCreationQueryFailed(_, e) =>
+      jobLogger.info("AN-522 PipelinesApiRunCreationQueryFailed")
+      completePromise(Failure(e))
   }
 
   private def completePromise(job: Try[StandardAsyncJob]) = {

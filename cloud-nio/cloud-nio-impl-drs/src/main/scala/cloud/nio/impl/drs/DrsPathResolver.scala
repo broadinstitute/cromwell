@@ -6,7 +6,7 @@ import cats.effect.{IO, Resource}
 import cats.implicits._
 import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDisposition}
 import cloud.nio.impl.drs.DrsResolverResponseSupport._
-import common.exception.{AggregatedMessageException, toIO}
+import common.exception.{toIO, AggregatedMessageException}
 import common.validation.ErrorOr.ErrorOr
 import io.circe._
 import io.circe.generic.semiauto._
@@ -74,10 +74,11 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
   private lazy val timeoutConfig: RequestConfig = {
     // Infinite timeout bad, can exhaust Akka threads. [AN-532]
     val requestTimeoutMillis = drsConfig.requestTimeout.toMillis.toInt
-    RequestConfig.custom()
+    RequestConfig
+      .custom()
       .setConnectionRequestTimeout(requestTimeoutMillis / 4) // Obtain connection from the pool
-      .setConnectTimeout(requestTimeoutMillis)               // Max time to first byte from server
-      .setSocketTimeout(requestTimeoutMillis / 4)            // Max time between subsequent bytes
+      .setConnectTimeout(requestTimeoutMillis) // Max time to first byte from server
+      .setSocketTimeout(requestTimeoutMillis / 4) // Max time between subsequent bytes
       .build()
   }
 

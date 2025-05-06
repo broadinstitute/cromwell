@@ -3,6 +3,8 @@ package centaur.test
 import centaur.test.workflow.Workflow
 import cromwell.api.model.{SubmittedWorkflow, WorkflowMetadata}
 
+import scala.util.control.NoStackTrace
+
 /**
   * An exception with information about a centaur test failure.
   *
@@ -17,7 +19,7 @@ case class CentaurTestException private (message: String,
                                          workflowIdOption: Option[String],
                                          metadataJsonOption: Option[String],
                                          causeOption: Option[Exception]
-) extends RuntimeException(message, causeOption.orNull)
+) extends RuntimeException(message, causeOption.orNull) with NoStackTrace
 
 object CentaurTestException {
 

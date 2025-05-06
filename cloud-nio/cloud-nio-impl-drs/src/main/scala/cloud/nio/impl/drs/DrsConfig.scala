@@ -58,7 +58,7 @@ object DrsConfig {
   def toEnv(drsConfig: DrsConfig): Map[String, String] =
     Map(
       EnvDrsResolverUrl -> drsConfig.drsResolverUrl,
-      EnvDrsResolverRequestTimeout -> s"${drsConfig.requestTimeout}",
+      EnvDrsResolverRequestTimeout -> s"${drsConfig.requestTimeout.toSeconds}",
       EnvDrsResolverNumRetries -> s"${drsConfig.numRetries}",
       EnvDrsResolverWaitInitialSeconds -> s"${drsConfig.waitInitial.toSeconds}",
       EnvDrsResolverWaitMaximumSeconds -> s"${drsConfig.waitMaximum.toSeconds}",

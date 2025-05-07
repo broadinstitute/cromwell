@@ -15,6 +15,7 @@
 
 ### Other Changes
 * Removes a database index `METADATA_WORKFLOW_IDX` that is now redundant since the introduction of `IX_METADATA_ENTRY_WEU_MK`. 
+* The `latest` tag will now point to the most recent numerical cromwell release rather than following the develop branch. This means that the `latest` tag will not be updated for pre-release versions of Cromwell.
 
 ## 88 Release Notes
 

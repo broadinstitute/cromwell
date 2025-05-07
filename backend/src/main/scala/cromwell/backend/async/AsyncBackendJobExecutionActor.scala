@@ -1,15 +1,15 @@
 package cromwell.backend.async
 
-import akka.actor.{Actor, ActorRef}
+import java.util.concurrent.ExecutionException
+
+import akka.actor.{Actor, ActorLogging, ActorRef}
+import cromwell.backend.{BackendJobDescriptor, SlowJobWarning}
 import cromwell.backend.BackendJobExecutionActor._
 import cromwell.backend.async.AsyncBackendJobExecutionActor._
-import cromwell.backend.{BackendJobDescriptor, SlowJobWarning}
 import cromwell.core.CromwellFatalExceptionMarker
-import cromwell.core.logging.JobLogging
 import cromwell.core.retry.{Retry, SimpleExponentialBackoff}
 import cromwell.services.metadata.MetadataService.MetadataServiceResponse
 
-import java.util.concurrent.ExecutionException
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.{Failure, Success}
@@ -41,7 +41,7 @@ object AsyncBackendJobExecutionActor {
   }
 }
 
-trait AsyncBackendJobExecutionActor { this: Actor with JobLogging with SlowJobWarning =>
+trait AsyncBackendJobExecutionActor { this: Actor with ActorLogging with SlowJobWarning =>
 
   def dockerImageUsed: Option[String]
 
@@ -84,20 +84,14 @@ trait AsyncBackendJobExecutionActor { this: Actor with JobLogging with SlowJobWa
 
   override def receive: Receive = slowJobWarningReceive orElse {
     case mode: ExecutionMode => robustExecuteOrRecover(mode)
-    case IssuePollRequest(handle) =>
-      jobLogger.info("AN-522 Received IssuePollRequest")
-      robustPoll(handle)
-    case PollResponseReceived(handle) if handle.isDone =>
-      jobLogger.info("AN-522 Received PollResponseReceived with isDone=true")
-      self ! Finish(handle)
+    case IssuePollRequest(handle) => robustPoll(handle)
+    case PollResponseReceived(handle) if handle.isDone => self ! Finish(handle)
     case PollResponseReceived(handle) =>
       // This should stash the Cancellable someplace so it can be cancelled once polling is complete.
       // -Ywarn-value-discard
-      jobLogger.info("AN-522 Received PollResponseReceived with isDone=false")
       context.system.scheduler.scheduleOnce(pollBackOff.backoffMillis.millis, self, IssuePollRequest(handle))
       ()
     case Finish(SuccessfulExecutionHandle(outputs, returnCode, jobDetritusFiles, executionEvents, _)) =>
-      jobLogger.info("AN-522 Received Finish with SuccessfulExecutionHandle")
       completionPromise.success(
         JobSucceededResponse(jobDescriptor.key,
                              Some(returnCode),
@@ -110,23 +104,16 @@ trait AsyncBackendJobExecutionActor { this: Actor with JobLogging with SlowJobWa
       )
       context.stop(self)
     case Finish(FailedNonRetryableExecutionHandle(throwable, returnCode, _)) =>
-      jobLogger.info("AN-522 Received Finish with FailedNonRetryableExecutionHandle")
       completionPromise.success(JobFailedNonRetryableResponse(jobDescriptor.key, throwable, returnCode))
       context.stop(self)
     case Finish(FailedRetryableExecutionHandle(throwable, returnCode, _)) =>
-      jobLogger.info("AN-522 Received Finish with FailedRetryableExecutionHandle")
       completionPromise.success(JobFailedRetryableResponse(jobDescriptor.key, throwable, returnCode))
       context.stop(self)
     case Finish(cromwell.backend.async.AbortedExecutionHandle) =>
-      jobLogger.info("AN-522 Received Finish with AbortedExecutionHandle")
       completionPromise.success(JobAbortedResponse(jobDescriptor.key))
       context.stop(self)
-    case FailAndStop(t) =>
-      jobLogger.info("AN-522 Received FailAndStop")
-      failAndStop(t)
-    case response: MetadataServiceResponse =>
-      jobLogger.info("AN-522 Received MetadataServiceResponse")
-      handleMetadataServiceResponse(sender(), response)
+    case FailAndStop(t) => failAndStop(t)
+    case response: MetadataServiceResponse => handleMetadataServiceResponse(sender(), response)
     case badMessage => log.error(s"Unexpected message $badMessage.")
   }
 

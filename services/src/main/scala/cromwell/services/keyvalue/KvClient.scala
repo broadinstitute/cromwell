@@ -1,12 +1,11 @@
 package cromwell.services.keyvalue
 
-import akka.actor.{Actor, ActorRef}
-import cromwell.core.logging.JobLogging
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.services.keyvalue.KeyValueServiceActor._
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 
-trait KvClient { this: Actor with JobLogging =>
+trait KvClient { this: Actor with ActorLogging =>
 
   def serviceRegistryActor: ActorRef
   private[keyvalue] var currentKvClientRequests: Map[ScopedKey, Promise[KvResponse]] = Map.empty
@@ -22,7 +21,6 @@ trait KvClient { this: Actor with JobLogging =>
     }
 
   final def kvClientReceive: Actor.Receive = { case response: KvResponse =>
-    jobLogger.info("AN-522 KvResponse")
     fulfillOrLog(response)
   }
 

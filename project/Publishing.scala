@@ -50,7 +50,7 @@ object Publishing {
           Seq(version.value)
         case Standard =>
           // Merge to `develop`
-          // Looks like `85-443a6fc`, `develop`
+          // Looks like `85-443a6fc`, `dev`, `develop`
           Seq(version.value, "dev", "develop")
       }
 

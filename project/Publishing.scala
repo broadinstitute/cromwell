@@ -42,17 +42,16 @@ object Publishing {
           // Looks like `85-443a6fc-SNAP`
           Seq(version.value)
         case Release =>
-          // Looks like `85`, `85-443a6fc`
-          Seq(cromwellVersion, version.value)
+          // Looks like `85`, `85-443a6fc`, `latest`
+          Seq(cromwellVersion, version.value, "latest")
         case Debug =>
           // Ordinary local build with debug stuff
           // Looks like `85-443a6fc-DEBUG`
           Seq(version.value)
         case Standard =>
           // Merge to `develop`
-          // Looks like `85-443a6fc`, `latest`, `develop`
-          // TODO: once we automate releases, `latest` should move to `Release`
-          Seq(version.value, "latest", "develop")
+          // Looks like `85-443a6fc`, `dev`, `develop`
+          Seq(version.value, "dev", "develop")
       }
 
       val versionsCsv = tags.mkString(",")

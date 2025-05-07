@@ -1,12 +1,11 @@
 package cromwell.backend.google.pipelines.common.api.clients
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import cromwell.backend.google.pipelines.common.PapiInstrumentation
 import cromwell.backend.google.pipelines.common.api.PipelinesApiRequestManager.PipelinesApiStatusQueryFailed
 import cromwell.backend.google.pipelines.common.api.{PipelinesApiRequestFactory, PipelinesApiRequestManager, RunStatus}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId
-import cromwell.core.logging.JobLogging
 
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
@@ -17,7 +16,7 @@ import scala.util.{Failure, Success, Try}
   * Be sure to make the main class's receive look like:
   *   override def receive = pollingActorClientReceive orElse { ... }
   */
-trait PipelinesApiStatusRequestClient { this: Actor with JobLogging with PapiInstrumentation =>
+trait PipelinesApiStatusRequestClient { this: Actor with ActorLogging with PapiInstrumentation =>
 
   private var pollingActorClientPromise: Option[Promise[RunStatus]] = None
 
@@ -26,12 +25,10 @@ trait PipelinesApiStatusRequestClient { this: Actor with JobLogging with PapiIns
 
   def pollingActorClientReceive: Actor.Receive = {
     case r: RunStatus =>
-      jobLogger.info("AN-522 Polled RunStatus received")
       log.debug(s"Polled status received: $r")
       pollSuccess()
       completePromise(Success(r))
     case PipelinesApiStatusQueryFailed(_, e) =>
-      jobLogger.info("AN-522 Poll failed!")
       log.debug("JES poll failed!")
       completePromise(Failure(e))
   }

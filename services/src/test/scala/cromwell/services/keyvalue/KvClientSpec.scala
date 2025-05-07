@@ -1,17 +1,16 @@
 package cromwell.services.keyvalue
 
-import akka.actor.{Actor, ActorRef}
+import java.io.IOException
+
+import akka.actor.{Actor, ActorLogging, ActorRef}
 import akka.testkit.{TestActorRef, TestProbe}
-import cromwell.core.logging.JobLogging
-import cromwell.core.{PossiblyNotRootWorkflowId, RootWorkflowId, TestKitSuite}
+import cromwell.core.TestKitSuite
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import java.io.IOException
-import java.util.UUID
-import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor}
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class KvClientSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
@@ -56,10 +55,6 @@ class KvClientSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   }
 }
 
-class KvTestClientActor(val serviceRegistryActor: ActorRef) extends Actor with JobLogging with KvClient {
-  def workflowIdForLogging: PossiblyNotRootWorkflowId = PossiblyNotRootWorkflowId(UUID.randomUUID())
-  def rootWorkflowIdForLogging: RootWorkflowId = RootWorkflowId(UUID.randomUUID())
-  def jobTag: String = "foobar"
-
+class KvTestClientActor(val serviceRegistryActor: ActorRef) extends Actor with ActorLogging with KvClient {
   override def receive: Receive = kvClientReceive orElse Actor.ignoringBehavior
 }

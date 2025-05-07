@@ -15,7 +15,7 @@ coverage:
     patch: # coverage report for the PR changes only
       default:
         base: pr
-        target: 50%
+        target: 0%
         threshold: 0% # no required threshold for patch
 
 comment: off

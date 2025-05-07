@@ -7,6 +7,7 @@ import cromwell.backend.google.batch.models.{BatchParameter, GcpBatchInput, GcpB
 import cromwell.core.path.Path
 import mouse.all.anySyntaxMouse
 import wom.format.MemorySize
+import cromwell.backend.google.batch.util.BatchUtilityConversions
 
 import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters._
@@ -14,7 +15,7 @@ import scala.jdk.CollectionConverters._
 /**
  * Utility singleton to create high level batch runnables.
  */
-object RunnableBuilder {
+object RunnableBuilder extends BatchUtilityConversions {
 
   import RunnableLabels._
   import RunnableUtils._
@@ -152,19 +153,26 @@ object RunnableBuilder {
                    memory: MemorySize
   ): Runnable.Builder = {
 
+    val baseContainer = Container.newBuilder
+      .setImageUri(docker)
+      .setEntrypoint(jobShell)
+      .addCommands(scriptContainerPath)
+
+    // Set the shared memory size to 80% of the memory requested
+    // if this leaves less than 2GB of memory left over, leave it as the memory - 2GB
+    // Required for certain Python tools [AN-527]
+    val memoryMb = toMemMib(memory)
+    val containerWithOpt =
+      if (memoryMb >= 10000) {
+        baseContainer.setOptions(s"--shm-size=${memoryMb * 0.8}m")
+      } else {
+        baseContainer.setOptions(s"--shm-size=${math.max(memoryMb - 2000, 64)}m")
+      }
+
     val container = (dockerhubCredentials._1, dockerhubCredentials._2) match {
       case (username, password) if username.nonEmpty && password.nonEmpty =>
-        Container.newBuilder
-          .setImageUri(docker)
-          .setEntrypoint(jobShell)
-          .addCommands(scriptContainerPath)
-          .setUsername(username)
-          .setPassword(password)
-      case _ =>
-        Container.newBuilder
-          .setImageUri(docker)
-          .setEntrypoint(jobShell)
-          .addCommands(scriptContainerPath)
+        containerWithOpt.setUsername(username).setPassword(password)
+      case _ => containerWithOpt
     }
 
     // adding memory as environment variables makes it easy for a user to retrieve the new value of memory

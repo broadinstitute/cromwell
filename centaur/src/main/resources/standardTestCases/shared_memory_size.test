@@ -1,0 +1,15 @@
+name: shared_memory_size
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: shared_memory_size/shared_memory_size.wdl
+}
+
+metadata {
+  workflowName: shared_memory_size
+  status: Succeeded
+  "outputs.shared_memory_size.smallGb": "3.1G"
+  "outputs.shared_memory_size.mediumGb": "8.0G"
+  "outputs.shared_memory_size.bigGb": "16G"
+}

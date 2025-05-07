@@ -13,7 +13,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{Dispatcher, DockerConfiguration}
-import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
+import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse, DockerSize}
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
@@ -344,7 +344,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
             None
         }
         mirroredImage <- mirror.mirrorImage(origDockerImg)
-        newDockerImageAttribute = (RuntimeAttributesKeys.DockerKey, WomString(mirroredImage.toString))
+        newDockerImageAttribute = (RuntimeAttributesKeys.DockerKey, WomString(mirroredImage.fullName))
       } yield newDockerImageAttribute
 
       attributes ++ mirroredImageAttribute.toList

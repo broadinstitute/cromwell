@@ -7,7 +7,7 @@ import net.ceedubs.ficus.readers.ValueReader
 
 case class DockerMirroring(mirrors: List[DockerMirror]) {
   def mirrorImage(image: DockerImageIdentifier): Option[DockerImageIdentifier] =
-    mirrors.collectFirst(_.mirrorImage(image))
+    mirrors.flatMap(_.mirrorImage.lift(image)).headOption
 }
 
 object DockerMirroring {

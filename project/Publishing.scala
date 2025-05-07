@@ -51,7 +51,7 @@ object Publishing {
         case Standard =>
           // Merge to `develop`
           // Looks like `85-443a6fc`, `develop`
-          Seq(version.value, "develop")
+          Seq(version.value, "dev", "develop")
       }
 
       val versionsCsv = tags.mkString(",")

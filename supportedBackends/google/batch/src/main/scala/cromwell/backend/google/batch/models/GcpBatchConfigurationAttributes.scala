@@ -55,7 +55,8 @@ case class GcpBatchConfigurationAttributes(
   batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
   referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]],
   checkpointingInterval: FiniteDuration,
-  logsPolicy: GcpBatchLogsPolicy
+  logsPolicy: GcpBatchLogsPolicy,
+  maxTransientErrorRetries: Int
 )
 
 object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOperations with StrictLogging {
@@ -109,6 +110,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     "concurrent-job-limit",
     "request-workers",
     "batch-timeout",
+    "max-transient-error-retries",
     "batch-requests.timeouts.read",
     "batch-requests.timeouts.connect",
     "default-runtime-attributes.bootDiskSizeGb",
@@ -300,6 +302,9 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
 
     val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
 
+    val maxTransientErrorRetries: Int =
+      backendConfig.as[Option[Int]]("max-transient-error-retries").getOrElse(10)
+
     def authGoogleConfigForBatchConfigurationAttributes(
       project: String,
       bucket: String,
@@ -341,7 +346,8 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
           batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
           referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
           checkpointingInterval = checkpointingInterval,
-          logsPolicy = logsPolicy
+          logsPolicy = logsPolicy,
+          maxTransientErrorRetries = maxTransientErrorRetries
         )
       }
 

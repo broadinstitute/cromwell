@@ -17,6 +17,8 @@ import org.http4s.client.dsl.io._
 import org.http4s.headers._
 import org.http4s.util.CaseInsensitiveString
 
+import scala.util.control.NoStackTrace
+
 object DockerRegistryV2Abstract {
   implicit class EnhancedParseResult[A](val parseResult: ParseResult[A]) extends AnyVal {
     def unsafe(context: String): A =
@@ -77,9 +79,9 @@ object DockerRegistryV2Abstract {
     }
 
   // Placeholder exceptions that can be carried through IO before being converted to a DockerInfoFailedResponse
-  private class Unauthorized(message: String) extends Exception(message)
-  private class NotFound(message: String) extends Exception(message)
-  private class UnknownError(message: String) extends Exception(message)
+  private class Unauthorized(message: String) extends Exception(message) with NoStackTrace
+  private class NotFound(message: String) extends Exception(message) with NoStackTrace
+  private class UnknownError(message: String) extends Exception(message) with NoStackTrace
 }
 
 /**

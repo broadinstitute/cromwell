@@ -14,6 +14,10 @@ services:
     command: ["server"]
     environment:
       # See notes and warnings on JAVA_OPTS in Publishing.scala
+      # Note: GOOGLE_APPLICATION_CREDENTIALS and CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS are needed to run tests
+      #       against GCP Batch backend. Passing these as env variables here makes them available inside the
+      #       docker containers. Having GOOGLE_APPLICATION_CREDENTIALS is a requirement for running jobs against
+      #       GCP Batch backend.
       - >-
         JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
         -Dwebservice.port=8080
@@ -34,6 +38,8 @@ services:
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - GOOGLE_APPLICATION_CREDENTIALS
+      - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080"]
       interval: 2s
@@ -51,6 +57,10 @@ services:
     command: ["server"]
     environment:
       # See notes and warnings on JAVA_OPTS in Publishing.scala
+      # Note: GOOGLE_APPLICATION_CREDENTIALS and CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS are needed to run tests
+      #       against GCP Batch backend. Passing these as env variables here makes them available inside the
+      #       docker containers. Having GOOGLE_APPLICATION_CREDENTIALS is a requirement for running jobs against
+      #       GCP Batch backend.
       - >-
         JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
         -Dwebservice.port=8000
@@ -68,6 +78,8 @@ services:
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - GOOGLE_APPLICATION_CREDENTIALS
+      - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     depends_on:
       db-mstr:
         condition: service_healthy
@@ -92,6 +104,10 @@ services:
     command: ["server"]
     environment:
       # See notes and warnings on JAVA_OPTS in Publishing.scala
+      # Note: GOOGLE_APPLICATION_CREDENTIALS and CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS are needed to run tests
+      #       against GCP Batch backend. Passing these as env variables here makes them available inside the
+      #       docker containers. Having GOOGLE_APPLICATION_CREDENTIALS is a requirement for running jobs against
+      #       GCP Batch backend.
       - >-
         JAVA_OPTS=-Dconfig.file=${CROMWELL_BUILD_CENTAUR_MANAGED_CONFIG}
         -Dwebservice.port=${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}
@@ -110,6 +126,8 @@ services:
       - CROMWELL_BUILD_PAPI_DOCKER_IMAGE_DRS
       - CROMWELL_BUILD_PAPI_ENDPOINT_URL
       - CROMWELL_BUILD_RESOURCES_DIRECTORY
+      - GOOGLE_APPLICATION_CREDENTIALS
+      - CROMWELL_BUILD_BATCH_DOCKER_IMAGE_DRS
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:${CROMWELL_BUILD_CENTAUR_MANAGED_PORT}"]
       interval: 2s

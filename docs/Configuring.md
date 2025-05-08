@@ -514,21 +514,21 @@ types that aren't guaranteed to have a single type of hash. Cromwell will never 
 hash, all cloud hashing strategies are dependent on file metadata.
 
 Each filesystem supports a limited set of hash strategies.
- * `gcs` Google Storage supports:
-   * `crc32c` default, guaranteed to exist
-   * `md5` will not exist for files created via multipart upload (Cromwell itself does not use multi-part upload)
-   * `identity` uses the bucket name, blob name, and generation to uniquely identify a storage object. This is a *stronger* 
+* `gcs` Google Storage supports:
+    * `crc32c` default, guaranteed to exist
+    * `md5` will not exist for files created via multipart upload (Cromwell itself does not use multi-part upload)
+    * `identity` uses the bucket name, blob name, and generation to uniquely identify a storage object. This is a *stronger* 
 requirement than is typically used for call caching - when `identity` is used, Cromwell will not call cache across tasks
 that have input files with merely the same contents, the inputs must be literally the same GS object. This may break 
 call caching for tasks that use intermediate files as input.
- * `s3` AWS S3 supports:
-   * `etag` default, guaranteed to exist
- * `drs` Data Repository Service supports:
-   * `crc32c`
-   * `md5`
-   * `etag`
-   * `sha256`
-   * Given the diversity of DRS datasets, no hash is guaranteed to exist for all files. The default hash strategy for DRS
+* `s3` AWS S3 supports:
+    * `etag` default, guaranteed to exist
+* `drs` Data Repository Service supports:
+    * `crc32c`
+    * `md5`
+    * `etag`
+    * `sha256`
+    * Given the diversity of DRS datasets, no hash is guaranteed to exist for all files. The default hash strategy for DRS
 is `["crc32c", "md5", "sha256", "etag"]`
 
 ###### Notes on GCS Hashing Strategy

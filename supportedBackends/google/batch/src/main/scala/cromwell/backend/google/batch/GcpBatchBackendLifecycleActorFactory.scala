@@ -10,6 +10,7 @@ import cromwell.backend._
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory.{
   preemptionCountKey,
   robustBuildAttributes,
+  transientRetryCountKey,
   unexpectedRetryCountKey
 }
 import cromwell.backend.google.batch.actors._
@@ -35,7 +36,8 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
 ) extends StandardLifecycleActorFactory
     with GcpPlatform {
 
-  override val requestedKeyValueStoreKeys: Seq[String] = Seq(preemptionCountKey, unexpectedRetryCountKey)
+  override val requestedKeyValueStoreKeys: Seq[String] =
+    Seq(preemptionCountKey, unexpectedRetryCountKey, transientRetryCountKey)
 
   override def jobIdKey: String = "__gcp_batch"
   protected val googleConfig: GoogleConfiguration = GoogleConfiguration(configurationDescriptor.globalConfig)
@@ -140,6 +142,7 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {
   val preemptionCountKey = "PreemptionCount"
   val unexpectedRetryCountKey = "UnexpectedRetryCount"
+  val transientRetryCountKey = "TransientRetryCount"
 
   private[batch] def robustBuildAttributes(buildAttributes: () => GcpBatchConfigurationAttributes,
                                            maxAttempts: Int = 3,

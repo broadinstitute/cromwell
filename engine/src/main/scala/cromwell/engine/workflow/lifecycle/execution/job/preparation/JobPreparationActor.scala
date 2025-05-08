@@ -80,6 +80,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   private[preparation] lazy val hasDockerDefinition =
     runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)
   private[preparation] lazy val dockerMirroring = factory.dockerMirroring
+  private[preparation] lazy val platform = factory.platform
 
   startWith(Idle, JobPreparationActorNoData)
 
@@ -354,7 +355,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     evaluateRuntimeAttributes(unevaluatedRuntimeAttributes,
                               expressionLanguageFunctions,
                               inputEvaluation,
-                              factory.platform
+                              platform
     ) map curriedAddDefaultsToAttributes map applyDockerMirroring
 
   }

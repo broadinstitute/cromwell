@@ -2,15 +2,16 @@ package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestProbe
+import common.mock.MockSugar
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
 import cromwell.core.WorkflowId
+import cromwell.docker.DockerMirroring
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.JobPreparationTestHelper._
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvJobKey, ScopedKey}
-import common.mock.MockSugar
 import wdl.draft2.model.LocallyQualifiedName
 import wom.expression.NoIoFunctionSet
 import wom.graph.{CommandCallNode, WomIdentifier}
@@ -44,9 +45,10 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends MockSug
     backpressureTimeout: FiniteDuration,
     noResponseTimeout: FiniteDuration,
     dockerHashCredentials: List[Any],
-    inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
+    inputsAndAttributes: Option[ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])]],
     kvStoreKeysForPrefetch: List[String],
-    jobKey: BackendJobDescriptorKey = mockJobKey
+    jobKey: BackendJobDescriptorKey = mockJobKey,
+    dockerMirroring: Option[DockerMirroring] = None
   ): Props =
     Props(
       new TestJobPreparationActor(
@@ -54,6 +56,7 @@ class JobPreparationTestHelper(implicit val system: ActorSystem) extends MockSug
         dockerHashCredentialsInput = dockerHashCredentials,
         backpressureWaitTimeInput = backpressureTimeout,
         dockerNoResponseTimeoutInput = noResponseTimeout,
+        dockerMirroringInput = dockerMirroring,
         inputsAndAttributes = inputsAndAttributes,
         workflowDescriptor = workflowDescriptor,
         jobKey = jobKey,
@@ -71,7 +74,8 @@ private[preparation] class TestJobPreparationActor(
   dockerHashCredentialsInput: List[Any],
   backpressureWaitTimeInput: FiniteDuration,
   dockerNoResponseTimeoutInput: FiniteDuration,
-  inputsAndAttributes: ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])],
+  dockerMirroringInput: Option[DockerMirroring],
+  inputsAndAttributes: Option[ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])]],
   workflowDescriptor: EngineWorkflowDescriptor,
   jobKey: BackendJobDescriptorKey,
   workflowDockerLookupActor: ActorRef,
@@ -95,11 +99,15 @@ private[preparation] class TestJobPreparationActor(
 
   override private[preparation] lazy val expressionLanguageFunctions = NoIoFunctionSet
   override private[preparation] lazy val dockerHashCredentials = dockerHashCredentialsInput
+  override private[preparation] lazy val runtimeAttributeDefinitions = Set.empty
   override private[preparation] lazy val noResponseTimeout = dockerNoResponseTimeoutInput
   override private[preparation] lazy val hasDockerDefinition = true
+  override private[preparation] lazy val dockerMirroring = dockerMirroringInput
+  override private[preparation] lazy val platform = None
 
   override private[preparation] def scopedKey(key: String): ScopedKey = scopedKeyMaker.apply(key)
-  override private[preparation] def evaluateInputsAndAttributes(valueStore: ValueStore) = inputsAndAttributes
+  override private[preparation] def evaluateInputsAndAttributes(valueStore: ValueStore) =
+    inputsAndAttributes.getOrElse(super.evaluateInputsAndAttributes(valueStore))
 
   override private[preparation] def jobExecutionProps(jobDescriptor: BackendJobDescriptor,
                                                       initializationData: Option[BackendInitializationData],

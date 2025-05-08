@@ -20,7 +20,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.callcaching._
-import cromwell.core.logging.WorkflowLogging
+import cromwell.core.logging.{JobLogging, WorkflowLogging}
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
@@ -79,6 +79,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               groupMetricsActor: ActorRef
 ) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
     with WorkflowLogging
+    with JobLogging
     with CallMetadataHelper
     with JobInstrumentation
     with CromwellInstrumentation
@@ -514,7 +515,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   onTransition { case fromState -> toState =>
-    log.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
+    jobLogger.info("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
 
     EngineJobExecutionActorState.transitionEventString(fromState, toState) foreach {
       eventList :+= ExecutionEvent(_)

@@ -1,0 +1,16 @@
+name: docker_mirror
+testFormat: workflowsuccess
+# needs an alt if we're going to keep Docker image cache tests which I'm not sure we are
+backends: [Papiv2DockerMirror, GCPBATCHDockerMirror]
+
+files {
+  workflow: hello/hello.wdl
+  inputs: hello/hello.inputs
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "wf_hello.hello.runtimeAttributes.docker": "mirror.gcr.io/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+  "wf_hello.hello.callCaching.dockerImageUsed": "mirror.gcr.io/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+}

@@ -1,5 +1,10 @@
 # Cromwell Change Log
 
+## 90 Release Notes
+
+### GCP Batch
+ * Cromwell now supports automatic use of the GAR Dockerhub mirror, see ReadTheDocs for details.
+
 ## 89 Release Notes
 
 ### Improvements

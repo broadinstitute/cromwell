@@ -161,6 +161,31 @@ backend {
 Note that as per the Google Secret Manager docs, the compute service account for the project in which the GCP Batch
 jobs will run will need to be assigned the `Secret Manager Secret Accessor` IAM role.
 
+***Dockerhub Mirroring***
+
+Cromwell supports automatic use of [GAR's Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images) 
+in the Batch backend. When enabled, Dockerhub images will be pulled through this mirror rather than directly from Dockerhub. 
+
+To use, include the below `docker-mirror` config in your backend configuration:
+```
+backend {
+  default = GCPBATCH
+  providers {
+    GCPBATCH {
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
+      config {
+        docker-mirror {
+          dockerhub {
+            enabled: true
+            address: "mirror.gcr.io"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
 **Monitoring**
 
 In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.

@@ -21,9 +21,7 @@ object DockerMirroring {
         dockerhubMirror.toList
       }
       .getOrElse(List[DockerMirror]())
-    if (mirrors.nonEmpty)
-      Option(DockerMirroring(mirrors))
-    else None
+    Option.when(mirrors.nonEmpty)(DockerMirroring(mirrors))
   }
 }
 

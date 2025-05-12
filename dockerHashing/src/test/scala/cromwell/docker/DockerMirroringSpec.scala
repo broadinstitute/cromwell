@@ -35,7 +35,7 @@ class DockerMirroringSpec extends TestKitSuite with AnyFlatSpecLike with Matcher
                                              |  }
                                              |}
                                              |""".stripMargin)
-    DockerMirroring.fromConfig(config) shouldBe Some(DockerMirroring(mirrors = List(DockerHubMirror(""))))
+    DockerMirroring.fromConfig(config) shouldBe None
   }
 
   it should "parse disabled config correctly" in {

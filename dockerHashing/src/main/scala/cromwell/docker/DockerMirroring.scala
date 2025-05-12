@@ -1,6 +1,7 @@
 package cromwell.docker
 
 import com.typesafe.config.Config
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.docker.registryv2.flows.dockerhub.DockerHub
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
@@ -35,14 +36,17 @@ case class DockerHubMirror(address: String) extends DockerMirror {
   }
 }
 
-object DockerHubMirror {
+object DockerHubMirror extends LazyLogging {
   implicit val dockerHubMirrorOptionValueReader: ValueReader[Option[DockerHubMirror]] =
     (config: Config, path: String) =>
       config.getAs[Config](path) flatMap { dockerMirrorConfig =>
         val enabled = dockerMirrorConfig.as[Boolean]("enabled")
-        // TODO how worried are we about enabled=true with an empty string?
-        // TODO basically equates to no mirroring
         val address = dockerMirrorConfig.as[Option[String]]("address").getOrElse("")
-        Option.when(enabled)(DockerHubMirror(address))
+        if (address.isEmpty)
+          logger.warn(
+            "Potential misconfiguration: docker-mirror.dockerhub.enabled=true with no address provided. " +
+              "Mirroring will be disabled."
+          )
+        Option.when(enabled && address.nonEmpty)(DockerHubMirror(address))
       }
 }

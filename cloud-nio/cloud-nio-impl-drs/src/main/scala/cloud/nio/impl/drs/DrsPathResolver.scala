@@ -14,6 +14,7 @@ import io.circe.parser.decode
 import io.circe.syntax._
 import mouse.boolean._
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.apache.http.client.config.RequestConfig
 import org.apache.http.client.methods.{HttpGet, HttpPost}
 import org.apache.http.entity.{ContentType, StringEntity}
 import org.apache.http.impl.client.HttpClientBuilder
@@ -61,12 +62,24 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
           postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
           postRequest.setHeader("Authorization", s"Bearer $token")
           postRequest.setHeader("X-App-ID", "cromwell_drs_localizer")
+          postRequest.setConfig(timeoutConfig)
           postRequest
         }
       case Invalid(errors) =>
         IO.raiseError(AggregatedMessageException("Error getting access token", errors.toList))
     }
     Resource.eval(io)
+  }
+
+  private lazy val timeoutConfig: RequestConfig = {
+    // Infinite timeout bad, can exhaust Akka threads. [AN-532]
+    val requestTimeoutMillis = drsConfig.requestTimeout.toMillis.toInt
+    RequestConfig
+      .custom()
+      .setConnectionRequestTimeout(requestTimeoutMillis / 4) // Obtain connection from the pool
+      .setConnectTimeout(requestTimeoutMillis) // Max time to first byte from server
+      .setSocketTimeout(requestTimeoutMillis / 4) // Max time between subsequent bytes
+      .build()
   }
 
   private def httpResponseToDrsResolverResponse(

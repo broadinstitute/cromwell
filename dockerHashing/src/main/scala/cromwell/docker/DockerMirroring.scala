@@ -43,8 +43,6 @@ object DockerHubMirror {
         // TODO how worried are we about enabled=true with an empty string?
         // TODO basically equates to no mirroring
         val address = dockerMirrorConfig.as[Option[String]]("address").getOrElse("")
-        if (enabled)
-          Option(DockerHubMirror(address))
-        else None
+        Option.when(enabled)(DockerHubMirror(address))
       }
 }

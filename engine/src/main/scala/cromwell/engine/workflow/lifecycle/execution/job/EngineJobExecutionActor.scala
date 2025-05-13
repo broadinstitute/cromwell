@@ -515,7 +515,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   onTransition { case fromState -> toState =>
-    jobLogger.info("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
+    jobLogger.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
 
     EngineJobExecutionActorState.transitionEventString(fromState, toState) foreach {
       eventList :+= ExecutionEvent(_)
@@ -548,11 +548,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       // due to timeouts). That's ok, we just ignore this message in any other situation:
       stay()
     case Event(msg, _) =>
-      log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}",
-                sender(),
-                stateName,
-                stateData,
-                msg
+      jobLogger.error(
+        s"Bad message from ${sender()} to EngineJobExecutionActor in state ${stateName}(with data ${stateData}): ${msg}"
       )
       stay()
   }
@@ -623,15 +620,23 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     runJob(updatedData)
   }
 
-  private def requestRestartCheckToken(): Unit =
+  private def requestRestartCheckToken(): Unit = {
+    jobLogger.info(
+      s"EJEA ${self.toString().split('#').lastOption.getOrElse("ERR").stripSuffix("]")} is requesting restart token of type ${backendLifecycleActorFactory.jobExecutionTokenType} for ${workflowDescriptor.backendDescriptor.hogGroup}"
+    )
     jobRestartCheckTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup,
                                                          backendLifecycleActorFactory.jobRestartCheckTokenType
     )
+  }
 
-  private def requestExecutionToken(): Unit =
+  private def requestExecutionToken(): Unit = {
+    jobLogger.info(
+      s"EJEA ${self.toString().split('#').lastOption.getOrElse("ERR").stripSuffix("]")} is requesting execution token of type ${backendLifecycleActorFactory.jobExecutionTokenType} for ${workflowDescriptor.backendDescriptor.hogGroup}"
+    )
     jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup,
                                                       backendLifecycleActorFactory.jobExecutionTokenType
     )
+  }
 
   // Return any currently held job restart check or execution token.
   private def returnCurrentToken(): Unit = if (

@@ -1,4 +1,4 @@
-name: hello_dockermirror_papiv2
+name: hello_dockermirror_gcpbatch
 testFormat: workflowsuccess
 # needs an alt if we're going to keep Docker image cache tests which I'm not sure we are
 backends: [GCPBATCHDockerMirror]

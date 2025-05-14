@@ -5,7 +5,7 @@ import java.net.URL
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit._
 import cromwell.api.CromwellClient.UnsuccessfulRequestException
 import org.scalatest.BeforeAndAfterAll
@@ -25,7 +25,7 @@ class CromwellResponseFailedSpec
     super.afterAll()
   }
 
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val materializer: Materializer = Materializer(system)
 
   "CromwellAPIClient" should "fail the Future if the HttpResponse is unsuccessful" in {
     val errorMessage =
@@ -37,11 +37,11 @@ class CromwellResponseFailedSpec
     val client = new CromwellClient(new URL("http://fakeurl"), "v1") {
       override def executeRequest(request: HttpRequest, headers: List[HttpHeader]): Future[HttpResponse] =
         Future.successful(
-          new HttpResponse(
-            StatusCodes.ServiceUnavailable,
-            List.empty[HttpHeader],
-            HttpEntity(ContentTypes.`application/json`, errorMessage),
-            HttpProtocols.`HTTP/1.1`
+          HttpResponse(
+            status = StatusCodes.ServiceUnavailable,
+            headers = List.empty[HttpHeader],
+            entity = HttpEntity(ContentTypes.`application/json`, errorMessage),
+            protocol = HttpProtocols.`HTTP/1.1`
           )
         )
     }

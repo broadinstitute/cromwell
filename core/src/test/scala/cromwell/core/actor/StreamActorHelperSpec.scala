@@ -74,7 +74,7 @@ private class TestStreamActor(queueSize: Int)(implicit override val materializer
   }
 
   override protected val streamSource = Source
-    .queue[TestStreamActorContext](queueSize, OverflowStrategy.dropNew)
+    .queue[TestStreamActorContext](queueSize, OverflowStrategy.dropBuffer)
     .map(("hello", _))
 
   implicit override def ec: ExecutionContext = context.dispatcher

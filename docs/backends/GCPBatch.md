@@ -238,7 +238,7 @@ backend {
   providers {
     ...
     GCPBATCH {
-      actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         ...
         virtual-private-cloud {
@@ -282,7 +282,7 @@ backend {
   providers {
     ...
     GCPBATCH {
-      actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         ...
         virtual-private-cloud {
@@ -342,7 +342,7 @@ backend {
   providers {
     ...
     GCPBATCH {
-      actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         ...
         batch {
@@ -406,7 +406,7 @@ their execution.
 ### Migration from Google Cloud Life Sciences v2beta to Google Cloud Batch
 
 1. If you currently run your workflows using Cloud Genomics v2beta and would like to switch to Google Cloud Batch, you will need to do a few changes to your configuration file: `actor-factory` value should be changed 
-from `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.batch.GcpBatchLifecycleActorFactory`.
+from `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory`.
 
 2. You will need to remove the parameter `genomics.endpoint-url` and generate a new config file.
 
@@ -428,7 +428,7 @@ backend {
   providers {
     ...
     GCPBATCH {
-      actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         ...
         reference-disk-localization-manifests = [
@@ -477,4 +477,3 @@ Please see the help command of that tool for more details.
 Alternatively for public data stored under `gs://gcp-public-data--broad-references` there exists a shell script to
 extract reference data to a new disk and then convert that disk to a public image. For more information see
 [create_images.sh](https://github.com/broadinstitute/cromwell/tree/develop/scripts/reference_disks/create_images.sh).
-

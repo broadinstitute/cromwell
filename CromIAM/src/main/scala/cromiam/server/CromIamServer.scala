@@ -1,10 +1,10 @@
 package cromiam.server
 
-import akka.Done
 import akka.actor.ActorSystem
 import akka.event.Logging
-import akka.http.scaladsl.server.{HttpApp, Route}
-import akka.stream.ActorMaterializer
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.server.Route
+import akka.stream.Materializer
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.util.VersionUtil
@@ -13,9 +13,9 @@ import cromiam.server.status.StatusService
 import cromiam.webservice.{CromIamApiService, SwaggerService}
 import org.broadinstitute.dsde.workbench.util.health.Subsystems.{Cromwell, Sam}
 
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor, Future, Promise}
+import scala.concurrent.ExecutionContextExecutor
 
-object CromIamServer extends HttpApp with CromIamApiService with SwaggerService {
+object CromIamServer extends CromIamApiService with SwaggerService {
 
   final val rootConfig: Config = ConfigFactory.load()
 
@@ -26,42 +26,32 @@ object CromIamServer extends HttpApp with CromIamApiService with SwaggerService 
 
   override val oauthConfig: SwaggerOauthConfig = configuration.swaggerOauthConfig
 
-  def run(): Unit = {
-    log.info(s"Version {}", VersionUtil.getVersion("cromiam"))
-    /*
-    TODO: We're not passing in our actor system so a new one is getting created by akka.http.scaladsl.server.HttpApp.
-    Things seem stable at the moment so not touching it. Should investigate if we should be sharing the ActorSystem.
-    If there is a reason then leave a comment why there should be two actor systems.
-    https://github.com/broadinstitute/cromwell/issues/3851
-     */
-    CromIamServer.startServer(configuration.cromIamConfig.http.interface,
-                              configuration.cromIamConfig.http.port,
-                              configuration.cromIamConfig.serverSettings
-    )
-  }
+  implicit val system: ActorSystem = ActorSystem()
+  implicit lazy val executor: ExecutionContextExecutor = system.dispatcher
+  implicit val materializer: Materializer = Materializer(system)
 
-  implicit override val system: ActorSystem = ActorSystem()
-  implicit override lazy val executor: ExecutionContextExecutor = system.dispatcher
-  implicit override val materializer: ActorMaterializer = ActorMaterializer()
+  val log = Logging(system, getClass)
 
-  override val log = Logging(system, getClass)
-
-  override val routes: Route = allRoutes ~ swaggerUiResourceRoute
+  val routes: Route = allRoutes ~ swaggerUiResourceRoute
 
   override val statusService: StatusService = new StatusService(() =>
     Map(Cromwell -> cromwellClient.subsystemStatus(), Sam -> samClient.subsystemStatus())
   )
 
-  // Override default shutdownsignal which was just "hit return/enter"
-  override def waitForShutdownSignal(
-    actorSystem: ActorSystem
-  )(implicit executionContext: ExecutionContext): Future[Done] = {
-    val promise = Promise[Done]()
-    sys.addShutdownHook {
-      // we can add anything we want the server to do when someone shutdowns the server (Ctrl-c)
+  def run(): Unit = {
+    log.info(s"Version {}", VersionUtil.getVersion("cromiam"))
+    val bindingFuture = Http().newServerAt(
+      configuration.cromIamConfig.http.interface,
+      configuration.cromIamConfig.http.port)
+      .withSettings(configuration.cromIamConfig.serverSettings)
+      .bind(routes)
+
+    // Add shutdown hook
+    val _ = sys.addShutdownHook {
       log.info("Shutting down the server")
-      promise.success(Done)
+      bindingFuture
+        .flatMap(_.unbind())
+        .onComplete(_ => system.terminate())
     }
-    promise.future
   }
 }

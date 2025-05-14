@@ -66,7 +66,7 @@ abstract class BatchActor[C](val flushRate: FiniteDuration, val batchSize: Int)
     if (logOnStartUp)
       log.info("{} configured to flush with batch size {} and process rate {}.", name, batchSize, flushRate)
     if (flushRate != Duration.Zero) {
-      timers.startPeriodicTimer(ScheduledFlushKey, ScheduledProcessAction, flushRate)
+      timers.startTimerWithFixedDelay(ScheduledFlushKey, ScheduledProcessAction, flushRate)
     }
     super.preStart()
   }

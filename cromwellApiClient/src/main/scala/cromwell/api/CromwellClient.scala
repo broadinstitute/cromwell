@@ -4,12 +4,12 @@ import java.net.URL
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.coding.{Deflate, Gzip, NoCoding}
+import akka.http.scaladsl.coding.Coders
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{Authorization, HttpCredentials, HttpEncodings}
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.util.ByteString
 import cats.effect.IO
 import cromwell.api.CromwellClient._
@@ -31,7 +31,7 @@ import model.WorkflowCostJsonSupport._
 class CromwellClient(val cromwellUrl: URL,
                      val apiVersion: String,
                      val defaultCredentials: Option[HttpCredentials] = None
-)(implicit actorSystem: ActorSystem, materializer: ActorMaterializer) {
+)(implicit actorSystem: ActorSystem, materializer: Materializer) {
 
   lazy val defaultAuthorization: Option[Authorization] = defaultCredentials.map(Authorization(_))
   lazy val defaultHeaders: List[HttpHeader] = defaultAuthorization.toList
@@ -211,9 +211,9 @@ class CromwellClient(val cromwellUrl: URL,
     makeRequest[A](HttpRequest(uri = uri, method = method), headers)
 
   private val decoders = Map(
-    HttpEncodings.gzip -> Gzip,
-    HttpEncodings.deflate -> Deflate,
-    HttpEncodings.identity -> NoCoding
+    HttpEncodings.gzip -> Coders.Gzip,
+    HttpEncodings.deflate -> Coders.Deflate,
+    HttpEncodings.identity -> Coders.NoCoding
   )
 
   private def decodeResponse(response: HttpResponse): IO[HttpResponse] =

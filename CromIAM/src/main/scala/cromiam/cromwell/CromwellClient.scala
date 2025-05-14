@@ -7,7 +7,7 @@ import akka.event.LoggingAdapter
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import cats.effect.IO
 import com.softwaremill.sttp._
 import cromiam.auth.{Collection, User}
@@ -30,7 +30,7 @@ class CromwellClient(scheme: String,
                      port: Int,
                      log: LoggingAdapter,
                      serviceRegistryActorRef: ActorRef
-)(implicit system: ActorSystem, ece: ExecutionContextExecutor, materializer: ActorMaterializer)
+)(implicit system: ActorSystem, ece: ExecutionContextExecutor, materializer: Materializer)
     extends SprayJsonSupport
     with DefaultJsonProtocol
     with StatusCheckedSubsystem
@@ -74,7 +74,7 @@ class CromwellClient(scheme: String,
       val headers =
         httpRequest.headers.filterNot(header => header.name == TimeoutAccessHeader || header.name == HostHeader)
       val cromwellRequest = httpRequest
-        .copy(uri = httpRequest.uri.withAuthority(interface, port).withScheme(scheme))
+        .withUri(httpRequest.uri.withAuthority(interface, port).withScheme(scheme))
         .withHeaders(headers)
       Http().singleRequest(cromwellRequest)
     } recoverWith { case e =>

@@ -35,7 +35,7 @@ import scala.concurrent.duration._
   * @param serviceRegistryActor actorRef for the serviceRegistryActor
   */
 final class IoActor(ioConfig: IoConfig, override val serviceRegistryActor: ActorRef, applicationName: String)(implicit
-  val materializer: ActorMaterializer
+  val materializer: Materializer
 ) extends Actor
     with ActorLogging
     with StreamActorHelper[IoCommandContext[_]]
@@ -84,7 +84,7 @@ final class IoActor(ioConfig: IoConfig, override val serviceRegistryActor: Actor
     ).flow
       .withAttributes(ActorAttributes.dispatcher(Dispatcher.IoDispatcher))
 
-  private val source = Source.queue[IoCommandContext[_]](ioConfig.queueSize, OverflowStrategy.dropNew)
+  private val source = Source.queue[IoCommandContext[_]](ioConfig.queueSize, OverflowStrategy.dropBuffer)
 
   private val flow = GraphDSL.create() { implicit builder =>
     import GraphDSL.Implicits._
@@ -255,7 +255,7 @@ object IoActor {
   case class BackPressure(duration: FiniteDuration) extends ControlMessage
 
   def props(ioConfig: IoConfig, serviceRegistryActor: ActorRef, applicationName: String)(implicit
-    materializer: ActorMaterializer
+    materializer: Materializer
   ): Props =
     Props(new IoActor(ioConfig, serviceRegistryActor, applicationName)).withDispatcher(IoDispatcher)
 

@@ -52,7 +52,9 @@ final class DummySingletonActor() extends Actor with StrictLogging {
     bw.close()
   }
 
-  context.system.scheduler.schedule(10.seconds, 1.second)(self ! PrintCount)
+  context.system.scheduler.scheduleWithFixedDelay(1.second, 10.seconds)(new Runnable {
+    override def run(): Unit = self ! PrintCount
+  })(context.dispatcher)
 }
 
 object DummySingletonActor {

@@ -25,7 +25,7 @@ trait DynamicRateLimiter { this: Actor with Timers with ActorLogging =>
   }
 
   private def startDistributionTimer() = if (!dispensingRate.isZero && !timers.isTimerActive(ResetKey)) {
-    timers.startPeriodicTimer(ResetKey, ResetAction, dispensingRate.per)
+    timers.startTimerWithFixedDelay(ResetKey, ResetAction, dispensingRate.per)
   }
 
   private def releaseTokens() =

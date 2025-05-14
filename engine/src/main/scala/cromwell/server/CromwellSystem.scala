@@ -3,7 +3,7 @@ package cromwell.server
 import akka.Done
 import akka.actor.{ActorSystem, CoordinatedShutdown, DeadLetter, Props, Terminated}
 import akka.http.scaladsl.Http
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import com.typesafe.config.Config
 import cromwell.engine.CromwellTerminator
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
@@ -39,7 +39,7 @@ trait CromwellSystem extends CromwellTerminator {
   }
 
   implicit final lazy val actorSystem = newActorSystem()
-  implicit final lazy val materializer = ActorMaterializer()
+  implicit final lazy val materializer: Materializer = Materializer(actorSystem)
   implicit final private lazy val ec = actorSystem.dispatcher
 
   override def beginCromwellShutdown(reason: CoordinatedShutdown.Reason): Future[Done] =
@@ -58,7 +58,7 @@ trait CromwellSystem extends CromwellTerminator {
     } else actorSystem.whenTerminated
 
   private def shutdownMaterializerAndActorSystem() = {
-    materializer.shutdown()
+    // In Akka 2.6, materializer.shutdown() is no longer needed
     actorSystem.terminate()
   }
 

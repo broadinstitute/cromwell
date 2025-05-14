@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.event.NoLogging
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.model.{HttpRequest, HttpResponse, StatusCodes}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import cats.Monad
 import cats.effect.IO
 import cromiam.auth.{Collection, User}
@@ -16,7 +16,7 @@ import cromwell.api.model._
 
 import scala.concurrent.ExecutionContextExecutor
 
-class MockCromwellClient()(implicit system: ActorSystem, ece: ExecutionContextExecutor, materializer: ActorMaterializer)
+class MockCromwellClient()(implicit system: ActorSystem, ece: ExecutionContextExecutor, materializer: Materializer)
     extends CromwellClient("http", "bar", 1, NoLogging, ActorRef.noSender)(system, ece, materializer) {
   val version = "v1"
 
@@ -94,7 +94,7 @@ class MockCromwellClient()(implicit system: ActorSystem, ece: ExecutionContextEx
 class BaseMockSamClient(checkSubmitWhitelist: Boolean = true)(implicit
   system: ActorSystem,
   ece: ExecutionContextExecutor,
-  materializer: ActorMaterializer
+  materializer: Materializer
 ) extends SamClient(
       "http",
       "bar",
@@ -110,7 +110,7 @@ class BaseMockSamClient(checkSubmitWhitelist: Boolean = true)(implicit
 class MockSamClient(checkSubmitWhitelist: Boolean = true)(implicit
   system: ActorSystem,
   ece: ExecutionContextExecutor,
-  materializer: ActorMaterializer
+  materializer: Materializer
 ) extends BaseMockSamClient(checkSubmitWhitelist) {
 
   override def collectionsForUser(user: User, httpRequest: HttpRequest): FailureResponseOrT[List[Collection]] = {

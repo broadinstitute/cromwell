@@ -34,7 +34,7 @@ class SelectiveTsvInstrumentationServiceActor(serviceConfig: Config,
     with StrictLogging {
 
   implicit val ec: ExecutionContext = context.dispatcher
-  context.system.scheduler.schedule(10.seconds, 1.seconds)(self ! SnapshotState)
+  context.system.scheduler.scheduleWithFixedDelay(10.seconds, 1.seconds)(() => self ! SnapshotState)
 
   var stateHistory: StateHistory = StateHistory.empty
 

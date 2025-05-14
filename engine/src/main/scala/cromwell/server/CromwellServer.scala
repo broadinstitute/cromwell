@@ -4,7 +4,7 @@ import akka.actor.{ActorContext, ActorLogging, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import common.util.VersionUtil
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.services.instrumentation.CromwellInstrumentationActor
@@ -28,7 +28,7 @@ object CromwellServer {
 }
 
 class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(
-  implicit override val materializer: ActorMaterializer
+  implicit override val materializer: Materializer
 ) extends CromwellRootActor(
       terminator = cromwellSystem,
       gracefulShutdown = gracefulShutdown,
@@ -58,7 +58,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
   val nonApiRoutes: Route = concat(engineRoutes, swaggerUiResourceRoute)
   val allRoutes: Route = concat(apiRoutes, nonApiRoutes)
 
-  val serverBinding = Http().bindAndHandle(allRoutes, interface, port)
+  val serverBinding = Http().newServerAt(interface, port).bindFlow(allRoutes)
 
   CromwellShutdown.registerUnbindTask(actorSystem, serverBinding)
 
@@ -89,7 +89,7 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
 
 object CromwellServerActor {
   def props(cromwellSystem: CromwellSystem, gracefulShutdown: Boolean, abortJobsOnTerminate: Boolean)(implicit
-    materializer: ActorMaterializer
+    materializer: Materializer
   ): Props =
     Props(new CromwellServerActor(cromwellSystem, gracefulShutdown, abortJobsOnTerminate))
       .withDispatcher(EngineDispatcher)

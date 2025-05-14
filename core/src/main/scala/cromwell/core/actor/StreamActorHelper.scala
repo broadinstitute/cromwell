@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging}
 import akka.pattern.pipe
 import akka.stream.QueueOfferResult.Enqueued
 import akka.stream.scaladsl.{Sink, Source, SourceQueueWithComplete}
-import akka.stream.{ActorAttributes, ActorMaterializer, Supervision}
+import akka.stream.{ActorAttributes, Materializer, Supervision}
 import cromwell.core.actor.StreamActorHelper.{ActorRestartException, StreamCompleted, StreamFailed}
 import cromwell.core.actor.StreamIntegration._
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
@@ -22,7 +22,7 @@ trait StreamActorHelper[T <: StreamContext] { this: Actor with ActorLogging =>
 
   implicit def ec: ExecutionContext
 
-  implicit def materializer: ActorMaterializer
+  implicit def materializer: Materializer
 
   private val decider: Supervision.Decider = _ => Supervision.Resume
 

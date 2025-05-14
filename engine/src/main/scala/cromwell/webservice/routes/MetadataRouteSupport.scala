@@ -82,7 +82,7 @@ trait MetadataRouteSupport extends HttpInstrumentation {
     encodeResponse {
       path("workflows" / Segment / Segment / "metadata") { (_, possibleWorkflowId) =>
         instrumentRequest {
-          parameters((Symbol("includeKey").*, Symbol("excludeKey").*, Symbol("expandSubWorkflows").as[Boolean].?)) {
+          parameters(Symbol("includeKey").*, Symbol("excludeKey").*, Symbol("expandSubWorkflows").as[Boolean].?) {
             (includeKeys, excludeKeys, expandSubWorkflowsOption) =>
               val includeKeysOption = NonEmptyList.fromList(includeKeys.toList)
               val excludeKeysOption = NonEmptyList.fromList(excludeKeys.toList)

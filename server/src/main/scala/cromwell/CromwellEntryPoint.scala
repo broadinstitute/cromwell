@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.actor.CoordinatedShutdown.JvmExitReason
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.pattern.GracefulStopSupport
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import cats.data.Validated._
 import cats.effect.{ContextShift, IO}
 import cats.syntax.apply._
@@ -92,7 +92,7 @@ object CromwellEntryPoint extends GracefulStopSupport {
     lazy val Log = LoggerFactory.getLogger("cromwell-submit")
 
     implicit val actorSystem: ActorSystem = ActorSystem("SubmitSystem")
-    implicit val materializer: ActorMaterializer = ActorMaterializer()
+    implicit val materializer: Materializer = Materializer(actorSystem)
     implicit val ec: ExecutionContext = actorSystem.dispatcher
     implicit val cs: ContextShift[IO] = IO.contextShift(ec)
 

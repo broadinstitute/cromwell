@@ -7,7 +7,7 @@ import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.HttpHeader.ParsingResult.Ok
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.unmarshalling.{Unmarshal, Unmarshaller}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.util.ByteString
 import cats.implicits._
 import common.collections.EnhancedCollections._
@@ -354,7 +354,7 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     with TesJobCachingActorHelper
     with CromwellInstrumentation {
   implicit val actorSystem = context.system
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer = Materializer(actorSystem)
 
   override type StandardAsyncRunInfo = Any
 

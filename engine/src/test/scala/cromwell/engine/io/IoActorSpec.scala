@@ -1,6 +1,6 @@
 package cromwell.engine.io
 
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import better.files.File.OpenOptions
 import com.google.cloud.storage.StorageException
@@ -28,10 +28,10 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
   behavior of "IoActor"
 
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val materializer: Materializer = Materializer(system)
 
   override def afterAll(): Unit = {
-    materializer.shutdown()
+    // In Akka 2.6, materializer.shutdown() is no longer needed
     super.afterAll()
   }
 

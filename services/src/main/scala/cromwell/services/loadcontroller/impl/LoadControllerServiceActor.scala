@@ -45,7 +45,7 @@ class LoadControllerServiceActor(serviceConfig: Config,
 
   override def preStart() = {
     if (controlFrequency.isFinite)
-      timers.startPeriodicTimer(LoadControlTimerKey,
+      timers.startTimerWithFixedDelay(LoadControlTimerKey,
                                 LoadControlTimerAction,
                                 controlFrequency.asInstanceOf[FiniteDuration]
       )

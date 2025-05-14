@@ -135,14 +135,14 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
   private val deleteMetadataActor: Option[ActorRef] = buildDeleteMetadataActor
 
   // if `metadata-table-size-metrics-interval` is specified, schedule sending size metrics at that interval
-  metadataTableMetricsInterval.map(
-    context.system.scheduler.schedule(1.minute, _, self, SendMetadataTableSizeMetrics)(context.dispatcher, self)
+  metadataTableMetricsInterval.map(interval => 
+    context.system.scheduler.scheduleWithFixedDelay(1.minute, interval, self, SendMetadataTableSizeMetrics)(context.dispatcher)
   )
 
   private def scheduleSummary(): Unit =
     metadataSummaryRefreshInterval foreach { interval =>
       summaryRefreshCancellable =
-        Option(context.system.scheduler.scheduleOnce(interval, self, RefreshSummary)(context.dispatcher, self))
+        Option(context.system.scheduler.scheduleOnce(interval, self, RefreshSummary)(context.dispatcher))
     }
 
   override def postStop(): Unit = {

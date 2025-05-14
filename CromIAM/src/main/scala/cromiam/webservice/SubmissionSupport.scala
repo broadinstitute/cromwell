@@ -4,7 +4,7 @@ import akka.event.LoggingAdapter
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.util.ByteString
 import cats.effect.IO
 import cromiam.auth.Collection.{validateLabels, CollectionLabelName, LabelsKey}
@@ -26,7 +26,7 @@ trait SubmissionSupport extends RequestSupport {
   val log: LoggingAdapter
 
   implicit def executor: ExecutionContextExecutor
-  implicit val materializer: ActorMaterializer
+  implicit val materializer: Materializer
 
   // FIXME - getting pathPrefix to shrink this keeps hosing up, there's gotta be some way to do this
   def submitRoute: Route = (path("api" / "workflows" / Segment) | path("api" / "workflows" / Segment / "batch")) { _ =>
@@ -92,15 +92,14 @@ object SubmissionSupport {
     (
       extractCollection(user) &
         formFields(
-          (WorkflowSourceKey.?,
-           WorkflowUrlKey.?,
-           WorkflowTypeKey.?,
-           WorkflowTypeVersionKey.?,
-           WorkflowInputsKey.?,
-           WorkflowOptionsKey.?,
-           WorkflowOnHoldKey.as[Boolean].?,
-           WorkflowDependenciesKey.as[ByteString].?
-          )
+          WorkflowSourceKey.?, 
+          WorkflowUrlKey.?, 
+          WorkflowTypeKey.?, 
+          WorkflowTypeVersionKey.?, 
+          WorkflowInputsKey.?, 
+          WorkflowOptionsKey.?, 
+          WorkflowOnHoldKey.as[Boolean].?, 
+          WorkflowDependenciesKey.as[ByteString].?
         ) &
         extractLabels &
         extractInputAux

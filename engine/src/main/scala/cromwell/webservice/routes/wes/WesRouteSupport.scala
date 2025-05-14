@@ -6,7 +6,7 @@ import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.directives.RouteDirectives.complete
 import akka.http.scaladsl.server.{Directive1, Route}
 import akka.pattern.{ask, AskTimeoutException}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import com.typesafe.config.ConfigFactory
@@ -48,7 +48,7 @@ trait WesRouteSupport extends HttpInstrumentation {
 
   implicit val ec: ExecutionContext
   implicit val timeout: Timeout
-  implicit val materializer: ActorMaterializer
+  implicit val materializer: Materializer
 
   /*
     Defines routes intended to sit alongside the primary Cromwell REST endpoints. For instance, we'll now have:
@@ -75,7 +75,7 @@ trait WesRouteSupport extends HttpInstrumentation {
             },
             path("runs") {
               get {
-                parameters(("page_size".as[Int].?, "page_token".?)) { (pageSize, pageToken) =>
+                parameters("page_size".as[Int].?, "page_token".?) { (pageSize, pageToken) =>
                   completeCromwellResponse(listRuns(pageSize, pageToken, serviceRegistryActor))
                 }
               } ~
@@ -220,7 +220,6 @@ object WesRouteSupport {
 
   def extractSubmission(): Directive1[WesSubmission] =
     formFields(
-      (
         "workflow_params".?,
         "workflow_type".?,
         "workflow_type_version".?,
@@ -228,7 +227,6 @@ object WesRouteSupport {
         "workflow_engine_parameters".?,
         "workflow_url".?,
         "workflow_attachment".as[String].*
-      )
     ).as(WesSubmission)
 
   def completeCromwellResponse(future: => Future[WesResponse]): Route =

@@ -1,7 +1,7 @@
 package cromwell.engine.io.nio
 
 import akka.actor.ActorRef
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.stream.scaladsl.{Keep, Sink, Source}
 import cats.effect.IO
 import com.google.cloud.storage.StorageException
@@ -44,12 +44,12 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
                                  commandBackpressureStaleness = 5 seconds
   )(system).flow
 
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val materializer: Materializer = Materializer(system)
   private val replyTo = mock[ActorRef]
   private val readSink = Sink.head[(IoAck[_], IoCommandContext[_])]
 
   override def afterAll(): Unit = {
-    materializer.shutdown()
+    // In Akka 2.6, materializer.shutdown() is no longer needed
     super.afterAll()
   }
 

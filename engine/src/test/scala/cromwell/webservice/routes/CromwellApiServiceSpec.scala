@@ -5,7 +5,7 @@ import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.{RouteTestTimeout, ScalatestRouteTest}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import com.typesafe.scalalogging.StrictLogging
 import common.util.VersionUtil
 import cromwell.core._
@@ -600,7 +600,7 @@ object CromwellApiServiceSpec {
   class MockApiService()(implicit val system: ActorSystem) extends CromwellApiService {
     override def actorRefFactory = system
 
-    override val materializer = ActorMaterializer()
+    override val materializer = Materializer(system)
     override val ec = system.dispatcher
     override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
     override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))

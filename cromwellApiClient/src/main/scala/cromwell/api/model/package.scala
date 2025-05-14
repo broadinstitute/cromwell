@@ -4,7 +4,7 @@ import java.time.OffsetDateTime
 
 import akka.http.scaladsl.model.HttpResponse
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import cats.arrow.FunctionK
 import cats.data.EitherT
 import cats.effect.{ContextShift, IO, Timer}
@@ -62,7 +62,7 @@ package object model {
     )(implicit timer: Timer[IO], cs: ContextShift[IO]): FailureResponseOrT[SuccessType] =
       EitherT(responseIoT.value.timeout(duration))
 
-    def asIo(implicit materializer: ActorMaterializer, executionContext: ExecutionContext): IO[SuccessType] =
+    def asIo(implicit materializer: Materializer, executionContext: ExecutionContext): IO[SuccessType] =
       responseIoT.value flatMap {
         case Left(response) =>
           implicit def cs = IO.contextShift(executionContext)

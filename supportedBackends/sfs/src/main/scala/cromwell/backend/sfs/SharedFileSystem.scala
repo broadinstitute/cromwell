@@ -3,7 +3,7 @@ package cromwell.backend.sfs
 import java.io.{FileNotFoundException, IOException}
 
 import akka.actor.ActorContext
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import cats.syntax.functor._
 import cats.instances.try_._
 import com.typesafe.config.Config
@@ -316,7 +316,7 @@ trait SharedFileSystem extends PathFactory {
     val staged: WomFile = value.mapFile { input =>
       pathBuilders.collectFirst { case h: HttpPathBuilder if HttpPathBuilder.accepts(input) => h } match {
         case Some(httpPathBuilder) =>
-          implicit val materializer = ActorMaterializer()
+          implicit val materializer = Materializer(actorContext.system)
           implicit val ec: ExecutionContext = actorContext.dispatcher
 
           Await.result(httpPathBuilder.content(input).map(_.toString), Duration.Inf)

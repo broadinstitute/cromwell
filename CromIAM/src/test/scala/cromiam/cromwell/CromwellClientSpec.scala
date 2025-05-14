@@ -6,7 +6,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.event.NoLogging
 import akka.http.scaladsl.model.headers.{Authorization, OAuth2BearerToken}
 import akka.http.scaladsl.model.{HttpHeader, HttpRequest, HttpResponse}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cromiam.auth.User
@@ -27,7 +27,7 @@ class CromwellClientSpec extends AsyncFlatSpec with Matchers with BeforeAndAfter
 
   implicit val actorSystem: ActorSystem = ActorSystem("CromwellClientSpec")
   implicit val ece: ExecutionContextExecutor = actorSystem.dispatcher
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val materializer: Materializer = Materializer(actorSystem)
 
   val cromwellClient = new MockCromwellClient()
 
@@ -78,7 +78,7 @@ object CromwellClientSpec {
   final class MockCromwellClient()(implicit
     system: ActorSystem,
     ece: ExecutionContextExecutor,
-    materializer: ActorMaterializer
+    materializer: Materializer
   ) extends CromwellClient("http", "bar", 1, NoLogging, ActorRef.noSender) {
     override val cromwellApiClient: CromwellApiClient = new MockCromwellApiClient()
 
@@ -88,7 +88,7 @@ object CromwellClientSpec {
     ): Unit = ()
   }
 
-  final class MockCromwellApiClient()(implicit actorSystem: ActorSystem, materializer: ActorMaterializer)
+  final class MockCromwellApiClient()(implicit actorSystem: ActorSystem, materializer: Materializer)
       extends CromwellApiClient(new URL("http://foo.com"), "bar") {
 
     override def labels(workflowId: WorkflowId, headers: List[HttpHeader] = defaultHeaders)(implicit

@@ -1,6 +1,6 @@
 package cromwell.engine.io
 
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.Tags.IntegrationTest
@@ -32,12 +32,12 @@ class IoActorProxyGcsBatchSpec
   behavior of "IoActor [GCS Batch]"
 
   implicit val ec: ExecutionContext = system.dispatcher
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+  implicit val materializer: Materializer = Materializer(system)
 
   private val instanceConfig = ConfigFactory.parseString("auth = \"integration-test\"")
 
   override def afterAll(): Unit = {
-    materializer.shutdown()
+    // In Akka 2.6, materializer.shutdown() is no longer needed
     src.delete(swallowIOExceptions = true)
     srcRequesterPays.delete(swallowIOExceptions = true)
     dst.delete(swallowIOExceptions = true)

@@ -2,7 +2,7 @@ package cromwell
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props, Terminated}
 import akka.pattern.ask
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import cromwell.CromwellTestKitSpec._
@@ -243,7 +243,7 @@ object CromwellTestKitSpec {
                                        "ServiceRegistryActor"
     )
 
-  class TestCromwellRootActor(config: Config)(implicit materializer: ActorMaterializer)
+  class TestCromwellRootActor(config: Config)(implicit materializer: Materializer)
       extends CromwellRootActor(MockCromwellTerminator, false, false, serverMode = true, config = config) {
 
     override lazy val serviceRegistryActor: ActorRef = ServiceRegistryActorInstance
@@ -288,7 +288,7 @@ abstract class CromwellTestKitSpec
   implicit lazy val defaultPatience: PatienceConfig =
     PatienceConfig(timeout = Span(200, Seconds), interval = Span(1000, Millis))
   implicit lazy val ec: ExecutionContext = system.dispatcher
-  implicit lazy val materializer: ActorMaterializer = twms.materializer
+  implicit lazy val materializer: Materializer = twms.materializer
   lazy val dummyServiceRegistryActor: ActorRef = system.actorOf(Props.empty, "dummyServiceRegistryActor")
   lazy val dummyLogCopyRouter: ActorRef = system.actorOf(Props.empty, "dummyLogCopyRouter")
 

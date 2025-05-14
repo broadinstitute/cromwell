@@ -5,7 +5,7 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.OAuth2BearerToken
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.util.Timeout
 import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.util.ImportResolver.ImportAuthProvider
@@ -26,7 +26,7 @@ trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport 
 
   implicit def actorRefFactory: ActorRefFactory
   implicit val ec: ExecutionContext
-  implicit val materializer: ActorMaterializer
+  implicit val materializer: Materializer
   implicit val timeout: Timeout
 
   val serviceRegistryActor: ActorRef

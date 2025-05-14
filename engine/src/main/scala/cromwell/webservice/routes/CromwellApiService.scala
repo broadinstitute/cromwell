@@ -11,7 +11,7 @@ import akka.http.scaladsl.model.ContentTypes._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{ExceptionHandler, Route}
 import akka.pattern.{ask, AskTimeoutException}
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import akka.util.Timeout
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
@@ -55,7 +55,7 @@ trait CromwellApiService
   import CromwellApiService._
 
   implicit def actorRefFactory: ActorRefFactory
-  implicit val materializer: ActorMaterializer
+  implicit val materializer: Materializer
   implicit val ec: ExecutionContext
 
   val workflowStoreActor: ActorRef

@@ -5,7 +5,7 @@ import akka.actor.{Actor, ActorInitializationException, ActorLogging, ActorRef, 
 import akka.event.Logging
 import akka.pattern.GracefulStopSupport
 import akka.routing.RoundRobinPool
-import akka.stream.ActorMaterializer
+import akka.stream.Materializer
 import com.typesafe.config.Config
 import cromwell.backend.standard.GroupMetricsActor
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -60,7 +60,7 @@ abstract class CromwellRootActor(terminator: CromwellTerminator,
                                  abortJobsOnTerminate: Boolean,
                                  val serverMode: Boolean,
                                  protected val config: Config
-)(implicit materializer: ActorMaterializer)
+)(implicit materializer: Materializer)
     extends Actor
     with ActorLogging
     with GracefulShutdownHelper {

@@ -1,6 +1,5 @@
-**Google Cloud Batch Backend (alpha)**
+**Google Cloud Batch Backend**
 
-[//]:
 Google Cloud Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
 
 This section offers detailed configuration instructions for using Cromwell with the Google Cloud Batch in all supported
@@ -8,8 +7,6 @@ authentication modes. Before reading further in this section please see the
 [Getting started on Google Cloud Batch](../tutorials/GcpBatch101) for instructions common to all authentication modes
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
-
-*NOTE*: Google Cloud Batch is still in alpha version, this means that there could be breaking changes, be sure to review the [GCP Batch CHANGELOG](https://github.com/broadinstitute/cromwell/blob/develop/CHANGELOG.md#gcp-batch) carefully before upgrading.
 
 **Configuring Authentication**
 
@@ -163,6 +160,31 @@ backend {
 
 Note that as per the Google Secret Manager docs, the compute service account for the project in which the GCP Batch
 jobs will run will need to be assigned the `Secret Manager Secret Accessor` IAM role.
+
+***Dockerhub Mirroring***
+
+Cromwell supports automatic use of [GAR's Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images) 
+in the Batch backend. When enabled, Dockerhub images will be pulled through this mirror rather than directly from Dockerhub. 
+
+To use, include the below `docker-mirror` config in your backend configuration:
+```
+backend {
+  default = GCPBATCH
+  providers {
+    GCPBATCH {
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
+      config {
+        docker-mirror {
+          dockerhub {
+            enabled: true
+            address: "mirror.gcr.io"
+          }
+        }
+      }
+    }
+  }
+}
+```
 
 **Monitoring**
 

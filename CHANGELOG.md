@@ -1,5 +1,10 @@
 # Cromwell Change Log
 
+## 90 Release Notes
+
+### GCP Batch
+ * Cromwell now supports automatic use of the [GAR Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images), see [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/) for details.
+
 ## 89 Release Notes
 
 ### Improvements

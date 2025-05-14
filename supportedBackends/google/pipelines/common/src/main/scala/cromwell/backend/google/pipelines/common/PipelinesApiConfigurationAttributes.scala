@@ -23,6 +23,7 @@ import cromwell.backend.google.pipelines.common.callcaching.{
 import cromwell.backend.google.pipelines.common.io.PipelinesApiReferenceFilesDisk
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.docker.DockerMirroring
 import cromwell.filesystems.gcs.GcsPathBuilder
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import eu.timepit.refined.api.Refined
@@ -51,6 +52,7 @@ case class PipelinesApiConfigurationAttributes(
   cacheHitDuplicationStrategy: PipelinesCacheHitDuplicationStrategy,
   requestWorkers: Int Refined Positive,
   pipelineTimeout: FiniteDuration,
+  dockerMirroringOpt: Option[DockerMirroring],
   quotaAttempts: Int,
   logFlushPeriod: Option[FiniteDuration],
   gcsTransferConfiguration: GcsTransferConfiguration,
@@ -112,6 +114,8 @@ object PipelinesApiConfigurationAttributes
     "concurrent-job-limit",
     "request-workers",
     "pipeline-timeout",
+    "docker-mirror.dockerhub.enabled",
+    "docker-mirror.dockerhub.address",
     "quota-attempts",
     "batch-requests.timeouts.read",
     "batch-requests.timeouts.connect",
@@ -230,6 +234,8 @@ object PipelinesApiConfigurationAttributes
 
     val quotaAttempts: Int = backendConfig.as[Option[Int]]("quota-attempts").getOrElse(20)
 
+    val dockerMirroring: Option[DockerMirroring] = DockerMirroring.fromConfig(backendConfig)
+
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
       case Some(duration) if duration.isFinite => Option(duration)
       // "Inf" disables upload
@@ -324,6 +330,7 @@ object PipelinesApiConfigurationAttributes
           cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
           requestWorkers = requestWorkers,
           pipelineTimeout = pipelineTimeout,
+          dockerMirroringOpt = dockerMirroring,
           quotaAttempts = quotaAttempts,
           logFlushPeriod = logFlushPeriod,
           gcsTransferConfiguration = gcsTransferConfiguration,

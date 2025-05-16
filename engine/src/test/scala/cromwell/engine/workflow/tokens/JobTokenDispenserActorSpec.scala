@@ -2,6 +2,7 @@ package cromwell.engine.workflow.tokens
 
 import akka.actor.{ActorRef, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestProbe}
+import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.standard.GroupMetricsActor
 import cromwell.backend.standard.GroupMetricsActor.{
   GetQuotaExhaustedGroups,
@@ -32,7 +33,8 @@ class JobTokenDispenserActorSpec
     with Matchers
     with BeforeAndAfter
     with BeforeAndAfterAll
-    with Eventually {
+    with Eventually
+    with LazyLogging {
 
   val MaxWaitTime: FiniteDuration = 10.seconds
   implicit val pc: PatienceConfig = PatienceConfig(MaxWaitTime)
@@ -47,14 +49,16 @@ class JobTokenDispenserActorSpec
                                    jobExecutionTokenDispenserActorName: String
   ): TestActorRef[JobTokenDispenserActor] =
     TestActorRef(
-      factory = new JobTokenDispenserActor(
-        serviceRegistryActor = TestProbe(serviceRegistryActorName).ref,
-        dispensingRate = Rate(10, 100.millis),
-        logInterval = None,
-        dispenserType = "execution",
-        tokenAllocatedDescription = "Running",
-        Option(mockGroupMetricsActor)
-      ),
+      props = JobTokenDispenserActor
+        .props(
+          serviceRegistryActor = TestProbe(serviceRegistryActorName).ref,
+          rate = Rate(10, 5.second),
+          logInterval = None,
+          dispenserType = "execution",
+          tokenAllocatedDescription = "Running",
+          Option(mockGroupMetricsActor)
+        )
+        .withDispatcher("akka.dispatchers.engine-dispatcher"),
       name = jobExecutionTokenDispenserActorName
     )
 
@@ -72,6 +76,28 @@ class JobTokenDispenserActorSpec
       .tokenLease
       .get()
       .jobTokenType shouldBe TestInfiniteTokenType
+  }
+
+  it should "reproduce a race condition causing a requested token to never be dispensed" in {
+    val requestProbe1 = TestProbe()
+    val requestProbe2 = TestProbe()
+    val actorRefUnderTest =
+      getActorRefUnderTest(
+        serviceRegistryActorName = "serviceRegistryActor-dispense",
+        jobExecutionTokenDispenserActorName = "dispense"
+      )
+
+    logger.info("Sending JobTokenRequest for probe 1")
+    requestProbe1.send(actorRefUnderTest, JobTokenRequest(hogGroupA, LimitedTo5Tokens))
+    Thread.sleep(7.second.toMillis)
+    logger.info("Sending JobTokenRequest for probe 2")
+    requestProbe2.send(actorRefUnderTest, JobTokenRequest(hogGroupA, LimitedTo5Tokens))
+
+    requestProbe1.expectMsg(max = MaxWaitTime, JobTokenDispensed)
+
+    // Waiting forever because our request was clobbered
+    requestProbe2.expectNoMessage(max = MaxWaitTime)
+
   }
 
   it should "dispense token to hog group not experiencing quota exhaustion" in {

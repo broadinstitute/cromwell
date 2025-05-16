@@ -190,6 +190,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
         }
       log.info(s"Assigned new job $dispenserType tokens to the following groups: ${hogGroupCounts.mkString(", ")}")
     }
+    Thread.sleep(4.seconds.toMillis)
 
     nextTokens.foreach {
       case LeasedActor(queuePlaceholder, lease) if !tokenAssignments.contains(queuePlaceholder.actor) =>
@@ -211,6 +212,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     tokenQueues = iterator.updatedQueues.map(queue => queue.tokenType -> queue).toMap
     currentTokenQueuePointer = iterator.updatedPointer
+    log.info("Completed token distribution")
   }
 
   private def release(actor: ActorRef): Unit =

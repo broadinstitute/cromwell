@@ -29,25 +29,32 @@ class BatchRequestExecutorSpec
     with MockSugar
     with PrivateMethodTester {
 
-  val startStatusEvent = StatusEvent
-    .newBuilder()
-    .setType("STATUS_CHANGED")
-    .setEventTime(Timestamp.newBuilder().setSeconds(1).build())
-    .setDescription("Job state is set from SCHEDULED to RUNNING for job...")
-    .build()
-
-  val endStatusEvent = StatusEvent
-    .newBuilder()
-    .setType("STATUS_CHANGED")
-    .setEventTime(Timestamp.newBuilder().setSeconds(2).build())
-    .setDescription("Job state is set from RUNNING to SOME_OTHER_STATUS for job...")
-    .build()
-
   val schedulingStatusEvent = StatusEvent
     .newBuilder()
     .setType("STATUS_CHANGED")
-    .setEventTime(Timestamp.newBuilder().setSeconds(3).build())
+    .setEventTime(Timestamp.newBuilder().setSeconds(1).build())
     .setDescription("Job state is set from QUEUED to SCHEDULED for job...")
+    .build()
+
+  val runningStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(2).build())
+    .setDescription("Job state is set from SCHEDULED to RUNNING for job...")
+    .build()
+
+  val terminalStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(3).build())
+    .setDescription("Job state is set from RUNNING to SOME_OTHER_STATUS for job...")
+    .build()
+
+  val scheduleFailedStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(5).build())
+    .setDescription("Job state is set from SCHEDULED_PENDING_FAILED to FAILED for job...")
     .build()
 
   val preemptionError = "Job state is set from SCHEDULED to FAILED for job projects/....Job failed due to task " +
@@ -94,7 +101,7 @@ class BatchRequestExecutorSpec
 
   behavior of "BatchRequestExecutor"
 
-  it should "create a schedule status event correctly" in {
+  it should "create a schedule status and vmStartTime event correctly" in {
 
     val mockClient = setupBatchClient(jobState = JobStatus.State.QUEUED, events = List(schedulingStatusEvent))
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
@@ -106,9 +113,9 @@ class BatchRequestExecutorSpec
     // Verify the event
     result.status match {
       case RunStatus.Initializing(events, _) =>
-        events.length shouldBe 1
-        events.map(_.name).head shouldBe "Job state is set from QUEUED to SCHEDULED for job..."
-        events.map(_.offsetDateTime.toString).head shouldBe "1970-01-01T00:00:03Z"
+        events.length shouldBe 2
+        events.map(_.name) should contain allOf ("Job state is set from QUEUED to SCHEDULED for job...", "vmStartTime")
+        events.map(_.offsetDateTime.toString) shouldBe List("1970-01-01T00:00:01Z", "1970-01-01T00:00:01Z")
       case _ => fail("Expected RunStatus.Initializing with events")
     }
   }
@@ -137,7 +144,7 @@ class BatchRequestExecutorSpec
   it should "create instantiatedVmInfo correctly" in {
 
     val mockClient =
-      setupBatchClient(jobState = JobStatus.State.RUNNING, events = List(startStatusEvent, endStatusEvent))
+      setupBatchClient(jobState = JobStatus.State.RUNNING, events = List(runningStatusEvent, terminalStatusEvent))
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
 
@@ -159,7 +166,7 @@ class BatchRequestExecutorSpec
 
     val mockClient = setupBatchClient(location = "zones/us-central1-a",
                                       jobState = JobStatus.State.RUNNING,
-                                      events = List(startStatusEvent, endStatusEvent)
+                                      events = List(runningStatusEvent, terminalStatusEvent)
     )
 
     // Create the BatchRequestExecutor
@@ -182,7 +189,7 @@ class BatchRequestExecutorSpec
   it should "create instantiatedVmInfo correctly with missing location info" in {
 
     val mockClient =
-      setupBatchClient(jobState = JobStatus.State.RUNNING, events = List(startStatusEvent, endStatusEvent))
+      setupBatchClient(jobState = JobStatus.State.RUNNING, events = List(runningStatusEvent, terminalStatusEvent))
 
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
@@ -203,7 +210,7 @@ class BatchRequestExecutorSpec
 
   it should "send vmStartTime and vmEndTime metadata info when a workflow succeeds" in {
 
-    val mockClient = setupBatchClient(events = List(startStatusEvent, endStatusEvent))
+    val mockClient = setupBatchClient(events = List(schedulingStatusEvent, runningStatusEvent, terminalStatusEvent))
 
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
@@ -216,16 +223,20 @@ class BatchRequestExecutorSpec
     result.status match {
       case RunStatus.Success(events, _) =>
         val eventNames = events.map(_.name)
-        val eventTimes = events.map(_.offsetDateTime.toString)
         eventNames should contain allOf ("vmStartTime", "vmEndTime")
-        eventTimes should contain allOf ("1970-01-01T00:00:01Z", "1970-01-01T00:00:02Z")
+
+        val vmStartTime = events.find(e => e.name == "vmStartTime").get
+        val vmEndTime = events.find(e => e.name == "vmEndTime").get
+
+        vmStartTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:01Z"
+        vmEndTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:03Z"
       case _ => fail("Expected RunStatus.Success with events")
     }
   }
 
   it should "send vmStartTime and vmEndTime metadata info along with other events when a workflow fails" in {
     val mockClient =
-      setupBatchClient(jobState = JobStatus.State.FAILED, events = List(startStatusEvent, endStatusEvent))
+      setupBatchClient(jobState = JobStatus.State.FAILED, events = List(schedulingStatusEvent, runningStatusEvent, terminalStatusEvent))
 
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
@@ -238,13 +249,42 @@ class BatchRequestExecutorSpec
     result.status match {
       case RunStatus.Failed(_, events, _) =>
         val eventNames = events.map(_.name)
-        val eventTimes = events.map(_.offsetDateTime.toString)
-        println(eventNames)
         eventNames should contain allOf ("vmStartTime", "vmEndTime")
+
+        val vmStartTime = events.find(e => e.name == "vmStartTime").get
+        val vmEndTime = events.find(e => e.name == "vmEndTime").get
+
         eventNames should contain allOf ("Job state is set from RUNNING to SOME_OTHER_STATUS for job...", "Job state is set from SCHEDULED to RUNNING for job...")
-        eventTimes should contain allOf ("1970-01-01T00:00:01Z", "1970-01-01T00:00:02Z")
-      case _ => fail("Expected RunStatus.Success with events")
+        vmStartTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:01Z"
+        vmEndTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:03Z"
+      case _ => fail("Expected RunStatus.Failed with events")
     }
   }
 
+  it should "send vmStartTime and vmEndTime metadata info along with other events when a job fails to run" in {
+    val mockClient =
+      setupBatchClient(jobState = JobStatus.State.FAILED, events = List(schedulingStatusEvent, scheduleFailedStatusEvent))
+
+    // Create the BatchRequestExecutor
+    val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
+
+    // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
+    val internalGetHandler = PrivateMethod[BatchApiResponse.StatusQueried](Symbol("internalGetHandler"))
+    val result = batchRequestExecutor invokePrivate internalGetHandler(mockClient, GetJobRequest.newBuilder().build())
+
+    // Verify the events
+    result.status match {
+      case RunStatus.Failed(_, events, _) =>
+        val eventNames = events.map(_.name)
+        eventNames should contain allOf ("vmStartTime", "vmEndTime")
+
+        val vmStartTime = events.find(e => e.name == "vmStartTime").get
+        val vmEndTime = events.find(e => e.name == "vmEndTime").get
+
+        eventNames should contain allOf ("Job state is set from SCHEDULED_PENDING_FAILED to FAILED for job...", "Job state is set from QUEUED to SCHEDULED for job...")
+        vmStartTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:01Z"
+        vmEndTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:05Z"
+      case _ => fail("Expected RunStatus.Failed with events")
+    }
+  }
 }

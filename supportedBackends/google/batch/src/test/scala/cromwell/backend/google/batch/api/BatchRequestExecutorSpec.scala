@@ -236,7 +236,9 @@ class BatchRequestExecutorSpec
 
   it should "send vmStartTime and vmEndTime metadata info along with other events when a workflow fails" in {
     val mockClient =
-      setupBatchClient(jobState = JobStatus.State.FAILED, events = List(schedulingStatusEvent, runningStatusEvent, terminalStatusEvent))
+      setupBatchClient(jobState = JobStatus.State.FAILED,
+                       events = List(schedulingStatusEvent, runningStatusEvent, terminalStatusEvent)
+      )
 
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
@@ -263,7 +265,9 @@ class BatchRequestExecutorSpec
 
   it should "send vmStartTime and vmEndTime metadata info along with other events when a job fails to run" in {
     val mockClient =
-      setupBatchClient(jobState = JobStatus.State.FAILED, events = List(schedulingStatusEvent, scheduleFailedStatusEvent))
+      setupBatchClient(jobState = JobStatus.State.FAILED,
+                       events = List(schedulingStatusEvent, scheduleFailedStatusEvent)
+      )
 
     // Create the BatchRequestExecutor
     val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())

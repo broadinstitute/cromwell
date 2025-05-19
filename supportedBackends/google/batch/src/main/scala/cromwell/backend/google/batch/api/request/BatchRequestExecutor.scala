@@ -176,7 +176,7 @@ object BatchRequestExecutor {
     }
 
     private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] = {
-      // on Batch, when job transitions to SCHEDULED state it indicates that the VM is being. Users are billed for this
+      // on Batch, when job transitions to SCHEDULED state it indicates that the VM is being initialized. Users are billed for this
       // startup time. Hence, the 'vmStartTime' corresponds to when the job enters the SCHEDULED state.
       val startedRegex = ".*QUEUED to SCHEDULED.*".r
 

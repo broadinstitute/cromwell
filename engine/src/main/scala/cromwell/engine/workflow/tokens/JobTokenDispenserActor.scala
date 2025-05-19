@@ -127,13 +127,8 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     count(tokensReturnedMetricPath, 0L, ServicesPrefix)
   }
 
-  private def enqueue(sndr: ActorRef, hogGroup: String, tokenType: JobTokenType): Unit = {
-    val senderId = sndr.toString().split('#').lastOption.getOrElse("ERR").stripSuffix("]")
-    log.info(
-      s"Enqueing request from ${senderId} for $dispenserType token of type $tokenType for $hogGroup"
-    )
+  private def enqueue(sndr: ActorRef, hogGroup: String, tokenType: JobTokenType): Unit =
     if (tokenAssignments.contains(sndr)) {
-      log.info(s"$senderId already assigned a token")
       sndr ! JobTokenDispensed
     } else {
       val queue = tokenQueues.getOrElse(tokenType, TokenQueue(tokenType, tokenEventLogger))
@@ -142,7 +137,6 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       increment(requestsEnqueuedMetricPath, ServicesPrefix)
       ()
     }
-  }
 
   private def checkAndDispenseTokens(n: Int): Unit =
     if (tokenQueues.nonEmpty) {
@@ -185,9 +179,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
     if (nextTokens.nonEmpty) {
       val hogGroupCounts =
-        nextTokens.groupBy(t => t.queuePlaceholder.hogGroup).map { case (hogGroup, list) =>
-          s"$hogGroup: ${list.size} (${list.map(_.actor.toString().split('#').lastOption.getOrElse("ERR").stripSuffix("]")).mkString(", ")})"
-        }
+        nextTokens.groupBy(t => t.queuePlaceholder.hogGroup).map { case (hogGroup, list) => s"$hogGroup: ${list.size}" }
       log.info(s"Assigned new job $dispenserType tokens to the following groups: ${hogGroupCounts.mkString(", ")}")
     }
 

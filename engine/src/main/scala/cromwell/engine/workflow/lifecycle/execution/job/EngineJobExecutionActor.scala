@@ -620,23 +620,15 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     runJob(updatedData)
   }
 
-  private def requestRestartCheckToken(): Unit = {
-    jobLogger.info(
-      s"EJEA ${self.toString().split('#').lastOption.getOrElse("ERR").stripSuffix("]")} is requesting restart token of type ${backendLifecycleActorFactory.jobExecutionTokenType} for ${workflowDescriptor.backendDescriptor.hogGroup}"
-    )
+  private def requestRestartCheckToken(): Unit =
     jobRestartCheckTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup,
                                                          backendLifecycleActorFactory.jobRestartCheckTokenType
     )
-  }
 
-  private def requestExecutionToken(): Unit = {
-    jobLogger.info(
-      s"EJEA ${self.toString().split('#').lastOption.getOrElse("ERR").stripSuffix("]")} is requesting execution token of type ${backendLifecycleActorFactory.jobExecutionTokenType} for ${workflowDescriptor.backendDescriptor.hogGroup}"
-    )
+  private def requestExecutionToken(): Unit =
     jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup,
                                                       backendLifecycleActorFactory.jobExecutionTokenType
     )
-  }
 
   // Return any currently held job restart check or execution token.
   private def returnCurrentToken(): Unit = if (

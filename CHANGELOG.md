@@ -6,6 +6,9 @@
  * Cromwell now supports automatic use of the [GAR Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images), see [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/) for details.
  * VM initialization time in now included in estimated cost calculation for jobs. 
 
+### Bug fixes
+ * Fixed a concurrency bug that in rare cases caused tasks to never start.
+
 ## 89 Release Notes
 
 ### Improvements

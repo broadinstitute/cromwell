@@ -126,11 +126,13 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   // to already being limited by quota.
   private def quotaExhaustedGroupsReceive: Receive = {
     case RefreshQuotaExhaustedGroups(interval) =>
-      groupMetricsActor.foreach(gmActor => gmActor ! GetQuotaExhaustedGroups)
-      context.system.scheduler.scheduleOnce(interval)(self ! RefreshQuotaExhaustedGroups(interval))(
-        context.dispatcher
-      )
-      ()
+      groupMetricsActor.foreach { gmActor =>
+        gmActor ! GetQuotaExhaustedGroups
+        context.system.scheduler.scheduleOnce(interval)(self ! RefreshQuotaExhaustedGroups(interval))(
+          context.dispatcher
+        )
+        ()
+      }
     case GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups) =>
       this.quotaExhaustedGroups = quotaExhaustedGroups
     case GetQuotaExhaustedGroupsFailure(errorMsg) =>

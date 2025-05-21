@@ -5,6 +5,7 @@
 ### GCP Batch
  * Cromwell now supports automatic use of the [GAR Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images), see [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/) for details.
  * VM initialization time in now included in estimated cost calculation for jobs. 
+ * Task log files are now included in the group of files copied for call cache hits.
 
 ## 89 Release Notes
 

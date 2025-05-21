@@ -193,9 +193,6 @@ cromwell::private::create_build_variables() {
         centaurHoricromtalPapiV2beta*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/papi_v2beta_horicromtal_application.conf"
             ;;
-        centaurBlob*)
-            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/centaur_blob_test.conf"
-            ;;
         *)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
             ;;
@@ -369,7 +366,6 @@ cromwell::private::create_centaur_variables() {
     CROMWELL_BUILD_CENTAUR_TYPE_PAPI_UPGRADE_NEW_WORKFLOWS="papiUpgradeNewWorkflows"
     CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL_ENGINE_UPGRADE="horicromtalEngineUpgrade"
     CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL="horicromtal"
-    CROMWELL_BUILD_CENTAUR_TYPE_AZURE_BLOB="azureBlob"
 
     case "${CROMWELL_BUILD_TYPE}" in
         centaurEngineUpgrade*)
@@ -386,9 +382,6 @@ cromwell::private::create_centaur_variables() {
             ;;
         centaurHoricromtal*)
             CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_HORICROMTAL}"
-            ;;
-        centaurBlob*)
-            CROMWELL_BUILD_CENTAUR_TYPE="${CROMWELL_BUILD_CENTAUR_TYPE_AZURE_BLOB}"
             ;;
         *)
             # Only set the type if Jenkins, etc. has not already set the centaur type

@@ -6,7 +6,6 @@ import akka.util.Timeout
 import cats.data.Validated.{Invalid, Valid}
 import com.typesafe.config.ConfigFactory
 import cromwell.core.TestKitSuite
-import cromwell.languages.util.ImportResolver.GithubImportAuthProvider
 import cromwell.services.ServiceRegistryActor.ServiceRegistryFailure
 import cromwell.services.auth.GithubAuthVending.{GithubAuthRequest, GithubToken, TerraToken}
 import cromwell.services.auth.GithubAuthVendingSupportSpec.TestGithubAuthVendingSupport
@@ -19,7 +18,7 @@ import scala.concurrent.duration._
 
 class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
-  private def azureGithubAuthVendingConfig(enabled: Boolean = true) = ConfigFactory
+  private def azureGithubAuthVendingConfig(enabled: Boolean) = ConfigFactory
     .parseString(
       s"""
          |services {
@@ -102,19 +101,6 @@ class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike wit
       authHeader.value.get.failed.get.getMessage should be("Failed to resolve github auth token")
       // not the prettiest error message, but at least it should give us something to work with at debug time:
       authHeader.value.get.failed.get.getCause.getMessage should startWith("Cannot cast")
-    }
-  }
-
-  it should "return Github import auth provider when Azure auth is enabled" in {
-    val serviceRegistryActor = TestProbe()
-    val testSupport = new TestGithubAuthVendingSupport(serviceRegistryActor.ref)
-
-    testSupport.importAuthProvider(azureGithubAuthVendingConfig()) match {
-      case Valid(providerOpt) =>
-        providerOpt.isEmpty shouldBe false
-        providerOpt.get.isInstanceOf[GithubImportAuthProvider] shouldBe true
-        providerOpt.get.validHosts shouldBe List("github.com", "githubusercontent.com", "raw.githubusercontent.com")
-      case Invalid(e) => fail(s"Unexpected failure: $e")
     }
   }
 

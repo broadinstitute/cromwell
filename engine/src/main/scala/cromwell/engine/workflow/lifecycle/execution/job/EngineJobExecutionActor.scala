@@ -20,7 +20,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.callcaching._
-import cromwell.core.logging.WorkflowLogging
+import cromwell.core.logging.{JobLogging, WorkflowLogging}
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
@@ -79,6 +79,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               groupMetricsActor: ActorRef
 ) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
     with WorkflowLogging
+    with JobLogging
     with CallMetadataHelper
     with JobInstrumentation
     with CromwellInstrumentation
@@ -514,7 +515,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   onTransition { case fromState -> toState =>
-    log.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
+    jobLogger.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
 
     EngineJobExecutionActorState.transitionEventString(fromState, toState) foreach {
       eventList :+= ExecutionEvent(_)
@@ -547,11 +548,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       // due to timeouts). That's ok, we just ignore this message in any other situation:
       stay()
     case Event(msg, _) =>
-      log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}",
-                sender(),
-                stateName,
-                stateData,
-                msg
+      jobLogger.error(
+        s"Bad message from ${sender()} to EngineJobExecutionActor in state ${stateName}(with data ${stateData}): ${msg}"
       )
       stay()
   }
@@ -622,15 +620,23 @@ class EngineJobExecutionActor(replyTo: ActorRef,
     runJob(updatedData)
   }
 
-  private def requestRestartCheckToken(): Unit =
+  private def requestRestartCheckToken(): Unit = {
+    jobLogger.info(
+      s"EJEA ${self.toString().split('#').lastOption.getOrElse("ERR").stripSuffix("]")} is requesting restart token of type ${backendLifecycleActorFactory.jobExecutionTokenType} for ${workflowDescriptor.backendDescriptor.hogGroup}"
+    )
     jobRestartCheckTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup,
                                                          backendLifecycleActorFactory.jobRestartCheckTokenType
     )
+  }
 
-  private def requestExecutionToken(): Unit =
+  private def requestExecutionToken(): Unit = {
+    jobLogger.info(
+      s"EJEA ${self.toString().split('#').lastOption.getOrElse("ERR").stripSuffix("]")} is requesting execution token of type ${backendLifecycleActorFactory.jobExecutionTokenType} for ${workflowDescriptor.backendDescriptor.hogGroup}"
+    )
     jobExecutionTokenDispenserActor ! JobTokenRequest(workflowDescriptor.backendDescriptor.hogGroup,
                                                       backendLifecycleActorFactory.jobExecutionTokenType
     )
+  }
 
   // Return any currently held job restart check or execution token.
   private def returnCurrentToken(): Unit = if (
@@ -666,7 +672,9 @@ class EngineJobExecutionActor(replyTo: ActorRef,
 
   private def disableCallCaching(reason: Option[Throwable] = None) = {
     log.warning(s"BT-322 {} disabling call caching due to error", jobTag)
-    reason foreach { e => log.error("{}: Hash error ({}), disabling call caching for this job.", jobTag, e.getMessage) }
+    reason foreach { e =>
+      log.warning("{}: Hash error ({}), disabling call caching for this job.", jobTag, e.getMessage)
+    }
     effectiveCallCachingMode = CallCachingOff
     writeCallCachingModeToMetadata()
     writeToMetadata(Map(callCachingHitResultMetadataKey -> false))

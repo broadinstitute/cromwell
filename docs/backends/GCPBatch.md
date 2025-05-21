@@ -1,6 +1,5 @@
-**Google Cloud Batch Backend (alpha)**
+**Google Cloud Batch Backend**
 
-[//]:
 Google Cloud Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
 
 This section offers detailed configuration instructions for using Cromwell with the Google Cloud Batch in all supported
@@ -8,8 +7,6 @@ authentication modes. Before reading further in this section please see the
 [Getting started on Google Cloud Batch](../tutorials/GcpBatch101) for instructions common to all authentication modes
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
-
-*NOTE*: Google Cloud Batch is still in alpha version, this means that there could be breaking changes, be sure to review the [GCP Batch CHANGELOG](https://github.com/broadinstitute/cromwell/blob/develop/CHANGELOG.md#gcp-batch) carefully before upgrading.
 
 **Configuring Authentication**
 
@@ -164,6 +161,31 @@ backend {
 Note that as per the Google Secret Manager docs, the compute service account for the project in which the GCP Batch
 jobs will run will need to be assigned the `Secret Manager Secret Accessor` IAM role.
 
+***Dockerhub Mirroring***
+
+Cromwell supports automatic use of [GAR's Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images) 
+in the Batch backend. When enabled, Dockerhub images will be pulled through this mirror rather than directly from Dockerhub. 
+
+To use, include the below `docker-mirror` config in your backend configuration:
+```
+backend {
+  default = GCPBATCH
+  providers {
+    GCPBATCH {
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
+      config {
+        docker-mirror {
+          dockerhub {
+            enabled: true
+            address: "mirror.gcr.io"
+          }
+        }
+      }
+    }
+  }
+}
+```
+
 **Monitoring**
 
 In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.
@@ -238,7 +260,7 @@ backend {
   providers {
     ...
     GCPBATCH {
-      actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         ...
         virtual-private-cloud {
@@ -282,7 +304,7 @@ backend {
   providers {
     ...
     GCPBATCH {
-      actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         ...
         virtual-private-cloud {
@@ -342,7 +364,7 @@ backend {
   providers {
     ...
     GCPBATCH {
-      actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         ...
         batch {
@@ -406,7 +428,7 @@ their execution.
 ### Migration from Google Cloud Life Sciences v2beta to Google Cloud Batch
 
 1. If you currently run your workflows using Cloud Genomics v2beta and would like to switch to Google Cloud Batch, you will need to do a few changes to your configuration file: `actor-factory` value should be changed 
-from `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.batch.GcpBatchLifecycleActorFactory`.
+from `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory`.
 
 2. You will need to remove the parameter `genomics.endpoint-url` and generate a new config file.
 
@@ -428,7 +450,7 @@ backend {
   providers {
     ...
     GCPBATCH {
-      actor-factory = "cromwell.backend.google.batch.GcpBatchLifecycleActorFactory"
+      actor-factory = "cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory"
       config {
         ...
         reference-disk-localization-manifests = [
@@ -477,4 +499,3 @@ Please see the help command of that tool for more details.
 Alternatively for public data stored under `gs://gcp-public-data--broad-references` there exists a shell script to
 extract reference data to a new disk and then convert that disk to a public image. For more information see
 [create_images.sh](https://github.com/broadinstitute/cromwell/tree/develop/scripts/reference_disks/create_images.sh).
-

@@ -144,7 +144,10 @@ object BatchRequestExecutor {
       // Get instances that can be created with this AllocationPolicy, only instances[0] is supported
       val instancePolicy = allocationPolicy.getInstances(0).getPolicy
       val machineType = instancePolicy.getMachineType
-      val preemptible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber
+
+      // SPOT VM is used as preemptible VM instances in Batch. Check for both SPOT or PREEMPTIBLE just to be safe
+      val preemptible = (instancePolicy.getProvisioningModelValue == ProvisioningModel.SPOT.getNumber) ||
+        (instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber)
 
       // location list = [regions/us-central1, zones/us-central1-b], region is the first element
       val location = allocationPolicy.getLocation.getAllowedLocationsList.get(0)
@@ -173,8 +176,15 @@ object BatchRequestExecutor {
     }
 
     private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] = {
-      val startedRegex = ".*SCHEDULED to RUNNING.*".r
-      val endedRegex = ".*RUNNING to.*".r // can be SUCCEEDED or FAILED
+      // on Batch, when job transitions to SCHEDULED state it indicates that the VM is being initialized. Users are billed for this
+      // startup time. Hence, the 'vmStartTime' corresponds to when the job enters the SCHEDULED state.
+      val startedRegex = ".*to SCHEDULED.*".r
+
+      // job terminal events can occur in 2 ways:
+      //    - job transitions from a RUNNING state to either SUCCEEDED or FAILED state
+      //    - job never enters the RUNNING state and instead transitions from SCHEDULED -> SCHEDULED_PENDING_FAILED -> FAILED
+      val endedRegex = ".*RUNNING to.*|.*SCHEDULED_PENDING_FAILED to FAILED.*".r
+
       events.flatMap { e =>
         val time = java.time.Instant
           .ofEpochSecond(e.getEventTime.getSeconds, e.getEventTime.getNanos.toLong)

@@ -20,4 +20,4 @@ metadata {
   status: Succeeded
 }
 
-cost: [0.0011, 0.0023]
+cost: [0.0024, 0.0071]

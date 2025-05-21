@@ -429,6 +429,7 @@ class PipelinesApiBackendCacheHitCopyingActorSpec
       cacheHitDuplicationStrategy = CopyCachedOutputs,
       requestWorkers = refineMV[Positive](1),
       pipelineTimeout = null,
+      dockerMirroringOpt = None,
       quotaAttempts = 3,
       logFlushPeriod = None,
       gcsTransferConfiguration = null,

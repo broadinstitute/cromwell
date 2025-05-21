@@ -8,6 +8,7 @@ import cromwell.core.CallOutputs
 import cromwell.core.JobToken.JobTokenType
 import cromwell.core.path.Path
 import cromwell.core.path.PathFactory.PathBuilders
+import cromwell.docker.DockerMirroring
 import net.ceedubs.ficus.Ficus._
 import wom.expression.{IoFunctionSet, NoIoFunctionSet}
 import wom.graph.CommandCallNode
@@ -163,6 +164,11 @@ trait BackendLifecycleActorFactory extends PlatformSpecific {
   def dockerHashCredentials(workflowDescriptor: BackendWorkflowDescriptor,
                             initializationDataOption: Option[BackendInitializationData]
   ): List[Any] = List.empty
+
+  /**
+   * Returns a DockerMirror built based on backend configuration
+   */
+  val dockerMirroring: Option[DockerMirroring] = None
 
   /**
     * Allows Cromwell to self-identify which cloud it's running on for runtime attribute purposes

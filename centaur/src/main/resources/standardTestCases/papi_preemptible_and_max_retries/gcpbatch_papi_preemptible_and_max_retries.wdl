@@ -16,7 +16,7 @@ task delete_self {
         # precipitate the demise of on-demand VMs.
         gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=$zone -q
       fi
-      sleep 60
+      sleep 120
   }
 
   runtime {

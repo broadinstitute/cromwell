@@ -1,7 +1,6 @@
 name: gcpbatch_papi_preemptible_and_max_retries
 testFormat: workflowfailure
 backends: [GCPBATCH]
-tags: [ lmtest ]
 
 files {
   workflow: papi_preemptible_and_max_retries/gcpbatch_papi_preemptible_and_max_retries.wdl

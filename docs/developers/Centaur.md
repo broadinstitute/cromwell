@@ -131,7 +131,6 @@ Note: To exclude a specific test from a test suite, find the `.sh` file that run
 | Horicromtal<br>Engine Upgrade | `papi_v2beta_application.conf`**                                 | `centaur_application_`<br>`horicromtal_no_assert.conf` |
 | PAPI Upgrade                  | `papi_v1_v2alpha1_upgrade_application.conf`**                    | `centaur_application.conf`*                            |
 | Papi Upgrade<br>New Workflows | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
-| Azure Blob                    | `centaur_blob_test.conf`**                                       | `centaur_application.conf`*                            |
 | WDL Upgrade                   | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
 | (other)                       | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
 

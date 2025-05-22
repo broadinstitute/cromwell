@@ -7,6 +7,9 @@
  * VM initialization time in now included in estimated cost calculation for jobs. 
  * Task log files are now included in the group of files copied for call cache hits.
 
+### Bug fixes
+ * Fixed a concurrency bug that in rare cases caused tasks to never start.
+
 ## 89 Release Notes
 
 ### Improvements

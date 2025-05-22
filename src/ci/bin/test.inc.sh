@@ -723,24 +723,6 @@ cromwell::private::login_vault() {
     fi
 }
 
-cromwell::private::login_docker() {
-    if cromwell::private::is_xtrace_enabled; then
-        cromwell::private::exec_silent_function cromwell::private::login_docker
-    else
-        local docker_username
-        local docker_password
-
-        # Do not fail if docker login fails. We'll try to pull images anonymously.
-        docker_username="$(
-            cromwell::private::vault_run read -field=username secret/dsde/cromwell/common/cromwell-dockerhub || true
-        )"
-        docker_password="$(
-            cromwell::private::vault_run read -field=password secret/dsde/cromwell/common/cromwell-dockerhub || true
-        )"
-        docker login --username "${docker_username}" --password-stdin <<< "${docker_password}" || true
-    fi
-}
-
 cromwell::private::render_secure_resources() {
     # Avoid docker output to sbt's stderr by pulling the image here
     docker pull --quiet broadinstitute/dsde-toolbox:dev | cat
@@ -952,11 +934,9 @@ cromwell::build::setup_common_environment() {
 
     case "${CROMWELL_BUILD_PROVIDER}" in
         "${CROMWELL_BUILD_PROVIDER_GITHUB}")
-            # Try to login to vault, and if successful then use vault creds to login to docker.
-            # For those committers with vault access this avoids pull rate limits reported in BT-143.
+            # Log in to Vault for `renderCiResources`
             cromwell::private::install_vault
             cromwell::private::login_vault
-            cromwell::private::login_docker
             #Note: Unlike with other CI providers, we are using Github Actions to install Java and sbt for us.
             #This is automatically handled in the set_up_cromwell Github Action, which can be found in
             #[cromwell root]/.github/set_up_cromwell_aciton.

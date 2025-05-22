@@ -50,9 +50,13 @@ case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths,
   )
 
   // This is required to include this log file in the collection of those copied with cache hits.
-  override lazy val customDetritusPaths: Map[String, Path] = Map(
-    GcpBatchJobPaths.BatchLogPathKey -> batchLogPath
-  )
+  // Only include it here if we're configured to
+  override lazy val customDetritusPaths: Map[String, Path] =
+    workflowPaths.gcpBatchConfiguration.batchAttributes.logsPolicy match {
+      case GcpBatchLogsPolicy.Path =>
+        Map(GcpBatchJobPaths.BatchLogPathKey -> batchLogPath)
+      case _ => Map.empty
+    }
 
   override lazy val customLogPaths: Map[String, Path] = Map(
     GcpBatchJobPaths.BatchLogPathKey -> batchLogPath

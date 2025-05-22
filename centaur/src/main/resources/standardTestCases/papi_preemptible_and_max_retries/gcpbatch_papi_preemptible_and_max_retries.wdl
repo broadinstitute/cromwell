@@ -11,12 +11,12 @@ task delete_self {
 
       if [ "$preemptible" = "TRUE" ]; then
         gcloud beta compute instances simulate-maintenance-event $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=$zone -q
-        sleep 60
       else
         # We need to actually delete ourselves if the VM is not preemptible; simulated maintenance events don't seem to
         # precipitate the demise of on-demand VMs.
         gcloud compute instances delete $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=$zone -q
       fi
+      sleep 60
   }
 
   runtime {

@@ -1,5 +1,6 @@
 name: cacheBetweenWFBatchPathLogs
 testFormat: runtwiceexpectingcallcaching
+backends: [GCPBATCHLogsPolicyPath]
 
 files {
   workflow: cacheBetweenWF/cacheBetweenWFBatchPathLogs.wdl

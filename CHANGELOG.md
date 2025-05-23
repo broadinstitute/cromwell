@@ -9,6 +9,10 @@
 ### Bug fixes
  * Fixed a concurrency bug that in rare cases caused tasks to never start.
 
+### Security fix
+* Fixed a vulnerability in the repository's Github Actions. We found no evidence that the Cromwell product was compromised.
+  * Thank you to [Stefano Chierici](https://github.com/darryk10), [Alberto Pellitteri](https://github.com/AlbertoPellitteri), and [Lorenzo Susini](https://github.com/loresuso) for the report.
+
 ## 89 Release Notes
 
 ### Improvements

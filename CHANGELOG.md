@@ -12,6 +12,7 @@
 ### Security fix
 * Fixed a vulnerability in the repository's Github Actions.
   * We found no evidence of compromise to the source code, so the Cromwell product itself was not impacted.
+  * Forked Cromwell repositories should update immediately from `develop`.
   * Thank you to [Stefano Chierici](https://github.com/darryk10), [Alberto Pellitteri](https://github.com/AlbertoPellitteri), and [Lorenzo Susini](https://github.com/loresuso) for the report.
 
 ## 89 Release Notes

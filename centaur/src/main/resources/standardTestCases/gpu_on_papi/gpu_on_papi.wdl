@@ -35,7 +35,7 @@ task task_with_gpu {
   runtime {
     gpuCount: 1
     gpuType: gpuTypeInput
-    docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    docker: "mirror.gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     zones: ["us-central1-c"]
     bootDiskSizeGb: 20
   }

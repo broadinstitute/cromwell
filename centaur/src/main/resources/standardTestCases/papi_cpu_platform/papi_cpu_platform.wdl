@@ -14,7 +14,7 @@ task cpu_platform {
     }
 
     runtime {
-        docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+        docker: "mirror.gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
         cpuPlatform: cpu_platform
     }
 

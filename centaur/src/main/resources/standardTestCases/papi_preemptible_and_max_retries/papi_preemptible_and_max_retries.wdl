@@ -11,7 +11,7 @@ task delete_self {
 
   runtime {
     preemptible: 1
-    docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    docker: "mirror.gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     maxRetries: 1
   }
 }

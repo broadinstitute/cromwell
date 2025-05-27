@@ -1,5 +1,10 @@
 # Cromwell Change Log
 
+## 91 Release Notes
+
+### GCP Batch
+* Task log files are now included in the group of files copied for call cache hits.
+
 ## 90 Release Notes
 
 ### GCP Batch

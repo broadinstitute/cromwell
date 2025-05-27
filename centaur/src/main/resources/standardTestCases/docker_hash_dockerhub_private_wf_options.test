@@ -1,7 +1,7 @@
 name: docker_hash_dockerhub_private_wf_options
 testFormat: workflowsuccess
 # see https://github.com/broadinstitute/cromwell/pull/7515
-backends: [Papiv2NoDockerHubConfig, GCPBATCH_USES_SECRET_MANAGER_NOT_KMS]
+backends: [GCPBATCH_USES_SECRET_MANAGER_NOT_KMS]
 
 files {
   workflow: docker_hash/docker_hash_dockerhub_private_no_dockerhub_config.wdl

@@ -4,6 +4,16 @@
 
 ### GCP Batch
  * Cromwell now supports automatic use of the [GAR Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images), see [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/) for details.
+ * VM initialization time in now included in estimated cost calculation for jobs. 
+
+### Bug fixes
+ * Fixed a concurrency bug that in rare cases caused tasks to never start.
+
+### Security fix
+* Fixed a vulnerability in the repository's Github Actions.
+  * We found no evidence of compromise to the source code, so the Cromwell product itself was not impacted.
+  * Forked Cromwell repositories should update immediately from `develop`.
+  * Thank you to [Stefano Chierici](https://github.com/darryk10), [Alberto Pellitteri](https://github.com/AlbertoPellitteri), and [Lorenzo Susini](https://github.com/loresuso) for the report.
 
 ## 89 Release Notes
 

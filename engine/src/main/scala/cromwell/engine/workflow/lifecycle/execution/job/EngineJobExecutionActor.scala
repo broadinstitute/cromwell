@@ -20,7 +20,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.ExecutionIndex.IndexEnhancedIndex
 import cromwell.core._
 import cromwell.core.callcaching._
-import cromwell.core.logging.WorkflowLogging
+import cromwell.core.logging.{JobLogging, WorkflowLogging}
 import cromwell.core.simpleton.WomValueSimpleton
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables.CallCachingEntry
@@ -79,6 +79,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
                               groupMetricsActor: ActorRef
 ) extends LoggingFSM[EngineJobExecutionActorState, EJEAData]
     with WorkflowLogging
+    with JobLogging
     with CallMetadataHelper
     with JobInstrumentation
     with CromwellInstrumentation
@@ -514,7 +515,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
   }
 
   onTransition { case fromState -> toState =>
-    log.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
+    jobLogger.debug("Transitioning from {}({}) to {}({})", fromState, stateData, toState, nextStateData)
 
     EngineJobExecutionActorState.transitionEventString(fromState, toState) foreach {
       eventList :+= ExecutionEvent(_)
@@ -547,11 +548,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
       // due to timeouts). That's ok, we just ignore this message in any other situation:
       stay()
     case Event(msg, _) =>
-      log.error("Bad message from {} to EngineJobExecutionActor in state {}(with data {}): {}",
-                sender(),
-                stateName,
-                stateData,
-                msg
+      jobLogger.error(
+        s"Bad message from ${sender()} to EngineJobExecutionActor in state ${stateName}(with data ${stateData}): ${msg}"
       )
       stay()
   }

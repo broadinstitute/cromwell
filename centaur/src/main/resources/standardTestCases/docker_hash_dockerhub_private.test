@@ -1,7 +1,7 @@
 name: docker_hash_dockerhub_private
 testFormat: workflowsuccess
 backendsMode: any
-backends: [Papi, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: docker_hash/docker_hash_dockerhub_private.wdl

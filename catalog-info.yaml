@@ -1,0 +1,24 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cromwell
+  description: Scientific workflow engine designed for simplicity & scalability.
+    Trivially transition between one off use cases to massive scale production
+    environments
+  tags:
+    - gcp
+    - scala
+    - java
+    - wdl
+  annotations:
+    github.com/project-slug: broadinstitute/cromwell
+    backstage.io/source-template: template:default/open-pr-with-catalog-entry
+    backstage.io/techdocs-ref: dir:.
+  links:
+    - url: http://cromwell.readthedocs.io/
+      title: Cromwell Docs Page
+      icon: dashboard
+spec:
+  type: service
+  lifecycle: production
+  owner: dsp-analysis

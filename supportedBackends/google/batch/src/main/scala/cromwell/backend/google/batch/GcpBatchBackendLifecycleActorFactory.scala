@@ -27,6 +27,7 @@ import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, Stan
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.core.{CallOutputs, DockerCredentials}
+import cromwell.docker.DockerMirroring
 import wom.graph.CommandCallNode
 
 import scala.util.{Failure, Success, Try}
@@ -137,6 +138,8 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
 
       case _ => List.empty[Any]
     }
+
+  override val dockerMirroring: Option[DockerMirroring] = batchAttributes.dockerMirroringOpt
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {

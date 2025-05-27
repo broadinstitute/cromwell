@@ -74,7 +74,7 @@ workflow check_network_in_vpc {
     "echo $NETWORK_OBJECT | jq --exit-status '.subnetwork' | sed -E 's!.*/(.*)!\\1!' | sed 's/\"//g' > subnetwork",
     "echo $ZONE > zone"
   ]
-  String dockerImage = "mirror.gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+  String dockerImage = "mirror.gcr.io/google/cloud-sdk:slim"
 
   call get_network_labels_backend {
     input:

@@ -26,7 +26,7 @@ task get_token_info {
     >>>
 
     runtime {
-        docker: "mirror.gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+        docker: "mirror.gcr.io/google/cloud-sdk:slim"
         backend: "GCPBATCH-gcsa"
     }
 

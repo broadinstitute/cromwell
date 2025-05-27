@@ -93,6 +93,6 @@ task ssh {
     }
 
     runtime {
-        docker: "mirror.gcr.io/google.com/cloudsdktool/cloud-sdk"
+        docker: "mirror.gcr.io/google/cloud-sdk"
     }
 }

@@ -91,7 +91,7 @@ task modify_file_gcs {
     echo "override" | gsutil cp - ~{file_path_raw}
   }
   runtime {
-    docker: "mirror.gcr.io/google.com/cloudsdktool/cloud-sdk"
+    docker: "mirror.gcr.io/google/cloud-sdk"
   }
   output {
     Boolean done = true

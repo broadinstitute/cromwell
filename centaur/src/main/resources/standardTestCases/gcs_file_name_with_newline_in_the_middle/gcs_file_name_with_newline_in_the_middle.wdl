@@ -17,7 +17,7 @@ task create_file_with_newline {
     gsutil cp ${inputFilePath} ${pathWithNewLine}
   }
   runtime {
-    docker: "mirror.gcr.io/google.com/cloudsdktool/cloud-sdk"
+    docker: "mirror.gcr.io/google/cloud-sdk"
   }
   output {
     String outPath = pathWithNewLine

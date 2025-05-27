@@ -28,7 +28,7 @@ task imitate_oom_error_on_preemptible {
 
   runtime {
     preemptible: 1
-    docker: "mirror.gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    docker: "mirror.gcr.io/google/cloud-sdk:slim"
     memory: "1 GB"
     maxRetries: 1
     backend: "Papiv2"

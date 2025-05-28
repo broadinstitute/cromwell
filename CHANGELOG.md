@@ -4,6 +4,7 @@
 
 ### GCP Batch
 * Task log files are now included in the group of files copied for call cache hits.
+* Fixed an issue that caused WDL tasks to fail when invoking `gcloud` or `gsutil`. Affected tasks returned an error message referencing `python3: not found`.
 
 ## 90 Release Notes
 

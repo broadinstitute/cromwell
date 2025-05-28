@@ -11,13 +11,7 @@ import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
-import cromwell.backend.async.{
-  AbortedExecutionHandle,
-  ExecutionHandle,
-  FailedNonRetryableExecutionHandle,
-  FailedRetryableExecutionHandle,
-  PendingExecutionHandle
-}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
 import cromwell.backend.google.batch.io._
@@ -98,6 +92,8 @@ object GcpBatchAsyncBackendJobExecutionActor {
   //  - If we got this far, we already have a valid directory path. Allow it to optionally end with a `/` character.
   private val gcsFilePathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/[^/]+$".r
   private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/?$".r
+
+  private val executionEventRunningMatcher = ".* to RUNNING.*".r
 
   val GcpBatchOperationIdKey = "__gcp_batch_operation_id"
 
@@ -1207,8 +1203,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       GcpBatchExitCode.VMRecreatedDuringExecution,
       GcpBatchExitCode.VMRebootedDuringExecution
     ).contains(failed.errorCode)
-    lazy val taskFailedBeforeStarting = !failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
-    transientErrorRetryable && errorTypeIsTransient && taskFailedBeforeStarting
+    lazy val taskStartedRunning = failed.eventList.exists(e => executionEventRunningMatcher.matches(e.name))
+    transientErrorRetryable && errorTypeIsTransient && !taskStartedRunning
   }
 
   private def handleTransientErrorRetry(failed: RunStatus.Failed, returnCode: Option[Int]) =

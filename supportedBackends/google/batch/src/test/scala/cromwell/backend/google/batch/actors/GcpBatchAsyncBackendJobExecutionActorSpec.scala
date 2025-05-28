@@ -625,8 +625,9 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     checkFailedResult(GcpBatchExitCode.TaskRunsOverMaximumRuntime)
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution,
-                      List(ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now()))
+    checkFailedResult(
+      GcpBatchExitCode.VMRecreatedDuringExecution,
+      List(ExecutionEvent("Job state is set from SCHEDULED to RUNNING for job f00b4r", OffsetDateTime.now()))
     ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     actorRef.stop()
   }

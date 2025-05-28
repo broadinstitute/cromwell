@@ -1,7 +1,6 @@
 package cromwell.backend.google.batch
 package actors
 
-import _root_.io.grpc.Status
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration, TestProbe}
@@ -16,7 +15,7 @@ import common.mock.MockSugar
 import cromwell.backend.BackendJobExecutionActor.BackendJobExecutionResponse
 import cromwell.backend._
 import cromwell.backend.async.AsyncBackendJobExecutionActor.{Execute, ExecutionMode}
-import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle}
+import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle}
 import cromwell.backend.google.batch.actors.GcpBatchAsyncBackendJobExecutionActor.GcpBatchPendingExecutionHandle
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
@@ -230,6 +229,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   private def buildPreemptibleJobDescriptor(preemptible: Int,
                                             previousPreemptions: Int,
                                             previousUnexpectedRetries: Int,
+                                            previousTransientRetries: Int,
                                             failedRetriesCountOpt: Option[Int] = None
   ): BackendJobDescriptor = {
     val attempt = previousPreemptions + previousUnexpectedRetries + 1
@@ -273,6 +273,13 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
                       GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey
             ),
             previousUnexpectedRetries.toString
+          ),
+          GcpBatchBackendLifecycleActorFactory.transientRetryCountKey -> KvPair(
+            ScopedKey(workflowDescriptor.id,
+                      KvJobKey(key),
+                      GcpBatchBackendLifecycleActorFactory.transientRetryCountKey
+            ),
+            previousTransientRetries.toString
           )
         )
         val prefetchedKvEntriesUpd = if (failedRetriesCountOpt.isEmpty) {
@@ -327,12 +334,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
   def buildPreemptibleTestActorRef(attempt: Int,
                                    preemptible: Int,
+                                   previousTransientRetriesCount: Int = 0,
                                    failedRetriesCountOpt: Option[Int] = None
   ): TestActorRef[TestableGcpBatchJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
     val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,
                                                       attempt - 1,
                                                       previousUnexpectedRetries = 0,
+                                                      previousTransientRetries = previousTransientRetriesCount,
                                                       failedRetriesCountOpt = failedRetriesCountOpt
     )
     val props = Props(
@@ -458,7 +467,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       )
     )
 
-    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0)
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0, 0)
     val serviceRegistryProbe = TestProbe()
 
     val backend1 = executionActor(
@@ -486,13 +495,13 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
   it should "not restart 2 of 1 unexpected shutdowns without another preemptible VM" in {
 
-    val actorRef = buildPreemptibleTestActorRef(2, 1)
+    val actorRef = buildPreemptibleTestActorRef(2, 1, 0)
     val batchBackend = actorRef.underlyingActor
     val runId = generateStandardAsyncJob
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
 
     val failedStatus = RunStatus.Failed(
-      Status.ABORTED,
+      GcpBatchExitCode.Success,
       Seq.empty
     )
     val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
@@ -502,30 +511,123 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     failedHandle.returnCode shouldBe None
   }
 
-  it should "handle Failure Status for various errors" in {
-
-    val actorRef = buildPreemptibleTestActorRef(1, 1)
+  it should "retry transient failures when appropriate" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 2, preemptible = 0, previousTransientRetriesCount = 1)
     val batchBackend = actorRef.underlyingActor
     val runId = generateStandardAsyncJob
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
 
-    def checkFailedResult(errorCode: Status, errorMessage: Option[String]): ExecutionHandle = {
+    val failedStatus = RunStatus.Failed(
+      GcpBatchExitCode.VMRecreatedDuringExecution,
+      Seq.empty
+    )
+    val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
+    failedHandle.returnCode shouldBe None
+    failedHandle.kvPairsToSave.map { pairs =>
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "2")
+    }
+  }
+
+  it should "not retry transient failures after 10 attempts" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 11, preemptible = 0, previousTransientRetriesCount = 10)
+    val batchBackend = actorRef.underlyingActor
+    val runId = generateStandardAsyncJob
+    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = RunStatus.Failed(
+      GcpBatchExitCode.VMRecreatedDuringExecution,
+      Seq.empty
+    )
+    val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedNonRetryableExecutionHandle]
+    failedHandle.returnCode shouldBe None
+    failedHandle.kvPairsToSave.map { pairs =>
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "1")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "10")
+    }
+  }
+
+  it should "choose transient retry over preemptible retry when task has not started" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, previousTransientRetriesCount = 0)
+    val batchBackend = actorRef.underlyingActor
+    val runId = generateStandardAsyncJob
+    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = RunStatus.Failed(
+      GcpBatchExitCode.VMPreemption,
+      Seq.empty // task has not started
+    )
+    val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
+    failedHandle.returnCode shouldBe None
+    failedHandle.kvPairsToSave.map { pairs =>
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "1")
+    }
+  }
+
+  it should "choose preemptible over transient retry when task started before failing" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, previousTransientRetriesCount = 0)
+    val batchBackend = actorRef.underlyingActor
+    val runId = generateStandardAsyncJob
+    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = RunStatus.Failed(
+      GcpBatchExitCode.VMPreemption,
+      List(ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now()))
+    )
+    val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
+    failedHandle.returnCode shouldBe None
+    failedHandle.kvPairsToSave.map { pairs =>
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "2")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "0")
+    }
+  }
+
+  it should "handle Failure Status for various errors" in {
+
+    val actorRef = buildPreemptibleTestActorRef(1, 1, 0)
+    val batchBackend = actorRef.underlyingActor
+    val runId = generateStandardAsyncJob
+    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
+
+    def checkFailedResult(errorCode: GcpBatchExitCode, events: List[ExecutionEvent] = List.empty): ExecutionHandle = {
       val failed = RunStatus.Failed(
         errorCode,
-        Seq.empty
+        events
       )
       Await.result(batchBackend.handleExecutionResult(failed, handle), timeout)
     }
 
-    checkFailedResult(Status.ABORTED, Option("15: Other type of error."))
+    // Should retry
+    checkFailedResult(GcpBatchExitCode.VMPreemption)
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution) // no VM start time - task has not started
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+
+    // Should not retry
+    checkFailedResult(GcpBatchExitCode.Success)
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.OUT_OF_RANGE, Option("14: Wrong errorCode."))
+    checkFailedResult(GcpBatchExitCode.TaskRunsOverMaximumRuntime)
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, Option("Weird error message."))
-      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, Option("UnparsableInt: Even weirder error message."))
-      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(Status.ABORTED, None).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution,
+                      List(ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now()))
+    ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     actorRef.stop()
   }
 
@@ -1082,63 +1184,66 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     }
   }
 
-  // TODO: FIXME
-  // Cause: com.google.api.client.googleapis.json.GoogleJsonResponseException: 403 Forbidden
-  // Will be addressed by another ticket
   it should "convert local Paths back to corresponding GCS paths in BatchOutputs" in {
-    pending
 
     val batchOutputs = Set(
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file1",
-        gcsPath("gs://path/to/file1"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file1"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file2",
-        gcsPath("gs://path/to/file2"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file2"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file3",
-        gcsPath("gs://path/to/file3"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file3"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file4",
-        gcsPath("gs://path/to/file4"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file4"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4"),
         workingDisk,
         optional = false,
         secondary = false
       ),
       GcpBatchFileOutput(
-        s"$MountPoint/path/to/file5",
-        gcsPath("gs://path/to/file5"),
-        DefaultPathBuilder.get(s"$MountPoint/path/to/file5"),
+        s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5",
+        gcsPath("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"),
+        DefaultPathBuilder.get(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"),
         workingDisk,
         optional = false,
         secondary = false
       )
     )
     val outputValues = Seq(
-      WomSingleFile(s"$MountPoint/path/to/file1"),
-      WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile(s"$MountPoint/path/to/file2"), WomSingleFile(s"$MountPoint/path/to/file3"))
+      WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"),
+      WomArray(
+        WomArrayType(WomSingleFileType),
+        Seq(
+          WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
+          WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3")
+        )
       ),
-      WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
-             Map(
-               WomSingleFile(s"$MountPoint/path/to/file4") -> WomSingleFile(s"$MountPoint/path/to/file5")
-             )
+      WomMap(
+        WomMapType(WomSingleFileType, WomSingleFileType),
+        Map(
+          WomSingleFile(
+            s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4"
+          ) -> WomSingleFile(s"$MountPoint/centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5")
+        )
       )
     )
 
@@ -1177,15 +1282,24 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val result = outputValues map wdlValueToGcsPath(batchOutputs)
     result should have size 3
-    result should contain(WomSingleFile("gs://path/to/file1"))
+    result should contain(WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file1"))
     result should contain(
-      WomArray(WomArrayType(WomSingleFileType),
-               Seq(WomSingleFile("gs://path/to/file2"), WomSingleFile("gs://path/to/file3"))
+      WomArray(
+        WomArrayType(WomSingleFileType),
+        Seq(
+          WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file2"),
+          WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file3")
+        )
       )
     )
     result should contain(
-      WomMap(WomMapType(WomSingleFileType, WomSingleFileType),
-             Map(WomSingleFile("gs://path/to/file4") -> WomSingleFile("gs://path/to/file5"))
+      WomMap(
+        WomMapType(WomSingleFileType, WomSingleFileType),
+        Map(
+          WomSingleFile("gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file4") -> WomSingleFile(
+            "gs://centaur-ci-public/GcpBatchAsyncBackendJobExecutionActorSpec/file5"
+          )
+        )
       )
     )
   }
@@ -1365,7 +1479,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   it should "return preemptible = true only in the correct cases" in {
 
     def attempt(max: Int, attempt: Int): GcpBatchAsyncBackendJobExecutionActor =
-      buildPreemptibleTestActorRef(attempt, max).underlyingActor
+      buildPreemptibleTestActorRef(attempt, max, 0).underlyingActor
     def attempt1(max: Int) = attempt(max, 1)
     def attempt2(max: Int) = attempt(max, 2)
 
@@ -1431,7 +1545,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val batchBackend = testActorRef.underlyingActor
 
-    // NOTE: The commented lines are not provided by batch yet, we need to check whether those are necessary
     val actual = batchBackend.startMetadataKeyValues.safeMapValues(_.toString)
     actual should be(
       Map(
@@ -1442,7 +1555,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         "labels:cromwell-workflow-id" -> s"cromwell-$workflowId",
         "labels:wdl-task-name" -> "goodbye",
         "preemptible" -> "false",
-        "runtimeAttributes:bootDiskSizeGb" -> "10",
+        "runtimeAttributes:bootDiskSizeGb" -> "30",
         "runtimeAttributes:continueOnReturnCode" -> "0",
         "runtimeAttributes:cpu" -> "1",
         "runtimeAttributes:disks" -> "local-disk 200 SSD",
@@ -1626,7 +1739,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val pollResult0 = RunStatus.Initializing(Seq.empty)
     val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
     val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
-    val abortStatus = RunStatus.Aborted(Status.NOT_FOUND)
+    val abortStatus = RunStatus.Aborted()
 
     val serviceRegistryProbe = TestProbe()
 

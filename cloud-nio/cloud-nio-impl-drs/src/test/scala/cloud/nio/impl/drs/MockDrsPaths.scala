@@ -1,11 +1,12 @@
 package cloud.nio.impl.drs
 
 import scala.concurrent.duration._
+import scala.language.postfixOps
 
 object MockDrsPaths {
   val drsResolverUrl = "http://mock.drshub"
 
-  val mockDrsConfig: DrsConfig = DrsConfig(MockDrsPaths.drsResolverUrl, 1, 1.seconds, 1.seconds, 1d, 0d)
+  val mockDrsConfig: DrsConfig = DrsConfig(MockDrsPaths.drsResolverUrl, 5 seconds, 1, 1 seconds, 1 seconds, 1d, 0d)
 
   val mockToken = "mock.token"
 

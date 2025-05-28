@@ -1,5 +1,43 @@
 # Cromwell Change Log
 
+## 91 Release Notes
+
+### GCP Batch
+* Task log files are now included in the group of files copied for call cache hits.
+
+## 90 Release Notes
+
+### GCP Batch
+ * Cromwell now supports automatic use of the [GAR Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images), see [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/) for details.
+ * VM initialization time in now included in estimated cost calculation for jobs. 
+ * Task log files are now included in the group of files copied for call cache hits.
+
+### Bug fixes
+ * Fixed a concurrency bug that in rare cases caused tasks to never start.
+
+### Security fix
+* Fixed a vulnerability in the repository's Github Actions.
+  * We found no evidence of compromise to the source code, so the Cromwell product itself was not impacted.
+  * Forked Cromwell repositories should update immediately from `develop`.
+  * Thank you to [Stefano Chierici](https://github.com/darryk10), [Alberto Pellitteri](https://github.com/AlbertoPellitteri), and [Lorenzo Susini](https://github.com/loresuso) for the report.
+
+## 89 Release Notes
+
+### Improvements
+ * Cromwell can now provide estimated costs incurred by a workflow run on GCP, read more in `CostEstimation` in ReadTheDocs.
+
+### GCP Batch Updates
+ * Add 30 GB default VM boot disk size to user-requested boot disk size; this ensures the VM has room for large user command Docker images.
+ * Fix a bug that caused Cromwell to treat immediate preemptions as failures.
+ * Automatically retry tasks that fail with transient Batch errors before the VM has started running (that is, before the task has cost the user money). These retries do not count against `maxRetries`.
+ * Symlink to `/cromwell_root` - In LifeSciences, the Cromwell root directory that user scripts are run from is located at `/cromwell_root`, but in the Batch backend it has moved to `/mnt/disk/cromwell_root`. To ensure WDLs that rely on the original path don't break when run on the Batch, and to also maintain forward compatibility we have created a symlink between `/mnt/disk/cromwell_root` and `/cromwell_root`.
+ * Fixed a bug that caused Cromwell to overestimate the workflow cost for Batch jobs that used preemptible machines. 
+ * Allocated more memory to the shared memory filesystem (`/dev/shm`) proportional to the machine size
+
+### Other Changes
+* Removes a database index `METADATA_WORKFLOW_IDX` that is now redundant since the introduction of `IX_METADATA_ENTRY_WEU_MK`. 
+* The `latest` tag will now point to the most recent numerical cromwell release rather than following the develop branch. This means that the `latest` tag will not be updated for pre-release versions of Cromwell.
+
 ## 88 Release Notes
 
 ### Important Upgrade Note: Database Schema Change

@@ -19,7 +19,7 @@ task imitate_oom_error_on_preemptible {
       zone=$(basename "$fully_qualified_zone")
 
       gcloud beta compute instances simulate-maintenance-event $(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/name" -H "Metadata-Flavor: Google") --zone=$zone -q
-      sleep 60
+      sleep 300
     fi
 
     # Should reach here on the second attempt

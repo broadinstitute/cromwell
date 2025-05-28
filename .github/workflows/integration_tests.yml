@@ -47,6 +47,9 @@ jobs:
           - build_type: centaurPapiV2betaRestart
             build_mysql: 8.4
             friendly_name: Centaur Papi V2 Beta (restart)
+          - build_type: centaurGcpBatchRestart
+            build_mysql: 8.4
+            friendly_name: Centaur GCP Batch (restart)
           - build_type: dbms
             friendly_name: DBMS
           - build_type: centaurTes
@@ -66,6 +69,9 @@ jobs:
           - build_type: centaurHoricromtalPapiV2beta
             build_mysql: 8.4
             friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 8.4
+          - build_type: centaurHoricromtalGcpBatch
+            build_mysql: 8.4
+            friendly_name: Centaur Horicromtal GCP Batch with MySQL 8.4
           - build_type: horicromtalDeadlock
             friendly_name: Horicromtal Deadlock
           - build_type: singleWorkflowRunner
@@ -84,9 +90,6 @@ jobs:
           - build_type: centaurSlurm
             build_mysql: 8.4
             friendly_name: "Centaur Slurm with MySQL 8.4"
-          - build_type: centaurBlob
-            build_mysql: 8.4
-            friendly_name: Centaur Blob
     name: ${{ matrix.friendly_name }}
     env:
       BUILD_NAME: ${{ matrix.build_type }}
@@ -96,9 +99,6 @@ jobs:
       BUILD_MARIADB: ${{ matrix.build_mariadb }}
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
-      AZURE_CLIENT_ID: ${{ secrets.VAULT_AZURE_CENTAUR_CLIENT_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.VAULT_AZURE_CENTAUR_CLIENT_SECRET }}
-      AZURE_TENANT_ID: ${{ secrets.VAULT_AZURE_CENTAUR_TENANT_ID }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:

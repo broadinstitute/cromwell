@@ -28,13 +28,15 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       cacheHitDuplicationStrategy = null,
       requestWorkers = refineV[Positive](1).toOption.get,
       batchTimeout = 1 second,
+      dockerMirroringOpt = None,
       logFlushPeriod = Option(1 second),
       gcsTransferConfiguration = null,
       virtualPrivateCloudConfiguration = null,
       batchRequestTimeoutConfiguration = null,
       referenceFileToDiskImageMappingOpt = None,
       checkpointingInterval = 1 second,
-      logsPolicy = GcpBatchLogsPolicy.CloudLogging
+      logsPolicy = GcpBatchLogsPolicy.CloudLogging,
+      maxTransientErrorRetries = 10
     )
 
     GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(() => attributes) shouldBe attributes

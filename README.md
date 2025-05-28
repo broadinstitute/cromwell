@@ -8,6 +8,12 @@ The [Cromwell documentation has a dedicated site](https://cromwell.readthedocs.i
 
 First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedocs.io/en/stable/tutorials/FiveMinuteIntro/).
 
+### Google LifeSciences is shutting down in July - migrate to GCP Batch
+
+Google is replacing Cloud Life Sciences (sometimes referred to as PAPI) with a next-generation API named GCP Batch [https://cloud.google.com/batch/docs/migrate-to-batch-from-cloud-life-sciences](learn more).
+
+[See documentation on how to migrate to GCP Batch](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/#migration-from-google-cloud-life-sciences-v2beta-to-google-cloud-batch)
+
 ### Community
 
 Thinking about contributing to Cromwell? Get started by reading our [Contributor Guide](CONTRIBUTING.md).

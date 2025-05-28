@@ -11,7 +11,7 @@ nav:
 #    - Tutorial Map: tutorials/Overview.md
     - Quick Introduction: tutorials/FiveMinuteIntro.md
     - How to Configure Cromwell: tutorials/ConfigurationFiles.md
-    - Getting started with Google Cloud: tutorials/PipelinesApi101.md
+    - Getting started with Google Cloud: tutorials/GcpBatch101.md
     - Getting started with AWS (beta): tutorials/AwsBatch101.md
     - View the Timing Diagrams: tutorials/TimingDiagrams.md
     - Persisting data between restarts: tutorials/PersistentServer.md
@@ -30,9 +30,12 @@ nav:
     - Support: GettingHelp.md
 - Command Line: CommandLine.md
 - Feature Documentation:
-  - Call Caching: cromwell_features/CallCaching.md
-  - Labels: cromwell_features/Labels.md
-  - Hog Factors: cromwell_features/HogFactors.md
+    - Call Caching: cromwell_features/CallCaching.md
+    - Cost Estimation: cromwell_features/CostEstimation.md
+    - Labels: cromwell_features/Labels.md
+    - Hog Factors: cromwell_features/HogFactors.md
+    - Retry with More Memory: cromwell_features/RetryWithMoreMemory.md
+    - Workflow Callback: cromwell_features/WorkflowCallback.md
 - Runtime Attributes: RuntimeAttributes.md
 - Workflow Options:
   - Overview: wf_options/Overview.md
@@ -53,7 +56,7 @@ nav:
 - Backends:
     - Overview: backends/Backends.md
     - Local: backends/Local.md
-    - Google Cloud: backends/Google.md
+    - Google Cloud: backends/GCPBatch.md
     - AWS Batch: backends/AWSBatch.md
     - AWS Batch (beta): backends/AWS.md
     - GA4GH TES: backends/TES.md

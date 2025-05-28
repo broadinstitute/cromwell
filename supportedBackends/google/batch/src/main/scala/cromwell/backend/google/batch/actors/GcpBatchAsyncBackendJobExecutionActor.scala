@@ -1,6 +1,5 @@
 package cromwell.backend.google.batch.actors
 
-import _root_.io.grpc.{Status => GrpcStatus}
 import akka.actor.{ActorLogging, ActorRef}
 import akka.http.scaladsl.model.{ContentType, ContentTypes}
 import akka.pattern.AskSupport
@@ -35,9 +34,9 @@ import cromwell.core.io.IoCommandBuilder
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.filesystems.drs.{DrsPath, DrsResolver}
-import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import cromwell.filesystems.gcs.GcsPathBuilder.ValidFullGcsPath
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
+import cromwell.filesystems.gcs.{GcsPath, GcsPathBuilder}
 import cromwell.filesystems.http.HttpPath
 import cromwell.filesystems.sra.SraPath
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -68,7 +67,7 @@ import scala.util.{Failure, Success, Try}
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
-  def StandardException(errorCode: GrpcStatus,
+  def StandardException(errorCode: GcpBatchExitCode,
                         message: String,
                         jobTag: String,
                         returnCodeOption: Option[Int],
@@ -80,7 +79,9 @@ object GcpBatchAsyncBackendJobExecutionActor {
       case None => "The job was stopped before the command finished."
     }
 
-    new Exception(s"Task $jobTag failed. $returnCodeMessage Batch error code ${errorCode.getCode.value}. $message")
+    new Exception(
+      s"Task $jobTag failed. $returnCodeMessage GCP Batch task exited with ${errorCode}(${errorCode.code}). ${message}"
+    )
   }
 
   // GCS path regexes comments:
@@ -164,6 +165,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def receive: Receive =
     runCreationClientReceive orElse pollingActorClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
 
+  jobLogger.info("AN-436 Instantiated class")
+
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
    * in the state type.
    */
@@ -187,7 +190,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     PreviousRetryReasons.tryApply(jobDescriptor.prefetchedKvStoreEntries, jobDescriptor.key.attempt)
 
   override lazy val preemptible: Boolean = previousRetryReasons match {
-    case Valid(PreviousRetryReasons(p, _)) => p < maxPreemption
+    case Valid(PreviousRetryReasons(p, _, _)) => p < maxPreemption
+    case _ => false
+  }
+
+  lazy val maxTransientErrorRetries = batchConfiguration.batchAttributes.maxTransientErrorRetries
+
+  lazy val transientErrorRetryable: Boolean = previousRetryReasons match {
+    case Valid(PreviousRetryReasons(_, _, ar)) => ar < maxTransientErrorRetries
     case _ => false
   }
 
@@ -761,11 +771,18 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private var hasDockerCredentials: Boolean = false
 
   override def scriptPreamble: ErrorOr[ScriptPreambleData] =
+    /*
+       Note: In LifeSciences, 'cromwell_root' is located at '/cromwell_root', but in the Batch backend it has moved to
+       '/mnt/disk/cromwell_root'. WDLs that rely on the original path break when run on the Batch. To maintain backward
+       and forward compatibility we create a symlink between '/mnt/disk/cromwell_root' and '/cromwell_root'.
+     */
     if (monitoringOutput.isDefined)
-      ScriptPreambleData(s"""|touch $DockerMonitoringLogPath
+      ScriptPreambleData(s"""|ln -s $commandDirectory /cromwell_root
+                             |
+                             |touch $DockerMonitoringLogPath
                              |chmod u+x $DockerMonitoringScriptPath
                              |$DockerMonitoringScriptPath > $DockerMonitoringLogPath &""".stripMargin).valid
-    else ScriptPreambleData("").valid
+    else ScriptPreambleData(s"ln -s $commandDirectory /cromwell_root").valid
 
   private[actors] def generateInputs(): Set[GcpBatchInput] = {
     // We need to tell Batch about files that were created as part of command instantiation (these need to be defined
@@ -1087,14 +1104,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   private lazy val standardPaths = jobPaths.standardPaths
 
   override def handleExecutionFailure(runStatus: RunStatus, returnCode: Option[Int]): Future[ExecutionHandle] = {
-    val prettyPrintedError = "Job failed with an unknown reason"
 
     // Inner function: Handles a 'Failed' runStatus (or Preempted if preemptible was false)
-    def handleFailedRunStatus(runStatus: RunStatus.UnsuccessfulRunStatus, returnCode: Option[Int]): ExecutionHandle =
+    def handleFailedRunStatus(runStatus: RunStatus.Failed, returnCode: Option[Int]): ExecutionHandle =
       FailedNonRetryableExecutionHandle(
         StandardException(
           runStatus.errorCode,
-          prettyPrintedError,
+          "", // We have no additional context to provide beyond what's already included by StandardException
           jobTag,
           returnCode,
           standardPaths.error
@@ -1107,69 +1123,123 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       Try {
         runStatus match {
           case _: RunStatus.Aborted => AbortedExecutionHandle
-          case preemption: RunStatus.Preempted if preemptible =>
-            handlePreemption(preemption, returnCode, prettyPrintedError)
-          case failedStatus: RunStatus.UnsuccessfulRunStatus => handleFailedRunStatus(failedStatus, returnCode)
+          case failedStatus: RunStatus.Failed =>
+            if (isTransientFailure(failedStatus)) {
+              handleTransientErrorRetry(failedStatus, returnCode)
+            } else if (failedStatus.errorCode == GcpBatchExitCode.VMPreemption && preemptible) {
+              handlePreemption(failedStatus, returnCode)
+            } else
+              handleFailedRunStatus(failedStatus, returnCode)
           case unknown =>
             throw new RuntimeException(
-              s"handleExecutionFailure not called with RunStatus.Failed or RunStatus.Preempted. Instead got $unknown"
+              s"handleExecutionFailure was called with an unhandled RunStatus type, got $unknown"
             )
         }
       }
     }
   }
 
-  private def nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(p: Int, ur: Int): Seq[KvPair] =
+  private def nextAttemptRetryCountsToKvPairs(p: Int, ur: Int, tr: Int): Seq[KvPair] =
     Seq(
       KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey),
              ur.toString
       ),
-      KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey), p.toString)
+      KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.preemptionCountKey),
+             p.toString
+      ),
+      KvPair(ScopedKey(workflowId, futureKvJobKey, GcpBatchBackendLifecycleActorFactory.transientRetryCountKey),
+             tr.toString
+      )
     )
 
   private def handlePreemption(
-    runStatus: RunStatus.UnsuccessfulRunStatus,
-    jobReturnCode: Option[Int],
-    prettyPrintedError: String
+    runStatus: RunStatus.Failed,
+    jobReturnCode: Option[Int]
   ): ExecutionHandle = {
     import common.numeric.IntegerUtil._
 
-    val errorCode: GrpcStatus = runStatus.errorCode
+    val errorCode: GcpBatchExitCode = runStatus.errorCode
     previousRetryReasons match {
-      case Valid(PreviousRetryReasons(p, ur)) =>
+      case Valid(PreviousRetryReasons(p, ur, tr)) =>
         val thisPreemption = p + 1
         val taskName = s"${workflowDescriptor.id}:${call.localName}"
         val baseMsg = s"Task $taskName was preempted for the ${thisPreemption.toOrdinal} time."
 
-        val preemptionAndUnexpectedRetryCountsKvPairs =
-          nextAttemptPreemptedAndUnexpectedRetryCountsToKvPairs(thisPreemption, ur)
+        val retryCountsKvPairs = nextAttemptRetryCountsToKvPairs(thisPreemption, ur, tr)
         if (thisPreemption < maxPreemption) {
           // Increment preemption count and unexpectedRetryCount stays the same
           val msg =
             s"$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is " +
-              s"$maxPreemption). Error code $errorCode.$prettyPrintedError"
+              s"$maxPreemption)."
           FailedRetryableExecutionHandle(
             StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
             jobReturnCode,
-            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+            kvPairsToSave = Option(retryCountsKvPairs)
           )
         } else {
           val msg = s"$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The " +
-            s"call will be restarted with a non-preemptible VM. Error code $errorCode.$prettyPrintedError)"
+            s"call will be restarted with a non-preemptible VM."
           FailedRetryableExecutionHandle(
             StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
             jobReturnCode,
-            kvPairsToSave = Option(preemptionAndUnexpectedRetryCountsKvPairs)
+            kvPairsToSave = Option(retryCountsKvPairs)
           )
         }
       case Invalid(_) =>
         FailedNonRetryableExecutionHandle(
-          StandardException(errorCode, prettyPrintedError, jobTag, jobReturnCode, standardPaths.error),
+          StandardException(errorCode,
+                            "Job failed due to preemption, couldn't get information about previous retry attempts.",
+                            jobTag,
+                            jobReturnCode,
+                            standardPaths.error
+          ),
           jobReturnCode,
           None
         )
     }
   }
+
+  // Check whether this failure should be automatically resubmitted without counting against maxRetries.
+  // Guidance: Resubmit if the task has a known-transient failure type and has not yet cost the user money.
+  private def isTransientFailure(failed: RunStatus.Failed): Boolean = {
+    lazy val errorTypeIsTransient = List(
+      GcpBatchExitCode.VMPreemption,
+      GcpBatchExitCode.VMRecreatedDuringExecution,
+      GcpBatchExitCode.VMRebootedDuringExecution
+    ).contains(failed.errorCode)
+    lazy val taskFailedBeforeStarting = !failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
+    transientErrorRetryable && errorTypeIsTransient && taskFailedBeforeStarting
+  }
+
+  private def handleTransientErrorRetry(failed: RunStatus.Failed, returnCode: Option[Int]) =
+    previousRetryReasons match {
+      case Valid(PreviousRetryReasons(p, ur, tr)) =>
+        val thisTransientRetry = tr + 1
+        val retryCountsKvPairs =
+          nextAttemptRetryCountsToKvPairs(p, ur, thisTransientRetry)
+
+        // This message doesn't contain information about which error because that's added inside StandardException
+        val remainingTransientRetries = maxTransientErrorRetries - tr
+        val msg =
+          s"Task failed immediately due to a transient GCP Batch error and will be automatically resubmitted up to ${remainingTransientRetries} more times."
+        FailedRetryableExecutionHandle(
+          StandardException(failed.errorCode, msg, jobTag, returnCode, standardPaths.error),
+          returnCode,
+          kvPairsToSave = Option(retryCountsKvPairs)
+        )
+      case Invalid(_) =>
+        FailedNonRetryableExecutionHandle(
+          StandardException(
+            failed.errorCode,
+            "Job failed due to transient GCP Batch error, couldn't get information about previous retry attempts.",
+            jobTag,
+            returnCode,
+            standardPaths.error
+          ),
+          returnCode,
+          None
+        )
+    }
 
   override lazy val startMetadataKeyValues: Map[String, Any] =
     super[GcpBatchJobCachingActorHelper].startMetadataKeyValues
@@ -1243,7 +1313,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         case batchOutput if batchOutput.name == makeSafeReferenceName(path) =>
           val pathAsString = batchOutput.cloudPath.pathAsString
 
-          // TODO: batchOutput.cloudPath.exists invokes GCP, which causes a test ported from papi-common to fail
           if (batchOutput.isFileParameter && !batchOutput.cloudPath.exists) {
             // This is not an error if the path represents a `File?` optional output (the Batch delocalization script
             // should have failed if this file output was not optional but missing). Throw to produce the correct "empty

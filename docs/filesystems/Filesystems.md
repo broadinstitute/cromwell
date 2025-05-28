@@ -20,6 +20,9 @@ filesystems {
         config {
           resolver {
             url = https://drshub-url-here"
+            # How long to wait for the server to start responding
+            # Default is the informal standard around the DRS ecosystem
+            request-timeout = 60 seconds
             # The number of times to retry failures connecting or HTTP 429 or HTTP 5XX responses, default 3.
             num-retries = 3
             # How long to wait between retrying HTTP 429 or HTTP 5XX responses, default 10 seconds.

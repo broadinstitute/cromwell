@@ -11,6 +11,7 @@ sealed trait DockerImageIdentifier {
   def reference: String
 
   def swapReference(newReference: String): DockerImageIdentifier
+  def swapHost(newHost: String): DockerImageIdentifier
 
   // The name of the image with a repository prefix iff a repository was explicitly specified.
   lazy val name = repository map { r => s"$r/$image" } getOrElse image
@@ -35,6 +36,7 @@ case class DockerImageIdentifierWithoutHash(host: Option[String],
 ) extends DockerImageIdentifier {
   def withHash(hash: DockerHashResult) = DockerImageIdentifierWithHash(host, repository, image, reference, hash)
   override def swapReference(newReference: String) = this.copy(reference = newReference)
+  override def swapHost(newHost: String) = this.copy(host = Option(newHost))
 }
 
 case class DockerImageIdentifierWithHash(host: Option[String],
@@ -45,6 +47,7 @@ case class DockerImageIdentifierWithHash(host: Option[String],
 ) extends DockerImageIdentifier {
   override lazy val fullName: String = s"$hostAsString$name@${hash.algorithmAndHash}"
   override def swapReference(newReference: String) = this.copy(reference = newReference)
+  override def swapHost(newHost: String) = this.copy(host = Option(newHost))
 }
 
 object DockerImageIdentifier {

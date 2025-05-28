@@ -1,13 +1,10 @@
 package cromwell.engine.workflow.tokens
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Terminated, Timers}
-import akka.pattern.ask
-import akka.util.Timeout
 import cats.data.NonEmptyList
 import cromwell.backend.standard.GroupMetricsActor.{
   GetQuotaExhaustedGroups,
   GetQuotaExhaustedGroupsFailure,
-  GetQuotaExhaustedGroupsResponse,
   GetQuotaExhaustedGroupsSuccess
 }
 import cromwell.core.Dispatcher.EngineDispatcher
@@ -62,14 +59,13 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   private val tokensLeasedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_dispensed"
   private val tokensReturnedMetricPath: NonEmptyList[String] = tokenDispenserMetricsActivityRates :+ "tokens_returned"
 
-  final private val groupMetricsTimeout = Timeout(60.seconds)
-
   /**
     * Lazily created token queue. We only create a queue for a token type when we need it
     */
   var tokenQueues: Map[JobTokenType, TokenQueue] = Map.empty
   var currentTokenQueuePointer: Int = 0
   var tokenAssignments: Map[ActorRef, TokenLeaseRecord] = Map.empty
+  var quotaExhaustedGroups: List[String] = List.empty
 
   val instrumentationAction = () => {
     sendGaugeJob(tokenAllocatedDescription, tokenAssignments.size.toLong)
@@ -77,6 +73,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
   }
 
   lazy val effectiveLogInterval: Option[FiniteDuration] = logInterval.filterNot(_ == 0.seconds)
+  lazy val quotaExhaustedGroupsRefreshInterval: FiniteDuration = 1.minutes
 
   lazy val tokenEventLogger = effectiveLogInterval match {
     case Some(someInterval: FiniteDuration) => new CachingTokenEventLogger(someInterval)
@@ -102,11 +99,15 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     ratePreStart()
     serviceRegistryActor ! ListenToLoadController
     startInstrumentationTimer()
+    self ! RefreshQuotaExhaustedGroups(quotaExhaustedGroupsRefreshInterval)
     super.preStart()
   }
 
   override def receive: Actor.Receive =
-    tokenDispensingReceive.orElse(rateReceive).orElse(instrumentationReceive(instrumentationAction))
+    tokenDispensingReceive
+      .orElse(quotaExhaustedGroupsReceive)
+      .orElse(rateReceive)
+      .orElse(instrumentationReceive(instrumentationAction))
 
   private def tokenDispensingReceive: Receive = {
     case JobTokenRequest(hogGroup, tokenType) => enqueue(sender(), hogGroup.value, tokenType)
@@ -118,6 +119,25 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
     case LogJobTokenAllocation(nextInterval) => logTokenAllocation(nextInterval)
     case FetchLimitedGroups => sender() ! tokenExhaustedGroups
     case ShutdownCommand => context stop self
+  }
+
+  // If GroupMetricsActor is defined, periodically refresh our list of quota-exhausted groups.
+  // We'll use this list to prevent giving new execution tokens to groups that can't use them due
+  // to already being limited by quota.
+  private def quotaExhaustedGroupsReceive: Receive = {
+    case RefreshQuotaExhaustedGroups(interval) =>
+      groupMetricsActor.foreach { gmActor =>
+        gmActor ! GetQuotaExhaustedGroups
+        context.system.scheduler.scheduleOnce(interval)(self ! RefreshQuotaExhaustedGroups(interval))(
+          context.dispatcher
+        )
+        ()
+      }
+    case GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups) =>
+      this.quotaExhaustedGroups = quotaExhaustedGroups
+    case GetQuotaExhaustedGroupsFailure(errorMsg) =>
+      log.error(s"Failed to fetch quota exhausted groups. Error: $errorMsg")
+      this.quotaExhaustedGroups = List.empty // is this the behavior we want?
   }
 
   // This makes sure the metric paths are being used even if there's no other activity on the token dispenser:
@@ -140,22 +160,10 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
   private def checkAndDispenseTokens(n: Int): Unit =
     if (tokenQueues.nonEmpty) {
-      // don't fetch cloud quota exhausted groups for token dispenser allocating 'restart' tokens
-      (dispenserType, groupMetricsActor) match {
-        case ("execution", Some(gmActor)) =>
-          gmActor
-            .ask(GetQuotaExhaustedGroups)(groupMetricsTimeout)
-            .mapTo[GetQuotaExhaustedGroupsResponse] onComplete {
-            case Success(GetQuotaExhaustedGroupsSuccess(quotaExhaustedGroups)) => dispense(n, quotaExhaustedGroups)
-            case Success(GetQuotaExhaustedGroupsFailure(errorMsg)) =>
-              log.error(s"Failed to fetch quota exhausted groups. Error: $errorMsg")
-              dispense(n, List.empty)
-            case Failure(exception) =>
-              log.error(s"Unexpected failure while fetching quota exhausted groups. Error: ${exception.getMessage}")
-              dispense(n, List.empty)
-          }
-        case _ => dispense(n, List.empty)
-      }
+      // disregard quota exhausted groups for token dispenser allocating 'restart' tokens,
+      // we want all workflows to restart quickly regardless of quota exhaustion
+      val groupsToExclude = if (dispenserType == "execution") quotaExhaustedGroups else List.empty
+      dispense(n, groupsToExclude)
     }
 
   private def dispense(n: Int, quotaExhaustedGroups: List[String]): Unit = {
@@ -300,6 +308,7 @@ object JobTokenDispenserActor {
   case object JobTokenReturn
   case object JobTokenDispensed
   final case class LogJobTokenAllocation(someInterval: FiniteDuration)
+  final case class RefreshQuotaExhaustedGroups(interval: FiniteDuration)
   case object FetchLimitedGroups
   final case class ReplyLimitedGroups(groups: Set[String])
 

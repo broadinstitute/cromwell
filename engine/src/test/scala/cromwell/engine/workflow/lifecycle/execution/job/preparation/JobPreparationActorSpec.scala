@@ -2,10 +2,12 @@ package cromwell.engine.workflow.lifecycle.execution.job.preparation
 
 import akka.testkit.{ImplicitSender, TestActorRef}
 import cats.syntax.validated._
+import common.mock.MockSugar
+import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{DockerWithHash, FloatingDockerTagWithoutHash}
 import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse, DockerSize}
-import cromwell.docker.{DockerHashResult, DockerImageIdentifier, DockerImageIdentifierWithoutHash, DockerInfoRequest}
+import cromwell.docker._
 import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFailure
 import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{
   BackendJobPreparationSucceeded,
@@ -17,10 +19,12 @@ import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import common.mock.MockSugar
-import wom.RuntimeAttributesKeys
+import wom.{RuntimeAttributes, RuntimeAttributesKeys}
 import wom.callable.Callable.InputDefinition
+import wom.callable.CommandTaskDefinition
 import wom.core.LocallyQualifiedName
+import wom.expression.ValueAsAnExpression
+import wom.graph.{CommandCallNode, WomIdentifier}
 import wom.values.{WomString, WomValue}
 
 import scala.concurrent.duration._
@@ -48,7 +52,8 @@ class JobPreparationActorSpec
 
   it should "fail preparation if it can't evaluate inputs or runtime attributes" in {
     val error = "Failed to prepare inputs/attributes - part of test flow"
-    val actor = TestActorRef(helper.buildTestJobPreparationActor(null, null, null, error.invalidNel, List.empty), self)
+    val actor =
+      TestActorRef(helper.buildTestJobPreparationActor(null, null, null, Option(error.invalidNel), List.empty), self)
     actor ! Start(ValueStore.empty)
     expectMsgPF(1.second) { case CallPreparationFailed(_, ex) =>
       ex.getMessage shouldBe "Call input and runtime attributes evaluation failed for JobPreparationSpec_call:\nFailed to prepare inputs/attributes - part of test flow"
@@ -60,7 +65,7 @@ class JobPreparationActorSpec
     val attributes = Map.empty[LocallyQualifiedName, WomValue]
     val inputsAndAttributes = (inputs, attributes).validNel
     val actor =
-      TestActorRef(helper.buildTestJobPreparationActor(null, null, null, inputsAndAttributes, List.empty), self)
+      TestActorRef(helper.buildTestJobPreparationActor(null, null, null, Option(inputsAndAttributes), List.empty), self)
     actor ! Start(ValueStore.empty)
     expectMsgPF(5 seconds) { case success: BackendJobPreparationSucceeded =>
       success.jobDescriptor.maybeCallCachingEligible.dockerHash shouldBe None
@@ -75,7 +80,7 @@ class JobPreparationActorSpec
     )
     val inputsAndAttributes = (inputs, attributes).validNel
     val actor =
-      TestActorRef(helper.buildTestJobPreparationActor(null, null, null, inputsAndAttributes, List.empty), self)
+      TestActorRef(helper.buildTestJobPreparationActor(null, null, null, Option(inputsAndAttributes), List.empty), self)
     actor ! Start(ValueStore.empty)
     helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
     actor ! DockerInfoSuccessResponse(
@@ -110,7 +115,7 @@ class JobPreparationActorSpec
     val actor = TestActorRef(helper.buildTestJobPreparationActor(1 minute,
                                                                  1 minutes,
                                                                  List.empty,
-                                                                 inputsAndAttributes,
+                                                                 Option(inputsAndAttributes),
                                                                  List(prefetchedKey1, prefetchedKey2)
                              ),
                              self
@@ -146,7 +151,7 @@ class JobPreparationActorSpec
     val inputsAndAttributes = (inputs, attributes).validNel
     val finalValue = "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val actor = TestActorRef(
-      helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty),
+      helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, Option(inputsAndAttributes), List.empty),
       self
     )
     actor ! Start(ValueStore.empty)
@@ -170,7 +175,7 @@ class JobPreparationActorSpec
     )
     val inputsAndAttributes = (inputs, attributes).validNel
     val actor = TestActorRef(
-      helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List.empty),
+      helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, Option(inputsAndAttributes), List.empty),
       self
     )
     actor ! Start(ValueStore.empty)
@@ -187,6 +192,80 @@ class JobPreparationActorSpec
     }
   }
 
+  it should "correctly apply DockerMirroring to a Dockerhub image" in {
+    // Create a mock job with the desired runtime attribute
+    val callable: CommandTaskDefinition = mock[CommandTaskDefinition]
+    callable.runtimeAttributes returns RuntimeAttributes(
+      Map("docker" -> ValueAsAnExpression(WomString("ubuntu:latest")))
+    )
+    val call: CommandCallNode =
+      CommandCallNode(WomIdentifier("JobPreparationSpec_call"), callable, Set.empty, List.empty, Set.empty, null, None)
+    val mockJobKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
+
+    val dockerMirroring = DockerMirroring(List(DockerHubMirror("my.mirror.io")))
+    val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
+    val mirroredValue = "my.mirror.io/ubuntu:latest"
+    val finalValue = "my.mirror.io/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+    val actor = TestActorRef(
+      helper.buildTestJobPreparationActor(1 minute,
+                                          1 minutes,
+                                          List.empty,
+                                          None,
+                                          List.empty,
+                                          mockJobKey,
+                                          Option(dockerMirroring)
+      ),
+      self
+    )
+    actor ! Start(ValueStore.empty)
+    helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
+    helper.workflowDockerLookupActor.reply(
+      DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest])
+    )
+    expectMsgPF(5 seconds) { case success: BackendJobPreparationSucceeded =>
+      success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe mirroredValue
+      success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash(finalValue)
+    }
+  }
+
+  it should "not apply DockerMirroring to a non-DockerHub image" in {
+    val dockerValue = "gcr.io/broad-dsde-cromwell-dev/cromwell-drs-localizer:latest"
+
+    // Create a mock job with the desired runtime attribute
+    val callable: CommandTaskDefinition = mock[CommandTaskDefinition]
+    callable.runtimeAttributes returns RuntimeAttributes(
+      Map("docker" -> ValueAsAnExpression(WomString(dockerValue)))
+    )
+    val call: CommandCallNode =
+      CommandCallNode(WomIdentifier("JobPreparationSpec_call"), callable, Set.empty, List.empty, Set.empty, null, None)
+    val mockJobKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
+
+    val dockerMirroring = DockerMirroring(List(DockerHubMirror("my.mirror.io")))
+    val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
+    val finalValue =
+      "gcr.io/broad-dsde-cromwell-dev/cromwell-drs-localizer@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+    val actor = TestActorRef(
+      helper.buildTestJobPreparationActor(1 minute,
+                                          1 minutes,
+                                          List.empty,
+                                          None,
+                                          List.empty,
+                                          mockJobKey,
+                                          Option(dockerMirroring)
+      ),
+      self
+    )
+    actor ! Start(ValueStore.empty)
+    helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
+    helper.workflowDockerLookupActor.reply(
+      DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest])
+    )
+    expectMsgPF(5 seconds) { case success: BackendJobPreparationSucceeded =>
+      success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
+      success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash(finalValue)
+    }
+  }
+
   it should "lookup MemoryMultiplier key/value if available and accordingly update runtime attributes" in {
     val attributes = Map(
       "memory" -> WomString("1.1 GB")
@@ -197,7 +276,12 @@ class JobPreparationActorSpec
     val prefetchedValues = Map(prefetchedKey -> prefetchedVal)
     var keysToPrefetch = List(prefetchedKey)
     val actor = TestActorRef(
-      helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey)),
+      helper.buildTestJobPreparationActor(1 minute,
+                                          1 minutes,
+                                          List.empty,
+                                          Option(inputsAndAttributes),
+                                          List(prefetchedKey)
+      ),
       self
     )
     actor ! Start(ValueStore.empty)
@@ -238,7 +322,12 @@ class JobPreparationActorSpec
       var keysToPrefetch = List(prefetchedKey)
 
       val actor = TestActorRef(
-        helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, inputsAndAttributes, List(prefetchedKey)),
+        helper.buildTestJobPreparationActor(1 minute,
+                                            1 minutes,
+                                            List.empty,
+                                            Option(inputsAndAttributes),
+                                            List(prefetchedKey)
+        ),
         self
       )
       actor ! Start(ValueStore.empty)

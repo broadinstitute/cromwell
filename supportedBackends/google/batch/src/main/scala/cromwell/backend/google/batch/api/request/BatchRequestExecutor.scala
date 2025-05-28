@@ -10,13 +10,11 @@ import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
 }
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiResponse}
-import cromwell.backend.google.batch.models.RunStatus
+import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}
 import cromwell.core.ExecutionEvent
-import io.grpc.Status
 import cromwell.services.cost.InstantiatedVmInfo
 import cromwell.services.metadata.CallMetadataKeys
 
-import java.util.regex.Pattern
 import scala.annotation.unused
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters.ListHasAsScala
@@ -28,10 +26,6 @@ trait BatchRequestExecutor {
 }
 
 object BatchRequestExecutor {
-  // The "from" state is *usually* RUNNING, but if a VM is quickly preempted it could be an earlier state like PENDING.
-  private val VM_PREEMPTION_PATTERN = Pattern.compile(
-    "failed due to the following task event: \"Task state is updated from \\S+ to FAILED on zones/\\S+ due to Spot VM preemption with exit code 50001.\""
-  )
 
   class CloudImpl(batchSettings: BatchServiceSettings) extends BatchRequestExecutor with LazyLogging {
 
@@ -128,7 +122,7 @@ object BatchRequestExecutor {
       } catch {
         // A job can't be cancelled but deleted, which is why we consider 404 status as the job being cancelled successfully
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.NOT_FOUND =>
-          BatchApiResponse.StatusQueried(RunStatus.Aborted(io.grpc.Status.NOT_FOUND))
+          BatchApiResponse.StatusQueried(RunStatus.Aborted())
 
         // We don't need to detect preemptible VMs because that's handled automatically by GCP
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
@@ -136,9 +130,6 @@ object BatchRequestExecutor {
       }
 
     private[request] def interpretOperationStatus(job: Job): RunStatus = {
-      def isPreemption(events: List[ExecutionEvent]): Boolean =
-        events.exists(e => VM_PREEMPTION_PATTERN.matcher(e.name).find())
-
       lazy val events = getEventList(
         Option(job)
           .flatMap(e => Option(e.getStatus))
@@ -153,7 +144,10 @@ object BatchRequestExecutor {
       // Get instances that can be created with this AllocationPolicy, only instances[0] is supported
       val instancePolicy = allocationPolicy.getInstances(0).getPolicy
       val machineType = instancePolicy.getMachineType
-      val preemtible = instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber
+
+      // SPOT VM is used as preemptible VM instances in Batch. Check for both SPOT or PREEMPTIBLE just to be safe
+      val preemptible = (instancePolicy.getProvisioningModelValue == ProvisioningModel.SPOT.getNumber) ||
+        (instancePolicy.getProvisioningModelValue == ProvisioningModel.PREEMPTIBLE.getNumber)
 
       // location list = [regions/us-central1, zones/us-central1-b], region is the first element
       val location = allocationPolicy.getLocation.getAllowedLocationsList.get(0)
@@ -163,44 +157,47 @@ object BatchRequestExecutor {
         else
           location.split("/").last
 
-      val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemtible))
+      val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemptible))
 
       if (job.getStatus.getState == JobStatus.State.SUCCEEDED) {
         RunStatus.Success(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.RUNNING) {
         RunStatus.Running(events, instantiatedVmInfo)
       } else if (job.getStatus.getState == JobStatus.State.FAILED) {
-        if (isPreemption(events)) {
-          RunStatus.Preempted(Status.OK, events, instantiatedVmInfo)
-        } else {
-          // Status.OK is hardcoded because the request succeeded, we don't have access to the internal response code
-          RunStatus.Failed(Status.OK, events, instantiatedVmInfo)
-        }
+        val batchExitCode =
+          events
+            .flatMap(e => GcpBatchExitCode.fromEventMessage(e.name))
+            .headOption
+            .getOrElse(GcpBatchExitCode.Success)
+        RunStatus.Failed(batchExitCode, events, instantiatedVmInfo)
       } else {
         RunStatus.Initializing(events, instantiatedVmInfo)
       }
     }
 
     private def getEventList(events: List[StatusEvent]): List[ExecutionEvent] = {
-      val startedRegex = ".*SCHEDULED to RUNNING.*".r
-      val endedRegex = ".*RUNNING to.*".r // can be SUCCEEDED or FAILED
+      // on Batch, when job transitions to SCHEDULED state it indicates that the VM is being initialized. Users are billed for this
+      // startup time. Hence, the 'vmStartTime' corresponds to when the job enters the SCHEDULED state.
+      val startedRegex = ".*to SCHEDULED.*".r
+
+      // job terminal events can occur in 2 ways:
+      //    - job transitions from a RUNNING state to either SUCCEEDED or FAILED state
+      //    - job never enters the RUNNING state and instead transitions from SCHEDULED -> SCHEDULED_PENDING_FAILED -> FAILED
+      val endedRegex = ".*RUNNING to.*|.*SCHEDULED_PENDING_FAILED to FAILED.*".r
+
       events.flatMap { e =>
         val time = java.time.Instant
           .ofEpochSecond(e.getEventTime.getSeconds, e.getEventTime.getNanos.toLong)
           .atOffset(java.time.ZoneOffset.UTC)
-        val eventType = e.getDescription match {
-          case startedRegex() => CallMetadataKeys.VmStartTime
-          case endedRegex() => CallMetadataKeys.VmEndTime
-          case _ => e.getType
-        }
-        val executionEvents = List(ExecutionEvent(name = eventType, offsetDateTime = time))
 
-        // Add an additional ExecutionEvent to capture other info if the event is a VmStartTime or VmEndTime
-        if (eventType == CallMetadataKeys.VmStartTime || eventType == CallMetadataKeys.VmEndTime) {
-          executionEvents :+ ExecutionEvent(name = e.getDescription, offsetDateTime = time)
-        } else {
-          executionEvents
-        }
+        // If this event represents the VM starting or stopping, add a special event describing that.
+        val startOrEndEvent = (e.getDescription match {
+          case startedRegex() => Option(CallMetadataKeys.VmStartTime)
+          case endedRegex() => Option(CallMetadataKeys.VmEndTime)
+          case _ => None
+        }).map(t => ExecutionEvent(name = t, offsetDateTime = time))
+
+        List(ExecutionEvent(name = e.getDescription, offsetDateTime = time)) ++ startOrEndEvent.toList
       }
     }
   }

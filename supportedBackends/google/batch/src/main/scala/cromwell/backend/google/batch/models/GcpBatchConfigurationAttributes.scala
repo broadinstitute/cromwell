@@ -25,6 +25,7 @@ import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{
 import cromwell.backend.google.batch.util.GcpBatchReferenceFilesMappingOperations
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
+import cromwell.docker.DockerMirroring
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.{refineMV, refineV}
@@ -49,13 +50,15 @@ case class GcpBatchConfigurationAttributes(
   cacheHitDuplicationStrategy: BatchCacheHitDuplicationStrategy,
   requestWorkers: Int Refined Positive,
   batchTimeout: FiniteDuration,
+  dockerMirroringOpt: Option[DockerMirroring],
   logFlushPeriod: Option[FiniteDuration],
   gcsTransferConfiguration: GcsTransferConfiguration,
   virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
   batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
   referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]],
   checkpointingInterval: FiniteDuration,
-  logsPolicy: GcpBatchLogsPolicy
+  logsPolicy: GcpBatchLogsPolicy,
+  maxTransientErrorRetries: Int
 )
 
 object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOperations with StrictLogging {
@@ -109,6 +112,9 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     "concurrent-job-limit",
     "request-workers",
     "batch-timeout",
+    "max-transient-error-retries",
+    "docker-mirror.dockerhub.enabled",
+    "docker-mirror.dockerhub.address",
     "batch-requests.timeouts.read",
     "batch-requests.timeouts.connect",
     "default-runtime-attributes.bootDiskSizeGb",
@@ -247,6 +253,8 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
 
     val batchTimeout: FiniteDuration = backendConfig.getOrElse("batch-timeout", 7.days)
 
+    val dockerMirroring: Option[DockerMirroring] = DockerMirroring.fromConfig(backendConfig)
+
     val logFlushPeriod: Option[FiniteDuration] = backendConfig.as[Option[FiniteDuration]]("log-flush-period") match {
       case Some(duration) if duration.isFinite => Option(duration)
       // "Inf" disables upload
@@ -300,6 +308,9 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
 
     val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
 
+    val maxTransientErrorRetries: Int =
+      backendConfig.as[Option[Int]]("max-transient-error-retries").getOrElse(10)
+
     def authGoogleConfigForBatchConfigurationAttributes(
       project: String,
       bucket: String,
@@ -335,13 +346,15 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
           cacheHitDuplicationStrategy = cacheHitDuplicationStrategy,
           requestWorkers = requestWorkers,
           batchTimeout = batchTimeout,
+          dockerMirroringOpt = dockerMirroring,
           logFlushPeriod = logFlushPeriod,
           gcsTransferConfiguration = gcsTransferConfiguration,
           virtualPrivateCloudConfiguration = virtualPrivateCloudConfiguration,
           batchRequestTimeoutConfiguration = batchRequestTimeoutConfiguration,
           referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
           checkpointingInterval = checkpointingInterval,
-          logsPolicy = logsPolicy
+          logsPolicy = logsPolicy,
+          maxTransientErrorRetries = maxTransientErrorRetries
         )
       }
 

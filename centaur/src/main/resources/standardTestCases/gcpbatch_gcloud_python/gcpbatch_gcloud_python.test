@@ -1,0 +1,13 @@
+name: gcpbatch_gcloud_python
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: container_tester.wdl
+  inputs: samtools_inputs.json
+}
+
+metadata {
+  workflowName: container_tester
+  status: Succeeded
+}

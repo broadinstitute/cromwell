@@ -181,7 +181,14 @@ object RunnableBuilder extends BatchUtilityConversions {
       Environment
         .newBuilder()
         .putAllVariables(
-          Map("MEM_UNIT" -> memory.unit.toString, "MEM_SIZE" -> memory.amount.toString).asJava
+          Map(
+            "MEM_UNIT" -> memory.unit.toString,
+            "MEM_SIZE" -> memory.amount.toString,
+            // Batch sets `CLOUDSDK_PYTHON=/usr/bin/python3`, which is not compatible with user-provided
+            // images that have Python in a different place. Here we unset the variable so that
+            // `gcloud` can find its own Python. (AN-601, XKCD-1987)
+            "CLOUDSDK_PYTHON" -> ""
+          ).asJava
         )
 
     Runnable

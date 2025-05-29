@@ -4,7 +4,7 @@
 
 ### GCP Batch
 * Task log files are now included in the group of files copied for call cache hits.
-* Tweak automatic retry of transient errors: retry if task is SCHEDULED but not RUNNING.
+* Tweak automatic retry of transient errors: retry if task is SCHEDULED but not RUNNING. This should result in more retries, reducing the number of workflows that fail due to transient Batch issues.
 
 ## 90 Release Notes
 

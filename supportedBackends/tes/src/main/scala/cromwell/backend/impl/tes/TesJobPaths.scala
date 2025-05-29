@@ -4,7 +4,6 @@ import com.typesafe.config.Config
 import cromwell.backend.io.{JobPaths, WorkflowPaths}
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.path._
-import cromwell.filesystems.blob.BlobPath
 
 object TesJobPaths {
   def apply(jobKey: BackendJobDescriptorKey, workflowDescriptor: BackendWorkflowDescriptor, config: Config) = {
@@ -36,10 +35,7 @@ case class TesJobPaths private[tes] (override val workflowPaths: TesWorkflowPath
    * While passing it outside of terra won't do any harm, we could consider making this optional and/or configurable.
    */
   private val taskFullPath = callRoot./("tes_task")
-  val tesTaskRoot: String = taskFullPath match {
-    case blob: BlobPath => blob.pathWithoutContainer
-    case anyOtherPath: Path => anyOtherPath.pathAsString
-  }
+  val tesTaskRoot: String = taskFullPath.pathAsString
 
   // Like above: Nothing should rely on these files existing, since only the Azure TES implementation will actually create them.
   // Used to send the Azure TES log paths to the frontend.

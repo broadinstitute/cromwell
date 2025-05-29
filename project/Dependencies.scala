@@ -217,7 +217,7 @@ object Dependencies {
     "com.azure" % "azure-core" % "1.51.0",
     "com.azure" % "azure-storage-blob" % "12.23.0-beta.1",
     "com.azure" % "azure-storage-common" % "12.22.0-beta.1",
-    "com.azure" % "azure-core-test" % "1.26.2",
+    "com.azure" % "azure-core-test" % "1.27.0-beta.8",
     "org.junit.jupiter" % "junit-jupiter-params" % "5.9.3",
     "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.3",
     "org.junit.jupiter" % "junit-jupiter-api" % "5.9.3",

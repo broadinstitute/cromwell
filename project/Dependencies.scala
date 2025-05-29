@@ -54,7 +54,7 @@ object Dependencies {
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.14.0"
-  private val jakartaActivationV = "1.2.1"
+  private val jakartaActivationV = "1.2.2"
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
@@ -177,12 +177,12 @@ object Dependencies {
     /*
     The google-cloud-java dependencies have similar issues with using an older javax.* vs. jakarta.* as guice.
     google-cloud-java is still using javax.annotation and guice is sticking with javax.inject:
-    - https://github.com/google/guice/issues/1383
-    - https://github.com/googleapis/google-cloud-java/blob/v0.201.0/google-cloud-jar-parent/pom.xml#L131-L136
-    Globally use of jakarta instead of javax until Google does themselves.
-    The javax.annotation exclusion is below in cromwellExcludeDependencies.
+     - https://github.com/google/guice/issues/1383
+     - https://github.com/googleapis/google-cloud-java/blob/v0.201.0/google-cloud-jar-parent/pom.xml#L131-L136
+     Globally use of jakarta instead of javax until Google does themselves.
+     The javax.annotation exclusion is below in cromwellExcludeDependencies.
     */
-  "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationV,
+    "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationV,
   )
 
   val spiDependencies: List[ModuleID] = List(
@@ -341,7 +341,7 @@ object Dependencies {
     "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
       exclude("com.google.apis", "google-api-services-genomics"),
     "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V,
-    "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
+  "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5"),
     "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
   )

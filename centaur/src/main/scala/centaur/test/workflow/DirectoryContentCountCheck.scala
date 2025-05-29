@@ -2,7 +2,7 @@ package centaur.test.workflow
 
 import cats.data.Validated._
 import cats.syntax.all._
-import centaur.test.{AWSFilesChecker, BlobFilesChecker, FilesChecker, LocalFilesChecker, PipelinesFilesChecker}
+import centaur.test.{AWSFilesChecker, FilesChecker, LocalFilesChecker, PipelinesFilesChecker}
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import configs.Result
@@ -26,12 +26,11 @@ object DirectoryContentCountCheck {
         case Result.Success("gcs") => valid(PipelinesFilesChecker)
         case Result.Success("local") => valid(LocalFilesChecker)
         case Result.Success("aws") => valid(AWSFilesChecker)
-        case Result.Success("blob") => valid(BlobFilesChecker)
         case Result.Success(_) =>
-          invalidNel(s"Test '$name': Invalid 'fileSystemCheck' value (must be either 'local', 'gcs', 'blob', or 'aws'")
+          invalidNel(s"Test '$name': Invalid 'fileSystemCheck' value (must be either 'local', 'gcs', or 'aws'")
         case Result.Failure(_) =>
           invalidNel(
-            s"Test '$name': Must specify a 'fileSystemCheck' value (must be either 'local', 'gcs', 'blob', or 'aws'"
+            s"Test '$name': Must specify a 'fileSystemCheck' value (must be either 'local', 'gcs', or 'aws'"
           )
       }
 

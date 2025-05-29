@@ -99,6 +99,8 @@ object GcpBatchAsyncBackendJobExecutionActor {
   private val gcsFilePathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/[^/]+$".r
   private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/?$".r
 
+  private val executionEventRunningMatcher = ".* to RUNNING.*".r
+
   val GcpBatchOperationIdKey = "__gcp_batch_operation_id"
 
   type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, RunStatus]
@@ -1207,8 +1209,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       GcpBatchExitCode.VMRecreatedDuringExecution,
       GcpBatchExitCode.VMRebootedDuringExecution
     ).contains(failed.errorCode)
-    lazy val taskFailedBeforeStarting = !failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
-    transientErrorRetryable && errorTypeIsTransient && taskFailedBeforeStarting
+    lazy val taskStartedRunning = failed.eventList.exists(e => executionEventRunningMatcher.matches(e.name))
+    transientErrorRetryable && errorTypeIsTransient && !taskStartedRunning
   }
 
   private def handleTransientErrorRetry(failed: RunStatus.Failed, returnCode: Option[Int]) =

@@ -4,6 +4,7 @@
 
 ### GCP Batch
 * Task log files are now included in the group of files copied for call cache hits.
+* Tweak automatic retry of transient errors: retry if task is SCHEDULED but not RUNNING. This should result in more retries, reducing the number of workflows that fail due to transient Batch issues.
 * Fixed an issue that caused WDL tasks to fail when invoking `gcloud` or `gsutil`. Affected tasks returned an error message referencing `python3: not found`.
 
 ## 90 Release Notes

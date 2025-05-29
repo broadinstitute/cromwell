@@ -8,18 +8,6 @@ object Dependencies {
   private val apacheHttpClientV = "4.5.13"
   private val apacheHttpClient5V = "5.3.1"
   private val awsSdkV = "2.17.265"
-  // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
-  // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
-  // https://github.com/sbt/sbt/issues/4531
-  private val azureIdentitySdkV = "1.9.1"
-  private val azureIdentityExtensionsV = "1.1.4"
-  private val azureCoreManagementV = "1.7.1"
-  // We are using the older AppInsights 2 because we want to use the
-  // logback appender to send logs. AppInsights 3 does not have a standalone
-  // appender, and its auto-hoovering of logs didn't meet our needs.
-  // (Specifically, the side-by-side root logger and workflow logger resulted in
-  // duplicate messages in AI. See WX-1122.)
-  private val azureAppInsightsLogbackV = "2.6.4"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.5.2"
   private val bardClientV = "1.0.8"
@@ -193,37 +181,6 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % catsEffectV,
   )
 
-  /*
-   Due to complications with the public preview Nio filesystem for azure,
-  we include this FS implementation locally and include its dependencies
-   */
-  val azureBlobNioDependencies = List(
-    "com.azure" % "azure-core" % "1.51.0",
-    "com.azure" % "azure-storage-blob" % "12.23.0-beta.1",
-    "com.azure" % "azure-storage-common" % "12.22.0-beta.1",
-    "com.azure" % "azure-core-test" % "1.26.2",
-    "org.junit.jupiter" % "junit-jupiter-params" % "5.9.3",
-    "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.3",
-    "org.junit.jupiter" % "junit-jupiter-api" % "5.9.3",
-    "io.projectreactor" % "reactor-test" % "3.4.29",
-    "cglib" % "cglib-nodep" % "3.2.7",
-    "com.azure" % "azure-core-http-okhttp" % "1.11.10",
-    "org.mockito" % "mockito-core" % "4.11.0",
-    "com.github.sbt" % "junit-interface" % "0.13.2"
-  )
-
-  val azureDependencies: List[ModuleID] = List(
-    "com.azure" % "azure-identity" % azureIdentitySdkV
-      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-      exclude("jakarta.activation", "jakarta.activation-api")
-      exclude("net.minidev", "json-smart"),
-    "com.azure" % "azure-identity-extensions" % azureIdentityExtensionsV,
-    "com.azure" % "azure-core-management" % azureCoreManagementV,
-    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
-    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
-    "net.minidev" % "json-smart" % jsonSmartV,
-  ) ++ azureBlobNioDependencies
-
   val implFtpDependencies = List(
     "commons-net" % "commons-net" % commonNetV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV,
@@ -235,7 +192,7 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV
-  ) ++ circeDependencies ++ catsDependencies ++ azureDependencies
+  ) ++ circeDependencies ++ catsDependencies
 
   // Internal collections of dependencies
 
@@ -384,7 +341,7 @@ object Dependencies {
     "com.lihaoyi" %% "pprint" % pprintV,
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
-  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ googlePapiBatchDependencies ++ betterFilesDependencies ++ awsCloudDependencies ++ azureDependencies
+  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ googlePapiBatchDependencies ++ betterFilesDependencies ++ awsCloudDependencies
 
   val databaseSqlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,
@@ -436,8 +393,6 @@ object Dependencies {
   private val testDatabaseDependencies =
     List("scalatest", "mysql", "mariadb", "postgresql")
       .map(name => "com.dimafeng" %% s"testcontainers-scala-$name" % testContainersScalaV % Test)
-
-  val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ akkaHttpDependencies
 
   val s3FileSystemDependencies: List[ModuleID] = junitDependencies
 
@@ -554,7 +509,7 @@ object Dependencies {
     "com.github.scopt" %% "scopt" % scoptV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
     "io.spray" %% "spray-json" % sprayJsonV,
-  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies ++ azureDependencies
+  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
 
   val allProjectDependencies: List[ModuleID] =
     backendDependencies ++

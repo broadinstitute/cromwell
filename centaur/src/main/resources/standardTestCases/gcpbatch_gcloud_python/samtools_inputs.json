@@ -1,0 +1,3 @@
+{
+  "container_tester.container_image": "us.gcr.io/broad-dsde-methods/gatk-sv/samtools-cloud:2022-06-10-v0.23-beta-9c6fbf56"
+}

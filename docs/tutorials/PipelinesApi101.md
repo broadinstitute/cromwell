@@ -15,7 +15,7 @@ Google recommends using a service account to authenticate to GCP.
 You may create a service account using the `gcloud` command, consider running the following script and replace MY-GOOGLE-PROJECT:
 
 ```
-#!/bin/bash
+#!/usr/bin/env bash
 export LC_ALL=C 
 RANDOM_BUCKET_NAME=$(head /dev/urandom | tr -dc a-z | head -c 32 ; echo '')
 

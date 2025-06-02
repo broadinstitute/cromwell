@@ -43,11 +43,12 @@ class GcpBatchVpcAndSubnetworkProjectLabelValuesSpec extends AnyFlatSpec with Ma
       "slashed/net",
       Option(s"slashed/my-project/regions/us-central1/subnet")
     ),
-    ("both network and subnet without slash",
-     "network",
-     Option("subnetwork"),
-     "projects/my-project/global/networks/network",
-     Option("projects/my-project/regions/us-central1/subnetworks/subnetwork")
+    (
+      "both network and subnet without slash",
+      "network",
+      Option("subnetwork"),
+      "projects/my-project/global/networks/network",
+      Option("projects/my-project/regions/us-central1/subnetworks/subnetwork")
     )
   )
 

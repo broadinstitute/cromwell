@@ -210,11 +210,14 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
     ): Future[Option[VpcAndSubnetworkProjectLabelValues]] = {
       // Added explicit types to hopefully help future devs who stumble across this two-step code
       val fetchedFromLabels: Future[Option[VpcAndSubnetworkProjectLabelValues]] = vpcConfig.labelsOption match {
-        case Some(labels: VirtualPrivateCloudLabels) => fetchVpcLabelsFromProjectMetadata(labels)
+        case Some(labels: VirtualPrivateCloudLabels) =>
+          println(s"#### FIND ME - labels found")
+          fetchVpcLabelsFromProjectMetadata(labels)
         case None => Future.successful(None)
       }
       fetchedFromLabels map {
         _ orElse {
+          println(s"#### FIND ME - using literals")
           vpcConfig.literalsOption map { literals: VirtualPrivateCloudLiterals =>
             VpcAndSubnetworkProjectLabelValues(literals.network, literals.subnetwork)
           }

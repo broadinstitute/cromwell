@@ -262,6 +262,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val machineType = GcpBatchMachineConstraints.machineType(runtimeAttributes.memory,
                                                              runtimeAttributes.cpu,
                                                              cpuPlatformOption = runtimeAttributes.cpuPlatform,
+                                                             standardMachineTypeOption = runtimeAttributes.standardMachineType,
                                                              jobLogger = jobLogger
     )
     val instancePolicy =

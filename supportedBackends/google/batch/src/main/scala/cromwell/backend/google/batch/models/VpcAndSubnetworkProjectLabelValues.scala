@@ -10,10 +10,8 @@ final case class VpcAndSubnetworkProjectLabelValues(vpcName: String, subnetNameO
   def networkName(projectId: String): String = {
     val networkNameTemplate =
       if (vpcName.contains("/")) {
-        println(s"#### FIND ME - vpcName already contains '/'")
         vpcName
       } else {
-        println(s"#### FIND ME - fully qualified network path being constructed")
         s"projects/$ProjectIdToken/global/networks/$vpcName"
       }
 
@@ -27,10 +25,8 @@ final case class VpcAndSubnetworkProjectLabelValues(vpcName: String, subnetNameO
   def subnetNameOption(projectId: String, region: String): Option[String] =
     subnetNameOpt map { subnetName =>
       val subnetworkNameTemplate = if (subnetName.contains("/")) {
-        println(s"#### FIND ME - subnetName already contains '/'")
         subnetName
       } else {
-        println(s"#### FIND ME - fully qualified subnetName path being constructed")
         s"projects/$ProjectIdToken/regions/*/subnetworks/$subnetName"
       }
 

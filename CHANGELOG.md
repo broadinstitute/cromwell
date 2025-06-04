@@ -7,6 +7,20 @@
 * Tweak automatic retry of transient errors: retry if task is SCHEDULED but not RUNNING. This should result in more retries, reducing the number of workflows that fail due to transient Batch issues.
 * Fixed an issue that caused WDL tasks to fail when invoking `gcloud` or `gsutil`. Affected tasks returned an error message referencing `python3: not found`.
 
+### Azure sunset
+
+Cromwell support for Azure is ending, consistent with the sunset of the [Cromwell On Azure](https://github.com/microsoft/CromwellOnAzure) and [GA4GH TES on Azure](https://github.com/microsoft/ga4gh-tes) projects.
+
+The following components are removed:
+* Azure Blob Storage filesystem
+* Azure Container Registry (ACR)
+* Azure authentication support
+* Azure-specific enhancements in the GA4GH TES backend
+
+The TES backend is unaffected and remains supported.
+
+Thank you to all collaborators and contributors who joined us on this journey.
+
 ## 90 Release Notes
 
 ### GCP Batch

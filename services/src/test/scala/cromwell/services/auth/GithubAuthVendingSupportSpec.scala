@@ -18,19 +18,6 @@ import scala.concurrent.duration._
 
 class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
-  private def azureGithubAuthVendingConfig(enabled: Boolean) = ConfigFactory
-    .parseString(
-      s"""
-         |services {
-         |  GithubAuthVending {
-         |    config {
-         |      auth.azure = ${enabled}
-         |    }
-         |  }
-         |}
-         |""".stripMargin
-    )
-
   implicit val timeout = Timeout(10.seconds)
 
   behavior of "GithubAuthVendingSupport"
@@ -104,11 +91,11 @@ class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike wit
     }
   }
 
-  it should "return no import auth provider when Azure auth is disabled" in {
+  it should "return no import auth provider" in {
     val serviceRegistryActor = TestProbe()
     val testSupport = new TestGithubAuthVendingSupport(serviceRegistryActor.ref)
 
-    testSupport.importAuthProvider(azureGithubAuthVendingConfig(false)) match {
+    testSupport.importAuthProvider(ConfigFactory.empty()) match {
       case Valid(providerOpt) => providerOpt.isEmpty shouldBe true
       case Invalid(e) => fail(s"Unexpected failure: $e")
     }

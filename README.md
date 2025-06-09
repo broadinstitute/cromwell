@@ -10,7 +10,7 @@ First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedoc
 
 ### Google LifeSciences is shutting down in July - migrate to GCP Batch
 
-Google is replacing Cloud Life Sciences (sometimes referred to as PAPI) with a next-generation API named GCP Batch [https://cloud.google.com/batch/docs/migrate-to-batch-from-cloud-life-sciences](learn more).
+Google is replacing Cloud Life Sciences (sometimes referred to as PAPI) with a next-generation API named GCP Batch [(learn more)](https://cloud.google.com/batch/docs/migrate-to-batch-from-cloud-life-sciences).
 
 [See documentation on how to migrate to GCP Batch](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/#migration-from-google-cloud-life-sciences-v2beta-to-google-cloud-batch)
 

@@ -72,7 +72,7 @@ This backend also supports docker as optional feature. Configuration key `backen
 ```
 chmod 755 ${script}
 cat > ${cwd}/execution/dockerScript <<EOF
-#!/bin/bash
+#!/usr/bin/env bash
 docker run --rm -i -v ${cwd}:${docker_cwd} ${docker} /bin/bash ${docker_script}
 EOF
 chmod 755 ${cwd}/execution/dockerScript

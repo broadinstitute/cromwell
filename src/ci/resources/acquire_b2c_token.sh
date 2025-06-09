@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This script acquires a b2c token using gcloud auth and writes it to a file.
 # This file is used by renderCiResources to populate the CROMWELL_B2C_TOKEN in tes_application.conf.

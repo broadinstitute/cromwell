@@ -126,6 +126,7 @@ object GcpBatchRuntimeAttributes {
 
   private def bootDiskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
     new BootDiskSizeValidation(runtimeConfig)
+      .withDefault(new BootDiskSizeValidation(runtimeConfig).configDefaultWomValue(runtimeConfig) getOrElse BootDiskDefaultValue)
 
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
     noAddressValidationInstance

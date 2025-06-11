@@ -14,21 +14,17 @@ import cromwell.core.{CromwellFatalExceptionMarker, TestKitSuite}
 import cromwell.engine.io.IoActor.DefaultCommandContext
 import cromwell.engine.io.IoAttempts.EnhancedCromwellIoException
 import cromwell.engine.io.IoCommandContext
-import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPathBuilder
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito.when
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import java.nio.file.NoSuchFileException
 import java.util.UUID
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import scala.util.Failure
 import scala.util.control.NoStackTrace
-import scala.util.{Failure, Success, Try}
 
 class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with MockSugar {
 
@@ -154,43 +150,6 @@ class NioFlowSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers with
       case (IoFailure(_, EnhancedCromwellIoException(_, receivedException)), _) =>
         receivedException should be(exception)
       case unexpected => fail(s"hash returned an unexpected message: $unexpected")
-    }
-  }
-
-  it should "get hash from a BlobPath when stored hash exists" in {
-    val testPath = mock[BlobPath]
-    val hashString = "2d01d5d9c24034d54fe4fba0ede5182d" // echo "hello there" | md5sum
-    testPath.md5HexString returns Try(Option(hashString))
-
-    val context = DefaultCommandContext(hashCommand(testPath, FileHashStrategy.Md5).get, replyTo)
-    val testSource = Source.single(context)
-
-    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-
-    stream.run() map {
-      case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == hashString)
-      case (ack, _) =>
-        fail(s"read returned an unexpected message:\n$ack\n\n")
-    }
-  }
-
-  it should "succeed if a BlobPath is missing a stored hash" in {
-    val testPath = mock[BlobPath]
-    when(testPath.limitFileContent(any[Option[Int]], any[Boolean])(any[ExecutionContext]))
-      .thenReturn("hello there".getBytes)
-    when(testPath.md5HexString)
-      .thenReturn(Success(None))
-
-    val context =
-      DefaultCommandContext(contentAsStringCommand(testPath, Option(100), failOnOverflow = true).get, replyTo)
-    val testSource = Source.single(context)
-
-    val stream = testSource.via(flow).toMat(readSink)(Keep.right)
-
-    stream.run() map {
-      case (success: IoSuccess[_], _) => assert(success.result.asInstanceOf[String] == "hello there")
-      case (ack, _) =>
-        fail(s"read returned an unexpected message:\n$ack\n\n")
     }
   }
 

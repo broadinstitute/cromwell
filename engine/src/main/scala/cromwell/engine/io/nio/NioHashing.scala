@@ -6,7 +6,6 @@ import common.util.StringUtil.EnhancedString
 import cromwell.core.callcaching.HashType.HashType
 import cromwell.core.callcaching.{FileHash, FileHashStrategy, HashType}
 import cromwell.core.path.Path
-import cromwell.filesystems.blob.BlobPath
 import cromwell.filesystems.drs.DrsPath
 import cromwell.filesystems.gcs.GcsPath
 import cromwell.filesystems.http.HttpPath
@@ -38,7 +37,6 @@ object NioHashing {
   def getStoredHash(file: Path, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
     file match {
       case gcsPath: GcsPath => getFileHashForGcsPath(gcsPath, hashStrategy)
-      case blobPath: BlobPath => getFileHashForBlobPath(blobPath, hashStrategy)
       case drsPath: DrsPath => getFileHashForDrsPath(drsPath, hashStrategy)
       case s3Path: S3Path => getFileHashForS3Path(s3Path, hashStrategy)
       case _ => IO.pure(None)
@@ -48,8 +46,7 @@ object NioHashing {
     * In some scenarios like SFS it is appropriate for Cromwell to hash files using its own CPU power.
     *
     * In cloud scenarios, we don't want this because the files are huge, downloading them is slow & expensive,
-    * and the extreme CPU usage destabilizes the instance (WX-1566). For more context, see also comments
-    * on `cromwell.filesystems.blob.BlobPath#largeBlobFileMetadataKey()`.
+    * and the extreme CPU usage destabilizes the instance (WX-1566).
     *
     * Cromwell is fundamentally supposed to be a job scheduler, and heavy computation should take place elsewhere.
     *
@@ -59,7 +56,6 @@ object NioHashing {
     file match {
       case _: HttpPath => false
       case _: GcsPath => false
-      case _: BlobPath => false
       case _: DrsPath => false
       case _: S3Path => false
       case _ => true
@@ -85,18 +81,6 @@ object NioHashing {
               case _ => None
             }
         )
-      )
-    }
-
-  private def getFileHashForBlobPath(blobPath: BlobPath, hashStrategy: FileHashStrategy): IO[Option[FileHash]] =
-    IO {
-      hashStrategy.getFileHash(
-        blobPath,
-        (f: BlobPath, hashType: HashType) =>
-          hashType match {
-            case HashType.Md5 => blobPath.md5HexString.toOption.flatten
-            case _ => None
-          }
       )
     }
 

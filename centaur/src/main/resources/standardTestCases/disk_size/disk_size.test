@@ -1,0 +1,12 @@
+name: disk_size
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: disk_size.wdl
+}
+
+metadata {
+  workflowName: disk_size
+  status: Succeeded
+}

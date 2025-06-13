@@ -9,4 +9,8 @@ files {
 metadata {
   workflowName: disk_size
   status: Succeeded
+  "outputs.disk_size.optional_omitted.message": "Disk size is 60 GB"
+  "outputs.disk_size.optional_provided.message": "Disk size is 20 GB"
+  "outputs.disk_size.required_omitted.message": "Disk size is 80 GB"
+  "outputs.disk_size.required_provided.message": "Disk size is 40 GB"
 }

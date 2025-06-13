@@ -1549,7 +1549,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val actual = batchBackend.startMetadataKeyValues.safeMapValues(_.toString)
     actual should be(
       Map(
-        "backendLogs:log" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye.log",
         "callRoot" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye",
         "gcpBatch:executionBucket" -> batchGcsRoot,
         "gcpBatch:googleProject" -> googleProject,

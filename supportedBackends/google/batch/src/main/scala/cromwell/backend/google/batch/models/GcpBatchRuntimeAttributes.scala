@@ -14,8 +14,8 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
-import wom.types.{WomArrayType, WomStringType, WomType}
-import wom.values.{WomArray, WomBoolean, WomInteger, WomString, WomValue}
+import wom.types.{WomArrayType, WomIntegerType, WomStringType, WomType}
+import wom.values.{WomArray, WomBoolean, WomInteger, WomOptionalValue, WomString, WomValue}
 
 object GpuResource {
 
@@ -126,9 +126,6 @@ object GcpBatchRuntimeAttributes {
 
   private def bootDiskSizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
     new BootDiskSizeValidation(runtimeConfig)
-      .withDefault(
-        new BootDiskSizeValidation(runtimeConfig).configDefaultWomValue(runtimeConfig) getOrElse BootDiskDefaultValue
-      )
 
   private def noAddressValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
     noAddressValidationInstance
@@ -287,7 +284,10 @@ class BootDiskSizeValidation(runtimeConfig: Option[Config]) extends IntRuntimeAt
 
   // If the user doesn't provide a boot disk size, use the default. If they DO provide a boot disk size,
   // add the default to it to account for the space taken by the user Docker image. See AN-345.
-  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = { case WomInteger(value) =>
-    (value + defaultBootDiskSize).validNel
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = {
+    case WomInteger(value) =>
+      (value + defaultBootDiskSize).validNel
+    case WomOptionalValue(WomIntegerType, Some(WomInteger(value))) =>
+      (value + defaultBootDiskSize).validNel
   }
 }

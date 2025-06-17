@@ -12,7 +12,6 @@ workflow-state-callback {
   enabled: true
   num-threads: 5
   endpoint: "http://example.com"
-  auth.azure: true
   request-backoff {
     min: "3 seconds",
     max: "5 minutes",
@@ -25,7 +24,6 @@ workflow-state-callback {
  * `enabled`: This boolean controls whether a callback will be attempted or not.
  * `num-threads`: The number of threads Cromwell will allocate for performing callbacks.
  * `endpoint`: This is the default URL to send the message to. If this is unset, and no URL is set in workflow options, no callback will be sent.
- * `auth.azure`: If true, and if Cromwell is running in an Azure environment, Cromwell will include an auth header with bearer token generated from local Azure credentials.
  * `request-backoff` and `max-retries`: Include these to override the default retry behavior (default behavior shown here).
 
 ### Workflow Options

@@ -8,19 +8,8 @@
 * Fixed an issue that caused WDL tasks to fail when invoking `gcloud` or `gsutil`. Affected tasks returned an error message referencing `python3: not found`.
 * Fixed an issue that could cause a valid WDL using an `Int?` value to fail with an error mentioning `bootDiskSizeGb`.
 
-### Azure sunset
-
-Cromwell support for Azure is ending, consistent with the sunset of the [Cromwell On Azure](https://github.com/microsoft/CromwellOnAzure) and [GA4GH TES on Azure](https://github.com/microsoft/ga4gh-tes) projects.
-
-The following components are removed:
-* Azure Blob Storage filesystem
-* Azure Container Registry (ACR)
-* Azure authentication support
-* Azure-specific enhancements in the GA4GH TES backend
-
-The TES backend is unaffected and remains supported.
-
-Thank you to all collaborators and contributors who joined us on this journey.
+### Other changes
+* Removed unused code related to Azure cloud services.
 
 ## 90 Release Notes
 

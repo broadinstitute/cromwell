@@ -7,6 +7,7 @@
 * Tweak automatic retry of transient errors: retry if task is SCHEDULED but not RUNNING. This should result in more retries, reducing the number of workflows that fail due to transient Batch issues.
 * Fixed an issue that caused WDL tasks to fail when invoking `gcloud` or `gsutil`. Affected tasks returned an error message referencing `python3: not found`.
 * Fixed an issue that could cause a valid WDL using an `Int?` value to fail with an error mentioning `bootDiskSizeGb`.
+* Increased timeout for logging runnables in response to a low rate of sporadic timeout errors.
 
 ### Other changes
 * Removed unused code related to Azure cloud services.

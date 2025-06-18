@@ -1,6 +1,6 @@
 task output_redirection {
     command {
-        echo "#!/bin/bash" > writeToStderr.sh
+        echo "#!/usr/bin/env bash" > writeToStderr.sh
         # Yes, this is deliberate. We'll eventually end up redirecting this to stdout:
         echo "echo 'should be on stdout' >&2" >> writeToStderr.sh
 

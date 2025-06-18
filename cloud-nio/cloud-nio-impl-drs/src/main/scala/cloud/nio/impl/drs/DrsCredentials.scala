@@ -5,7 +5,6 @@ import com.google.auth.oauth2.{AccessToken, GoogleCredentials, OAuth2Credentials
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
 import net.ceedubs.ficus.Ficus._
-import cromwell.cloudsupport.azure.AzureCredentials
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -65,13 +64,4 @@ case object GoogleAppDefaultTokenStrategy extends DrsCredentials {
       case Success(value) => value.validNel
       case Failure(e) => s"Failed to refresh access token: ${e.getMessage}".invalidNel
     }
-}
-
-/**
-  * Strategy for obtaining an access token in an environment with available Azure identity.
-  * If you need to disambiguate among multiple active user-assigned managed identities, pass
-  * in the client id of the identity that should be used.
-  */
-case class AzureDrsCredentials(identityClientId: Option[String] = None) extends DrsCredentials {
-  def getAccessToken: ErrorOr[String] = AzureCredentials.getAccessToken(identityClientId)
 }

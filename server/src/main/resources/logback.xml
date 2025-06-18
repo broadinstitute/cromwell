@@ -94,14 +94,11 @@
         </filter>
     </appender>
 
-    <appender name="AppInsightsAppender" class="com.microsoft.applicationinsights.logback.ApplicationInsightsAppender" />
-
     <root level="${LOG_LEVEL}">
         <appender-ref ref="STANDARD_APPENDER" />
         <appender-ref ref="PRETTY_APPENDER" />
         <appender-ref ref="FILEROLLER_APPENDER" />
         <appender-ref ref="Sentry" />
-        <appender-ref ref="AppInsightsAppender" />
     </root>
 
     <logger name="liquibase" level="WARN"/>
@@ -109,7 +106,4 @@
     <logger name="HikariPool" level="ERROR"/>
     <logger name="com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel" level="ERROR"/>
     <logger name="org.semanticweb.owlapi.utilities.Injector" level="ERROR"/>
-
-    <!-- Guilty of logging ERROR under non-erroneous conditions -->
-    <logger name="com.azure.storage.blob.nio" level="OFF"/>
 </configuration>

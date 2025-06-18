@@ -141,7 +141,6 @@ Note: To exclude a specific test from a test suite, find the `.sh` file that run
 | Horicromtal<br>Engine Upgrade | `EngineUpgradeTestCaseSpec` | `engineUpgradeTestCases`***         |
 | PAPI Upgrade                  | `PapiUpgradeTestCaseSpec`   | `papiUpgradeTestCases`              |
 | PAPI Upgrade<br>New Workflows | `CentaurTestSuite`          | `papiUpgradeNewWorkflowsTestCases`  |
-| Azure Blob                    | `CentaurTestSuite      `    | `azureBlobTestCases`                |
 | (other)                       | `CentaurTestSuite`          | `standardTestCases`                 |
 
 <small>

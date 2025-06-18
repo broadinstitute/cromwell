@@ -9,6 +9,9 @@
 * Fixed an issue that could cause a valid WDL using an `Int?` value to fail with an error mentioning `bootDiskSizeGb`.
 * Increased timeout for logging runnables in response to a low rate of sporadic timeout errors.
 
+### Other changes
+* Removed unused code related to Azure cloud services.
+
 ## 90 Release Notes
 
 ### GCP Batch

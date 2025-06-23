@@ -94,9 +94,6 @@ If they are not set, the TES backend may use default values.
             
 > Note: if both `disk` and `disks` attributes are specified, the TES backend will automatically use the value in `disk` and not attempt to translate `disks`.
 
-### Azure
-[Azure](Azure) is an implementation of Cromwell that uses the TES interface for orchestrating the tasks on Azure.
-
 ### TESK
 
 [TESK](https://github.com/EMBL-EBI-TSI/TESK) is an implementation of the TES interface that uses Kubernetes and FTP.

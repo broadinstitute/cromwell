@@ -2,7 +2,7 @@ package cromwell.filesystems.drs
 
 import akka.actor.ActorSystem
 import cats.data.Validated.{Invalid, Valid}
-import cloud.nio.impl.drs.{AzureDrsCredentials, DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
+import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.api.services.oauth2.Oauth2Scopes
 import com.typesafe.config.Config
 import cromwell.cloudsupport.gcp.GoogleConfiguration
@@ -23,9 +23,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
   private lazy val googleConfiguration: GoogleConfiguration = GoogleConfiguration(globalConfig)
   private lazy val scheme = instanceConfig.getString("auth")
 
-  // For Azure support - this should be the UAMI client id
-  private val dataAccessIdentityKey = "data_access_identity"
-
   override def withOptions(
     options: WorkflowOptions
   )(implicit as: ActorSystem, ec: ExecutionContext): Future[PathBuilder] =
@@ -37,7 +34,6 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
       )
 
       val (googleAuthMode, drsCredentials) = scheme match {
-        case "azure" => (None, AzureDrsCredentials(options.get(dataAccessIdentityKey).toOption))
         case googleAuthScheme =>
           googleConfiguration.auth(googleAuthScheme) match {
             case Valid(auth) =>

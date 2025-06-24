@@ -247,7 +247,7 @@ runtime {
 
 *Default: _0_*
 
-This retry option is introduced to provide a method for tackling transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. It takes an Int as a value that indicates the maximum number of times Cromwell should retry a failed task. This retry is applied towards jobs that fail while executing the task command. This method only applies to transient job failures and is a feeble attempt to retry a job, that is it cannot be used to increase memory in out-of-memory situations.
+This retry option is introduced to provide a method for tackling transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. It takes an Int as a value that indicates the maximum number of times Cromwell should retry a failed task. This retry is applied towards jobs that fail while executing the task command. This method only applies to transient job failures and is a feeble attempt to retry a job.
 
 If using the Google backend, it's important to note that The `maxRetries` count is independent from the [preemptible](#preemptible) count. For example, the task below can be retried up to 6 times if it's preempted 3 times AND the command execution fails 3 times.
 

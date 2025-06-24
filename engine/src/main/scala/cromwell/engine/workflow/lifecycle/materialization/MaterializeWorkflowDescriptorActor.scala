@@ -27,6 +27,7 @@ import cromwell.core.io.AsyncIo
 import cromwell.core.labels.{Label, Labels}
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.path.{PathBuilder, PathBuilderFactory}
+import cromwell.core.retry._
 import cromwell.engine._
 import cromwell.engine.backend.CromwellBackends
 import cromwell.engine.workflow.WorkflowProcessingEventPublishing._
@@ -180,6 +181,19 @@ object MaterializeWorkflowDescriptorActor {
         ().validNel
       case Failure(e) =>
         s"'$optionName' is specified in workflow options but value is not of expected Double type: ${e.getMessage}".invalidNel
+    }
+  }
+
+  def validateMaxRetriesMode(workflowOptions: WorkflowOptions): ErrorOr[MaxRetriesMode] = {
+    val modeString: Try[String] = workflowOptions.get(WorkflowOptions.MaxRetriesMode) match {
+      case Success(value) => Success(value)
+      case Failure(_: OptionNotFoundException) => Success(MaxRetriesMode.DefaultMode.toString)
+      case Failure(e) => Failure(e)
+    }
+
+    modeString flatMap MaxRetriesMode.tryParse match {
+      case Success(mode) => mode.validNel
+      case Failure(t) => t.getMessage.invalidNel
     }
   }
 }
@@ -495,12 +509,15 @@ class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: Acto
 
     val memoryRetryMultiplierValidation: ErrorOr[Unit] = validateMemoryRetryMultiplier(workflowOptions)
 
+    val maxRetriesModeValidation: ErrorOr[MaxRetriesMode] = validateMaxRetriesMode(workflowOptions)
+
     (failureModeValidation,
      backendAssignmentsValidation,
      callCachingModeValidation,
      useReferenceDisksValidation,
-     memoryRetryMultiplierValidation
-    ) mapN { case (failureMode, backendAssignments, callCachingMode, _, _) =>
+     memoryRetryMultiplierValidation,
+     maxRetriesModeValidation
+    ) mapN { case (failureMode, backendAssignments, callCachingMode, _, _, _) =>
       val callable = womNamespace.executable.entryPoint
       val backendDescriptor = BackendWorkflowDescriptor(id,
                                                         callable,

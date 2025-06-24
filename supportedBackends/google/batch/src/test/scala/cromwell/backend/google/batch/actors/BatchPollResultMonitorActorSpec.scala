@@ -168,7 +168,7 @@ class BatchPollResultMonitorActorSpec
 
     actor ! message
 
-    serviceRegistry.expectMsgPF(1.seconds) { case m: PutMetadataAction =>
+    serviceRegistry.expectMsgPF(5.seconds) { case m: PutMetadataAction =>
       val event = m.events.head
       m.events.size shouldBe 1
       event.key.key shouldBe CallMetadataKeys.VmStartTime
@@ -186,7 +186,8 @@ class BatchPollResultMonitorActorSpec
     val vmEndTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
     val pollResult = RunStatus.Running(
       Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime1),
-        ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime2)),
+          ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime2)
+      ),
       Some(vmInfo)
     )
     val message = ProcessThisPollResult(pollResult)

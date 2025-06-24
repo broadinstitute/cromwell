@@ -476,6 +476,7 @@ class BatchBackendCacheHitCopyingActorSpec
     val copyDestinationPaths = mock[GcpBatchJobPaths]
     val copyDestinationRcPath = mock[Path]
     copyDestinationPaths.detritusPaths returns Map(JobPaths.ReturnCodePathKey -> copyDestinationRcPath)
+    copyDestinationPaths.metadataPaths returns Map.empty
 
     batchJobPaths.forCallCacheCopyAttempts returns copyDestinationPaths
     batchJobPaths.metadataPaths returns Map.empty

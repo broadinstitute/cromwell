@@ -1949,6 +1949,80 @@ class PipelinesApiAsyncBackendJobExecutionActorSpec
     mockGroupMetricsActor.expectNoMessage()
   }
 
+  it should "return the project from the workflow options in the start metadata for a call cache" in {
+    val googleProject = "baa-ram-ewe"
+    val jesGcsRoot = "gs://anorexic/duck"
+    val workflowId = WorkflowId.randomId()
+    val workflowDescriptor = BackendWorkflowDescriptor(
+      workflowId,
+      WdlNamespaceWithWorkflow
+        .load(
+          SampleWdl.EmptyString.asWorkflowSources(DockerAndDiskRuntime).workflowSource.get,
+          Seq.empty[Draft2ImportResolver]
+        )
+        .get
+        .workflow
+        .toWomWorkflowDefinition(isASubworkflow = false)
+        .getOrElse(fail("failed to get WomDefinition from WdlWorkflow")),
+      Map.empty,
+      WorkflowOptions
+        .fromJsonString(
+          s"""|{
+              |  "google_project": "$googleProject",
+              |  "jes_gcs_root": "$jesGcsRoot"
+              |}
+              |""".stripMargin
+        )
+        .get,
+      Labels.empty,
+      HogGroup("foo"),
+      List.empty,
+      None
+    )
+
+    val call: CommandCallNode = workflowDescriptor.callable.taskCallNodes.find(_.localName == "goodbye").get
+    val key = BackendJobDescriptorKey(call, None, 1)
+    val runtimeAttributes = makeRuntimeAttributes(call)
+    val jobDescriptor =
+      BackendJobDescriptor(workflowDescriptor, key, runtimeAttributes, Map.empty, NoDocker, None, Map.empty)
+
+    val props = Props(new TestablePipelinesApiJobExecutionActor(jobDescriptor, Promise(), papiConfiguration))
+    val testActorRef = TestActorRef[TestablePipelinesApiJobExecutionActor](
+      props,
+      s"TestableJesJobExecutionActor-${jobDescriptor.workflowDescriptor.id}"
+    )
+
+    val jesBackend = testActorRef.underlyingActor
+
+    val actual = jesBackend.cachedMetadataKeyValues.safeMapValues(_.toString)
+    actual should be(
+      Map(
+        "backendLogs:log" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/cacheCopy/goodbye.log",
+        "callRoot" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/cacheCopy",
+        "jes:endpointUrl" -> "https://lifesciences.googleapis.com/",
+        "jes:executionBucket" -> jesGcsRoot,
+        "jes:googleProject" -> googleProject,
+        "labels:cromwell-workflow-id" -> s"cromwell-$workflowId",
+        "labels:wdl-task-name" -> "goodbye",
+        "preemptible" -> "false",
+        "runtimeAttributes:bootDiskSizeGb" -> "10",
+        "runtimeAttributes:continueOnReturnCode" -> "0",
+        "runtimeAttributes:cpu" -> "1",
+        "runtimeAttributes:disks" -> "local-disk 200 SSD",
+        "runtimeAttributes:docker" -> "ubuntu:latest",
+        "runtimeAttributes:failOnStderr" -> "false",
+        "runtimeAttributes:memory" -> "2 GB",
+        "runtimeAttributes:noAddress" -> "false",
+        "runtimeAttributes:preemptible" -> "0",
+        "runtimeAttributes:zones" -> "us-central1-b,us-central1-a",
+        "runtimeAttributes:maxRetries" -> "0",
+        "stderr" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/cacheCopy/stderr",
+        "stdout" -> s"$jesGcsRoot/wf_hello/$workflowId/call-goodbye/cacheCopy/stdout"
+      )
+    )
+
+  }
+
   private def makeRuntimeAttributes(job: CommandCallNode) = {
     val evaluatedAttributes =
       RuntimeAttributeDefinition.evaluateRuntimeAttributes(job.callable.runtimeAttributes, null, Map.empty)

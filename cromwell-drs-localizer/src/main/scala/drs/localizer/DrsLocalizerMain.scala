@@ -7,7 +7,7 @@ import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDi
 import cloud.nio.impl.drs._
 import cloud.nio.spi.{CloudNioBackoff, CloudNioSimpleExponentialBackoff}
 import com.typesafe.scalalogging.StrictLogging
-import drs.localizer.CommandLineParser.AccessTokenStrategy.{Azure, Google}
+import drs.localizer.CommandLineParser.AccessTokenStrategy.Google
 import drs.localizer.DrsLocalizerMain.{defaultNumRetries, toValidatedUriType}
 import drs.localizer.downloaders._
 import org.apache.commons.csv.{CSVFormat, CSVParser}
@@ -30,9 +30,8 @@ object DrsLocalizerMain extends IOApp with StrictLogging {
 
     val localize: Option[IO[ExitCode]] = for {
       pa <- parsedArgs
-      run <- pa.accessTokenStrategy.collect {
-        case Azure => runLocalizer(pa, AzureDrsCredentials(pa.azureIdentityClientId))
-        case Google => runLocalizer(pa, GoogleAppDefaultTokenStrategy)
+      run <- pa.accessTokenStrategy.collect { case Google =>
+        runLocalizer(pa, GoogleAppDefaultTokenStrategy)
       }
     } yield run
 

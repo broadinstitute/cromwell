@@ -32,11 +32,8 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
       )
     }
   opt[String]('t', "access-token-strategy")
-    .text(s"Access token strategy, must be one of '$Azure' or '$Google' (default '$Google')")
+    .text(s"Access token strategy, currently only supports '$Google' (default '$Google')")
     .action((s, c) => c.copy(accessTokenStrategy = Option(s.toLowerCase())))
-  opt[String]('i', "identity-client-id")
-    .text("Azure identity client id")
-    .action((s, c) => c.copy(azureIdentityClientId = Option(s)))
   checkConfig(c =>
     if (c.googleRequesterPaysProjectConflict)
       failure("Requester pays project differs between positional argument and option flag")
@@ -44,11 +41,6 @@ class CommandLineParser extends scopt.OptionParser[CommandLineArguments](Usage) 
   )
   checkConfig(c =>
     c.accessTokenStrategy match {
-      case Some(Azure) if c.googleRequesterPaysProject.nonEmpty =>
-        Left(s"Requester pays project is only valid with access token strategy '$Google'")
-      case Some(Google) if c.azureIdentityClientId.nonEmpty =>
-        Left(s"Identity client id is only valid with access token strategy '$Azure'")
-      case Some(Azure) => Right(())
       case Some(Google) => Right(())
       case Some(huh) => Left(s"Unrecognized access token strategy '$huh'")
       case None => Left("Programmer error, access token strategy should not be None")
@@ -69,9 +61,10 @@ object CommandLineParser {
    * These access token strategies are named simplistically as there is currently only one access token strategy being
    * used for each of these cloud vendors. But it is certainly possible that multiple strategies could come into use
    * for a particular vendor, in which case the names may need to become more specific for disambiguation.
+   * May 2025: Removing Azure strategy to leave single Google strategy, leaving AccessTokenStrategy object in place
+   * in case we want additional strategies in the future.
    */
   object AccessTokenStrategy {
-    val Azure = "azure"
     val Google = "google"
   }
 
@@ -92,7 +85,6 @@ case class CommandLineArguments(accessTokenStrategy: Option[String] = Option(Goo
                                 drsObject: Option[String] = None,
                                 containerPath: Option[String] = None,
                                 googleRequesterPaysProject: Option[String] = None,
-                                azureIdentityClientId: Option[String] = None,
                                 manifestPath: Option[String] = None,
                                 googleRequesterPaysProjectConflict: Boolean = false
 )

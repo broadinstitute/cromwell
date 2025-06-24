@@ -15,26 +15,23 @@ import cats.implicits.{catsSyntaxValidatedId, toTraverseOps}
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.LazyLogging
 import common.validation.ErrorOr
-import cromwell.cloudsupport.azure.AzureCredentials
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core.retry.Retry.withRetry
 import cromwell.core.retry.SimpleExponentialBackoff
 import cromwell.core.{CallOutputs, WorkflowId, WorkflowState}
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackActor.PerformCallbackCommand
 import cromwell.engine.workflow.lifecycle.finalization.WorkflowCallbackJsonSupport._
-import net.ceedubs.ficus.Ficus._
-
-import scala.concurrent.{ExecutionContext, Future}
-import scala.concurrent.duration.DurationInt
-import scala.util.Try
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import net.ceedubs.ficus.Ficus._
 
 import java.net.URI
 import java.time.Instant
 import java.util.concurrent.Executors
-import scala.util.{Failure, Success}
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 case class WorkflowCallbackConfig(enabled: Boolean,
                                   numThreads: Int,
@@ -46,9 +43,6 @@ case class WorkflowCallbackConfig(enabled: Boolean,
 
 object WorkflowCallbackConfig extends LazyLogging {
   sealed trait AuthMethod { def getAccessToken: ErrorOr.ErrorOr[String] }
-  case object AzureAuth extends AuthMethod {
-    override def getAccessToken: ErrorOr.ErrorOr[String] = AzureCredentials.getAccessToken()
-  }
 
   case class StaticTokenAuth(token: String) extends AuthMethod {
     override def getAccessToken: ErrorOr.ErrorOr[String] = token.validNel
@@ -75,9 +69,7 @@ object WorkflowCallbackConfig extends LazyLogging {
     val maxRetries = config.as[Option[Int]]("max-retries").getOrElse(defaultMaxRetries)
     val uri = config.as[Option[String]]("endpoint").flatMap(createAndValidateUri)
 
-    val authMethod = if (config.hasPath("auth.azure")) {
-      Option(AzureAuth)
-    } else None
+    val authMethod = None
 
     WorkflowCallbackConfig(
       enabled = enabled,

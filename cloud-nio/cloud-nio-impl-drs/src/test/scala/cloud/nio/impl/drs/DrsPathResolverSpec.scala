@@ -81,12 +81,6 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
   val responseStatusLine = new BasicStatusLine(new ProtocolVersion("http", 1, 2), 345, "test-reason")
   val testDrsResolverUri = "www.drshub_v4.com"
 
-  it should "construct the right request when using Azure creds" in {
-    val resolver = new MockDrsPathResolver(drsCredentials = AzureDrsCredentials())
-    val drsRequest = resolver.makeDrsResolverRequest(drsPathForDebugging, NonEmptyList.of(DrsResolverField.AccessUrl))
-    drsRequest.cloudPlatform shouldBe Option(DrsCloudPlatform.Azure)
-  }
-
   it should "construct the right request when using Google creds" in {
     val resolver = new MockDrsPathResolver()
     val drsRequest = resolver.makeDrsResolverRequest(drsPathForDebugging, NonEmptyList.of(DrsResolverField.AccessUrl))

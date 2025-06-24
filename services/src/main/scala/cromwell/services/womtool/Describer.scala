@@ -1,8 +1,10 @@
 package cromwell.services.womtool
 
 import cats.data.Validated.{Invalid, Valid}
-import cromwell.core.WorkflowSourceFilesCollection
-import cromwell.languages.util.ImportResolver.{HttpResolver, ImportAuthProvider, ImportResolver}
+import cats.syntax.traverse._
+import common.validation.ErrorOr.ErrorOr
+import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
+import cromwell.languages.util.ImportResolver.{HttpResolver, ImportAuthProvider}
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeResult, DescribeSuccess}
@@ -14,9 +16,23 @@ import wom.expression.NoIoFunctionSet
 object Describer {
 
   def describeWorkflow(wsfc: WorkflowSourceFilesCollection, authProviders: List[ImportAuthProvider]): DescribeResult = {
+    val zipResolverErrorOr: ErrorOr[Option[ImportResolver.ImportResolver]] =
+      wsfc.importsZipFileOption.map(ImportResolver.zippedImportResolver(_, WorkflowId.randomId())).sequence
 
-    val initialResolvers: List[ImportResolver] = List(HttpResolver(None, Map.empty, authProviders))
+    val initialResolversErrorOr: ErrorOr[List[ImportResolver.ImportResolver]] =
+      zipResolverErrorOr map { zipResolverOption =>
+        zipResolverOption.toList ++ List(HttpResolver(None, Map.empty, authProviders))
+      }
 
+    initialResolversErrorOr match {
+      case Valid(initialResolvers) => describeWorkflowWithResolvers(wsfc, initialResolvers)
+      case Invalid(errors) => DescribeFailure(errors.toList.mkString(", "))
+    }
+  }
+
+  private def describeWorkflowWithResolvers(wsfc: WorkflowSourceFilesCollection,
+                                            initialResolvers: List[ImportResolver.ImportResolver]
+  ): DescribeResult =
     // The HTTP resolver is used to pull down workflows submitted by URL
     LanguageFactoryUtil.findWorkflowSource(wsfc.workflowSource, wsfc.workflowUrl, initialResolvers) match {
       case Right((workflowSource: WorkflowSource, importResolvers: List[ImportResolver.ImportResolver])) =>
@@ -40,7 +56,6 @@ object Describer {
           reason = errors.toList.mkString(", ")
         )
     }
-  }
 
   // By this point there are no "out of band" errors that can occur (i.e. those that would indicate a BadRequest, versus just showing up in the `errors` list)
   private def describeWorkflowInner(factory: LanguageFactory,

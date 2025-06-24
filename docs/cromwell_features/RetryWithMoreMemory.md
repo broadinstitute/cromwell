@@ -34,7 +34,7 @@ string present in `system.memory-retry-error-keys`. Similarly, if the runtime at
 specified as a true, or the return code of the task matches a value specified by `continueOnReturnCode`, the task
 will be considered successful and will not be retried with more memory.
 
-Please note that this feature currently only works in Google Cloud backend. Also, Pipelines API might adjust the 
+Please note that backends such as the Pipelines API might adjust the
 memory value based on their standards for memory for a VM. So it's possible that even though the request says 1.1 GB 
 memory, it actually allocated a bit more memory to the VM.
 

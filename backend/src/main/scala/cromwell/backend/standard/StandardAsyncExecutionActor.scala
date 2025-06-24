@@ -241,13 +241,16 @@ trait StandardAsyncExecutionActor
   lazy val commandDirectory: Path = jobPaths.callExecutionRoot
 
   lazy val memoryRetryErrorKeys: Option[List[String]] =
-    configurationDescriptor.globalConfig.as[Option[List[String]]]("system.memory-retry-error-keys")
+    configurationDescriptor.globalConfig.getAs[List[String]]("system.memory-retry-error-keys")
+
+  lazy val memoryRetryStderrLimit: Option[Int] =
+    configurationDescriptor.globalConfig.getAs[Int]("system.memory-retry-stderr-limit")
 
   lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] =
     jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MemoryRetryMultiplier) flatMap { value: String =>
       Try(value.toDouble) match {
         case Success(v) =>
-          refineV[MemoryRetryMultiplier](v.toDouble) match {
+          refineV[MemoryRetryMultiplier](v) match {
             case Left(e) =>
               // should not happen, this case should have been screened for and fast-failed during workflow materialization.
               log.error(
@@ -1197,7 +1200,7 @@ trait StandardAsyncExecutionActor
     val nextKvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
-    def getNextKvPair[A](key: String, value: String): Map[String, KvPair] = {
+    def getNextKvPair(key: String, value: String): Map[String, KvPair] = {
       val nextScopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, nextKvJobKey, key)
       val nextKvPair = KvPair(nextScopedKey, value)
       Map(key -> nextKvPair)
@@ -1414,36 +1417,44 @@ trait StandardAsyncExecutionActor
 
     // Returns true if the task has written an RC file that indicates OOM, false otherwise
     def memoryRetryRC: Future[Boolean] = {
-      def returnCodeAsBoolean(codeAsOption: Option[String]): Boolean =
-        codeAsOption match {
-          case Some(codeAsString) =>
-            Try(codeAsString.trim.toInt) match {
-              case Success(code) =>
-                code match {
-                  case StderrContainsRetryKeysCode => true
-                  case _ => false
-                }
-              case Failure(e) =>
-                log.error(
-                  s"'CheckingForMemoryRetry' action exited with code '$codeAsString' which couldn't be " +
-                    s"converted to an Integer. Task will not be retried with more memory. Error: ${ExceptionUtils.getMessage(e)}"
-                )
-                false
-            }
-          case None => false
+
+      def readFile(path: Path, maxBytes: Option[Int]): Future[String] =
+        asyncIo.contentAsStringAsync(path, maxBytes, failOnOverflow = false)
+
+      def checkMemoryRetryRC(): Future[Boolean] =
+        readFile(jobPaths.memoryRetryRC, None) map { codeAsString =>
+          Try(codeAsString.trim.toInt) match {
+            case Success(code) =>
+              code match {
+                case StderrContainsRetryKeysCode => true
+                case _ => false
+              }
+            case Failure(e) =>
+              log.error(
+                s"'CheckingForMemoryRetry' action exited with code '$codeAsString' which couldn't be " +
+                  s"converted to an Integer. Task will not be retried with more memory. Error: ${ExceptionUtils.getMessage(e)}"
+              )
+              false
+          }
         }
 
-      def readMemoryRetryRCFile(fileExists: Boolean): Future[Option[String]] =
-        if (fileExists)
-          asyncIo.contentAsStringAsync(jobPaths.memoryRetryRC, None, failOnOverflow = false).map(Option(_))
-        else
-          Future.successful(None)
+      def checkMemoryRetryStderr(errorKeys: List[String], maxBytes: Int): Future[Boolean] =
+        readFile(jobPaths.standardPaths.error, Option(maxBytes)) map { errorContent =>
+          errorKeys.exists(errorContent.contains)
+        }
 
-      for {
-        fileExists <- asyncIo.existsAsync(jobPaths.memoryRetryRC)
-        retryCheckRCAsOption <- readMemoryRetryRCFile(fileExists)
-        retryWithMoreMemory = returnCodeAsBoolean(retryCheckRCAsOption)
-      } yield retryWithMoreMemory
+      asyncIo.existsAsync(jobPaths.memoryRetryRC) flatMap {
+        case true => checkMemoryRetryRC()
+        case false =>
+          (memoryRetryErrorKeys, memoryRetryStderrLimit) match {
+            case (Some(keys), Some(limit)) =>
+              asyncIo.existsAsync(jobPaths.standardPaths.error) flatMap {
+                case true => checkMemoryRetryStderr(keys, limit)
+                case false => Future.successful(false)
+              }
+            case _ => Future.successful(false)
+          }
+      }
     }
 
     val stderr = jobPaths.standardPaths.error

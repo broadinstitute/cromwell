@@ -527,9 +527,6 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     case _ => super.isFatal(throwable)
   }
 
-  override lazy val startMetadataKeyValues: Map[String, Any] =
-    super[AwsBatchJobCachingActorHelper].startMetadataKeyValues
-
   // opportunity to send custom metadata when the run is in a terminal state, currently we don't
   override def getTerminalMetadata(runStatus: RunStatus): Map[String, Any] =
     runStatus match {

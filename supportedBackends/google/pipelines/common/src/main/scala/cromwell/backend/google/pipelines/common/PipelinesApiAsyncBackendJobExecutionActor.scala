@@ -790,9 +790,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(override val standardParams: Sta
       FailedNonRetryableExecutionHandle(e, kvPairsToSave = None)
   }
 
-  override lazy val startMetadataKeyValues: Map[String, Any] =
-    super[PipelinesApiJobCachingActorHelper].startMetadataKeyValues
-
   override def getTerminalMetadata(runStatus: RunStatus): Map[String, Any] =
     runStatus match {
       case terminalRunStatus: TerminalRunStatus =>

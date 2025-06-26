@@ -32,12 +32,21 @@ jobs:
       matrix:
         # Batch test fixes to land later
         include:
+          - build_type: centaurPapiV2beta
+            build_mysql: 8.0
+            friendly_name: Life Sciences, MySQL 8.0
+          - build_type: centaurPapiV2beta
+            build_mysql: 8.4
+            friendly_name: Life Sciences, MySQL 8.4 (current Terra production)
           - build_type: centaurGcpBatch
             build_mysql: 8.0
             friendly_name: GCP Batch, MySQL 8.0
           - build_type: centaurGcpBatch
             build_mysql: 8.4
             friendly_name: GCP Batch, MySQL 8.4
+          - build_type: centaurPapiV2betaRestart
+            build_mysql: 8.4
+            friendly_name: Centaur Papi V2 Beta (restart)
           - build_type: centaurGcpBatchRestart
             build_mysql: 8.4
             friendly_name: Centaur GCP Batch (restart)
@@ -57,6 +66,9 @@ jobs:
           - build_type: centaurDummy
             build_mysql: 8.4
             friendly_name: Centaur Dummy with MySQL 8.4
+          - build_type: centaurHoricromtalPapiV2beta
+            build_mysql: 8.4
+            friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 8.4
           - build_type: centaurHoricromtalGcpBatch
             build_mysql: 8.4
             friendly_name: Centaur Horicromtal GCP Batch with MySQL 8.4

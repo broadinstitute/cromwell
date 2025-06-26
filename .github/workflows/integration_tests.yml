@@ -33,9 +33,6 @@ jobs:
         # Batch test fixes to land later
         include:
           - build_type: centaurGcpBatch
-            build_mysql: 8.0
-            friendly_name: GCP Batch, MySQL 8.0
-          - build_type: centaurGcpBatch
             build_mysql: 8.4
             friendly_name: GCP Batch, MySQL 8.4 (Terra production)
           - build_type: centaurGcpBatchRestart

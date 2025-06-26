@@ -21,6 +21,7 @@ object Dependencies {
   private val circeOpticsV = "0.14.1"
   private val circeV = "0.14.1"
   private val circeYamlV = "0.15.1"
+  private val commonsBeanUtilsV = "1.11.0"
   private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
   private val commonsCsvV = "1.9.0"
   private val commonsIoV = "2.11.0" // via: https://commons.apache.org/proper/commons-io/
@@ -85,7 +86,7 @@ object Dependencies {
    */
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.119.Final"
-  private val pact4sV = "0.9.0"
+  private val pact4sV = "0.16.2"
   private val postgresV = "42.4.4"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
@@ -759,6 +760,9 @@ object Dependencies {
   val pact4sCirce = "io.github.jbwheatley" %% "pact4s-circe" % pact4sV
   val pact4sSpray = "io.github.jbwheatley" %% "pact4s-spray-json" % pact4sV
 
+  // Pact4s pulls in an older version of beanutils, need newer one for security patch.
+  val apacheBeanUtils =  "commons-beanutils" % "commons-beanutils" % commonsBeanUtilsV
+
   val pact4sDependencies = Seq(
     pact4sScalaTest,
     pact4sCirce,
@@ -768,5 +772,6 @@ object Dependencies {
     http4sEmberServer,
     http4sCirce,
     scalaTest,
+    apacheBeanUtils,
   ) ++ akkaDependencies
 }

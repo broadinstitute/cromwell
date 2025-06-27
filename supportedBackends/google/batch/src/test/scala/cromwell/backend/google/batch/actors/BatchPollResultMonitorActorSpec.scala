@@ -212,7 +212,7 @@ class BatchPollResultMonitorActorSpec
     val vmStartTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
     val pollResult = RunStatus.Running(
       Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime1),
-        ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime2)
+          ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime2)
       ),
       Some(vmInfo)
     )

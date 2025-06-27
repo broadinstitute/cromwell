@@ -444,7 +444,7 @@ class MetadataBuilderActorSpec
       ),
       ("""{"attempt": 1, "shardIndex": -1, "vmStartTime": "2023-10-30T04:00:00Z", "vmEndTime": "2023-10-30T04:30:00Z", "vmCostPerHour": 0.0567}""",
        BigDecimal(0.02835).validNel
-     ),
+      ),
       ("""{"attempt": 1, "shardIndex": -1, "vmEndTime": "2023-10-30T05:00:00Z", "vmCostPerHour": 0.0567}""",
        BigDecimal(0).validNel
       ),
@@ -458,10 +458,10 @@ class MetadataBuilderActorSpec
        "Couldn't find valid vmCostPerHour for foo.-1.1".invalidNel
       ),
       (s"""{"attempt": 1, "shardIndex": -1,  "vmStartTime": "2023-10-30T04:00:00Z", "vmStartTime": "2023-10-30T05:00:00Z", "vmEndTime": "2023-10-30T06:00:00Z", "vmCostPerHour": 0.0567}""",
-        BigDecimal(0.0567).validNel
+       BigDecimal(0.0567).validNel
       ),
       (s"""{"attempt": 1, "shardIndex": -1,  "vmStartTime": "2023-10-30T04:00:00Z", "vmEndTime": "2023-10-30T05:00:00Z", "vmEndTime": "2023-10-30T06:00:00Z", "vmCostPerHour": 0.0567}""",
-        BigDecimal(0.11340).validNel
+       BigDecimal(0.11340).validNel
       )
     )
 

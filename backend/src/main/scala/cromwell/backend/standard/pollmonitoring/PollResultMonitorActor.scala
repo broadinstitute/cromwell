@@ -113,9 +113,9 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
         jobStartTime = Option(earliestTime)
       }
     }
-    // If vm start time is reported, record it to metadata and stop trying
-    if (vmStartTime.isEmpty) {
-      extractStartTimeFromRunState(pollStatus).foreach { start =>
+    // If vm start time is reported and later than current start time, record it to metadata
+    extractStartTimeFromRunState(pollStatus).foreach { start =>
+      if (vmStartTime.isEmpty || start.isAfter(vmStartTime.get)) {
         vmStartTime = Option(start)
         tellMetadata(Map(CallMetadataKeys.VmStartTime -> start))
       }

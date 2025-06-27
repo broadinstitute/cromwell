@@ -38,7 +38,7 @@ class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
   override def extractEarliestEventTimeFromRunState(pollStatus: RunStatus): Option[OffsetDateTime] =
     pollStatus.eventList.minByOption(_.offsetDateTime).map(e => e.offsetDateTime)
 
-  // gets the latest VmStartTime/VmEndTime because the user is only charged for the last time a job transitions to SCHEDULED state
+  // gets the newest VmStartTime/VmEndTime because the user is only charged for the last time a job transitions to SCHEDULED state
   override def extractStartTimeFromRunState(pollStatus: RunStatus): Option[OffsetDateTime] =
     pollStatus.eventList
       .filter(_.name == CallMetadataKeys.VmStartTime)

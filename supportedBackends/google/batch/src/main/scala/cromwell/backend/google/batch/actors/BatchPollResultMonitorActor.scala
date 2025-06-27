@@ -44,6 +44,7 @@ class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
       .filter(_.name == CallMetadataKeys.VmStartTime)
       .maxByOption(_.offsetDateTime)
       .map(e => e.offsetDateTime)
+
   override def extractEndTimeFromRunState(pollStatus: RunStatus): Option[OffsetDateTime] =
     pollStatus.eventList
       .filter(_.name == CallMetadataKeys.VmEndTime)

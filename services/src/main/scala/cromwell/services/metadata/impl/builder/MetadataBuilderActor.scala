@@ -114,6 +114,11 @@ object MetadataBuilderActor {
       case _ => None
     }
 
+  private def extractMultipleFromJsAs[A: Manifest](js: JsObject, fieldName: String): List[A] =
+    js.fields.toList.collect {
+      case (key, value: A) if key == fieldName => value
+    }
+
   private def eventsToAttemptMetadata(
     subWorkflowMetadata: Map[String, JsValue]
   )(attempt: Int, events: Seq[MetadataEvent]) = {
@@ -207,6 +212,10 @@ object MetadataBuilderActor {
     )
 
   val actorIdIterator = new AtomicLong(0)
+
+  private def getLatestTime(times: List[JsString]): ErrorOr[OffsetDateTime] =
+    // If there are multiple start/end times, we take the most recent one
+    ErrorOr(times.map(jsStr => OffsetDateTime.parse(jsStr.value)).maxBy(_.toInstant.toEpochMilli))
 
   def uniqueActorName(workflowId: String): String =
     s"${getClass.getSimpleName}.${actorIdIterator.getAndIncrement()}-for-$workflowId"
@@ -349,14 +358,17 @@ object MetadataBuilderActor {
   def computeCost(callName: String, jsVal: JsValue): ErrorOr[BigDecimal] =
     jsVal match {
       case jsCall: JsObject =>
-        extractFromJsAs[JsString](jsCall, CallMetadataKeys.VmStartTime) map { startTimeVal =>
-          val startTimeErrorOr = ErrorOr(OffsetDateTime.parse(startTimeVal.value))
-
-          val endTimeErrorOr =
-            extractFromJsAs[JsString](jsCall, CallMetadataKeys.VmEndTime)
-              .map(v => ErrorOr(OffsetDateTime.parse(v.value)))
-              .getOrElse(OffsetDateTime.now().validNel)
-
+        val startTimes = extractMultipleFromJsAs[JsString](jsCall, CallMetadataKeys.VmStartTime)
+        if (startTimes.isEmpty) {
+          // If there are no start times, return 0 cost
+          BigDecimal(0).validNel
+        } else {
+          val startTimeErrorOr = getLatestTime(startTimes)
+          val endTimes = extractMultipleFromJsAs[JsString](jsCall, CallMetadataKeys.VmEndTime)
+          // If there are no end times, use the current time
+          val endTimeErrorOr = if (endTimes.isEmpty) {
+            OffsetDateTime.now().validNel
+          } else getLatestTime(endTimes)
           val rawCostPerHour = extractFromJsAs[JsNumber](jsCall, CallMetadataKeys.VmCostPerHour).map(_.value)
           val costPerHourErrorOr = rawCostPerHour match {
             case Some(c: BigDecimal) if c >= 0 => c.validNel
@@ -376,7 +388,7 @@ object MetadataBuilderActor {
             costPerHour <- costPerHourErrorOr
             vmRuntimeInMillis = start.until(end, ChronoUnit.MILLIS).toDouble
           } yield (vmRuntimeInMillis / (1000 * 60 * 60)) * costPerHour
-        } getOrElse (BigDecimal(0).validNel)
+        }
       case _ => BigDecimal(0).validNel
     }
 }

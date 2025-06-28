@@ -27,7 +27,12 @@ import cromwell.backend.google.batch.models.RunStatus.TerminalRunStatus
 import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.monitoring.{BatchInstrumentation, CheckpointingConfiguration, MonitoringImage}
 import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
-import cromwell.backend.google.batch.util.{GcpBatchReferenceFilesMappingOperations, RuntimeOutputMapping}
+import cromwell.backend.google.batch.util.{
+  GcpBatchReferenceFilesMappingOperations,
+  MemoryRetryRunnable,
+  MemoryRetryStandard,
+  RuntimeOutputMapping
+}
 import cromwell.backend.standard._
 import cromwell.core._
 import cromwell.core.io.IoCommandBuilder
@@ -633,7 +638,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
         // if the `memory_retry_multiplier` is not present in the workflow options there is no need to check whether or
         // not the `stderr` file contained memory retry error keys
-        val retryWithMoreMemoryKeys: Option[List[String]] = memoryRetryFactor.flatMap(_ => memoryRetryErrorKeys)
+        // If the retry detection is processed using the stderr then do not try retry with more memory in the backend.
+        // This keeps the backend jobs from logging the memory retry error keys in the very verbose Google Cloud Batch
+        // logs, tripping up the standard memory retry detection.
+        val retryWithMoreMemoryKeys: Option[List[String]] =
+          batchConfiguration.batchAttributes.memoryRetryCheckMode match {
+            case MemoryRetryRunnable => memoryRetryFactor.flatMap(_ => memoryRetryErrorKeys)
+            case MemoryRetryStandard => None
+          }
 
         val targetLogFile = batchAttributes.logsPolicy match {
           case GcpBatchLogsPolicy.CloudLogging => None

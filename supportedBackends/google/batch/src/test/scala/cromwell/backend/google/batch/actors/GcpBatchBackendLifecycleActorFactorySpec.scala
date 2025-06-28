@@ -2,6 +2,7 @@ package cromwell.backend.google.batch.actors
 
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
 import cromwell.backend.google.batch.models.{GcpBatchConfigurationAttributes, GcpBatchLogsPolicy}
+import cromwell.backend.google.batch.util.MemoryRetryRunnable
 import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineV
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -36,7 +37,8 @@ class GcpBatchBackendLifecycleActorFactorySpec extends AnyFlatSpecLike with Matc
       referenceFileToDiskImageMappingOpt = None,
       checkpointingInterval = 1 second,
       logsPolicy = GcpBatchLogsPolicy.CloudLogging,
-      maxTransientErrorRetries = 10
+      maxTransientErrorRetries = 10,
+      memoryRetryCheckMode = MemoryRetryRunnable
     )
 
     GcpBatchBackendLifecycleActorFactory.robustBuildAttributes(() => attributes) shouldBe attributes

@@ -80,6 +80,8 @@ trait JobPaths {
   lazy val dockerCid = callExecutionRoot.resolve(dockerCidFilename)
   lazy val returnCode = callExecutionRoot.resolve(returnCodeFilename)
   lazy val memoryRetryRC = callExecutionRoot.resolve(memoryRetryRCFilename)
+  // Path to to an existing file that contains the error text of the job if it failed due to memory constraints.
+  lazy val memoryRetryError = Option(standardPaths.error)
 
   // This is a `def` because `standardPaths` is a `var` that may be reassigned during the calculation of
   // standard output and error file names.

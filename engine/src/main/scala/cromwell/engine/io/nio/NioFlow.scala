@@ -71,6 +71,8 @@ class NioFlow(parallelism: Int,
       case sizeCommand: IoSizeCommand => size(sizeCommand) map sizeCommand.success
       case readAsStringCommand: IoContentAsStringCommand =>
         readAsString(readAsStringCommand) map readAsStringCommand.success
+      case tailAsStringCommand: IoTailAsStringCommand =>
+        tailAsString(tailAsStringCommand) map tailAsStringCommand.success
       case hashCommand: IoHashCommand => hash(hashCommand) map hashCommand.success
       case touchCommand: IoTouchCommand => touch(touchCommand) map touchCommand.success
       case existsCommand: IoExistsCommand => exists(existsCommand) map existsCommand.success
@@ -109,6 +111,10 @@ class NioFlow(parallelism: Int,
       command.file.limitFileContent(command.options.maxBytes, command.options.failOnOverflow),
       StandardCharsets.UTF_8
     ).replaceAll("\\r\\n", "\\\n")
+  }
+
+  private def tailAsString(command: IoTailAsStringCommand): IO[String] = IO {
+    command.file.tailLines(command.options.maxBytes).replaceAll("\\r\\n", "\\\n")
   }
 
   private def size(size: IoSizeCommand) =

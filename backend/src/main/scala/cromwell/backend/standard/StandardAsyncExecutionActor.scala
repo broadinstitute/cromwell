@@ -41,6 +41,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
+import wom.format.MemorySize
 import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
@@ -241,13 +242,16 @@ trait StandardAsyncExecutionActor
   lazy val commandDirectory: Path = jobPaths.callExecutionRoot
 
   lazy val memoryRetryErrorKeys: Option[List[String]] =
-    configurationDescriptor.globalConfig.as[Option[List[String]]]("system.memory-retry-error-keys")
+    configurationDescriptor.globalConfig.getAs[List[String]]("system.memory-retry-error-keys")
+
+  lazy val memoryRetryStderrLimit: Option[Int] =
+    configurationDescriptor.globalConfig.getAs[Int]("system.memory-retry-stderr-limit")
 
   lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] =
     jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MemoryRetryMultiplier) flatMap { value: String =>
       Try(value.toDouble) match {
         case Success(v) =>
-          refineV[MemoryRetryMultiplier](v.toDouble) match {
+          refineV[MemoryRetryMultiplier](v) match {
             case Left(e) =>
               // should not happen, this case should have been screened for and fast-failed during workflow materialization.
               log.error(
@@ -451,9 +455,25 @@ trait StandardAsyncExecutionActor
     val errorOrGlobFiles: ErrorOr[List[WomGlobFile]] =
       backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
-    lazy val environmentVariables = instantiatedCommand.environmentVariables map { case (k, v) =>
-      s"""export $k="$v""""
-    } mkString ("", "\n", "\n")
+    lazy val environmentVariables = {
+      /*
+      Add `MEM_SIZE` and `MEM_UNIT` before the other environment variables on all backends that define a `memory`
+      runtime attribute. As of May 2022 some backends may expose these same environment variables via other means where
+      they are accessible elsewhere, for example within sidecar containers used for resource monitoring.
+       */
+      val memoryEnvironmentVariables: List[(String, String)] =
+        runtimeMemoryOption.toList.flatMap(runtimeMemory =>
+          List(
+            "MEM_SIZE" -> runtimeMemory.amount.toString,
+            "MEM_UNIT" -> runtimeMemory.unit.toString
+          )
+        )
+      val environmentVariables: List[(String, String)] =
+        memoryEnvironmentVariables ++ instantiatedCommand.environmentVariables
+      environmentVariables map { case (key, value) =>
+        s"""export $key="$value""""
+      } mkString ("", "\n", "\n")
+    }
 
     val shortId = jobDescriptor.workflowDescriptor.id.shortString
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
@@ -778,6 +798,16 @@ trait StandardAsyncExecutionActor
    */
   lazy val continueOnReturnCode: ContinueOnReturnCode =
     RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
+
+  /**
+    * Returns the memory size for the job.
+    *
+    * @return the memory size for the job.
+    */
+  lazy val runtimeMemoryOption: Option[MemorySize] = RuntimeAttributesValidation.extractOption(
+    runtimeAttributesValidation = MemoryValidation.instance(),
+    validatedRuntimeAttributes = validatedRuntimeAttributes
+  )
 
   /**
     * Returns the max number of times that a failed job should be retried, obtained by converting `maxRetries` to an Int.
@@ -1199,7 +1229,7 @@ trait StandardAsyncExecutionActor
     val nextKvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt + 1)
 
-    def getNextKvPair[A](key: String, value: String): Map[String, KvPair] = {
+    def getNextKvPair(key: String, value: String): Map[String, KvPair] = {
       val nextScopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, nextKvJobKey, key)
       val nextKvPair = KvPair(nextScopedKey, value)
       Map(key -> nextKvPair)
@@ -1415,37 +1445,65 @@ trait StandardAsyncExecutionActor
   ): Future[ExecutionHandle] = {
 
     // Returns true if the task has written an RC file that indicates OOM, false otherwise
-    def memoryRetryRC: Future[Boolean] = {
-      def returnCodeAsBoolean(codeAsOption: Option[String]): Boolean =
-        codeAsOption match {
-          case Some(codeAsString) =>
-            Try(codeAsString.trim.toInt) match {
-              case Success(code) =>
-                code match {
-                  case StderrContainsRetryKeysCode => true
-                  case _ => false
-                }
-              case Failure(e) =>
-                log.error(
-                  s"'CheckingForMemoryRetry' action exited with code '$codeAsString' which couldn't be " +
-                    s"converted to an Integer. Task will not be retried with more memory. Error: ${ExceptionUtils.getMessage(e)}"
-                )
-                false
-            }
-          case None => false
+    def memoryRetryRC: Future[(Boolean, Option[Path])] = {
+
+      def readFile(path: Path, maxBytes: Option[Int]): Future[String] =
+        asyncIo.contentAsStringAsync(path, maxBytes, failOnOverflow = false)
+
+      // Read the tail of a file, or fall back to reading the head.
+      def readPartial(path: Path, maxBytes: Int): Future[String] =
+        asyncIo.tailAsStringAsync(path, maxBytes) recoverWith { case _ =>
+          asyncIo.contentAsStringAsync(path, Option(maxBytes), failOnOverflow = false)
         }
 
-      def readMemoryRetryRCFile(fileExists: Boolean): Future[Option[String]] =
-        if (fileExists)
-          asyncIo.contentAsStringAsync(jobPaths.memoryRetryRC, None, failOnOverflow = false).map(Option(_))
-        else
-          Future.successful(None)
+      def checkMemoryRetryRC(): Future[Boolean] =
+        readFile(jobPaths.memoryRetryRC, None) map { codeAsString =>
+          Try(codeAsString.trim.toInt) match {
+            case Success(code) =>
+              code match {
+                case StderrContainsRetryKeysCode => true
+                case _ => false
+              }
+            case Failure(e) =>
+              log.error(
+                s"'CheckingForMemoryRetry' action exited with code '$codeAsString' which couldn't be " +
+                  s"converted to an Integer. Task will not be retried with more memory. Error: ${ExceptionUtils.getMessage(e)}"
+              )
+              false
+          }
+        }
 
+      def checkMemoryRetryStderr(memoryRetryError: Path, errorKeys: List[String], maxBytes: Int): Future[Boolean] =
+        readPartial(memoryRetryError, maxBytes) map { errorContent =>
+          errorKeys.exists(errorContent.contains)
+        }
+
+      def checkMemoryRetryError(): Future[Boolean] =
+        (memoryRetryErrorKeys, memoryRetryStderrLimit, jobPaths.memoryRetryError) match {
+          case (Some(keys), Some(limit), Some(memoryRetryError)) =>
+            for {
+              memoryRetryErrorExists <- asyncIo.existsAsync(memoryRetryError)
+              memoryRetryErrorFound <-
+                if (memoryRetryErrorExists)
+                  checkMemoryRetryStderr(memoryRetryError, keys, limit)
+                else
+                  Future.successful(false)
+            } yield memoryRetryErrorFound
+          case _ => Future.successful(false)
+        }
+
+      // For backwards behavioral compatibility, check for the old memory retry RC file first. That file used to catch
+      // the errors from the standard error file, but now sometimes the error is written to a separate log file.
+      // If it exists, check its contents. If it doesn't find an OOM code, check the new memory retry error file.
       for {
-        fileExists <- asyncIo.existsAsync(jobPaths.memoryRetryRC)
-        retryCheckRCAsOption <- readMemoryRetryRCFile(fileExists)
-        retryWithMoreMemory = returnCodeAsBoolean(retryCheckRCAsOption)
-      } yield retryWithMoreMemory
+        memoryRetryRCExists <- asyncIo.existsAsync(jobPaths.memoryRetryRC)
+        memoryRetryRCErrorFound <- if (memoryRetryRCExists) checkMemoryRetryRC() else Future.successful(false)
+        memoryRetryErrorFound <- if (memoryRetryRCErrorFound) Future.successful(true) else checkMemoryRetryError()
+        memoryErrorPathOption =
+          if (memoryRetryRCErrorFound) Option(jobPaths.standardPaths.error)
+          else if (memoryRetryErrorFound) jobPaths.memoryRetryError
+          else None
+      } yield (memoryRetryErrorFound, memoryErrorPathOption)
     }
 
     val stderr = jobPaths.standardPaths.error
@@ -1456,74 +1514,76 @@ trait StandardAsyncExecutionActor
       // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
       // may fail due to race conditions on quickly-executing jobs.
       stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
-      outOfMemoryDetected <- memoryRetryRC
-    } yield (stderrSize, returnCodeAsString, outOfMemoryDetected)
+      (outOfMemoryDetected, outOfMemoryPathOption) <- memoryRetryRC
+    } yield (stderrSize, returnCodeAsString, outOfMemoryDetected, outOfMemoryPathOption)
 
-    stderrSizeAndReturnCodeAndMemoryRetry flatMap { case (stderrSize, returnCodeAsString, outOfMemoryDetected) =>
-      val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
+    stderrSizeAndReturnCodeAndMemoryRetry flatMap {
+      case (stderrSize, returnCodeAsString, outOfMemoryDetected, outOfMemoryPathOption) =>
+        val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
 
-      if (isDone(status)) {
-        tryReturnCodeAsInt match {
-          case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
-            val executionHandle = Future.successful(
-              FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption),
-                                                Option(returnCodeAsInt),
-                                                None
+        if (isDone(status)) {
+          tryReturnCodeAsInt match {
+            case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
+              val executionHandle = Future.successful(
+                FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption),
+                                                  Option(returnCodeAsInt),
+                                                  None
+                )
               )
-            )
-            retryElseFail(executionHandle)
-          case Success(returnCodeAsInt) if continueOnReturnCode.continueFor(returnCodeAsInt) =>
-            handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
-          // It's important that we check retryWithMoreMemory case before isAbort. RC could be 137 in either case;
-          // if it was caused by OOM killer, want to handle as OOM and not job abort.
-          case Success(returnCodeAsInt) if outOfMemoryDetected && memoryRetryRequested =>
-            val executionHandle = Future.successful(
-              FailedNonRetryableExecutionHandle(
-                RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
-                Option(returnCodeAsInt),
-                None
+              retryElseFail(executionHandle)
+            case Success(returnCodeAsInt) if continueOnReturnCode.continueFor(returnCodeAsInt) =>
+              handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
+            // It's important that we check retryWithMoreMemory case before isAbort. RC could be 137 in either case;
+            // if it was caused by OOM killer, want to handle as OOM and not job abort.
+            case Success(returnCodeAsInt) if outOfMemoryDetected && memoryRetryRequested =>
+              val executionHandle = Future.successful(
+                FailedNonRetryableExecutionHandle(
+                  RetryWithMoreMemory(jobDescriptor.key.tag, outOfMemoryPathOption, memoryRetryErrorKeys, log),
+                  Option(returnCodeAsInt),
+                  None
+                )
               )
-            )
-            retryElseFail(executionHandle,
-                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
-            )
-          case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
-            Future.successful(AbortedExecutionHandle)
-          case Success(returnCodeAsInt) =>
-            val executionHandle = Future.successful(
-              FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption),
-                                                Option(returnCodeAsInt),
-                                                None
+              retryElseFail(executionHandle,
+                            MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
               )
-            )
-            retryElseFail(executionHandle)
-          case Failure(_) =>
-            Future.successful(
-              FailedNonRetryableExecutionHandle(
-                ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption),
-                kvPairsToSave = None
+            case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
+              Future.successful(AbortedExecutionHandle)
+            case Success(returnCodeAsInt) =>
+              val executionHandle = Future.successful(
+                FailedNonRetryableExecutionHandle(
+                  WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption),
+                  Option(returnCodeAsInt),
+                  None
+                )
               )
-            )
+              retryElseFail(executionHandle)
+            case Failure(_) =>
+              Future.successful(
+                FailedNonRetryableExecutionHandle(
+                  ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption),
+                  kvPairsToSave = None
+                )
+              )
+          }
+        } else {
+          tryReturnCodeAsInt match {
+            case Success(returnCodeAsInt)
+                if outOfMemoryDetected && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
+              val executionHandle = Future.successful(
+                FailedNonRetryableExecutionHandle(
+                  RetryWithMoreMemory(jobDescriptor.key.tag, outOfMemoryPathOption, memoryRetryErrorKeys, log),
+                  Option(returnCodeAsInt),
+                  None
+                )
+              )
+              retryElseFail(executionHandle,
+                            MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+              )
+            case _ =>
+              val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
+              retryElseFail(failureStatus)
+          }
         }
-      } else {
-        tryReturnCodeAsInt match {
-          case Success(returnCodeAsInt)
-              if outOfMemoryDetected && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
-            val executionHandle = Future.successful(
-              FailedNonRetryableExecutionHandle(
-                RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
-                Option(returnCodeAsInt),
-                None
-              )
-            )
-            retryElseFail(executionHandle,
-                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
-            )
-          case _ =>
-            val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
-            retryElseFail(failureStatus)
-        }
-      }
     } recoverWith { case exception =>
       if (isDone(status)) Future.successful(FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None))
       else {

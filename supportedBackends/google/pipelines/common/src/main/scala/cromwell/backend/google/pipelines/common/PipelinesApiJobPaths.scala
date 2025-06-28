@@ -41,6 +41,8 @@ case class PipelinesApiJobPaths(override val workflowPaths: PipelinesApiWorkflow
   val jesMonitoringScriptFilename: String = s"${PipelinesApiJobPaths.JesMonitoringKey}.sh"
   val jesMonitoringImageScriptFilename: String = s"${PipelinesApiJobPaths.JesMonitoringImageKey}.sh"
 
+  override lazy val memoryRetryError: Option[Path] = Option(jesLogPath)
+
   override lazy val customMetadataPaths = Map(
     CallMetadataKeys.BackendLogsPrefix + ":log" -> jesLogPath
   ) ++ (

@@ -208,6 +208,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     case _ => false
   }
 
+  lazy val retryReportingTimeouts: Boolean =
+    jobDescriptor.workflowDescriptor.workflowOptions
+      .getBoolean(WorkflowOptionKeys.RetryReportingTimeouts)
+      .toOption
+      .getOrElse(false)
+
   override def tryAbort(job: StandardAsyncJob): Unit =
     abortJob(workflowId = workflowId,
              jobName = JobName.parse(job.jobId),
@@ -1216,11 +1222,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   // Check whether this failure should be automatically resubmitted without counting against maxRetries.
   // Guidance: Resubmit if the task has a known-transient failure type and has not yet cost the user money.
   private def isTransientFailure(failed: RunStatus.Failed): Boolean = {
-    lazy val errorTypeIsTransient = List(
+    lazy val transientErrors = List(
       GcpBatchExitCode.VMPreemption,
       GcpBatchExitCode.VMRecreatedDuringExecution,
       GcpBatchExitCode.VMRebootedDuringExecution
-    ).contains(failed.errorCode)
+    ) ++ retryReportingTimeouts.option(GcpBatchExitCode.VMReportingTimeout)
+    lazy val errorTypeIsTransient = transientErrors.contains(failed.errorCode)
     lazy val taskStartedRunning = failed.eventList.exists(e => executionEventRunningMatcher.matches(e.name))
     transientErrorRetryable && errorTypeIsTransient && !taskStartedRunning
   }

@@ -4,8 +4,9 @@ import akka.actor.ActorSystem
 import akka.http.scaladsl.model.ContentTypes
 import better.files.File.OpenOptions
 import cats.effect.IO
+import com.google.api.client.http.HttpHeaders
 import com.google.api.gax.retrying.RetrySettings
-import com.google.api.services.storage.StorageScopes
+import com.google.api.services.storage.{Storage, StorageScopes}
 import com.google.api.services.storage.model.StorageObject
 import com.google.auth.Credentials
 import com.google.cloud.storage.Storage.BlobTargetOption
@@ -248,6 +249,36 @@ case class GcsPath private[gcs] (nioPath: NioPath,
         .get(objectBlobId.get.getBucket, objectBlobId.get.getName)
         .setUserProject(withProject.option(projectId).orNull)
         .executeMediaAsInputStream()
+    // Since the NIO interface is synchronous we need to run this synchronously here. It is however wrapped in a Future
+    // in the NioFlow so we don't need to worry about exceptions
+    runOnEc(recoverFromProjectNotProvided(this, request)).unsafeRunSync()
+  }
+
+  override def mediaInputStreamTail(numBytes: Long)(implicit ec: ExecutionContext): InputStream = {
+    def request(withProject: Boolean): InputStream = {
+      val size =
+        apiStorage
+          .objects()
+          .get(objectBlobId.get.getBucket, objectBlobId.get.getName)
+          .setUserProject(withProject.option(projectId).orNull)
+          .execute()
+          .getSize
+          .longValueExact()
+
+      val startPosition = Math.max(0, size - numBytes)
+      val rangeHeader = String.format("bytes=%d-", startPosition)
+
+      // Use apiStorage here instead of cloudStorage, because apiStorage throws now if the bucket has requester pays,
+      // whereas cloudStorage creates the input stream anyway and only throws once `read` is called (which only happens in NioFlow)
+      apiStorage
+        .objects()
+        .get(objectBlobId.get.getBucket, objectBlobId.get.getName)
+        .setUserProject(withProject.option(projectId).orNull)
+        .setRequestHeaders(new HttpHeaders().setRange(rangeHeader))
+        .asInstanceOf[Storage#Objects#Get]
+        .executeMediaAsInputStream()
+    }
+
     // Since the NIO interface is synchronous we need to run this synchronously here. It is however wrapped in a Future
     // in the NioFlow so we don't need to worry about exceptions
     runOnEc(recoverFromProjectNotProvided(this, request)).unsafeRunSync()

@@ -9,6 +9,7 @@ import common.util.Backoff
 import common.util.StringUtil.EnhancedToStringable
 import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
+import cromwell.core.io.IoTailAsStringCommand.IoTailOptions
 import cromwell.core.path.Path
 import cromwell.core.retry.SimpleExponentialBackoff
 import org.slf4j.LoggerFactory
@@ -131,6 +132,23 @@ abstract class IoContentAsStringCommand(val file: Path,
 ) extends SingleFileIoCommand[String] {
   override def toString = s"read content of ${file.pathAsString}"
   override lazy val name = "read"
+}
+
+object IoTailAsStringCommand {
+
+  /**
+    * Options to customize reading the tail of a file.
+    * @param maxBytes Only reads up to maxBytes Bytes from the file
+    */
+  case class IoTailOptions(maxBytes: Int)
+}
+
+/**
+  * Read the tail of a file as a string (load the entire content in memory)
+  */
+abstract class IoTailAsStringCommand(val file: Path, val options: IoTailOptions) extends SingleFileIoCommand[String] {
+  override def toString = s"read tail of ${file.pathAsString}"
+  override lazy val name = "tail"
 }
 
 /**

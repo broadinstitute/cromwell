@@ -3,6 +3,7 @@ package cromwell.core.io
 import better.files.File.OpenOptions
 import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
+import cromwell.core.io.IoTailAsStringCommand.IoTailOptions
 import cromwell.core.path.Path
 
 object DefaultIoCommand {
@@ -14,6 +15,11 @@ object DefaultIoCommand {
   case class DefaultIoContentAsStringCommand(override val file: Path, override val options: IoReadOptions)
       extends IoContentAsStringCommand(file, options) {
     override def commandDescription: String = s"DefaultIoContentAsStringCommand file '$file' options '$options'"
+  }
+
+  case class DefaultIoTailAsStringCommand(override val file: Path, override val options: IoTailOptions)
+      extends IoTailAsStringCommand(file, options) {
+    override def commandDescription: String = s"DefaultIoTailAsStringCommand file '$file' options '$options'"
   }
 
   case class DefaultIoSizeCommand(override val file: Path) extends IoSizeCommand(file) {

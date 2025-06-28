@@ -17,6 +17,7 @@ class MockIoActor(returnCode: String, stderrSize: Long) extends Actor {
     case command: IoDeleteCommand => sender() ! IoSuccess(command, ())
     case command: IoSizeCommand => sender() ! IoSuccess(command, 0L)
     case command: IoContentAsStringCommand => sender() ! IoSuccess(command, "0")
+    case command: IoTailAsStringCommand => sender() ! IoSuccess(command, "")
     case command: IoExistsCommand => sender() ! IoSuccess(command, false)
 
     // With context
@@ -25,6 +26,8 @@ class MockIoActor(returnCode: String, stderrSize: Long) extends Actor {
     case (requestContext: Any, command: IoDeleteCommand) => sender() ! (requestContext -> IoSuccess(command, ()))
     case (requestContext: Any, command: IoSizeCommand) => sender() ! (requestContext -> IoSuccess(command, stderrSize))
     case (requestContext: Any, command: IoContentAsStringCommand) =>
+      sender() ! (requestContext -> IoSuccess(command, returnCode))
+    case (requestContext: Any, command: IoTailAsStringCommand) =>
       sender() ! (requestContext -> IoSuccess(command, returnCode))
     case (requestContext: Any, command: IoExistsCommand) => sender() ! (requestContext -> IoSuccess(command, false))
 

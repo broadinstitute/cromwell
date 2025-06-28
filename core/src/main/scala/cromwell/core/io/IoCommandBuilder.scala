@@ -4,6 +4,7 @@ import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.DefaultIoCommand._
 import cromwell.core.io.IoCommand.{noopMetricsCallback, IOMetricsCallback}
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
+import cromwell.core.io.IoTailAsStringCommand.IoTailOptions
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.Path
 
@@ -16,6 +17,7 @@ import scala.util.Try
 abstract class PartialIoCommandBuilder {
   def contentAsStringCommand: PartialFunction[(Path, Option[Int], Boolean), Try[IoContentAsStringCommand]] =
     PartialFunction.empty
+  def tailAsStringCommand: PartialFunction[(Path, Int), Try[IoTailAsStringCommand]] = PartialFunction.empty
   def writeCommand: PartialFunction[(Path, String, OpenOptions, Boolean), Try[IoWriteCommand]] = PartialFunction.empty
   def sizeCommand: PartialFunction[Path, Try[IoSizeCommand]] = PartialFunction.empty
   def deleteCommand: PartialFunction[(Path, Boolean), Try[IoDeleteCommand]] = PartialFunction.empty
@@ -62,6 +64,9 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
                    (path, maxBytes, failOnOverflow),
                    DefaultIoContentAsStringCommand(path, IoReadOptions(maxBytes, failOnOverflow))
     )
+
+  def tailAsString(path: Path, maxBytes: Int): Try[IoTailAsStringCommand] =
+    buildOrDefault(_.tailAsStringCommand, (path, maxBytes), DefaultIoTailAsStringCommand(path, IoTailOptions(maxBytes)))
 
   def writeCommand(path: Path,
                    content: String,

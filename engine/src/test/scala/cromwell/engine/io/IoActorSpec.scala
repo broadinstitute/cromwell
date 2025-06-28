@@ -8,6 +8,7 @@ import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.FileHashStrategy
 import cromwell.core.io.DefaultIoCommand._
 import cromwell.core.io.IoContentAsStringCommand.IoReadOptions
+import cromwell.core.io.IoTailAsStringCommand.IoTailOptions
 import cromwell.core.io._
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.engine.io.IoActor.IoConfig
@@ -179,6 +180,94 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
         fail("Command should have failed because the read limit was < file size and failOnOverflow was true")
       case response: IoFailure[_] =>
         response.failure.getMessage shouldBe s"[Attempted 1 time(s)] - IOException: Could not read from ${src.pathAsString}: File ${src.pathAsString} is larger than requested maximum of 2 Bytes."
+    }
+
+    src.delete()
+  }
+
+  it should "tail only the last bytes of file" in {
+    val testActor = TestActorRef(
+      factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorFirstBytes").ref, "cromwell test"),
+      name = "testActorLastBytes"
+    )
+
+    val src = DefaultPathBuilder.createTempFile()
+    src.write("hello")
+
+    val tailCommand = DefaultIoTailAsStringCommand(src, IoTailOptions(2))
+
+    testActor ! tailCommand
+    expectMsgPF(5 seconds) {
+      case response: IoSuccess[_] =>
+        response.command.isInstanceOf[IoTailAsStringCommand] shouldBe true
+        response.result.asInstanceOf[String] shouldBe ""
+      case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
+    }
+
+    src.delete()
+  }
+
+  it should "tail a multi-line unix file" in {
+    val testActor = TestActorRef(
+      factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorRead").ref, "cromwell test"),
+      name = "testActorTailUnix"
+    )
+
+    val src = DefaultPathBuilder.createTempFile()
+    src.write("hello\nworld")
+
+    val tailCommand = DefaultIoTailAsStringCommand(src, IoTailOptions(8))
+
+    testActor ! tailCommand
+    expectMsgPF(5 seconds) {
+      case response: IoSuccess[_] =>
+        response.command.isInstanceOf[IoTailAsStringCommand] shouldBe true
+        response.result.asInstanceOf[String] shouldBe "world"
+      case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
+    }
+
+    src.delete()
+  }
+
+  it should "tail a multi-line windows file" in {
+    val testActor = TestActorRef(
+      factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorRead").ref, "cromwell test"),
+      name = "testActorTailWindows"
+    )
+
+    val src = DefaultPathBuilder.createTempFile()
+    src.write("hello\r\nworld")
+
+    val tailCommand = DefaultIoTailAsStringCommand(src, IoTailOptions(9))
+
+    testActor ! tailCommand
+    expectMsgPF(5 seconds) {
+      case response: IoSuccess[_] =>
+        response.command.isInstanceOf[IoTailAsStringCommand] shouldBe true
+        response.result.asInstanceOf[String] shouldBe "world"
+      case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
+    }
+
+    src.delete()
+  }
+
+  it should "tail the file if it's under the byte limit" in {
+    val testActor = TestActorRef(
+      factory = new IoActor(IoActorConfig, TestProbe("serviceRegistryActorByteLimit").ref, "cromwell test"),
+      name = "testActorTailByteLimit"
+    )
+
+    val src = DefaultPathBuilder.createTempFile()
+    src.write("hello")
+
+    val tailCommand = DefaultIoTailAsStringCommand(src, IoTailOptions(6))
+
+    testActor ! tailCommand
+    expectMsgPF(5 seconds) {
+      case response: IoSuccess[_] =>
+        response.command.isInstanceOf[IoTailAsStringCommand] shouldBe true
+        response.result.asInstanceOf[String] shouldBe "hello"
+      case response: IoFailure[_] => fail("Expected an IoSuccess", response.failure)
     }
 
     src.delete()

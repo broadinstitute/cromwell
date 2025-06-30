@@ -154,33 +154,33 @@ class BatchPollResultMonitorActorSpec
     }
   }
 
- it should "emit the latest start time after receiving multiple pollResults" in {
+  it should "emit the latest start time after receiving multiple events" in {
 
-   val vmStartTime1 = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
-   val vmStartTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
-   val pollResult = RunStatus.Running(
-     Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime1),
-         ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime2)
-     ),
-     Some(vmInfo)
-   )
-   val message = ProcessThisPollResult(pollResult)
+    val vmStartTime1 = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val vmStartTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val pollResult = RunStatus.Running(
+      Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime1),
+          ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime2)
+      ),
+      Some(vmInfo)
+    )
+    val message = ProcessThisPollResult(pollResult)
 
-   actor ! message
+    actor ! message
 
-   serviceRegistry.expectMsgPF(5.seconds) { case m: PutMetadataAction =>
-     val event = m.events.head
-     m.events.size shouldBe 1
-     event.key.key shouldBe CallMetadataKeys.VmStartTime
-     assert(
-       Instant
-         .parse(event.value.get.value)
-         .equals(vmStartTime2.toInstant.truncatedTo(ChronoUnit.MILLIS))
-     )
-   }
- }
+    serviceRegistry.expectMsgPF(1.seconds) { case m: PutMetadataAction =>
+      val event = m.events.head
+      m.events.size shouldBe 1
+      event.key.key shouldBe CallMetadataKeys.VmStartTime
+      assert(
+        Instant
+          .parse(event.value.get.value)
+          .equals(vmStartTime2.toInstant.truncatedTo(ChronoUnit.MILLIS))
+      )
+    }
+  }
 
-  it should "emit the latest end time after receiving multiple pollResults" in {
+  it should "emit the latest end time after receiving multiple events" in {
 
     val vmEndTime1 = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
     val vmEndTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
@@ -205,22 +205,45 @@ class BatchPollResultMonitorActorSpec
       )
     }
   }
-
   it should "emit the latest start time after receiving multiple pollResults" in {
 
     val vmStartTime1 = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
-    val vmStartTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
-    val pollResult = RunStatus.Running(
-      Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime1),
-          ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime2)
-      ),
+    val pollResult1 = RunStatus.Running(
+      Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime1)),
       Some(vmInfo)
     )
-    val message = ProcessThisPollResult(pollResult)
+    val message1 = ProcessThisPollResult(pollResult1)
 
-    actor ! message
+    actor ! message1
 
-    serviceRegistry.expectMsgPF(10.seconds) { case m: PutMetadataAction =>
+    serviceRegistry.expectMsgPF(5.seconds) { case m: PutMetadataAction =>
+      val event = m.events.head
+      m.events.size shouldBe 1
+      event.key.key shouldBe CallMetadataKeys.VmStartTime
+      assert(
+        Instant
+          .parse(event.value.get.value)
+          .equals(vmStartTime1.toInstant.truncatedTo(ChronoUnit.MILLIS))
+      )
+    }
+
+    // handle cost lookup request that comes between
+    serviceRegistry.expectMsgPF(1.seconds) { case m: GcpCostLookupRequest =>
+      m.vmInfo shouldBe vmInfo
+    }
+
+    // Now send a second poll result with a newer VM start time
+    val vmStartTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val pollResult2 = RunStatus.Running(
+      Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime2)),
+      Some(vmInfo)
+    )
+
+    val message2 = ProcessThisPollResult(pollResult2)
+
+    actor ! message2
+
+    serviceRegistry.expectMsgPF(1.seconds) { case m: PutMetadataAction =>
       val event = m.events.head
       m.events.size shouldBe 1
       event.key.key shouldBe CallMetadataKeys.VmStartTime
@@ -230,5 +253,6 @@ class BatchPollResultMonitorActorSpec
           .equals(vmStartTime2.toInstant.truncatedTo(ChronoUnit.MILLIS))
       )
     }
+
   }
 }

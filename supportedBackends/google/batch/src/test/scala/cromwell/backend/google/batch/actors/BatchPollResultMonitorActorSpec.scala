@@ -205,40 +205,37 @@ class BatchPollResultMonitorActorSpec
       )
     }
   }
-  it should "emit the latest start time after receiving multiple pollResults" in {
 
-    val vmStartTime1 = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
-    val pollResult1 = RunStatus.Running(
-      Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime1)),
+  it should "emit the latest end time after processing multiple pollResults" in {
+
+    val vmEndTime1 = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val vmEndTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val pollResult = RunStatus.Running(
+      Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime1),
+          ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime2)
+      ),
       Some(vmInfo)
     )
-    val message1 = ProcessThisPollResult(pollResult1)
+    val message = ProcessThisPollResult(pollResult)
 
-    actor ! message1
+    actor ! message
 
-    serviceRegistry.expectMsgPF(5.seconds) { case m: PutMetadataAction =>
+    serviceRegistry.expectMsgPF(1.seconds) { case m: PutMetadataAction =>
       val event = m.events.head
       m.events.size shouldBe 1
-      event.key.key shouldBe CallMetadataKeys.VmStartTime
+      event.key.key shouldBe CallMetadataKeys.VmEndTime
       assert(
         Instant
           .parse(event.value.get.value)
-          .equals(vmStartTime1.toInstant.truncatedTo(ChronoUnit.MILLIS))
+          .equals(vmEndTime2.toInstant.truncatedTo(ChronoUnit.MILLIS))
       )
     }
 
-    // handle cost lookup request that comes between
-    serviceRegistry.expectMsgPF(1.seconds) { case m: GcpCostLookupRequest =>
-      m.vmInfo shouldBe vmInfo
-    }
-
-    // Now send a second poll result with a newer VM start time
-    val vmStartTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val vmEndTime3 = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
     val pollResult2 = RunStatus.Running(
-      Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime2)),
+      Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime3)),
       Some(vmInfo)
     )
-
     val message2 = ProcessThisPollResult(pollResult2)
 
     actor ! message2
@@ -246,13 +243,12 @@ class BatchPollResultMonitorActorSpec
     serviceRegistry.expectMsgPF(1.seconds) { case m: PutMetadataAction =>
       val event = m.events.head
       m.events.size shouldBe 1
-      event.key.key shouldBe CallMetadataKeys.VmStartTime
+      event.key.key shouldBe CallMetadataKeys.VmEndTime
       assert(
         Instant
           .parse(event.value.get.value)
-          .equals(vmStartTime2.toInstant.truncatedTo(ChronoUnit.MILLIS))
+          .equals(vmEndTime3.toInstant.truncatedTo(ChronoUnit.MILLIS))
       )
     }
-
   }
 }

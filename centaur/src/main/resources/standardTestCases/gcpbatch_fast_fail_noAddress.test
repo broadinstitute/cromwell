@@ -10,6 +10,6 @@ files {
 
 metadata {
   workflowName: fast_fail_noAddress
-  "failures.0.causedBy.0.message": ~~"Unable to complete Batch request due to a problem with the request (io.grpc.StatusRuntimeException: INVALID_ARGUMENT: no_external_ip_address field is invalid.)"
+  "failures.0.causedBy.0.message": ~~"Unable to complete Batch request due to a problem with the request (io.grpc.StatusRuntimeException: INVALID_ARGUMENT: no_external_ip_address field is invalid"
   status: Failed
 }

@@ -305,13 +305,29 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
     val shardLabels = Labels(backendJobDescriptorKey.index.map(l => Label("wdl-shard-index", l.toString)).toVector)
 
+    /*
+        if it's a scatter - basically has index (backendJobDescriptorKey.index) - then add node pool label
+        node pool label pattern could be:  workflow.id.shortString - call.callable.name - 4000
+        if index is more than 4000, append something else
+     */
+
+    val nodepoolLabels = Labels(backendJobDescriptorKey.index.map { index =>
+      val labelSuffix = if (index < 500) { // < 4000
+        "group-0"
+      } else { "group-1"}
+
+//      Label("goog-batch-job-group", s"cromwell-${workflow.id.shortString}-${call.callable.name}-$labelSuffix".toLowerCase)
+      Label("goog-batch-job-group", s"node-pool-${workflow.id.shortString}-${call.fullyQualifiedName.replaceAll("","-")}-$labelSuffix".toLowerCase)
+    }.toVector)
+
     val allLabels = Labels(
       "cromwell-workflow-id" -> s"cromwell-${workflow.rootWorkflowId}",
       "wdl-task-name" -> call.callable.name,
       "wdl-attempt" -> backendJobDescriptorKey.attempt.toString,
       "goog-batch-worker" -> "true",
-      "submitter" -> "cromwell"
-    ) ++ shardLabels ++ subWorkflowLabels ++ aliasLabels ++ Labels(googleLabels.toVector)
+      "submitter" -> "cromwell",
+//      "goog-batch-job-group" -> "sshah-nodepool-test-1"
+    ) ++ shardLabels ++ subWorkflowLabels ++ aliasLabels ++ Labels(googleLabels.toVector) ++ nodepoolLabels
 
     val job = Job.newBuilder
       .addTaskGroups(taskGroup)

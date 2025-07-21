@@ -50,7 +50,6 @@ trait JobKeyValueSlickDatabase extends JobKeyValueSqlDatabase {
   def addJobKeyValueEntries(
     jobKeyValueEntries: Iterable[JobKeyValueEntry]
   )(implicit ec: ExecutionContext): Future[Unit] = {
-//    println(s"### FIND ME Inside addJobKeyValueEntries which will actually put values in DB. Entries to put: ${jobKeyValueEntries.map(s => (s.workflowExecutionUuid.toString, s.storeKey, s.storeValue))}")
     val action = if (useSlickUpserts) {
       createBatchUpsert("KeyValueStore", dataAccess.jobKeyValueTableQueryCompiled, jobKeyValueEntries)
     } else {

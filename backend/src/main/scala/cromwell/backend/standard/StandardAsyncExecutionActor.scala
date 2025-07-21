@@ -1245,7 +1245,6 @@ trait StandardAsyncExecutionActor
         case Recover(jobId: StandardAsyncJob @unchecked) => recoverAsync(jobId)
         case _ =>
           tellMetadata(startMetadataKeyValues)
-//          jobLogger.info("### FIND ME Inside executeOrRecover. Right before starting job request async")
           executeAsync()
       }
 
@@ -1266,8 +1265,6 @@ trait StandardAsyncExecutionActor
         configurationDescriptor.slowJobWarningAfter foreach { duration =>
           self ! WarnAboutSlownessAfter(handle.pendingJob.jobId, duration)
         }
-
-//        jobLogger.info(s"#### FIND ME Inside executeOrRecoverSuccess. Right before sending JKV request. Job ID: ${handle.pendingJob.jobId}")
 
         tellKvJobId(handle.pendingJob) map { _ =>
           if (logJobIds) jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
@@ -1513,7 +1510,6 @@ trait StandardAsyncExecutionActor
     * @param runningJob The running job.
     */
   def tellKvJobId(runningJob: StandardAsyncJob): Future[KvResponse] = {
-//    jobLogger.info(s"#### FIND ME: Inside tellKvJobId. Job ID: ${runningJob.jobId}")
     val kvJobKey =
       KvJobKey(jobDescriptor.key.call.fullyQualifiedName, jobDescriptor.key.index, jobDescriptor.key.attempt)
     val scopedKey = ScopedKey(jobDescriptor.workflowDescriptor.id, kvJobKey, jobIdKey)

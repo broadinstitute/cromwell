@@ -101,9 +101,9 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
   private val executionEventRunningMatcher = ".* to RUNNING.*".r
 
-  val GcpBatchOperationIdKey = "__gcp_batch_operation_id"
+  private val MaxBatchJobIdLength = 63
 
-  val MaxBatchJobIdLength = 61
+  val GcpBatchOperationIdKey = "__gcp_batch_operation_id"
 
   type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, RunStatus]
 
@@ -948,22 +948,30 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     })
 
+    // This method generates a deterministic job ID for the GCP Batch job.
+    // The job ID is constructed using the short workflow id, sanitized call name, scatter index and attempt.
     def generateJobId(): String = {
-      val shardInfo = jobDescriptor.key.index match {
-        case Some(i) => s"-$i"
-        case None => ""
+      val prefix = "job-"
+      val shortWorkflowId = workflowId.shortString
+      val scatterIndex = jobDescriptor.key.index.map(i => s"-$i").getOrElse("")
+      val attempt = s"-${jobDescriptor.key.attempt.toString}"
+      val callName = jobDescriptor.taskCall.fullyQualifiedName.toLowerCase.replaceAll("[^a-z0-9-]", "")
+
+      // includes dash between workflow id and call name
+      val baseLength = prefix.length + shortWorkflowId.length + scatterIndex.length + attempt.length + 1
+      val remainingLength = MaxBatchJobIdLength - baseLength
+
+      // if the call name is too long, truncate it and add a hash suffix
+      val safeCallName = {
+        if (callName.length <= remainingLength) callName
+        else {
+          // truncate and add a hash suffix for determinism
+          val hash = DigestUtils.md5Hex(callName).take(8)
+          callName.take(remainingLength - 9) + "-" + hash
+        }
       }
-      val callInfo = jobDescriptor.taskCall.fullyQualifiedName.replaceAll("\\.","").toLowerCase
-      val attemptInfo = jobDescriptor.key.attempt
 
-      val jobId = s"job-${workflowId.shortString}-$callInfo$shardInfo-$attemptInfo"
-
-      // TODO: Job ID length can only be 61 characters
-//      if (jobId.length > MaxBatchJobIdLength) {
-//        ???
-//      } else jobId
-
-      jobId
+      s"$prefix$shortWorkflowId-$safeCallName$scatterIndex$attempt"
     }
 
     val runBatchResponse = for {

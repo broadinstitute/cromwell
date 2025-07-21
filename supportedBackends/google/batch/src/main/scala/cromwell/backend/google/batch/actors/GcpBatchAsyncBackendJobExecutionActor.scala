@@ -103,6 +103,8 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
   val GcpBatchOperationIdKey = "__gcp_batch_operation_id"
 
+  val MaxBatchJobIdLength = 61
+
   type GcpBatchPendingExecutionHandle = PendingExecutionHandle[StandardAsyncJob, Run, RunStatus]
 
   val plainTextContentType: Option[ContentType.WithCharset] = Option(ContentTypes.`text/plain(UTF-8)`)
@@ -946,6 +948,24 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     })
 
+    def generateJobId(): String = {
+      val shardInfo = jobDescriptor.key.index match {
+        case Some(i) => s"-$i"
+        case None => ""
+      }
+      val callInfo = jobDescriptor.taskCall.fullyQualifiedName.replaceAll("\\.","").toLowerCase
+      val attemptInfo = jobDescriptor.key.attempt
+
+      val jobId = s"job-${workflowId.shortString}-$callInfo$shardInfo-$attemptInfo"
+
+      // TODO: Job ID length can only be 61 characters
+//      if (jobId.length > MaxBatchJobIdLength) {
+//        ???
+//      } else jobId
+
+      jobId
+    }
+
     val runBatchResponse = for {
       _ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
@@ -982,7 +1002,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                          gcsTransferConfiguration
       )
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
-      jobName = "job-" + java.util.UUID.randomUUID.toString
+      jobName = generateJobId()
       request = GcpBatchRequest(workflowId, createParameters, jobName = jobName, gcpBatchParameters)
       response <- runBatchJob(request = request,
                               backendSingletonActor = backendSingletonActor,

@@ -10,14 +10,16 @@ trait KvClient { this: Actor with ActorLogging =>
   def serviceRegistryActor: ActorRef
   private[keyvalue] var currentKvClientRequests: Map[ScopedKey, Promise[KvResponse]] = Map.empty
 
-  final def makeKvRequest(actions: Seq[KvAction])(implicit ec: ExecutionContext): Future[Seq[KvResponse]] =
-    if (actions.exists(action => currentKvClientRequests.contains(action.key))) {
-      val msg =
-        "Programmer Error! KvClient does not support multiple KvActions active for the same ScopedKey concurrently. Mi Scusi!"
-      log.error(msg)
-      Future.failed(new RuntimeException(msg))
-    } else {
-      createResponseSet(actions)
+  final def makeKvRequest(actions: Seq[KvAction])(implicit ec: ExecutionContext): Future[Seq[KvResponse]] = {
+//      log.info(s"#### FIND ME Inside makeKvRequest. Actions: $actions")
+      if (actions.exists(action => currentKvClientRequests.contains(action.key))) {
+        val msg =
+          "Programmer Error! KvClient does not support multiple KvActions active for the same ScopedKey concurrently. Mi Scusi!"
+        log.error(msg)
+        Future.failed(new RuntimeException(msg))
+      } else {
+        createResponseSet(actions)
+      }
     }
 
   final def kvClientReceive: Actor.Receive = { case response: KvResponse =>

@@ -79,6 +79,7 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
       throw new RuntimeException(s"Failure attempting to look up job id for key ${jobDescriptor.key}", e)
   }
 
+  // Saloni - this is where it decides to execute if no job ID exists in KV table
   private def recovering(executor: ActorRef): Receive = running(executor).orElse {
     case KvPair(key, jobId) if key.key == jobIdKey =>
       // Successful operation ID lookup.
@@ -98,6 +99,8 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
       ()
   }
 
+  // Saloni - this is where it decides to execute if no job ID exists in KV table;
+  // How does it differ from Recover?
   private def reconnecting(executor: ActorRef): Receive = running(executor).orElse {
     case KvPair(key, jobId) if key.key == jobIdKey =>
       // Successful operation ID lookup.

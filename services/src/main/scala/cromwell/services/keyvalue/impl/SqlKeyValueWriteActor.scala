@@ -19,6 +19,7 @@ class SqlKeyValueWriteActor(override val threshold: Int,
   implicit private val system = context.system
 
   override def processPut(puts: Vector[KeyValueServiceActor.KvPut]) = {
+//    log.info(s"#### FIND ME Inside processPut. Pairs to put: $puts")
     val pairs = puts.map { put =>
       (put.pair.key.workflowId, put.pair.key.jobKey, put.pair.key.key, put.pair.value)
     }

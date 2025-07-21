@@ -54,6 +54,9 @@ trait BackendKeyValueDatabaseAccess {
                        backendStoreValue
       )
     }
-    withRetry(() => EngineServicesStore.engineDatabaseInterface.addJobKeyValueEntries(entries))
+    withRetry(() => {
+//      println(s"#### FIND ME Inside updateBackendKeyValuePairs in BackendKeyValueDatabaseAccess. Pairs to put: ${ pairs.map { case (workflowId, _, backendStoreKey, backendStoreValue) => (workflowId.toString, backendStoreKey, backendStoreValue)}}")
+      EngineServicesStore.engineDatabaseInterface.addJobKeyValueEntries(entries)
+    })
   }
 }

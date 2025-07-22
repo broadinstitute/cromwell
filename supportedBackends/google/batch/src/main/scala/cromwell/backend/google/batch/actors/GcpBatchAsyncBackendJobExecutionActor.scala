@@ -962,14 +962,13 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       val remainingLength = MaxBatchJobIdLength - baseLength
 
       // if the call name is too long, truncate it and add a hash suffix
-      val safeCallName = {
+      val safeCallName =
         if (callName.length <= remainingLength) callName
         else {
           // truncate and add a hash suffix for determinism
           val hash = DigestUtils.md5Hex(callName).take(8)
           callName.take(remainingLength - 9) + "-" + hash
         }
-      }
 
       s"$prefix$shortWorkflowId-$safeCallName$scatterIndex$attempt"
     }

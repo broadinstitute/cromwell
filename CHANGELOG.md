@@ -9,7 +9,7 @@
 * Fixed an issue that could cause a valid WDL using an `Int?` value to fail with an error mentioning `bootDiskSizeGb`.
 * Increased timeout for logging runnables in response to a low rate of sporadic timeout errors.
 * Job IDs will be derived from workflow and call details with a hash generated using call name. 
-This will allow for better grouping of jobs in the Batch UI and ensure deterministic job IDs to prevent duplicates upon Cromwell restart.
+This will allow for better grouping of jobs in the Batch UI and ensure deterministic job IDs to prevent duplicates upon Cromwell restart. Example of job ID: `job-e21cbbd3-scatterworkflowmytask-2-1-175f647b`
 
 ### Other changes
 * Removed unused code related to Azure cloud services.

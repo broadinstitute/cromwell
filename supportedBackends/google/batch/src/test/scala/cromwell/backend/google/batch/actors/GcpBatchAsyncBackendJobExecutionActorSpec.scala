@@ -1584,71 +1584,69 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       makeBatchActorRef(SampleWdl.FilePassingWorkflow, workflowInputs, "a", callInputs).underlyingActor
 
     val workflowId1 = WorkflowId.randomId()
+    val workflowId1Str = workflowId1.toString
     val workflowId2 = WorkflowId.randomId()
+    val workflowId2Str = workflowId2.toString
 
     val simpleCallName = "myWorkflow.myTask"
-    val simpleCallNameHash = DigestUtils.md5Hex(simpleCallName).take(8)
     val specialCallName1 = "myWorkflow.my_special_task"
-    val specialCallName1Hash = DigestUtils.md5Hex(specialCallName1).take(8)
     val specialCallName2 = "myWorkflow.myspecial_task"
-    val specialCallName2Hash = DigestUtils.md5Hex(specialCallName2).take(8)
     val longCallName = "myWorkflow.myTaskWithAnExtremelyLongNameThatExceedsLimit"
-    val longCallNameHash = DigestUtils.md5Hex(longCallName).take(8)
 
     val testCases = Seq(
       // simple call name cases
-      (workflowId1, simpleCallName, None, 1, s"job-${workflowId1.shortString}-myworkflowmytask-$simpleCallNameHash-1"),
+      (workflowId1, simpleCallName, None, 1, s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"),
       (workflowId1,
        simpleCallName,
        Some(10),
        1,
-       s"job-${workflowId1.shortString}-myworkflowmytask-$simpleCallNameHash-10-1"
+       s"job-${workflowId1.shortString}-myworkflowmytask-10-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-10-1").take(8)}",
       ),
       (workflowId1,
        simpleCallName,
        Some(10000),
        3,
-       s"job-${workflowId1.shortString}-myworkflowmytask-$simpleCallNameHash-10000-3"
+       s"job-${workflowId1.shortString}-myworkflowmytask-10000-3-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-10000-3").take(8)}"
       ),
       // call names which upon sanitization have same names but hashes should be different resulting in still unique job IDs
       (workflowId1,
        specialCallName1,
        None,
        2,
-       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-$specialCallName1Hash-2"
+       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-2-${DigestUtils.md5Hex(s"$workflowId1Str-$specialCallName1-2").take(8)}"
       ),
       (workflowId1,
        specialCallName2,
        None,
        2,
-       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-$specialCallName2Hash-2"
+       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-2-${DigestUtils.md5Hex(s"$workflowId1Str-$specialCallName2-2").take(8)}"
       ),
       // long name cases
       (workflowId1,
        longCallName,
        None,
        3,
-       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongname-$longCallNameHash-3"
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongname-3-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-3").take(8)}"
       ),
       (workflowId1,
        longCallName,
        Some(10),
        1,
-       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongn-$longCallNameHash-10-1"
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongn-10-1-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-10-1").take(8)}"
       ),
       (workflowId1,
        longCallName,
        Some(10000),
        1,
-       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylo-$longCallNameHash-10000-1"
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylo-10000-1-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-10000-1").take(8)}"
       ),
       // same tasks but different workflow cases
-      (workflowId1, simpleCallName, None, 1, s"job-${workflowId1.shortString}-myworkflowmytask-$simpleCallNameHash-1"),
-      (workflowId2, simpleCallName, None, 1, s"job-${workflowId2.shortString}-myworkflowmytask-$simpleCallNameHash-1")
+      (workflowId1, simpleCallName, None, 1, s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"),
+      (workflowId2, simpleCallName, None, 1, s"job-${workflowId2.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId2Str-$simpleCallName-1").take(8)}")
     )
 
     testCases.foreach { case (workflowId, callName, scatterIndex, attempt, expectedJobId) =>
-      val actualJobId = mockBatchBackendActor.generateJobId(workflowId, callName, scatterIndex, attempt)
+      val actualJobId = mockBatchBackendActor.generateJobName(workflowId, callName, scatterIndex, attempt)
       actualJobId shouldBe expectedJobId
       actualJobId.length should be <= 63
     }

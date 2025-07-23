@@ -1015,9 +1015,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       )
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
       jobName = generateJobName(jobDescriptor.workflowDescriptor.id,
-                              jobDescriptor.key.call.fullyQualifiedName,
-                              jobDescriptor.key.index,
-                              jobDescriptor.key.attempt
+                                jobDescriptor.key.call.fullyQualifiedName,
+                                jobDescriptor.key.index,
+                                jobDescriptor.key.attempt
       )
       request = GcpBatchRequest(workflowId, createParameters, jobName = jobName, gcpBatchParameters)
       response <- runBatchJob(request = request,

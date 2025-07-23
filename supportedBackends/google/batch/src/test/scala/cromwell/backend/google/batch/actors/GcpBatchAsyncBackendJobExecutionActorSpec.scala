@@ -1595,12 +1595,17 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val testCases = Seq(
       // simple call name cases
-      (workflowId1, simpleCallName, None, 1, s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"),
+      (workflowId1,
+       simpleCallName,
+       None,
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"
+      ),
       (workflowId1,
        simpleCallName,
        Some(10),
        1,
-       s"job-${workflowId1.shortString}-myworkflowmytask-10-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-10-1").take(8)}",
+       s"job-${workflowId1.shortString}-myworkflowmytask-10-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-10-1").take(8)}"
       ),
       (workflowId1,
        simpleCallName,
@@ -1641,8 +1646,18 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
        s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylo-10000-1-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-10000-1").take(8)}"
       ),
       // same tasks but different workflow cases
-      (workflowId1, simpleCallName, None, 1, s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"),
-      (workflowId2, simpleCallName, None, 1, s"job-${workflowId2.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId2Str-$simpleCallName-1").take(8)}")
+      (workflowId1,
+       simpleCallName,
+       None,
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"
+      ),
+      (workflowId2,
+       simpleCallName,
+       None,
+       1,
+       s"job-${workflowId2.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId2Str-$simpleCallName-1").take(8)}"
+      )
     )
 
     testCases.foreach { case (workflowId, callName, scatterIndex, attempt, expectedJobId) =>

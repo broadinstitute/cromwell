@@ -46,6 +46,7 @@ import cromwell.services.metrics.bard.BardEventing.BardEventRequest
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
+import org.apache.commons.codec.digest.DigestUtils
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -1570,6 +1571,87 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         "stdout" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye/stdout"
       )
     )
+  }
+
+  "generateJobId" should "generate a valid job IDs for various cases" in {
+    val womFile = WomSingleFile("gs://blah/b/c.txt")
+    val workflowInputs = Map("file_passing.f" -> womFile)
+    val callInputs = Map(
+      "in" -> womFile,
+      "out_name" -> WomString("out")
+    )
+    val mockBatchBackendActor =
+      makeBatchActorRef(SampleWdl.FilePassingWorkflow, workflowInputs, "a", callInputs).underlyingActor
+
+    val workflowId1 = WorkflowId.randomId()
+    val workflowId2 = WorkflowId.randomId()
+
+    val simpleCallName = "myWorkflow.myTask"
+    val simpleCallNameHash = DigestUtils.md5Hex(simpleCallName).take(8)
+    val specialCallName1 = "myWorkflow.my_special_task"
+    val specialCallName1Hash = DigestUtils.md5Hex(specialCallName1).take(8)
+    val specialCallName2 = "myWorkflow.myspecial_task"
+    val specialCallName2Hash = DigestUtils.md5Hex(specialCallName2).take(8)
+    val longCallName = "myWorkflow.myTaskWithAnExtremelyLongNameThatExceedsLimit"
+    val longCallNameHash = DigestUtils.md5Hex(longCallName).take(8)
+
+    val testCases = Seq(
+      // simple call name cases
+      (workflowId1, simpleCallName, None, 1, s"job-${workflowId1.shortString}-myworkflowmytask-$simpleCallNameHash-1"),
+      (workflowId1,
+       simpleCallName,
+       Some(10),
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytask-$simpleCallNameHash-10-1"
+      ),
+      (workflowId1,
+       simpleCallName,
+       Some(10000),
+       3,
+       s"job-${workflowId1.shortString}-myworkflowmytask-$simpleCallNameHash-10000-3"
+      ),
+      // call names which upon sanitization have same names but hashes should be different resulting in still unique job IDs
+      (workflowId1,
+       specialCallName1,
+       None,
+       2,
+       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-$specialCallName1Hash-2"
+      ),
+      (workflowId1,
+       specialCallName2,
+       None,
+       2,
+       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-$specialCallName2Hash-2"
+      ),
+      // long name cases
+      (workflowId1,
+       longCallName,
+       None,
+       3,
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongname-$longCallNameHash-3"
+      ),
+      (workflowId1,
+       longCallName,
+       Some(10),
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongn-$longCallNameHash-10-1"
+      ),
+      (workflowId1,
+       longCallName,
+       Some(10000),
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylo-$longCallNameHash-10000-1"
+      ),
+      // same tasks but different workflow cases
+      (workflowId1, simpleCallName, None, 1, s"job-${workflowId1.shortString}-myworkflowmytask-$simpleCallNameHash-1"),
+      (workflowId2, simpleCallName, None, 1, s"job-${workflowId2.shortString}-myworkflowmytask-$simpleCallNameHash-1")
+    )
+
+    testCases.foreach { case (workflowId, callName, scatterIndex, attempt, expectedJobId) =>
+      val actualJobId = mockBatchBackendActor.generateJobId(workflowId, callName, scatterIndex, attempt)
+      actualJobId shouldBe expectedJobId
+      actualJobId.length should be <= 63
+    }
   }
 
   private def buildJobDescriptor(): BackendJobDescriptor = {

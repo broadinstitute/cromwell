@@ -868,6 +868,33 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     outputs.toSet ++ additionalGlobOutput
   }
 
+  /*
+    This method generates a deterministic job ID for the GCP Batch job using the short workflow id,
+    sanitized call name with appended hash, scatter index and attempt.
+    Note: Job ID needs to follow regex: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+   */
+  private[actors] def generateJobId(workflowId: WorkflowId,
+                                    fullyQualifiedName: FullyQualifiedName,
+                                    index: Option[Int],
+                                    attempt: Int
+  ): String = {
+    val prefix = "job-"
+    val shortWorkflowId = workflowId.shortString
+    val scatterIndex = index.map(i => s"-$i").getOrElse("")
+    val attemptAsStr = s"-${attempt.toString}"
+    val sanitizedCallName = fullyQualifiedName.toLowerCase.replaceAll("[^a-z0-9-]", "")
+
+    // includes dash between workflow id and call name
+    val baseLength = prefix.length + shortWorkflowId.length + scatterIndex.length + attemptAsStr.length + 1
+    val remainingLength = MaxBatchJobIdLength - baseLength
+
+    // generate hash using original call name for determinism and uniqueness, and append it to the sanitized call name
+    val hash = DigestUtils.md5Hex(fullyQualifiedName).take(8)
+    val safeCallName = sanitizedCallName.take(remainingLength - 9) + "-" + hash
+
+    s"$prefix$shortWorkflowId-$safeCallName$scatterIndex$attemptAsStr"
+  }
+
   protected def uploadGcsTransferLibrary(cloudPath: Path): Future[Unit] =
     asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
 
@@ -948,31 +975,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
     })
 
-    // This method generates a deterministic job ID for the GCP Batch job.
-    // The job ID is constructed using the short workflow id, sanitized call name, scatter index and attempt.
-    def generateJobId(): String = {
-      val prefix = "job-"
-      val shortWorkflowId = workflowId.shortString
-      val scatterIndex = jobDescriptor.key.index.map(i => s"-$i").getOrElse("")
-      val attempt = s"-${jobDescriptor.key.attempt.toString}"
-      val callName = jobDescriptor.taskCall.fullyQualifiedName.toLowerCase.replaceAll("[^a-z0-9-]", "")
-
-      // includes dash between workflow id and call name
-      val baseLength = prefix.length + shortWorkflowId.length + scatterIndex.length + attempt.length + 1
-      val remainingLength = MaxBatchJobIdLength - baseLength
-
-      // if the call name is too long, truncate it and add a hash suffix
-      val safeCallName =
-        if (callName.length <= remainingLength) callName
-        else {
-          // truncate and add a hash suffix for determinism
-          val hash = DigestUtils.md5Hex(callName).take(8)
-          callName.take(remainingLength - 9) + "-" + hash
-        }
-
-      s"$prefix$shortWorkflowId-$safeCallName$scatterIndex$attempt"
-    }
-
     val runBatchResponse = for {
       _ <- evaluateRuntimeAttributes
       _ <- uploadScriptFile()
@@ -1009,7 +1011,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                          gcsTransferConfiguration
       )
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
-      jobName = generateJobId()
+      jobName = generateJobId(jobDescriptor.workflowDescriptor.id,
+                              jobDescriptor.key.call.fullyQualifiedName,
+                              jobDescriptor.key.index,
+                              jobDescriptor.key.attempt
+      )
       request = GcpBatchRequest(workflowId, createParameters, jobName = jobName, gcpBatchParameters)
       response <- runBatchJob(request = request,
                               backendSingletonActor = backendSingletonActor,

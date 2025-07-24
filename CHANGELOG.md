@@ -8,6 +8,8 @@
 * Fixed an issue that caused WDL tasks to fail when invoking `gcloud` or `gsutil`. Affected tasks returned an error message referencing `python3: not found`.
 * Fixed an issue that could cause a valid WDL using an `Int?` value to fail with an error mentioning `bootDiskSizeGb`.
 * Increased timeout for logging runnables in response to a low rate of sporadic timeout errors.
+* Exit code 50002 is now treated as a preemption error. If the task is configured to retry on preemption, such jobs will be retried. 
+Additionally, jobs that fail with this code before ever running will now be eligible for automatic transient retries.
 
 ### Other changes
 * Removed unused code related to Azure cloud services.

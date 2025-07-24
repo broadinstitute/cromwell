@@ -665,7 +665,10 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
     checkFailedResult(GcpBatchExitCode.VMReportingTimeout)
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    checkFailedResult(GcpBatchExitCode.VMReportingTimeout, List(ExecutionEvent("Job state is set from QUEUED to SCHEDULED for job f00bar123", OffsetDateTime.now())))
+    checkFailedResult(
+      GcpBatchExitCode.VMReportingTimeout,
+      List(ExecutionEvent("Job state is set from QUEUED to SCHEDULED for job f00bar123", OffsetDateTime.now()))
+    )
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
 
     // Should not retry

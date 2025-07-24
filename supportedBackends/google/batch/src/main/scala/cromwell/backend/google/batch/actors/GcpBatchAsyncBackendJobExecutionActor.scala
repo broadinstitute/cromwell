@@ -1128,7 +1128,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           case failedStatus: RunStatus.Failed =>
             if (isTransientFailure(failedStatus)) {
               handleTransientErrorRetry(failedStatus, returnCode)
-            } else if (failedStatus.errorCode == GcpBatchExitCode.VMPreemption && preemptible) {
+            } else if (isPreemptionFailure(failedStatus)) {
               handlePreemption(failedStatus, returnCode)
             } else
               handleFailedRunStatus(failedStatus, returnCode)
@@ -1207,10 +1207,23 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     lazy val errorTypeIsTransient = List(
       GcpBatchExitCode.VMPreemption,
       GcpBatchExitCode.VMRecreatedDuringExecution,
-      GcpBatchExitCode.VMRebootedDuringExecution
+      GcpBatchExitCode.VMRebootedDuringExecution,
+      GcpBatchExitCode.VMReportingTimeout
     ).contains(failed.errorCode)
     lazy val taskStartedRunning = failed.eventList.exists(e => executionEventRunningMatcher.matches(e.name))
     transientErrorRetryable && errorTypeIsTransient && !taskStartedRunning
+  }
+
+  // Check whether this failure is due to preemption and if the job can be retired based on remaining preemptible retries.
+  // Note: GCP Batch currently has an issue where occasionally preemption is incorrectly reported as 50002,
+  //       so it is treated as preemption error here.
+  private def isPreemptionFailure(failed: RunStatus.Failed): Boolean = {
+    lazy val errorTypeIsPreemption = List(
+      GcpBatchExitCode.VMPreemption,
+      GcpBatchExitCode.VMReportingTimeout
+    ).contains(failed.errorCode)
+
+    errorTypeIsPreemption && preemptible
   }
 
   private def handleTransientErrorRetry(failed: RunStatus.Failed, returnCode: Option[Int]) =

@@ -577,6 +577,28 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     }
   }
 
+  it should "choose transient retry over preemptible retry when task has not started but failed with 50002" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, previousTransientRetriesCount = 0)
+    val batchBackend = actorRef.underlyingActor
+    val runId = generateStandardAsyncJob
+    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = RunStatus.Failed(
+      GcpBatchExitCode.VMReportingTimeout,
+      Seq.empty // task has not started
+    )
+    val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
+    failedHandle.returnCode shouldBe None
+    failedHandle.kvPairsToSave.map { pairs =>
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "1")
+    }
+  }
+
   it should "choose preemptible over transient retry when task started before failing" in {
     val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, previousTransientRetriesCount = 0)
     val batchBackend = actorRef.underlyingActor
@@ -585,6 +607,28 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
     val failedStatus = RunStatus.Failed(
       GcpBatchExitCode.VMPreemption,
+      List(ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now()))
+    )
+    val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
+    failedHandle.returnCode shouldBe None
+    failedHandle.kvPairsToSave.map { pairs =>
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.preemptionCountKey && p.value == "2")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.unexpectedRetryCountKey && p.value == "0")
+      pairs.exists(p => p.key.key == GcpBatchBackendLifecycleActorFactory.transientRetryCountKey && p.value == "0")
+    }
+  }
+
+  it should "choose preemptible over transient retry when task was started before failing with 50002 exit code" in {
+    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 1, previousTransientRetriesCount = 0)
+    val batchBackend = actorRef.underlyingActor
+    val runId = generateStandardAsyncJob
+    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = RunStatus.Failed(
+      GcpBatchExitCode.VMReportingTimeout,
       List(ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now()))
     )
     val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
@@ -618,6 +662,10 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     checkFailedResult(GcpBatchExitCode.VMPreemption)
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
     checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution) // no VM start time - task has not started
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMReportingTimeout)
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMReportingTimeout, List(ExecutionEvent("Job state is set from QUEUED to SCHEDULED for job f00bar123", OffsetDateTime.now())))
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
 
     // Should not retry

@@ -21,6 +21,7 @@ import cromwell.backend.google.batch.api.GcpBatchRequestFactory
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.runnable.RunnableUtils.MountPoint
+import cromwell.backend.google.batch.runnable.WorkflowOptionKeys
 import cromwell.backend.google.batch.util.BatchExpressionFunctions
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.{
@@ -116,6 +117,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   val Inputs: Map[FullyQualifiedName, WomValue] = Map("wf_sup.sup.addressee" -> WomString("dog"))
 
   private val NoOptions = WorkflowOptions(JsObject(Map.empty[String, JsValue]))
+  private val RetryReportingTimeoutsOptions =
+    WorkflowOptions(
+      JsObject(
+        Map[String, JsValue](
+          WorkflowOptionKeys.RetryReportingTimeouts -> JsBoolean(true)
+        )
+      )
+    )
 
   private lazy val TestableCallContext =
     CallContext(mockPathBuilder.build("gs://root").get, DummyStandardPaths, isDocker = false)
@@ -231,7 +240,8 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
                                             previousPreemptions: Int,
                                             previousUnexpectedRetries: Int,
                                             previousTransientRetries: Int,
-                                            failedRetriesCountOpt: Option[Int] = None
+                                            failedRetriesCountOpt: Option[Int],
+                                            workflowOptions: WorkflowOptions
   ): BackendJobDescriptor = {
     val attempt = previousPreemptions + previousUnexpectedRetries + 1
     val wdlNamespace = WdlNamespaceWithWorkflow
@@ -253,7 +263,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
           WorkflowId.randomId(),
           womDefinition,
           inputs,
-          NoOptions,
+          workflowOptions,
           Labels.empty,
           HogGroup("foo"),
           List.empty,
@@ -336,14 +346,17 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   def buildPreemptibleTestActorRef(attempt: Int,
                                    preemptible: Int,
                                    previousTransientRetriesCount: Int = 0,
-                                   failedRetriesCountOpt: Option[Int] = None
+                                   failedRetriesCountOpt: Option[Int] = None,
+                                   workflowOptions: WorkflowOptions = NoOptions
   ): TestActorRef[TestableGcpBatchJobExecutionActor] = {
     // For this test we say that all previous attempts were preempted:
-    val jobDescriptor = buildPreemptibleJobDescriptor(preemptible,
-                                                      attempt - 1,
-                                                      previousUnexpectedRetries = 0,
-                                                      previousTransientRetries = previousTransientRetriesCount,
-                                                      failedRetriesCountOpt = failedRetriesCountOpt
+    val jobDescriptor = buildPreemptibleJobDescriptor(
+      preemptible,
+      attempt - 1,
+      previousUnexpectedRetries = 0,
+      previousTransientRetries = previousTransientRetriesCount,
+      failedRetriesCountOpt = failedRetriesCountOpt,
+      workflowOptions = workflowOptions
     )
     val props = Props(
       new TestableGcpBatchJobExecutionActor(jobDescriptor,
@@ -468,7 +481,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       )
     )
 
-    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0, 0)
+    val jobDescriptor = buildPreemptibleJobDescriptor(0, 0, 0, 0, None, NoOptions)
     val serviceRegistryProbe = TestProbe()
 
     val backend1 = executionActor(
@@ -509,6 +522,48 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val result = Await.result(executionResult, timeout)
     result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     val failedHandle = result.asInstanceOf[FailedNonRetryableExecutionHandle]
+    failedHandle.returnCode shouldBe None
+  }
+
+  it should "not retry transient reporting timeouts by default" in {
+    val actorRef = buildPreemptibleTestActorRef(
+      attempt = 1,
+      preemptible = 1,
+      workflowOptions = NoOptions
+    )
+    val batchBackend = actorRef.underlyingActor
+    val runId = generateStandardAsyncJob
+    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = RunStatus.Failed(
+      GcpBatchExitCode.VMReportingTimeout,
+      Seq.empty
+    )
+    val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedNonRetryableExecutionHandle]
+    failedHandle.returnCode shouldBe None
+  }
+
+  it should "retry transient reporting timeouts when requested" in {
+    val actorRef = buildPreemptibleTestActorRef(
+      attempt = 1,
+      preemptible = 1,
+      workflowOptions = RetryReportingTimeoutsOptions
+    )
+    val batchBackend = actorRef.underlyingActor
+    val runId = generateStandardAsyncJob
+    val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
+
+    val failedStatus = RunStatus.Failed(
+      GcpBatchExitCode.VMReportingTimeout,
+      Seq.empty
+    )
+    val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
+    val result = Await.result(executionResult, timeout)
+    result.isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    val failedHandle = result.asInstanceOf[FailedRetryableExecutionHandle]
     failedHandle.returnCode shouldBe None
   }
 

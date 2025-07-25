@@ -178,7 +178,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers {
       val containerProperties = jobDefinition.containerProperties
 
       // Verify no job role ARN is set when not provided
-      containerProperties.jobRoleArn() should be(null)
+      Option(containerProperties.jobRoleArn()).isEmpty should be(true)
     }
 
     "correctly use getOrElse method for jobRoleArn retrieval" in {

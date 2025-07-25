@@ -193,13 +193,13 @@ trait AwsBatchJobDefinitionBuilder {
         .volumes(volumes.asJava)
         .mountPoints(mountPoints.asJava)
         .environment(environment.asJava)
-      
+
       // Add job role ARN if specified
       val finalBuilder = context.workflowOptions.get(AwsBatchWorkflowOptionKeys.JobRoleArn) match {
         case Success(roleArn) => builderWithBasicProperties.jobRoleArn(roleArn)
         case _ => builderWithBasicProperties
       }
-      
+
       (finalBuilder, jobDefinitionName)
     }
   }

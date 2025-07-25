@@ -46,6 +46,7 @@ import cromwell.services.metrics.bard.BardEventing.BardEventRequest
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
+import org.apache.commons.codec.digest.DigestUtils
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -1570,6 +1571,100 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         "stdout" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye/stdout"
       )
     )
+  }
+
+  "generateJobId" should "generate a valid job IDs for various cases" in {
+    val womFile = WomSingleFile("gs://blah/b/c.txt")
+    val workflowInputs = Map("file_passing.f" -> womFile)
+    val callInputs = Map(
+      "in" -> womFile,
+      "out_name" -> WomString("out")
+    )
+    val mockBatchBackendActor =
+      makeBatchActorRef(SampleWdl.FilePassingWorkflow, workflowInputs, "a", callInputs).underlyingActor
+
+    val workflowId1 = WorkflowId.randomId()
+    val workflowId1Str = workflowId1.toString
+    val workflowId2 = WorkflowId.randomId()
+    val workflowId2Str = workflowId2.toString
+
+    val simpleCallName = "myWorkflow.myTask"
+    val specialCallName1 = "myWorkflow.my_special_task"
+    val specialCallName2 = "myWorkflow.myspecial_task"
+    val longCallName = "myWorkflow.myTaskWithAnExtremelyLongNameThatExceedsLimit"
+
+    val testCases = Seq(
+      // simple call name cases
+      (workflowId1,
+       simpleCallName,
+       None,
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"
+      ),
+      (workflowId1,
+       simpleCallName,
+       Some(10),
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytask-10-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-10-1").take(8)}"
+      ),
+      (workflowId1,
+       simpleCallName,
+       Some(10000),
+       3,
+       s"job-${workflowId1.shortString}-myworkflowmytask-10000-3-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-10000-3").take(8)}"
+      ),
+      // call names which upon sanitization have same names but hashes should be different resulting in still unique job IDs
+      (workflowId1,
+       specialCallName1,
+       None,
+       2,
+       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-2-${DigestUtils.md5Hex(s"$workflowId1Str-$specialCallName1-2").take(8)}"
+      ),
+      (workflowId1,
+       specialCallName2,
+       None,
+       2,
+       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-2-${DigestUtils.md5Hex(s"$workflowId1Str-$specialCallName2-2").take(8)}"
+      ),
+      // long name cases
+      (workflowId1,
+       longCallName,
+       None,
+       3,
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongname-3-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-3").take(8)}"
+      ),
+      (workflowId1,
+       longCallName,
+       Some(10),
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongn-10-1-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-10-1").take(8)}"
+      ),
+      (workflowId1,
+       longCallName,
+       Some(10000),
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylo-10000-1-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-10000-1").take(8)}"
+      ),
+      // same tasks but different workflow cases
+      (workflowId1,
+       simpleCallName,
+       None,
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"
+      ),
+      (workflowId2,
+       simpleCallName,
+       None,
+       1,
+       s"job-${workflowId2.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId2Str-$simpleCallName-1").take(8)}"
+      )
+    )
+
+    testCases.foreach { case (workflowId, callName, scatterIndex, attempt, expectedJobId) =>
+      val actualJobId = mockBatchBackendActor.generateJobName(workflowId, callName, scatterIndex, attempt)
+      actualJobId shouldBe expectedJobId
+      actualJobId.length should be <= 63
+    }
   }
 
   private def buildJobDescriptor(): BackendJobDescriptor = {

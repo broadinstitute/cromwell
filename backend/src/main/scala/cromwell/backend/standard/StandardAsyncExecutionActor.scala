@@ -96,9 +96,7 @@ trait StandardAsyncExecutionActor
   val SIGTERM = 143
   val SIGINT = 130
   val SIGKILL = 137
-  // The Variants team have observed 247 exit codes in the wild for what we suspect were OOM-killed jobs, but
-  // unfortunately we do not yet have a test case that reproduces this. From Gemini:
-  //
+  // From Gemini:
   // An exit code of 247, particularly in the context of process execution in Linux or containerized environments like
   // Docker, often indicates a process termination due to resource limitations, most commonly insufficient memory (RAM).
   val SIGCONTAINERKILL = 247
@@ -1490,7 +1488,9 @@ trait StandardAsyncExecutionActor
       } else {
         tryReturnCodeAsInt match {
           case Success(returnCodeAsInt)
-              if oomDetected(returnCodeAsInt) && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
+              if oomDetected(returnCodeAsInt) && memoryRetryRequested && !continueOnReturnCode.continueFor(
+                returnCodeAsInt
+              ) =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(
                 RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),

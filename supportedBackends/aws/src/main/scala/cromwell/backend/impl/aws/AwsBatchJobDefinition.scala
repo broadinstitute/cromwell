@@ -140,10 +140,7 @@ trait AwsBatchJobDefinitionBuilder {
                   env: Seq[KeyValuePair],
                   workflowOptions: WorkflowOptions
     ): String = {
-      val roleArnStr = workflowOptions.get(AwsBatchWorkflowOptionKeys.JobRoleArn) match {
-        case Success(roleArn) => roleArn
-        case _ => ""
-      }
+      val roleArnStr = workflowOptions.getOrElse(AwsBatchWorkflowOptionKeys.JobRoleArn, "")
       val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints
           .map(_.toString)
           .mkString(",")}:${env.map(_.toString).mkString(",")}:$roleArnStr"

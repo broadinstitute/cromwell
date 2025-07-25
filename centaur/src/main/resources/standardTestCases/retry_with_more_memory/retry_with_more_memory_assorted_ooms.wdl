@@ -1,12 +1,14 @@
 version 1.0
 
 workflow retry_with_more_memory_assorted_ooms {
-    call run_app
+    call java_oom_kill
+    call python_oom_kill
+    call tail_dev_zero_oom_kill
 }
 
 # A Java-based task that sets the maximum heap size to 64 GB on a VM that has nowhere near that much memory. This task
 # should be OOM killed and retried with more memory.
-task run_app {
+task java_oom_kill {
     command <<<
         echo "MEM_SIZE=$MEM_SIZE" >&2
         echo "MEM_UNIT=$MEM_UNIT" >&2
@@ -31,6 +33,34 @@ task run_app {
     >>>
     runtime {
         docker: "eclipse-temurin:21"
+        memory: "1 GB"
+        maxRetries: 1
+    }
+}
+
+
+task python_oom_kill {
+    command <<<
+        echo "MEM_SIZE=$MEM_SIZE" >&2
+        echo "MEM_UNIT=$MEM_UNIT" >&2
+        python3 -c 'print(len([0] * (2**34)))'
+    >>>
+    runtime {
+        docker: "google/cloud-sdk:slim"
+        memory: "1 GB"
+        maxRetries: 1
+    }
+}
+
+
+task tail_dev_zero_oom_kill {
+    command <<<
+        echo "MEM_SIZE=$MEM_SIZE" >&2
+        echo "MEM_UNIT=$MEM_UNIT" >&2
+        tail /dev/zero
+    >>>
+    runtime {
+        docker: "ubuntu:latest"
         memory: "1 GB"
         maxRetries: 1
     }

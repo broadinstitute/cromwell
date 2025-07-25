@@ -11,9 +11,19 @@ metadata {
   workflowName: retry_with_more_memory_assorted_ooms
   status: Failed
   "failures.0.message": "Workflow failed"
-  "failures.0.causedBy.0.message": "stderr for job `retry_with_more_memory_assorted_ooms.run_app:NA:2` contained one of the `memory-retry-error-keys: [OutOfMemory,Killed]` specified in the Cromwell config. Job might have run out of memory."
-  "retry_with_more_memory_assorted_ooms.run_app.-1.1.runtimeAttributes.memory": "1 GB"
-  "retry_with_more_memory_assorted_ooms.run_app.-1.1.executionStatus": "RetryableFailure"
-  "retry_with_more_memory_assorted_ooms.run_app.-1.2.runtimeAttributes.memory": "2 GB"
-  "retry_with_more_memory_assorted_ooms.run_app.-1.2.executionStatus": "Failed"
+
+  "retry_with_more_memory_assorted_ooms.java_oom_kill.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory_assorted_ooms.java_oom_kill.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory_assorted_ooms.java_oom_kill.-1.2.runtimeAttributes.memory": "2 GB"
+  "retry_with_more_memory_assorted_ooms.java_oom_kill.-1.2.executionStatus": "Failed"
+
+  "retry_with_more_memory_assorted_ooms.python_oom_kill.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory_assorted_ooms.python_oom_kill.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory_assorted_ooms.python_oom_kill.-1.2.runtimeAttributes.memory": "2 GB"
+  "retry_with_more_memory_assorted_ooms.python_oom_kill.-1.2.executionStatus": "Failed"
+
+  "retry_with_more_memory_assorted_ooms.tail_dev_zero_oom_kill.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory_assorted_ooms.tail_dev_zero_oom_kill.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory_assorted_ooms.tail_dev_zero_oom_kill.-1.2.runtimeAttributes.memory": "2 GB"
+  "retry_with_more_memory_assorted_ooms.tail_dev_zero_oom_kill.-1.2.executionStatus": "Failed"
 }

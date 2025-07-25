@@ -1,5 +1,6 @@
 package cromwell.backend.google.batch.api.request
 
+import com.google.api.gax.rpc.StatusCode.Code
 import com.google.api.gax.rpc.{ApiException, StatusCode}
 import com.google.cloud.batch.v1.AllocationPolicy.ProvisioningModel
 import com.google.cloud.batch.v1._
@@ -95,17 +96,26 @@ object BatchRequestExecutor {
         }
       catch {
         case apiException: ApiException =>
-          // Because HTTP 4xx errors indicate user error:
-          val HttpUserErrorCodeInitialNumber: String = "4"
-          val failureException =
-            if (
-              apiException.getStatusCode.getCode.getHttpStatusCode.toString.startsWith(HttpUserErrorCodeInitialNumber)
-            ) {
-              new UserBatchApiException(GoogleBatchException(apiException), None)
-            } else {
-              new SystemBatchApiException(GoogleBatchException(apiException))
-            }
-          Failure(failureException)
+          val exceptionStatusCode = apiException.getStatusCode.getCode
+          (exceptionStatusCode, request) match {
+            case (Code.ALREADY_EXISTS, req: BatchRunCreationRequest) =>
+              val jobName = s"${req.httpRequest.getParent}/jobs/${req.httpRequest.getJobId}"
+              logger.info(
+                s"Job creation request for $jobName for workflow ${req.workflowId.toString} failed as job already exists. Reconnecting to job instead."
+              )
+              val result = BatchApiResponse.JobAlreadyExists(jobName)
+              Success(result)
+            case _ =>
+              // Because HTTP 4xx errors indicate user error:
+              val HttpUserErrorCodeInitialNumber: String = "4"
+              val failureException =
+                if (exceptionStatusCode.getHttpStatusCode.toString.startsWith(HttpUserErrorCodeInitialNumber)) {
+                  new UserBatchApiException(GoogleBatchException(apiException), None)
+                } else {
+                  new SystemBatchApiException(GoogleBatchException(apiException))
+                }
+              Failure(failureException)
+          }
 
         case NonFatal(ex) => Failure(new SystemBatchApiException(ex))
       }

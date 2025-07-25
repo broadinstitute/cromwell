@@ -2,6 +2,7 @@ package cromwell.backend.impl.aws
 
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.BackendSpec._
+import cromwell.backend.io.JobPaths
 import cromwell.core.WorkflowOptions
 import cromwell.core.callcaching.NoDocker
 import cromwell.util.SampleWdl
@@ -13,8 +14,9 @@ import spray.json.{JsObject, JsString}
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
 import wom.graph.CommandCallNode
+import common.mock.MockSugar
 
-class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers {
+class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockSugar {
 
   import AwsBatchWorkflowOptionKeys._
 
@@ -55,6 +57,9 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers {
     fileSystem = "s3"
   )
 
+  // Mock job paths for testing
+  val mockJobPaths: JobPaths = mock[JobPaths]
+
   "AwsBatchJobDefinition StandardAwsBatchJobDefinitionBuilder" should {
 
     "build a job definition name without jobRoleArn when not provided" in {
@@ -67,7 +72,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers {
         dockerStdoutPath = "/tmp/stdout.log",
         dockerStderrPath = "/tmp/stderr.log",
         jobDescriptor = jobDescriptor,
-        jobPaths = null,
+        jobPaths = mockJobPaths,
         inputs = Set.empty,
         outputs = Set.empty,
         workflowOptions = workflowOptions
@@ -99,7 +104,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers {
         dockerStdoutPath = "/tmp/stdout.log",
         dockerStderrPath = "/tmp/stderr.log",
         jobDescriptor = jobDescriptor,
-        jobPaths = null,
+        jobPaths = mockJobPaths,
         inputs = Set.empty,
         outputs = Set.empty,
         workflowOptions = workflowOptions
@@ -122,7 +127,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers {
         dockerStdoutPath = "/tmp/stdout.log",
         dockerStderrPath = "/tmp/stderr.log",
         jobDescriptor = jobDescriptor,
-        jobPaths = null,
+        jobPaths = mockJobPaths,
         inputs = Set.empty,
         outputs = Set.empty,
         workflowOptions = workflowOptionsNoRole
@@ -145,7 +150,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers {
         dockerStdoutPath = "/tmp/stdout.log",
         dockerStderrPath = "/tmp/stderr.log",
         jobDescriptor = jobDescriptor,
-        jobPaths = null,
+        jobPaths = mockJobPaths,
         inputs = Set.empty,
         outputs = Set.empty,
         workflowOptions = workflowOptions
@@ -168,7 +173,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers {
         dockerStdoutPath = "/tmp/stdout.log",
         dockerStderrPath = "/tmp/stderr.log",
         jobDescriptor = jobDescriptor,
-        jobPaths = null,
+        jobPaths = mockJobPaths,
         inputs = Set.empty,
         outputs = Set.empty,
         workflowOptions = workflowOptions

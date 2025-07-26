@@ -172,33 +172,31 @@ trait AwsBatchJobDefinitionBuilder {
       context.workflowOptions
     )
 
-    {
-      val builderWithBasicProperties = builder
-        .command(packedCommand.asJava)
-        .resourceRequirements(
-          ResourceRequirement
-            .builder()
-            .`type`(ResourceType.MEMORY)
-            .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
-            .build(),
-          ResourceRequirement
-            .builder()
-            .`type`(ResourceType.VCPU)
-            .value(context.runtimeAttributes.cpu.value.toString)
-            .build()
-        )
-        .volumes(volumes.asJava)
-        .mountPoints(mountPoints.asJava)
-        .environment(environment.asJava)
+    val builderWithBasicProperties = builder
+      .command(packedCommand.asJava)
+      .resourceRequirements(
+        ResourceRequirement
+          .builder()
+          .`type`(ResourceType.MEMORY)
+          .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
+          .build(),
+        ResourceRequirement
+          .builder()
+          .`type`(ResourceType.VCPU)
+          .value(context.runtimeAttributes.cpu.value.toString)
+          .build()
+      )
+      .volumes(volumes.asJava)
+      .mountPoints(mountPoints.asJava)
+      .environment(environment.asJava)
 
-      // Add job role ARN if specified
-      val finalBuilder = context.workflowOptions.get(AwsBatchWorkflowOptionKeys.JobRoleArn) match {
-        case Success(roleArn) => builderWithBasicProperties.jobRoleArn(roleArn)
-        case _ => builderWithBasicProperties
-      }
-
-      (finalBuilder, jobDefinitionName)
+    // Add job role ARN if specified
+    val finalBuilder = context.workflowOptions.get(AwsBatchWorkflowOptionKeys.JobRoleArn) match {
+      case Success(roleArn) => builderWithBasicProperties.jobRoleArn(roleArn)
+      case _ => builderWithBasicProperties
     }
+
+    (finalBuilder, jobDefinitionName)
   }
 
   private def packCommand(shell: String, options: String, mainCommand: String): Seq[String] = {

@@ -400,7 +400,8 @@ final case class AwsBatchJob(
           jobDescriptor = jobDescriptor,
           jobPaths = jobPaths,
           inputs = inputs,
-          outputs = outputs
+          outputs = outputs,
+          workflowOptions = jobDescriptor.workflowDescriptor.workflowOptions
         )
 
         val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder

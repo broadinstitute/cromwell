@@ -34,6 +34,7 @@ package cromwell.backend.impl.aws
 import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
+import cromwell.core.WorkflowOptions
 import software.amazon.awssdk.services.batch.model.{
   ContainerProperties,
   Host,
@@ -50,6 +51,7 @@ import java.security.MessageDigest
 import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
 import wdl4s.parser.MemoryUnit
+import scala.util.Success
 
 /**
   * Responsible for the creation of the job definition.
@@ -135,11 +137,13 @@ trait AwsBatchJobDefinitionBuilder {
                   packedCommand: String,
                   volumes: List[Volume],
                   mountPoints: List[MountPoint],
-                  env: Seq[KeyValuePair]
+                  env: Seq[KeyValuePair],
+                  workflowOptions: WorkflowOptions
     ): String = {
+      val roleArnStr = workflowOptions.getOrElse(AwsBatchWorkflowOptionKeys.JobRoleArn, "")
       val str = s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints
           .map(_.toString)
-          .mkString(",")}:${env.map(_.toString).mkString(",")}"
+          .mkString(",")}:${env.map(_.toString).mkString(",")}:$roleArnStr"
 
       val sha1 = MessageDigest
         .getInstance("SHA-1")
@@ -164,28 +168,35 @@ trait AwsBatchJobDefinitionBuilder {
       packedCommand.mkString(","),
       volumes,
       mountPoints,
-      environment
+      environment,
+      context.workflowOptions
     )
 
-    (builder
-       .command(packedCommand.asJava)
-       .resourceRequirements(
-         ResourceRequirement
-           .builder()
-           .`type`(ResourceType.MEMORY)
-           .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
-           .build(),
-         ResourceRequirement
-           .builder()
-           .`type`(ResourceType.VCPU)
-           .value(context.runtimeAttributes.cpu.value.toString)
-           .build()
-       )
-       .volumes(volumes.asJava)
-       .mountPoints(mountPoints.asJava)
-       .environment(environment.asJava),
-     jobDefinitionName
-    )
+    val builderWithBasicProperties = builder
+      .command(packedCommand.asJava)
+      .resourceRequirements(
+        ResourceRequirement
+          .builder()
+          .`type`(ResourceType.MEMORY)
+          .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
+          .build(),
+        ResourceRequirement
+          .builder()
+          .`type`(ResourceType.VCPU)
+          .value(context.runtimeAttributes.cpu.value.toString)
+          .build()
+      )
+      .volumes(volumes.asJava)
+      .mountPoints(mountPoints.asJava)
+      .environment(environment.asJava)
+
+    // Add job role ARN if specified
+    val finalBuilder = context.workflowOptions.get(AwsBatchWorkflowOptionKeys.JobRoleArn) match {
+      case Success(roleArn) => builderWithBasicProperties.jobRoleArn(roleArn)
+      case _ => builderWithBasicProperties
+    }
+
+    (finalBuilder, jobDefinitionName)
   }
 
   private def packCommand(shell: String, options: String, mainCommand: String): Seq[String] = {
@@ -229,7 +240,8 @@ case class AwsBatchJobDefinitionContext(runtimeAttributes: AwsBatchRuntimeAttrib
                                         jobDescriptor: BackendJobDescriptor,
                                         jobPaths: JobPaths,
                                         inputs: Set[AwsBatchInput],
-                                        outputs: Set[AwsBatchFileOutput]
+                                        outputs: Set[AwsBatchFileOutput],
+                                        workflowOptions: WorkflowOptions
 ) {
 
   override def toString: String =
@@ -243,5 +255,6 @@ case class AwsBatchJobDefinitionContext(runtimeAttributes: AwsBatchRuntimeAttrib
       .append("jobPaths", jobPaths)
       .append("inputs", inputs)
       .append("outputs", outputs)
+      .append("workflowOptions", workflowOptions)
       .build
 }

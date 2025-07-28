@@ -57,3 +57,49 @@ AWS Batch allows the use of private Docker containers by providing `dockerhub` c
 
 * `(backend.providers.AWSBatch.config.)concurrent-job-limit` specifies the number of jobs that Cromwell will allow to be running in AWS at the same time. Tune this parameter based on how many nodes are in the compute environment.
 * `(backend.providers.AWSBatch.config.)root` points to the S3 bucket where workflow outputs are stored. This becomes a path on the root instance, and by default is cromwell_root. This is monitored by preinstalled daemon that expands drive space on the host, ie AWS EBS autoscale.  This path is used as the 'local-disk' for containers.
+
+## Workflow Options
+
+The AWS Batch backend supports the following workflow options:
+
+### aws_batch_job_role_arn
+
+The `aws_batch_job_role_arn` workflow option allows you to specify an IAM role ARN that will be associated with the AWS Batch job's container. This enables the container to assume the specified role and access AWS resources according to the permissions granted to that role.
+
+**Usage:**
+
+Include this option in your workflow options JSON file:
+
+```json
+{
+  "aws_batch_job_role_arn": "arn:aws:iam::123456789012:role/MyJobRole"
+}
+```
+
+Or specify it on the command line:
+
+```bash
+java -jar cromwell.jar run workflow.wdl -o workflow_options.json
+```
+
+**Example use cases:**
+- Accessing S3 buckets with specific permissions
+- Invoking other AWS services (e.g., Lambda, SNS, SQS)
+- Cross-account resource access
+
+**Note:** The IAM role must have a trust relationship that allows the AWS Batch service to assume it. The role should include the following trust policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```

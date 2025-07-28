@@ -1222,6 +1222,7 @@ trait StandardAsyncExecutionActor
 
   // See executeOrRecoverSuccess
   private var missedAbort = false
+  // Records whether abort has been requested for this job.
   private var abortRequested = false
   private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
@@ -1249,7 +1250,9 @@ trait StandardAsyncExecutionActor
     val executeOrRecoverFuture =
       mode match {
         case Reconnect(jobId: StandardAsyncJob @unchecked) => reconnectAsync(jobId)
-        case ReconnectToAbort(jobId: StandardAsyncJob @unchecked) => reconnectToAbortAsync(jobId)
+        case ReconnectToAbort(jobId: StandardAsyncJob @unchecked) =>
+          abortRequested = true
+          reconnectToAbortAsync(jobId)
         case Recover(jobId: StandardAsyncJob @unchecked) => recoverAsync(jobId)
         case _ =>
           tellMetadata(startMetadataKeyValues)
@@ -1454,8 +1457,8 @@ trait StandardAsyncExecutionActor
             retryElseFail(executionHandle)
           case Success(returnCodeAsInt) if continueOnReturnCode.continueFor(returnCodeAsInt) =>
             handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
-          // Check abort first, but only if abort was requested. There could be a SIGKILL rc (137) for either abort or
-          // an OOM kill.
+          // A job can receive a SIGKILL (137) if it was aborted or OOM killed. Abort must have been requested for this
+          // to actually be an abort.
           case Success(returnCodeAsInt) if abortRequested && isAbort(returnCodeAsInt) =>
             Future.successful(AbortedExecutionHandle)
           case Success(returnCodeAsInt) if oomDetected(returnCodeAsInt) && memoryRetryRequested =>

@@ -967,9 +967,9 @@ trait StandardAsyncExecutionActor
     * @param returnCode The return code.
     * @return True if the return code is for an abort.
     */
-  def isAbort(returnCode: Int): Boolean = returnCode == SIGINT || returnCode == SIGTERM || returnCode == SIGKILL
+  def isAbortRc(returnCode: Int): Boolean = returnCode == SIGINT || returnCode == SIGTERM || returnCode == SIGKILL
 
-  def isOomKill(returnCode: Int): Boolean = returnCode == SIGKILL || returnCode == SIGCONTAINERKILL
+  def isOomKillRc(returnCode: Int): Boolean = returnCode == SIGKILL || returnCode == SIGCONTAINERKILL
 
   /**
     * Custom behavior to run after an abort signal is processed.
@@ -1441,9 +1441,9 @@ trait StandardAsyncExecutionActor
       outOfMemoryDetected <- memoryRetryRC
     } yield (stderrSize, returnCodeAsString, outOfMemoryDetected)
 
-    stderrSizeAndReturnCodeAndMemoryRetry flatMap { case (stderrSize, returnCodeAsString, stderrOomDetected) =>
+    stderrSizeAndReturnCodeAndMemoryRetry flatMap { case (stderrSize, returnCodeAsString, isStderrOomDetected) =>
       val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
-      def oomDetected(rc: Int): Boolean = isOomKill(rc) || stderrOomDetected
+      def isOomDetected(rc: Int): Boolean = isOomKillRc(rc) || isStderrOomDetected
 
       if (isDone(status)) {
         tryReturnCodeAsInt match {
@@ -1459,9 +1459,9 @@ trait StandardAsyncExecutionActor
             handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
           // A job can receive a SIGKILL (137) if it was aborted or OOM killed. Abort must have been requested for this
           // to actually be an abort.
-          case Success(returnCodeAsInt) if abortRequested && isAbort(returnCodeAsInt) =>
+          case Success(returnCodeAsInt) if abortRequested && isAbortRc(returnCodeAsInt) =>
             Future.successful(AbortedExecutionHandle)
-          case Success(returnCodeAsInt) if oomDetected(returnCodeAsInt) && memoryRetryRequested =>
+          case Success(returnCodeAsInt) if memoryRetryRequested && isOomDetected(returnCodeAsInt) =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(
                 RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
@@ -1470,7 +1470,7 @@ trait StandardAsyncExecutionActor
               )
             )
             retryElseFail(executionHandle,
-                          MemoryRetryResult(oomDetected(returnCodeAsInt), memoryRetryFactor, previousMemoryMultiplier)
+                          MemoryRetryResult(isOomDetected(returnCodeAsInt), memoryRetryFactor, previousMemoryMultiplier)
             )
           case Success(returnCodeAsInt) =>
             val executionHandle = Future.successful(
@@ -1491,7 +1491,7 @@ trait StandardAsyncExecutionActor
       } else {
         tryReturnCodeAsInt match {
           case Success(returnCodeAsInt)
-              if oomDetected(returnCodeAsInt) && memoryRetryRequested && !continueOnReturnCode.continueFor(
+              if isOomDetected(returnCodeAsInt) && memoryRetryRequested && !continueOnReturnCode.continueFor(
                 returnCodeAsInt
               ) =>
             val executionHandle = Future.successful(
@@ -1502,7 +1502,7 @@ trait StandardAsyncExecutionActor
               )
             )
             retryElseFail(executionHandle,
-                          MemoryRetryResult(oomDetected(returnCodeAsInt), memoryRetryFactor, previousMemoryMultiplier)
+                          MemoryRetryResult(isOomDetected(returnCodeAsInt), memoryRetryFactor, previousMemoryMultiplier)
             )
           case _ =>
             val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)

@@ -96,6 +96,10 @@ trait StandardAsyncExecutionActor
   val SIGTERM = 143
   val SIGINT = 130
   val SIGKILL = 137
+  // From Gemini:
+  // An exit code of 247, particularly in the context of process execution in Linux or containerized environments like
+  // Docker, often indicates a process termination due to resource limitations, most commonly insufficient memory (RAM).
+  val SIGCONTAINERKILL = 247
 
   // `CheckingForMemoryRetry` action exits with code 0 if the stderr file contains keys mentioned in `memory-retry` config.
   val StderrContainsRetryKeysCode = 0
@@ -963,7 +967,9 @@ trait StandardAsyncExecutionActor
     * @param returnCode The return code.
     * @return True if the return code is for an abort.
     */
-  def isAbort(returnCode: Int): Boolean = returnCode == SIGINT || returnCode == SIGTERM || returnCode == SIGKILL
+  def isAbortRc(returnCode: Int): Boolean = returnCode == SIGINT || returnCode == SIGTERM || returnCode == SIGKILL
+
+  def isOomKillRc(returnCode: Int): Boolean = returnCode == SIGKILL || returnCode == SIGCONTAINERKILL
 
   /**
     * Custom behavior to run after an abort signal is processed.
@@ -1216,12 +1222,15 @@ trait StandardAsyncExecutionActor
 
   // See executeOrRecoverSuccess
   private var missedAbort = false
+  // Records whether abort has been requested for this job.
+  private var abortRequested = false
   private case class CheckMissedAbort(jobId: StandardAsyncJob)
 
   context.become(kvClientReceive orElse standardReceiveBehavior(None) orElse slowJobWarningReceive orElse receive)
 
   def standardReceiveBehavior(jobIdOption: Option[StandardAsyncJob]): Receive = LoggingReceive {
     case AbortJobCommand =>
+      abortRequested = true
       jobIdOption match {
         case Some(jobId) =>
           Try(tryAbort(jobId)) match {
@@ -1241,7 +1250,9 @@ trait StandardAsyncExecutionActor
     val executeOrRecoverFuture =
       mode match {
         case Reconnect(jobId: StandardAsyncJob @unchecked) => reconnectAsync(jobId)
-        case ReconnectToAbort(jobId: StandardAsyncJob @unchecked) => reconnectToAbortAsync(jobId)
+        case ReconnectToAbort(jobId: StandardAsyncJob @unchecked) =>
+          abortRequested = true
+          reconnectToAbortAsync(jobId)
         case Recover(jobId: StandardAsyncJob @unchecked) => recoverAsync(jobId)
         case _ =>
           tellMetadata(startMetadataKeyValues)
@@ -1430,8 +1441,9 @@ trait StandardAsyncExecutionActor
       outOfMemoryDetected <- memoryRetryRC
     } yield (stderrSize, returnCodeAsString, outOfMemoryDetected)
 
-    stderrSizeAndReturnCodeAndMemoryRetry flatMap { case (stderrSize, returnCodeAsString, outOfMemoryDetected) =>
+    stderrSizeAndReturnCodeAndMemoryRetry flatMap { case (stderrSize, returnCodeAsString, isStderrOomDetected) =>
       val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
+      def isOomDetected(rc: Int): Boolean = isOomKillRc(rc) || isStderrOomDetected
 
       if (isDone(status)) {
         tryReturnCodeAsInt match {
@@ -1445,9 +1457,11 @@ trait StandardAsyncExecutionActor
             retryElseFail(executionHandle)
           case Success(returnCodeAsInt) if continueOnReturnCode.continueFor(returnCodeAsInt) =>
             handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
-          // It's important that we check retryWithMoreMemory case before isAbort. RC could be 137 in either case;
-          // if it was caused by OOM killer, want to handle as OOM and not job abort.
-          case Success(returnCodeAsInt) if outOfMemoryDetected && memoryRetryRequested =>
+          // A job can receive a SIGKILL (137) if it was aborted or OOM killed. Abort must have been requested for this
+          // to actually be an abort.
+          case Success(returnCodeAsInt) if abortRequested && isAbortRc(returnCodeAsInt) =>
+            Future.successful(AbortedExecutionHandle)
+          case Success(returnCodeAsInt) if memoryRetryRequested && isOomDetected(returnCodeAsInt) =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(
                 RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
@@ -1456,10 +1470,8 @@ trait StandardAsyncExecutionActor
               )
             )
             retryElseFail(executionHandle,
-                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+                          MemoryRetryResult(isOomDetected(returnCodeAsInt), memoryRetryFactor, previousMemoryMultiplier)
             )
-          case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
-            Future.successful(AbortedExecutionHandle)
           case Success(returnCodeAsInt) =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption),
@@ -1479,7 +1491,9 @@ trait StandardAsyncExecutionActor
       } else {
         tryReturnCodeAsInt match {
           case Success(returnCodeAsInt)
-              if outOfMemoryDetected && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
+              if isOomDetected(returnCodeAsInt) && memoryRetryRequested && !continueOnReturnCode.continueFor(
+                returnCodeAsInt
+              ) =>
             val executionHandle = Future.successful(
               FailedNonRetryableExecutionHandle(
                 RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
@@ -1488,7 +1502,7 @@ trait StandardAsyncExecutionActor
               )
             )
             retryElseFail(executionHandle,
-                          MemoryRetryResult(outOfMemoryDetected, memoryRetryFactor, previousMemoryMultiplier)
+                          MemoryRetryResult(isOomDetected(returnCodeAsInt), memoryRetryFactor, previousMemoryMultiplier)
             )
           case _ =>
             val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)

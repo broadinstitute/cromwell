@@ -1,0 +1,29 @@
+name: retry_with_more_memory_assorted_ooms
+testFormat: workflowfailure
+backends: [GCPBATCH]
+
+files {
+  workflow: retry_with_more_memory/retry_with_more_memory_assorted_ooms.wdl
+  options: retry_with_more_memory/retry_with_more_memory_2x.options
+}
+
+metadata {
+  workflowName: retry_with_more_memory_assorted_ooms
+  status: Failed
+  "failures.0.message": "Workflow failed"
+
+  "retry_with_more_memory_assorted_ooms.java_oom_kill.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory_assorted_ooms.java_oom_kill.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory_assorted_ooms.java_oom_kill.-1.2.runtimeAttributes.memory": "2 GB"
+  "retry_with_more_memory_assorted_ooms.java_oom_kill.-1.2.executionStatus": "Failed"
+
+  "retry_with_more_memory_assorted_ooms.python_oom_kill.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory_assorted_ooms.python_oom_kill.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory_assorted_ooms.python_oom_kill.-1.2.runtimeAttributes.memory": "2 GB"
+  "retry_with_more_memory_assorted_ooms.python_oom_kill.-1.2.executionStatus": "Failed"
+
+  "retry_with_more_memory_assorted_ooms.tail_dev_zero_oom_kill.-1.1.runtimeAttributes.memory": "1 GB"
+  "retry_with_more_memory_assorted_ooms.tail_dev_zero_oom_kill.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory_assorted_ooms.tail_dev_zero_oom_kill.-1.2.runtimeAttributes.memory": "2 GB"
+  "retry_with_more_memory_assorted_ooms.tail_dev_zero_oom_kill.-1.2.executionStatus": "Failed"
+}

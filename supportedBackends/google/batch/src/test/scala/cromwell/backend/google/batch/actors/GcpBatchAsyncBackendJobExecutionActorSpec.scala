@@ -620,6 +620,13 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
     checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution) // no VM start time - task has not started
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMReportingTimeout)
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    checkFailedResult(
+      GcpBatchExitCode.VMReportingTimeout,
+      List(ExecutionEvent("Job state is set from QUEUED to SCHEDULED for job f00bar123", OffsetDateTime.now()))
+    )
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
 
     // Should not retry
     checkFailedResult(GcpBatchExitCode.Success)
@@ -630,6 +637,11 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       GcpBatchExitCode.VMRecreatedDuringExecution,
       List(ExecutionEvent("Job state is set from SCHEDULED to RUNNING for job f00b4r", OffsetDateTime.now()))
     ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(
+      GcpBatchExitCode.VMReportingTimeout,
+      List(ExecutionEvent("Job state is set from SCHEDULED to RUNNING for job f00bar123", OffsetDateTime.now()))
+    )
+      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     actorRef.stop()
   }
 

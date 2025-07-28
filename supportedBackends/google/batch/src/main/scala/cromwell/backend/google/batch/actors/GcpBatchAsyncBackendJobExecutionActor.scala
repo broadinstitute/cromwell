@@ -1243,7 +1243,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     lazy val errorTypeIsTransient = List(
       GcpBatchExitCode.VMPreemption,
       GcpBatchExitCode.VMRecreatedDuringExecution,
-      GcpBatchExitCode.VMRebootedDuringExecution
+      GcpBatchExitCode.VMRebootedDuringExecution,
+      GcpBatchExitCode.VMReportingTimeout
     ).contains(failed.errorCode)
     lazy val taskStartedRunning = failed.eventList.exists(e => executionEventRunningMatcher.matches(e.name))
     transientErrorRetryable && errorTypeIsTransient && !taskStartedRunning

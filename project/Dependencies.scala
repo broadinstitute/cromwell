@@ -46,7 +46,7 @@ object Dependencies {
   private val googleCloudBatchV1 = "0.68.0"
   // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
   private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
-  private val googleOauth2V = "1.23.0"
+  private val googleOauth2V = "1.37.1"
   private val googleOauthClientV = "1.33.1"
   private val googleCloudResourceManagerV = "1.17.0"
   private val grpcV = "1.65.1"

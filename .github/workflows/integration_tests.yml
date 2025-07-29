@@ -35,6 +35,9 @@ jobs:
           - build_type: centaurGcpBatch
             build_mysql: 8.4
             friendly_name: GCP Batch, MySQL 8.4 (Terra production)
+          - build_type: centaurAws
+            build_mysql: 8.4
+            friendly_name: AWS, MySQL 8.4
           - build_type: centaurGcpBatchRestart
             build_mysql: 8.4
             friendly_name: Centaur GCP Batch (restart)

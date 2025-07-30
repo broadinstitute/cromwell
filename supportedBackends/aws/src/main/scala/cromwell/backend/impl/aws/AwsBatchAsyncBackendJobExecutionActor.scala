@@ -37,43 +37,41 @@ import java.nio.file.Paths
 import akka.actor.ActorRef
 import akka.pattern.AskSupport
 import akka.util.Timeout
-
 import cats.implicits._
-
 import common.exception.MessageAggregation
 import common.collections.EnhancedCollections._
 import common.util.StringUtil._
+import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
-
 import cromwell.backend._
 import cromwell.backend.async._
 import cromwell.backend.impl.aws.IntervalLimitedAwsJobSubmitActor.SubmitAwsJobRequest
 import cromwell.backend.impl.aws.OccasionalStatusPollingActor.{NotifyOfStatus, WhatsMyStatus}
 import cromwell.backend.impl.aws.RunStatus.{Initializing, TerminalRunStatus}
 import cromwell.backend.impl.aws.io._
-
 import cromwell.backend.io.DirectoryFunctions
 import cromwell.backend.io.JobPaths
-import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
+import cromwell.backend.standard.{
+  ScriptPreambleData,
+  StandardAsyncExecutionActor,
+  StandardAsyncExecutionActorParams,
+  StandardAsyncJob
+}
 import cromwell.backend.OutputEvaluator._
+import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.core._
 import cromwell.core.path.{DefaultPathBuilder, Path, PathBuilder, PathFactory}
 import cromwell.core.io.{DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.retry.SimpleExponentialBackoff
-
 import cromwell.filesystems.s3.S3Path
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
-
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
-
 import org.slf4j.{Logger, LoggerFactory}
 import software.amazon.awssdk.services.batch.BatchClient
 import software.amazon.awssdk.services.batch.model._
-
 import wom.callable.Callable.OutputDefinition
 import wom.callable.MetaValueElement.{MetaValueElementBoolean, MetaValueElementObject}
-
 import wom.core.FullyQualifiedName
 import wom.expression.NoIoFunctionSet
 import wom.types.{
@@ -111,7 +109,8 @@ class AwsBatchAsyncBackendJobExecutionActor(
     with StandardAsyncExecutionActor
     with AwsBatchJobCachingActorHelper
     with KvClient
-    with AskSupport {
+    with AskSupport
+    with AwsPlatform {
 
   /** The builder for `IoCommands` to the storage system used by jobs executed
    * by this backend
@@ -724,10 +723,10 @@ class AwsBatchAsyncBackendJobExecutionActor(
     case _ => jobPaths.callExecutionRoot
   }
 
-  override def scriptPreamble: String =
+  override def scriptPreamble: ErrorOr[ScriptPreambleData] =
     configuration.fileSystem match {
-      case AWSBatchStorageSystems.s3 => ""
-      case _ => ""
+      case AWSBatchStorageSystems.s3 => ScriptPreambleData("").validNel
+      case _ => ScriptPreambleData("").validNel
     }
 
   override def scriptClosure: String =
@@ -918,7 +917,9 @@ class AwsBatchAsyncBackendJobExecutionActor(
                 None
               )
             )
-            retryElseFail(executionHandle, retryWithMoreMemory)
+            retryElseFail(executionHandle,
+                          MemoryRetryResult(retryWithMoreMemory, memoryRetryFactor, previousMemoryMultiplier)
+            )
           // unaccepted return code : retry.
           case Success(returnCodeAsInt) =>
             jobLogger.debug(
@@ -962,7 +963,9 @@ class AwsBatchAsyncBackendJobExecutionActor(
                 None
               )
             )
-            retryElseFail(executionHandle, retryWithMoreMemory)
+            retryElseFail(executionHandle,
+                          MemoryRetryResult(retryWithMoreMemory, memoryRetryFactor, previousMemoryMultiplier)
+            )
           case _ =>
             val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
             retryElseFail(failureStatus)

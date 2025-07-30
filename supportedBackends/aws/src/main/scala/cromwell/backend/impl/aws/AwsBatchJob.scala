@@ -30,9 +30,6 @@
  */
 package cromwell.backend.impl.aws
 
-import java.security.MessageDigest
-import java.nio.file.attribute.PosixFilePermission
-
 import cats.data.ReaderT._
 import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Timer}

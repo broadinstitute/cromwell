@@ -78,10 +78,11 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     Vector(Map.empty[String, String]),
     false,
     false,
-    sharedMemorySize = refineMV[Positive](64),
-    jobTimeout = refineMV[Positive](3600),
+    sharedMemorySize = MemorySize(64, MemoryUnit.MB),
+    jobTimeout = 3600,
     "/Cromwell/job/",
-    Map("tag1" -> "value1")
+    Map("tag1" -> "value1"),
+    false
   )
 
   val expectedDefaultsLocalFS = new AwsBatchRuntimeAttributes(
@@ -101,9 +102,11 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     Vector(Map.empty[String, String]),
     false,
     false,
-    refineMV[Positive](64),
+    MemorySize(64, MemoryUnit.MB),
+    3600,
     "/Cromwell/job/",
     Map(),
+    false,
     "local"
   )
 
@@ -572,14 +575,15 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
         "scriptBucketName" -> WomString("my-stuff"),
         "sharedMemorySize" -> WomInteger(10)
       )
-      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedDefaults.copy(
-        sharedMemorySize = refineMV[Positive](10)
-      ))
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes,
+                                                        expectedDefaults.copy(
+                                                          sharedMemorySize = MemorySize(10, MemoryUnit.MB)
+                                                        )
+      )
     }
 
     // add tests for jobTimeout
 
-    
     "missing or invalid action key result in an invalid awsBatchEvaluateOnExit" in {
       val invalidEvaluateOnExit = List(
         // missing action key

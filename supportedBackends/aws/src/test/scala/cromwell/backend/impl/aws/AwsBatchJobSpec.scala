@@ -32,31 +32,21 @@
 package cromwell.backend.impl.aws
 
 import common.collections.EnhancedCollections._
-import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.BackendSpec._
 import cromwell.backend.impl.aws.io.{AwsBatchJobPaths, AwsBatchWorkflowPaths, AwsBatchWorkingDisk}
 import cromwell.backend.validation.ContinueOnReturnCodeFlag
-import cromwell.core.path.DefaultPathBuilder
+import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.core.TestKitSuite
+import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto._
 import eu.timepit.refined.numeric._
-import eu.timepit.refined.refineMV
 import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
-import software.amazon.awssdk.services.batch.model.{
-  ContainerDetail,
-  EvaluateOnExit,
-  JobDetail,
-  KeyValuePair,
-  LinuxParameters,
-  ResourceRequirement,
-  RetryAction,
-  RetryStrategy
-}
+import software.amazon.awssdk.services.batch.model._
 import spray.json.{JsObject, JsString}
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
@@ -119,14 +109,14 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
   val jobPaths: AwsBatchJobPaths = AwsBatchJobPaths(workflowPaths, jobKey)
   val s3Inputs: Set[AwsBatchInput] = Set(
-    AwsBatchFileInput("foo", "s3://bucket/foo", DefaultPathBuilder.get("foo"), AwsBatchWorkingDisk(), false)
+    AwsBatchFileInput("foo", "s3://bucket/foo", DefaultPathBuilder.get("foo"), AwsBatchWorkingDisk(), false, false)
   )
   val s3Outputs: Set[AwsBatchFileOutput] = Set(
     AwsBatchFileOutput("baa", "s3://bucket/somewhere/baa", DefaultPathBuilder.get("baa"), AwsBatchWorkingDisk(), false)
   )
 
   val cpu: Int Refined Positive = 2
-  val sharedMemorySize: MemorySize = "64 MB"
+  val sharedMemorySize: MemorySize = MemorySize(64, MemoryUnit.MB)
   val jobTimeout: Int = 3600
 
   val runtimeAttributes: AwsBatchRuntimeAttributes = new AwsBatchRuntimeAttributes(
@@ -146,6 +136,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     ulimits = Vector(Map.empty[String, String]),
     efsDelocalize = false,
     efsMakeMD5 = false,
+    fuseMount = false,
     fileSystem = "s3",
     sharedMemorySize = sharedMemorySize,
     jobTimeout = jobTimeout,
@@ -165,22 +156,6 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     outputs = Set(),
     fsxMntPoint = None,
     None,
-    None,
-    None,
-    None
-  )
-
-  val batchJobDefintion = AwsBatchJobDefinitionContext(
-    runtimeAttributes = runtimeAttributes,
-    commandText = "",
-    dockerRcPath = "",
-    dockerStdoutPath = "",
-    dockerStderrPath = "",
-    jobDescriptor = jobDescriptor,
-    jobPaths = jobPaths,
-    inputs = Set(),
-    outputs = Set(),
-    fsxMntPoint = None,
     None,
     None,
     None
@@ -208,7 +183,9 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
-      None
+      None,
+      "",
+      Map.empty
     )
     job
   }
@@ -232,7 +209,9 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
-      None
+      None,
+      "",
+      Map.empty
     )
     job
   }
@@ -256,7 +235,9 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
-      None
+      None,
+      "",
+      Map.empty
     )
     job
   }
@@ -601,7 +582,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
   it should "use user shared memory size if set" in {
     val runtime = runtimeAttributes.copy(
       gpuCount = 1,
-      sharedMemorySize = refineMV[Positive](100)
+      sharedMemorySize = MemorySize(100, MemoryUnit.MB)
     )
     val jobDefinition = StandardAwsBatchJobDefinitionBuilder.build(batchJobDefintion.copy(runtimeAttributes = runtime))
     val actual = jobDefinition.containerProperties.linuxParameters()

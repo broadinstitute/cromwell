@@ -66,5 +66,4 @@ gha-creds-*.json
 # jenv
 .java-version
 
-.scalafmt.conf
 .vscode/

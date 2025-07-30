@@ -625,14 +625,14 @@ class AwsBatchAsyncBackendJobExecutionActor(
     val wfid = standardParams.jobDescriptor.toString.split(":")(0)
     val globName = GlobFunctions.globName(s"${womFile.value}-${wfid}")
 
-    var globbedDirPath = Paths.get(womFile.value).getParent() match {
-      case null => Paths.get(".")
-      case parent => parent
+    var globbedDirPath = Option(Paths.get(womFile.value).getParent()) match {
+      case None => Paths.get(".")
+      case Some(parent) => parent
     }
     while (globbedDirPath.toString().contains("*"))
-      globbedDirPath = globbedDirPath.getParent() match {
-        case null => Paths.get(".")
-        case parent => parent
+      globbedDirPath = Option(globbedDirPath.getParent()) match {
+        case None => Paths.get(".")
+        case Some(parent) => parent
       }
     val globbedDir: String = globbedDirPath.toString()
     // generalize folder and list file
@@ -1011,62 +1011,43 @@ class AwsBatchAsyncBackendJobExecutionActor(
     val jobDetail = describeJobsResponse.jobs.get(0)
     val nrAttempts = jobDetail.attempts.size
     // if job is terminated/cancelled before starting, there are no attempts.
-    val lastattempt =
-      try
-        jobDetail.attempts.get(nrAttempts - 1)
-      catch {
-        case _: Throwable => null
-      }
-    if (lastattempt == null) {
-      Log.info(s"No attempts were made for job '${job.jobId}'. no memory-related retry needed.")
-      false
-    } else {
-      var containerRC =
-        try
-          lastattempt.container.exitCode
-        catch {
-          case _: Throwable => null
-        }
-      // if missing, set to failed.
-      if (containerRC == null) {
-        Log.debug(s"No RC found for job '${job.jobId}', most likely a spot kill")
-        containerRC = 1
-      }
-      // if not zero => get reason, else set retry to false.
-      containerRC.toString() match {
-        case "0" =>
-          Log.debug("container exit code was zero. job succeeded")
-          false
-        case "137" =>
-          Log.info("Job failed with Container status reason : 'OutOfMemory' (code:137)")
-          true
-        case _ =>
-          // failed job due to command errors (~ user errors) don't have a container exit reason.
-          val containerStatusReason: String = {
-            // if no attempts were made (rare) : container is null:
-            var lastReason =
-              try
-                lastattempt.container.reason
-              catch {
-                case _: Throwable => null
-              }
+    val lastAttemptOpt = Try(jobDetail.attempts.get(nrAttempts - 1)).toOption
+    lastAttemptOpt
+      .map { lastAttempt =>
+        // if missing, set to failed.
+        val containerRC = Try(lastAttempt.container.exitCode).toOption.getOrElse(1)
 
-            // cast null to empty-string to prevent nullpointer exception.
-            if (lastReason == null || lastReason.isEmpty) {
-              lastReason = ""
-              log.debug("No exit reason found for container.")
-            } else {
-              Log.warn(s"Job failed with Container status reason : '${lastReason}'")
+        // if not zero => get reason, else set retry to false.
+        containerRC.toString match {
+          case "0" =>
+            Log.debug("container exit code was zero. job succeeded")
+            false
+          case "137" =>
+            Log.info("Job failed with Container status reason : 'OutOfMemory' (code:137)")
+            true
+          case _ =>
+            // failed job due to command errors (~ user errors) don't have a container exit reason.
+            val containerStatusReason: String = {
+              // if no attempts were made (rare) : container is null:
+              val lastReason = Try(lastAttempt.container.reason).toOption
+              if (lastReason.isEmpty) {
+                log.debug("No exit reason found for container.")
+              } else {
+                Log.warn(s"Job failed with Container status reason : '${lastReason}'")
+              }
+              lastReason.getOrElse("")
             }
-            lastReason
-          }
-          // check the list of OOM-keys against the exit reason.
-          val RetryMemoryKeys = memoryRetryErrorKeys.toList.flatten
-          val retry = RetryMemoryKeys.exists(containerStatusReason.contains)
-          Log.debug(s"Retry job based on provided keys : '${retry}'")
-          retry
+            // check the list of OOM-keys against the exit reason.
+            val RetryMemoryKeys = memoryRetryErrorKeys.toList.flatten
+            val retry = RetryMemoryKeys.exists(containerStatusReason.contains)
+            Log.debug(s"Retry job based on provided keys : '${retry}'")
+            retry
+        }
       }
-    }
+      .getOrElse {
+        Log.info(s"No attempts were made for job '${job.jobId}'. no memory-related retry needed.")
+        false
+      }
   }
 
   // Despite being a "runtime" exception, BatchExceptions for 429 (too many requests) are *not* fatal:

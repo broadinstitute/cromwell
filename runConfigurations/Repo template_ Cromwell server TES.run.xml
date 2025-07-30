@@ -31,9 +31,18 @@
       <env name="CROMWELL_BUILD_CENTAUR_256_BITS_KEY" value="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />
-    <module name="cromwell" />
     <option name="PROGRAM_PARAMETERS" value="server" />
     <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/tes_application.conf" />
+    <extension name="net.ashald.envfile">
+      <option name="IS_ENABLED" value="false" />
+      <option name="IS_SUBST" value="false" />
+      <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+      <option name="IS_IGNORE_MISSING_FILES" value="false" />
+      <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+      <ENTRIES>
+        <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+      </ENTRIES>
+    </extension>
     <method v="2">
       <option name="Make" enabled="true" />
       <option name="RunConfigurationTask" enabled="false" run_configuration_name="renderCiResources" run_configuration_type="SbtRunConfiguration" />

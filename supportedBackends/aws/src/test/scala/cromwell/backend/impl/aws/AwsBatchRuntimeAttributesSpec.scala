@@ -78,10 +78,10 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     Vector(Map.empty[String, String]),
     false,
     false,
-    sharedMemorySize = MemorySize(64, MemoryUnit.MB),
-    jobTimeout = 3600,
+    MemorySize(.0625, MemoryUnit.GB),
+    0,
     "/Cromwell/job/",
-    Map("tag1" -> "value1"),
+    Map.empty,
     false
   )
 
@@ -102,8 +102,8 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     Vector(Map.empty[String, String]),
     false,
     false,
-    MemorySize(64, MemoryUnit.MB),
-    3600,
+    MemorySize(.0625, MemoryUnit.GB),
+    0,
     "/Cromwell/job/",
     Map(),
     false,
@@ -573,7 +573,7 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       val runtimeAttributes = Map(
         "docker" -> WomString("ubuntu:latest"),
         "scriptBucketName" -> WomString("my-stuff"),
-        "sharedMemorySize" -> WomInteger(10)
+        "sharedMemorySize" -> WomString("10 MB")
       )
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes,
                                                         expectedDefaults.copy(
@@ -649,14 +649,9 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
                                                                 workflowOptions: WorkflowOptions = emptyWorkflowOptions,
                                                                 defaultZones: NonEmptyList[String] = defaultZones,
                                                                 configuration: AwsBatchConfiguration = configuration
-  ): Unit = {
-    try {
-      val actualRuntimeAttributes = toAwsBatchRuntimeAttributes(runtimeAttributes, workflowOptions, configuration)
-      assert(actualRuntimeAttributes == expectedRuntimeAttributes)
-    } catch {
-      case ex: RuntimeException => fail(s"Exception was not expected but received: ${ex.getMessage}")
-    }
-    ()
+  ) = {
+    val actualRuntimeAttributes = toAwsBatchRuntimeAttributes(runtimeAttributes, workflowOptions, configuration)
+    assert(actualRuntimeAttributes == expectedRuntimeAttributes)
   }
 
   private def assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes: Map[String, WomValue],

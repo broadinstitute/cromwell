@@ -10,11 +10,7 @@ import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked._
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{
-  BackendJobExecutionResponse,
-  JobAbortedResponse,
-  JobReconnectionNotSupportedException
-}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._
@@ -419,7 +415,7 @@ trait StandardAsyncExecutionActor
   def commandScriptContents: ErrorOr[String] = {
     val commandString = instantiatedCommand.commandString
     val commandStringAbbreviated = StringUtils.abbreviateMiddle(commandString, "...", abbreviateCommandLength)
-    jobLogger.debug(s"`$commandStringAbbreviated`")
+    jobLogger.info(s"`$commandStringAbbreviated`")
     tellMetadata(Map(CallMetadataKeys.CommandLine -> commandStringAbbreviated))
 
     val cwd = commandDirectory
@@ -1280,7 +1276,7 @@ trait StandardAsyncExecutionActor
         }
 
         tellKvJobId(handle.pendingJob) map { _ =>
-          if (logJobIds) jobLogger.debug(s"job id: ${handle.pendingJob.jobId}")
+          if (logJobIds) jobLogger.info(s"job id: ${handle.pendingJob.jobId}")
           tellMetadata(Map(CallMetadataKeys.JobId -> handle.pendingJob.jobId))
           /*
           NOTE: Because of the async nature of the Scala Futures, there is a point in time where we have submitted this or
@@ -1398,7 +1394,7 @@ trait StandardAsyncExecutionActor
                             oldHandle: StandardAsyncPendingExecutionHandle
   ): Future[ExecutionHandle] = {
 
-    // get the memory retry code.
+    // Returns true if the task has written an RC file that indicates OOM, false otherwise
     def memoryRetryRC: Future[Boolean] = {
       // convert int to boolean
       def returnCodeAsBoolean(codeAsOption: Option[String]): Boolean =

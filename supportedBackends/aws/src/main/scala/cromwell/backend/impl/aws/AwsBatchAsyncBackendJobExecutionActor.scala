@@ -139,7 +139,6 @@ class AwsBatchAsyncBackendJobExecutionActor(
 
   /**
    * Determines if two run statuses are equal
-   *
    * @param thiz a `RunStatus`
    * @param that a `RunStatus`
    * @return true if they are equal, else false
@@ -156,8 +155,6 @@ class AwsBatchAsyncBackendJobExecutionActor(
     jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
 
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
-
-  // |cd ${jobPaths.script.parent.pathWithoutScheme}; ls | grep -v script | xargs rm -rf; cd -
 
   // overriden function : used in StandardAsyncExecutionActor
   override def inputsToNotLocalize: Set[WomFile] =

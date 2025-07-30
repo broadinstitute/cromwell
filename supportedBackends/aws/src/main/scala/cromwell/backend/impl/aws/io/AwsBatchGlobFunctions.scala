@@ -30,7 +30,6 @@
  */
 package cromwell.backend.impl.aws.io
 
-
 import wom.values._
 import cromwell.backend.io._
 import cromwell.backend.standard._
@@ -38,9 +37,8 @@ import scala.concurrent.Future
 import java.nio.file.Paths
 import cromwell.core.path.DefaultPathBuilder
 
-
 trait AwsBatchGlobFunctions extends GlobFunctions {
-    
+
   def standardParams: StandardExpressionFunctionsParams
 
   /** Returns a list of path from the glob.
@@ -55,13 +53,13 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
   override def glob(pattern: String): Future[Seq[String]] = {
     // get access to globName()
     import GlobFunctions._
-    
-    // GOAL : 
-    //  - get config (backend / runtime / ...) here to evaluate if efsMntPoint is set & if efs delocalization is set. 
-    //  - according to those values : write the pattern as s3:// or as local path. 
+
+    // GOAL :
+    //  - get config (backend / runtime / ...) here to evaluate if efsMntPoint is set & if efs delocalization is set.
+    //  - according to those values : write the pattern as s3:// or as local path.
     //  - get the wf id from the config settings.
 
-    // this function reads in the globfile and locates globbed files : "local" or NIO access is needed to the files. 
+    // this function reads in the globfile and locates globbed files : "local" or NIO access is needed to the files.
 
     // for now : hard coded as local at mount point /mnt/efs.
     val wfid_regex = ".{8}-.{4}-.{4}-.{4}-.{12}".r
@@ -76,17 +74,16 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
       case null => Paths.get(".")
       case parent => parent
     }
-    while (globbedDirPath.toString().contains("*")) {
+    while (globbedDirPath.toString().contains("*"))
       globbedDirPath = globbedDirPath.getParent() match {
         case null => Paths.get(".")
         case parent => parent
       }
-    }
     val globbedDir: String = globbedDirPath.toString()
     val listFilePath = if (pattern.startsWith("/mnt/efs/")) {
-        DefaultPathBuilder.get(globbedDir + "/." + globPatternName + ".list")
+      DefaultPathBuilder.get(globbedDir + "/." + globPatternName + ".list")
     } else {
-        callContext.root.resolve(
+      callContext.root.resolve(
         // strip ./ (no parent), then "/" (for relative location)
         s"${globbedDir}/.${globPatternName}.list".stripPrefix("./").stripPrefix("/")
       )
@@ -95,9 +92,9 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
       lines.toList map { fileName =>
         // again : this should be config based...
         if (pattern.startsWith("/mnt/efs/")) {
-            s"${globbedDir}/.${globPatternName}/${fileName}"
+          s"${globbedDir}/.${globPatternName}/${fileName}"
         } else {
-            callContext.root
+          callContext.root
             .resolve(
               s"${globbedDir}/.${globPatternName}/${fileName}".stripPrefix("./").stripPrefix("/")
             )
@@ -106,5 +103,6 @@ trait AwsBatchGlobFunctions extends GlobFunctions {
       }
     }
   }
-  
+
 }
+a

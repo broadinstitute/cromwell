@@ -31,7 +31,6 @@
 
 package cromwell.backend.impl.aws
 
-import cats.data.NonEmptyList
 import common.assertion.CromwellTimeoutSpec
 import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
@@ -264,7 +263,6 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
         runtimeAttributes,
         expectedRuntimeAttributes,
         WorkflowOptions.fromMap(Map.empty).get,
-        NonEmptyList.of("us-east-1a", "us-east-1b"),
         new AwsBatchConfiguration(AwsBatchTestConfigForLocalFS.AwsBatchBackendConfigurationDescriptor)
       )
     }
@@ -577,7 +575,8 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       )
       assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes,
                                                         expectedDefaults.copy(
-                                                          sharedMemorySize = MemorySize(10, MemoryUnit.MB)
+                                                          sharedMemorySize =
+                                                            MemorySize(10, MemoryUnit.MB).to(MemoryUnit.GB)
                                                         )
       )
     }
@@ -641,13 +640,13 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     val validatedRuntimeAttributes = runtimeAttributesBuilder.build(defaultedAttributes, NOPLogger.NOP_LOGGER)
     val actualRuntimeAttributes =
       AwsBatchRuntimeAttributes(validatedRuntimeAttributes, batchConfig.runtimeConfig, batchConfig.fileSystem)
+
     assert(actualRuntimeAttributes == expectedRuntimeAttributes)
   }
 
   private def assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes: Map[String, WomValue],
                                                                 expectedRuntimeAttributes: AwsBatchRuntimeAttributes,
                                                                 workflowOptions: WorkflowOptions = emptyWorkflowOptions,
-                                                                defaultZones: NonEmptyList[String] = defaultZones,
                                                                 configuration: AwsBatchConfiguration = configuration
   ) = {
     val actualRuntimeAttributes = toAwsBatchRuntimeAttributes(runtimeAttributes, workflowOptions, configuration)
@@ -680,7 +679,6 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
   }
 
   private val emptyWorkflowOptions = WorkflowOptions.fromMap(Map.empty).get
-  private val defaultZones = NonEmptyList.of("us-east-1a", "us-east-1b")
   private val configuration = new AwsBatchConfiguration(AwsBatchTestConfig.AwsBatchBackendConfigurationDescriptor)
   // private val noDefaultsAwsBatchConfiguration = new AwsBatchConfiguration(AwsBatchTestConfig.NoDefaultsConfigurationDescriptor)
   private val staticRuntimeAttributeDefinitions: Set[RuntimeAttributeDefinition] =

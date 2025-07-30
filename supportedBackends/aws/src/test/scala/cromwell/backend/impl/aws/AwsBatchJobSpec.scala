@@ -284,6 +284,10 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |  local s3_path="$$1"
          |  # destination must be the path to a file and not just the directory you want the file in
          |  local destination="$$2"
+         |  # if third option is specified, it is the optional tag (true / false)
+         |  local is_optional="$${3:-false}"
+         |  # if fourth option is specified, it is the locOptional tag (true / false)
+         |  local loc_optional="$${4:-false}"
          |
          |  for i in {1..6};
          |  do
@@ -291,13 +295,28 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |    if [ "$$i" -eq 6 ]; then
          |        echo "failed to copy $$s3_path after $$(( $$i - 1 )) attempts."
          |        LOCALIZATION_FAILED=1
-         |        break
+         |        return
          |    fi
          |    # check validity of source path
          |    if ! [[ "$$s3_path" =~ s3://([^/]+)/(.+) ]]; then
          |      echo "$$s3_path is not an S3 path with a bucket and key."
          |      LOCALIZATION_FAILED=1
-         |      break
+         |      return
+         |    fi
+         |    ## if missing on s3 : check if optional:
+         |    if ! /usr/local/aws-cli/v2/current/bin/aws s3 ls "$$s3_path" > /dev/null 2>&1 ; then
+         |      if [[ "$$is_optional" == "true" ]]; then
+         |        echo "Optional file '$$s3_path' does not exist. skipping localization"
+         |      else
+         |        echo "$$s3_path does not exist. skipping localization"
+         |        LOCALIZATION_FAILED=1
+         |      fi
+         |      return
+         |    fi
+         |    # if localization is optional : skip
+         |    if [[ "$$loc_optional" == "true" ]]; then
+         |       echo "File $$s3_path does not have to be localized. Skipping localization"
+         |       return 
          |    fi
          |    # copy
          |    /usr/local/aws-cli/v2/current/bin/aws s3 cp --no-progress "$$s3_path" "$$destination"  ||
@@ -306,7 +325,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |    _check_data_integrity "$$destination" "$$s3_path" ||
          |       { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # copy succeeded
-         |    break
+         |    return
          |  done
          |}""".stripMargin
 
@@ -322,13 +341,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |  local local_path="$$1"
          |  # destination must be the path to a file and not just the directory you want the file in
          |  local destination="$$2"
-         |
-         |  # if file/folder does not exist, return immediately
-         |  if [[ ! -e "$$local_path" ]]; then
-         |    echo "$$local_path does not exist. skipping delocalization"
-         |    DELOCALIZATION_FAILED=1
-         |    return
-         |  fi
+         |  # if third options is specified, it is the optional tag (true / false)
+         |  local is_optional="$${3:-false}"
          |
          |  # get the multipart chunk size
          |  chunk_size=$$(_get_multipart_chunk_size "$$local_path")
@@ -344,13 +358,13 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |    if [ "$$i" -eq 6 ]; then
          |        echo "failed to delocalize $$local_path after $$(( $$i - 1 )) attempts."
          |        DELOCALIZATION_FAILED=1
-         |        break
+         |        return
          |    fi
          |    # if destination is not a bucket : abort
          |    if ! [[ "$$destination" =~ s3://([^/]+)/(.+) ]]; then
          |     echo "$$destination is not an S3 path with a bucket and key."
          |      DELOCALIZATION_FAILED=1
-         |      break
+         |      return
          |    fi
          |    # copy ok or try again.
          |    if [[ -d "$$local_path" ]]; then
@@ -361,22 +375,28 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |         { echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |       # check integrity for each of the files (allow spaces)
          |       SAVEIFS="$$IFS"
-         |       IFS=$$'
-         |'
+         |       IFS=$$'\n'
          |       for FILE in $$(cd "$$local_path" ; ls | grep -v cromwell_glob_control_file); do
          |           _check_data_integrity "$$local_path/$$FILE" "$$destination/$$FILE" ||
          |               { echo "data content length difference detected in attempt $$i to copy $$local_path/$$FILE failed" && sleep $$((7 * "$$i")) && continue 2; }
          |       done
          |       IFS="$$SAVEIFS"
-         |    else
+         |    # files : if exists or non-optional : must succeed
+         |    elif [[ "$$is_optional" == "false" || -e "$$local_path" ]]; then
          |      /usr/local/aws-cli/v2/current/bin/aws s3 cp --no-progress "$$local_path" "$$destination" ||
          |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |      # check content length for data integrity
          |      _check_data_integrity "$$local_path" "$$destination" ||
          |         { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
+         |    elif [[ "$$is_optional" == "true" && ! -e "$$local_path" ]]; then
+         |      echo "Optional file '$$local_path' does not exist. skipping delocalization"
+         |    # not optional, but missing : fail
+         |    elif [[ "$$is_optional" == "false" && ! -e "$$local_path" ]]; then
+         |      echo "$$local_path does not exist. skipping delocalization"
+         |      DELOCALIZATION_FAILED=1
          |    fi
-         |    # copy succeeded
-         |    break
+         |    # copy succeeded or not retrying
+         |    return
          |  done
          |}""".stripMargin
     job.reconfiguredScript should include(delocalizeText)
@@ -397,7 +417,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |  else
          |      # this is already checked in the caller function
          |      echo "$$s3_path is not an S3 path with a bucket and key."
-         |      exit 1
+         |      return 1
          |  fi
          |  s3_content_length=$$(/usr/local/aws-cli/v2/current/bin/aws s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') ||
          |        { echo "Attempt to get head of object failed for $$s3_path." && return 1; }
@@ -420,6 +440,11 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       s"""
          |function _get_multipart_chunk_size() {
          |  local file_path="$$1"
+         |  # missing files : skip.
+         |  if [[ ! -e "$$file_path" ]]; then
+         |    echo $$(( 5 * 1024 * 1024 ))
+         |    return
+         |  fi
          |  # file size
          |  file_size=$$(stat --printf="%s" "$$file_path")
          |  # chunk_size : you can have at most 10K parts with at least one 5MB part
@@ -439,7 +464,6 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     val job = generateJobWithS3InOut
     val postscript =
       s"""
-         |{
          |set -e
          |# (re-)add tags to include added volumes:
          |if [[ "false" == "true" ]]; then
@@ -449,12 +473,13 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |
          |echo '*** DELOCALIZING OUTPUTS ***'
          |DELOCALIZATION_FAILED=0
-         |_s3_delocalize_with_retry "/tmp/scratch/baa" "s3://bucket/somewhere/baa"
+         |_s3_delocalize_with_retry "/tmp/scratch/baa" "s3://bucket/somewhere/baa" "false" 
          |
          |if [ -f "/tmp/scratch/hello-rc.txt" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-rc.txt" "${job.jobPaths.returnCode}" ; fi
          |if [ -f "/tmp/scratch/hello-stderr.log" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-stderr.log" "${job.jobPaths.standardPaths.error}"; fi
          |if [ -f "/tmp/scratch/hello-stdout.log" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-stdout.log" "${job.jobPaths.standardPaths.output}"; fi
          |
+         |echo "DELOCALIZATION RESULT: $$DELOCALIZATION_FAILED"
          |if [[ $$DELOCALIZATION_FAILED -eq 1 ]]; then
          |  echo '*** DELOCALIZATION FAILED ***'
          |  echo '*** EXITING WITH RETURN CODE 1***'
@@ -488,7 +513,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |cd /tmp/scratch
          |# make sure localization completes successfully
          |LOCALIZATION_FAILED=0
-         |_s3_localize_with_retry "s3://bucket/foo" "/tmp/scratch/foo"
+         |_s3_localize_with_retry "s3://bucket/foo" "/tmp/scratch/foo" "false" "false" 
          |if [[ $$LOCALIZATION_FAILED -eq 1 ]]; then
          |  echo '*** LOCALIZATION FAILED ***'
          |  exit 1

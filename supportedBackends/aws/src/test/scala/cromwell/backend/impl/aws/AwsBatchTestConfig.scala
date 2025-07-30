@@ -241,6 +241,7 @@ object AwsBatchTestWithRetryConfig {
       |       Action: "EXIT"
       |     }
       |    ]
+      |    logGroupName: "/Cromwell/job/"
       |}
       |
       |""".stripMargin

@@ -247,7 +247,7 @@ final case class AwsBatchJob(
          |  local destination="$$2"
          |  # if third options is specified, it is the optional tag (true / false)
          |  local is_optional="$${3:-false}"
-         |         
+         |
          |  # get the multipart chunk size
          |  chunk_size=$$(_get_multipart_chunk_size "$$local_path")
          |  local MP_THRESHOLD=${mp_threshold}
@@ -291,7 +291,7 @@ final case class AwsBatchJob(
          |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |      # check content length for data integrity
          |      _check_data_integrity "$$local_path" "$$destination" ||
-         |         { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }         
+         |         { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    elif [[ "$$is_optional" == "true" && ! -e "$$local_path" ]]; then
          |      echo "Optional file '$$local_path' does not exist. skipping delocalization"
          |    # not optional, but missing : fail

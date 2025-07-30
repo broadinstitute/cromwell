@@ -51,6 +51,12 @@ jobs:
           - build_type: centaurAws
             build_mysql: 8.4
             friendly_name: Centaur AWS with MySQL 8.4
+          - build_type: centaurAwsRestart
+            build_mysql: 8.4
+            friendly_name: Centaur AWS (restart)
+          - build_type: centaurAwsHoricromtal
+            build_mysql: 8.4
+            friendly_name: Centaur Horicromtal AWS
           - build_type: centaurDummy
             build_mysql: 8.4
             friendly_name: Centaur Dummy with MySQL 8.4

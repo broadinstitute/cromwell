@@ -29,8 +29,6 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 # !!!!!!!!!!                WITH DOCKER REPOS                  !!!!!!!!!!
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 cromwell::build::run_centaur \
-#     -i hello \
-#     -i mutect2.aws
     -p 100 \
     -e smartseq2singlesample \
     -e arrays \
@@ -52,6 +50,9 @@ cromwell::build::run_centaur \
     -e scatter \
     -e long_cmd \
     -e runtwiceexpectingcallcaching \
-    -e cachewithinwf
+    -e cachewithinwf \
+    -e papi_v2alpha1_gcsa
 
+#     -i hello \
+#     -i mutect2.aws
 cromwell::build::generate_code_coverage

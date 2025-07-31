@@ -464,6 +464,7 @@ object BatchApiRequestManager {
 sealed trait BatchApiResponse extends Product with Serializable
 object BatchApiResponse {
   case class JobCreated(job: Job) extends BatchApiResponse
+  case class JobAlreadyExists(jobName: String) extends BatchApiResponse
   case class DeleteJobRequested(result: BatchAbortRequestSuccess) extends BatchApiResponse
   case class StatusQueried(status: RunStatus) extends BatchApiResponse
 }

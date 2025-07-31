@@ -36,7 +36,7 @@ import cromwell.backend.BackendSpec._
 import cromwell.backend.impl.aws.io.{AwsBatchJobPaths, AwsBatchWorkflowPaths, AwsBatchWorkingDisk}
 import cromwell.backend.validation.ContinueOnReturnCodeFlag
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.TestKitSuite
+import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import eu.timepit.refined.api.Refined
@@ -158,7 +158,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     None,
     None,
     None,
-    None
+    None,
+    WorkflowOptions(JsObject.empty)
   )
 
   val containerDetail: ContainerDetail = ContainerDetail.builder().exitCode(0).build()

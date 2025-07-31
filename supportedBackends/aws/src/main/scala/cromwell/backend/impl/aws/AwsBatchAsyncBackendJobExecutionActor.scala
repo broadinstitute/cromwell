@@ -1012,7 +1012,7 @@ class AwsBatchAsyncBackendJobExecutionActor(
     lastAttemptOpt
       .map { lastAttempt =>
         // if missing, set to failed.
-        val containerRC = Try(lastAttempt.container.exitCode).toOption.getOrElse(1)
+        val containerRC = Try(lastAttempt.container.exitCode).map(_.toInt).toOption.getOrElse(1)
 
         // if not zero => get reason, else set retry to false.
         containerRC.toString match {

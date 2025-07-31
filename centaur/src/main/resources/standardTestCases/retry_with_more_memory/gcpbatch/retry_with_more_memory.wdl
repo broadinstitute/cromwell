@@ -1,6 +1,9 @@
 version 1.0
 
 task imitate_oom_error {
+  meta {
+    volatile: true
+  }
   command {
     echo "$MEM_SIZE $MEM_UNIT"
 

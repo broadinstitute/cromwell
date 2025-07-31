@@ -34,6 +34,7 @@ package cromwell.backend.impl.aws
 import scala.collection.mutable.ListBuffer
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.io.JobPaths
+import cromwell.core.WorkflowOptions
 import software.amazon.awssdk.services.batch.model.{
   ContainerProperties,
   EvaluateOnExit,
@@ -57,6 +58,7 @@ import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
 import wdl4s.parser.MemoryUnit
 import wom.format.MemorySize
+import scala.util.Success
 
 /**
   * Responsible for the creation of the job definition.
@@ -185,14 +187,17 @@ trait AwsBatchJobDefinitionBuilder {
                   logGroupName: String,
                   sharedMemorySize: MemorySize,
                   fuseMount: Boolean,
-                  jobTimeout: Int
-    ): String =
+                  jobTimeout: Int,
+                  workflowOptions: WorkflowOptions
+    ): String = {
+      val roleArnStr = workflowOptions.getOrElse(AwsBatchWorkflowOptionKeys.JobRoleArn, "")
       s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env
           .map(_.toString)
           .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}:${tagResources.toString}:$logGroupName:${sharedMemorySize
           .to(MemoryUnit.MB)
           .amount
-          .toInt}:${fuseMount.toString}:${jobTimeout}"
+          .toInt}:${fuseMount.toString}:${jobTimeout}:$roleArnStr"
+    }
 
     val environment = List.empty[KeyValuePair]
     val cmdName = context.runtimeAttributes.fileSystem match {
@@ -230,7 +235,8 @@ trait AwsBatchJobDefinitionBuilder {
       logGroupName,
       context.runtimeAttributes.sharedMemorySize,
       context.runtimeAttributes.fuseMount,
-      context.runtimeAttributes.jobTimeout
+      context.runtimeAttributes.jobTimeout,
+      context.workflowOptions
     )
 
     val linuxParametersBuilder = LinuxParameters
@@ -254,31 +260,37 @@ trait AwsBatchJobDefinitionBuilder {
     // simple true / false for now, depending on a single attribute
     val privileged = context.runtimeAttributes.fuseMount
 
-    (ContainerProperties
-       .builder()
-       .image(context.runtimeAttributes.dockerImage)
-       .command(packedCommand.asJava)
-       .resourceRequirements(
-         ResourceRequirement
-           .builder()
-           .`type`(ResourceType.VCPU)
-           .value(context.runtimeAttributes.cpu.##.toString)
-           .build(),
-         ResourceRequirement
-           .builder()
-           .`type`(ResourceType.MEMORY)
-           .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
-           .build()
-       )
-       .logConfiguration(logConfiguration)
-       .volumes(volumes.asJava)
-       .mountPoints(mountPoints.asJava)
-       .environment(environment.asJava)
-       .ulimits(ulimits.asJava)
-       .linuxParameters(linuxParameters)
-       .privileged(privileged),
-     containerPropsName
-    )
+    val builderWithBasicProperties = ContainerProperties
+      .builder()
+      .image(context.runtimeAttributes.dockerImage)
+      .command(packedCommand.asJava)
+      .resourceRequirements(
+        ResourceRequirement
+          .builder()
+          .`type`(ResourceType.VCPU)
+          .value(context.runtimeAttributes.cpu.##.toString)
+          .build(),
+        ResourceRequirement
+          .builder()
+          .`type`(ResourceType.MEMORY)
+          .value(context.runtimeAttributes.memory.to(MemoryUnit.MB).amount.toInt.toString)
+          .build()
+      )
+      .logConfiguration(logConfiguration)
+      .volumes(volumes.asJava)
+      .mountPoints(mountPoints.asJava)
+      .environment(environment.asJava)
+      .ulimits(ulimits.asJava)
+      .linuxParameters(linuxParameters)
+      .privileged(privileged)
+
+    // Add job role ARN if specified
+    val finalBuilder = context.workflowOptions.get(AwsBatchWorkflowOptionKeys.JobRoleArn) match {
+      case Success(roleArn) => builderWithBasicProperties.jobRoleArn(roleArn)
+      case _ => builderWithBasicProperties
+    }
+
+    (finalBuilder, containerPropsName)
   }
 
   def retryStrategyBuilder(context: AwsBatchJobDefinitionContext): (RetryStrategy.Builder, String) = {
@@ -374,7 +386,8 @@ case class AwsBatchJobDefinitionContext(
   efsMntPoint: Option[String],
   efsMakeMD5: Option[Boolean],
   efsDelocalize: Option[Boolean],
-  tagResources: Option[Boolean]
+  tagResources: Option[Boolean],
+  workflowOptions: WorkflowOptions
 ) {
 
   override def toString: String =
@@ -393,5 +406,6 @@ case class AwsBatchJobDefinitionContext(
       .append("efsMakeMD5", efsMakeMD5)
       .append("efsDelocalize", efsDelocalize)
       .append("tagResources", tagResources)
+      .append("workflowOptions", workflowOptions)
       .build
 }

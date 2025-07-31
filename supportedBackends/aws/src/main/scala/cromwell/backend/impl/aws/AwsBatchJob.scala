@@ -809,7 +809,8 @@ final case class AwsBatchJob(
           efsMntPoint = efsMntPoint,
           efsMakeMD5 = efsMakeMD5,
           efsDelocalize = efsDelocalize,
-          tagResources = tagResources
+          tagResources = tagResources,
+          workflowOptions = jobDescriptor.workflowDescriptor.workflowOptions
         )
 
         val jobDefinitionBuilder = StandardAwsBatchJobDefinitionBuilder

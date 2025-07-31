@@ -21,6 +21,10 @@ cromwell::build::build_cromwell_docker
 export AWS_SHARED_CREDENTIALS_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_credentials
 export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
+# Get AWS credentials from Vault
+export AWS_ACCESS_KEY=$(vault read -field=access_key secret/dsde/cromwell/common/cromwell-aws)
+export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common/cromwell-aws)
+
 
 cromwell::build::run_centaur \
     -p 500 \

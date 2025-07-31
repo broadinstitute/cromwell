@@ -18,6 +18,11 @@ cromwell::build::assemble_jars
 export AWS_SHARED_CREDENTIALS_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_credentials
 export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
+# Get AWS credentials from Vault
+export AWS_ACCESS_KEY=$(vault read -field=access_key secret/dsde/cromwell/common/cromwell-aws)
+export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common/cromwell-aws)
+
+
 # "space" and "scatter" tests are disabled because hey intermittently fail on AWS
 # https://broadworkbench.atlassian.net/browse/BA-6152
 # NOTE! For some reason, exclusions must all be lower case even if the test name is a mixture of upper and lower

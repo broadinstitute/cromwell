@@ -10,11 +10,7 @@ import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked._
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{
-  BackendJobExecutionResponse,
-  JobAbortedResponse,
-  JobReconnectionNotSupportedException
-}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._
@@ -1433,31 +1429,11 @@ trait StandardAsyncExecutionActor
       } yield retryWithMoreMemory
     }
 
-    // get the exit code of the job.
-    def JobExitCode: Future[String] = {
-
-      // read if the file exists
-      def readRCFile(fileExists: Boolean): Future[String] =
-        if (fileExists)
-          asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
-        else {
-          jobLogger.warn("RC file not found. Setting job to failed & waiting 5m before retry.")
-          Thread.sleep(300000)
-          Future("1")
-        }
-      // finally : assign the yielded variable
-      for {
-        fileExists <- asyncIo.existsAsync(jobPaths.returnCode)
-        jobRC <- readRCFile(fileExists)
-      } yield jobRC
-    }
-
-    // get path to sderr
     val stderr = jobPaths.standardPaths.error
     lazy val stderrAsOption: Option[Path] = Option(stderr)
     // get the three needed variables, using functions above or direct assignment.
     val stderrSizeAndReturnCodeAndMemoryRetry = for {
-      returnCodeAsString <- JobExitCode
+      returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
       // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
       // may fail due to race conditions on quickly-executing jobs.
       stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)

@@ -10,7 +10,11 @@ import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked._
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
+import cromwell.backend.BackendJobExecutionActor.{
+  BackendJobExecutionResponse,
+  JobAbortedResponse,
+  JobReconnectionNotSupportedException
+}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._

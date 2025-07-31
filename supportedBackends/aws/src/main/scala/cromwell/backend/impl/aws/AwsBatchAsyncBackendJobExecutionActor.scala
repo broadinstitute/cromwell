@@ -248,6 +248,7 @@ class AwsBatchAsyncBackendJobExecutionActor(
       jobPaths,
       Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
+      jobDescriptor.workflowDescriptor.workflowOptions,
       Option(configuration.awsAuth),
       configuration.fsxMntPoint,
       configuration.efsMntPoint,

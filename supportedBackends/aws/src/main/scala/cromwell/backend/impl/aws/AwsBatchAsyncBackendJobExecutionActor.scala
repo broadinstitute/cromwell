@@ -188,6 +188,7 @@ class AwsBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       jobPaths,
       Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
+      jobDescriptor.workflowDescriptor.workflowOptions,
       Option(configuration.awsAuth)
     )
   /* Tries to abort the job in flight

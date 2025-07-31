@@ -35,7 +35,7 @@ import common.collections.EnhancedCollections._
 import cromwell.backend.{BackendJobDescriptorKey, BackendWorkflowDescriptor}
 import cromwell.backend.BackendSpec._
 import cromwell.backend.validation.ContinueOnReturnCodeFlag
-import cromwell.core.TestKitSuite
+import cromwell.core.{TestKitSuite, WorkflowOptions}
 import cromwell.util.SampleWdl
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.auto._
@@ -128,7 +128,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       Seq.empty[AwsBatchFileOutput].toSet,
       jobPaths,
       Seq.empty[AwsBatchParameter],
-      None
+      None,
+      WorkflowOptions(JsObject.empty)
     )
     job
   }
@@ -145,7 +146,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       Seq.empty[AwsBatchFileOutput].toSet,
       jobPaths,
       Seq.empty[AwsBatchParameter],
-      None
+      None,
+      WorkflowOptions(JsObject.empty)
     )
     job
   }
@@ -187,5 +189,94 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     kvPairs should contain(buildKVPair(job.AWS_RETRY_MODE, "adaptive"))
     kvPairs should contain(buildKVPair("BATCH_FILE_TYPE", "script"))
     kvPairs should contain(buildKVPair("BATCH_FILE_S3_URL", ""))
+  }
+
+  it should "use default script prefix when no workflow option is provided" in {
+    val job = generateBasicJob
+    job.scriptKeyPrefix should be("scripts/")
+  }
+
+  it should "use custom script prefix from workflow options" in {
+    val workflowOptionsWithPrefix = WorkflowOptions(
+      JsObject(
+        Map(
+          AwsBatchWorkflowOptionKeys.ScriptBucketPrefix -> JsString("my-project/workflow-123")
+        )
+      )
+    )
+
+    val job = AwsBatchJob(
+      null,
+      runtimeAttributes,
+      "commandLine",
+      script,
+      "/cromwell_root/hello-rc.txt",
+      "/cromwell_root/hello-stdout.log",
+      "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet,
+      Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths,
+      Seq.empty[AwsBatchParameter],
+      None,
+      workflowOptionsWithPrefix
+    )
+
+    job.scriptKeyPrefix should be("my-project/workflow-123/")
+  }
+
+  it should "handle empty script prefix from workflow options" in {
+    val workflowOptionsWithEmptyPrefix = WorkflowOptions(
+      JsObject(
+        Map(
+          AwsBatchWorkflowOptionKeys.ScriptBucketPrefix -> JsString("")
+        )
+      )
+    )
+
+    val job = AwsBatchJob(
+      null,
+      runtimeAttributes,
+      "commandLine",
+      script,
+      "/cromwell_root/hello-rc.txt",
+      "/cromwell_root/hello-stdout.log",
+      "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet,
+      Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths,
+      Seq.empty[AwsBatchParameter],
+      None,
+      workflowOptionsWithEmptyPrefix
+    )
+
+    job.scriptKeyPrefix should be("scripts/")
+  }
+
+  it should "preserve trailing slash in custom script prefix" in {
+    val workflowOptionsWithTrailingSlash = WorkflowOptions(
+      JsObject(
+        Map(
+          AwsBatchWorkflowOptionKeys.ScriptBucketPrefix -> JsString("my-project/scripts/")
+        )
+      )
+    )
+
+    val job = AwsBatchJob(
+      null,
+      runtimeAttributes,
+      "commandLine",
+      script,
+      "/cromwell_root/hello-rc.txt",
+      "/cromwell_root/hello-stdout.log",
+      "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet,
+      Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths,
+      Seq.empty[AwsBatchParameter],
+      None,
+      workflowOptionsWithTrailingSlash
+    )
+
+    job.scriptKeyPrefix should be("my-project/scripts/")
   }
 }

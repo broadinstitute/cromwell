@@ -40,7 +40,6 @@ import cromwell.core.WorkflowId
 import cromwell.services.ServicesSpec
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
-
 class AwsSnsMetadataServiceActorSpec extends ServicesSpec {
   import AwsSnsMetadataServiceActorSpec._
 
@@ -85,7 +84,6 @@ object AwsSnsMetadataServiceActorSpec {
     """.stripMargin
   )
 
-  val event: MetadataEvent = MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "key"),
-    Option(MetadataValue("value")), OffsetDateTime.now)
+  val event: MetadataEvent =
+    MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "key"), Option(MetadataValue("value")), OffsetDateTime.now)
 }
-

@@ -36,7 +36,6 @@ import com.typesafe.config.Config
 import cromwell.services.metadata.MetadataService.{PutMetadataAction, PutMetadataActionAndRespond}
 import cromwell.services.metadata.impl.MetadataServiceActor
 
-
 /**
   * A metadata service implementation which will function as a standard metadata service but also push all metadata
   * events to AWS EventBridge. This class closely follows the pattern established in the
@@ -69,9 +68,13 @@ import cromwell.services.metadata.impl.MetadataServiceActor
   *
   * @see cromwell.services.metadata.impl.aws.AwsEventBridgeMetadataServiceActor
   */
-class HybridEventBridgeMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging  {
-  val standardMetadataActor: ActorRef = context.actorOf(MetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor))
-  val awsEventBridgeMetadataActor: ActorRef = context.actorOf(AwsEventBridgeMetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor))
+class HybridEventBridgeMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends Actor
+    with ActorLogging {
+  val standardMetadataActor: ActorRef =
+    context.actorOf(MetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor))
+  val awsEventBridgeMetadataActor: ActorRef =
+    context.actorOf(AwsEventBridgeMetadataServiceActor.props(serviceConfig, globalConfig, serviceRegistryActor))
 
   override def receive = {
     case action: PutMetadataAction =>
@@ -83,4 +86,3 @@ class HybridEventBridgeMetadataServiceActor(serviceConfig: Config, globalConfig:
     case anythingElse => standardMetadataActor forward anythingElse
   }
 }
-

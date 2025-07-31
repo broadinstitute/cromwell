@@ -36,7 +36,12 @@ import java.io.IOException
 import akka.actor.ActorRef
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
-import software.amazon.awssdk.services.secretsmanager.model.{CreateSecretRequest, SecretsManagerException, SecretListEntry, UpdateSecretRequest}
+import software.amazon.awssdk.services.secretsmanager.model.{
+  CreateSecretRequest,
+  SecretListEntry,
+  SecretsManagerException,
+  UpdateSecretRequest
+}
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.backend.standard.{
   StandardInitializationActor,
@@ -106,7 +111,7 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
     configureClient(builder, Option(configuration.awsAuth), configuration.awsConfig.region)
   }
 
-  private def storePrivateDockerToken(token: String) = {
+  private def storePrivateDockerToken(token: String) =
     try {
 
       val secretName: String = "cromwell/credentials/dockerhub"
@@ -115,8 +120,9 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
       // If exists, update it otherwise create it
       val secretsList: List[SecretListEntry] = secretsClient.listSecrets().secretList().asScala.toList
 
-      if(secretsList.exists(_.name == secretName)){
-        val secretRequest: UpdateSecretRequest = UpdateSecretRequest.builder()
+      if (secretsList.exists(_.name == secretName)) {
+        val secretRequest: UpdateSecretRequest = UpdateSecretRequest
+          .builder()
           .secretId(secretName)
           .secretString(token)
           .build();
@@ -125,7 +131,8 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
 
         Log.info(s"Secret '$secretName' was updated.")
       } else {
-        val secretRequest: CreateSecretRequest = CreateSecretRequest.builder()
+        val secretRequest: CreateSecretRequest = CreateSecretRequest
+          .builder()
           .name(secretName)
           .secretString(token)
           .build()
@@ -134,22 +141,24 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
 
         Log.info(s"Secret '$secretName' was created.")
       }
-    }
-    catch {
+    } catch {
       case e: SecretsManagerException => Log.warn(e.awsErrorDetails().errorMessage())
     }
-  }
 
   val privateDockerUnencryptedToken: Option[String] = configuration.dockerToken flatMap { dockerToken =>
     new String(Base64.decodeBase64(dockerToken)).split(':') match {
       case Array(username, password) =>
         // unencrypted tokens are base64-encoded username:password
-        Option(JsObject(
-          Map(
-            "username" -> JsString(username),
-            "password" -> JsString(password)
-          )).compactPrint)
-      case _ => throw new RuntimeException(s"provided dockerhub token '$dockerToken' is not a base64-encoded username:password")
+        Option(
+          JsObject(
+            Map(
+              "username" -> JsString(username),
+              "password" -> JsString(password)
+            )
+          ).compactPrint
+        )
+      case _ =>
+        throw new RuntimeException(s"provided dockerhub token '$dockerToken' is not a base64-encoded username:password")
     }
   }
 

@@ -40,7 +40,6 @@ import cromwell.core.WorkflowId
 import cromwell.services.ServicesSpec
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataValue}
 
-
 class AwsEventBridgeMetadataServiceActorSpec extends ServicesSpec {
   import AwsEventBridgeMetadataServiceActorSpec._
 
@@ -60,7 +59,8 @@ class AwsEventBridgeMetadataServiceActorSpec extends ServicesSpec {
     }
 
     "process an event" in {
-      val actor = system.actorOf(Props(new AwsEventBridgeMetadataServiceActor(configWithBus, emptyConfig, registryProbe)))
+      val actor =
+        system.actorOf(Props(new AwsEventBridgeMetadataServiceActor(configWithBus, emptyConfig, registryProbe)))
       actor ! event
     }
   }
@@ -85,7 +85,6 @@ object AwsEventBridgeMetadataServiceActorSpec {
     """.stripMargin
   )
 
-  val event: MetadataEvent = MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "key"),
-    Option(MetadataValue("value")), OffsetDateTime.now)
+  val event: MetadataEvent =
+    MetadataEvent(MetadataKey(WorkflowId.randomId(), None, "key"), Option(MetadataValue("value")), OffsetDateTime.now)
 }
-

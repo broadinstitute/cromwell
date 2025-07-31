@@ -75,7 +75,8 @@ class NioFlow(parallelism: Int,
       case hashCommand: IoHashCommand => hash(hashCommand) map hashCommand.success
       case touchCommand: IoTouchCommand => touch(touchCommand) map touchCommand.success
       case existsCommand: IoExistsCommand => exists(existsCommand) map existsCommand.success
-      case existsOrThrowCommand: IoExistsOrThrowCommand => existsOrThrow(existsOrThrowCommand) map existsOrThrowCommand.success
+      case existsOrThrowCommand: IoExistsOrThrowCommand =>
+        existsOrThrow(existsOrThrowCommand) map existsOrThrowCommand.success
       case noopCommand: IoNoopCommand => noop(noopCommand) map noopCommand.success
       case readLinesCommand: IoReadLinesCommand => readLines(readLinesCommand) map readLinesCommand.success
       case isDirectoryCommand: IoIsDirectoryCommand => isDirectory(isDirectoryCommand) map isDirectoryCommand.success

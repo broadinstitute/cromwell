@@ -95,7 +95,7 @@ class IoCommandBuilder(partialBuilders: List[PartialIoCommandBuilder] = List.emp
 
   def existsOrThrowCommand(file: Path): Try[IoExistsOrThrowCommand] =
     buildOrDefault(_.existsOrThrowCommand, file, DefaultIoExistsOrThrowCommand(file))
-    
+
   def noopCommand(file: Path): Try[IoNoopCommand] =
     buildOrDefault(_.noopCommand, file, DefaultIoNoopCommand(file))
 

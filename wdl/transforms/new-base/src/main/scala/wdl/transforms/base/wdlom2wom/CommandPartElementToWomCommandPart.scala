@@ -11,7 +11,7 @@ import wdl.transforms.base.linking.graph.LinkedGraphMaker
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wom.expression.{IoFunctionSet, WomExpression}
 import wom.graph.LocalName
-import wom.types.{WomArrayType, WomOptionalType,  WomPrimitiveType, WomType}
+import wom.types.{WomArrayType, WomOptionalType, WomPrimitiveType, WomType}
 import wom.values.{WomArray, WomBoolean, WomOptionalValue, WomPrimitive, WomValue}
 import wom.{CommandPart, InstantiatedCommand}
 import wdl.model.draft3.graph.ExpressionValueConsumer.ops._

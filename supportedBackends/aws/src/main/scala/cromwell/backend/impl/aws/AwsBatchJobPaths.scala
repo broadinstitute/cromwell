@@ -36,7 +36,6 @@ import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
 import cromwell.core.JobKey
 
-
 object AwsBatchJobPaths {
   val AwsBatchLogPathKey = "cromwellLog"
   val AwsBatchMonitoringKey = "monitoring"
@@ -79,6 +78,6 @@ final case class AwsBatchJobPaths(override val workflowPaths: AwsBatchWorkflowPa
       else ""
 
     List(call, shard, retryOrCallCache).foldLeft(root)((path, dir) => path.resolve(dir))
-    
-  }  
+
+  }
 }

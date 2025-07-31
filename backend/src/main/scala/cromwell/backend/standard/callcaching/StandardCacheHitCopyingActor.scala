@@ -327,7 +327,7 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
 
   private def logCacheHitWriteCommand(command: IoWriteCommand): Unit =
     log.info(s"BT-322 {} cache write hit for file : {}", jobTag, command.toString)
-                                
+
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap): State = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter
     serviceRegistryActor.putMetadata(jobDescriptor.workflowDescriptor.id,

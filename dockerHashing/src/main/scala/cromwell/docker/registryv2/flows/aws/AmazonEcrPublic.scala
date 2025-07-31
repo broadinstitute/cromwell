@@ -9,10 +9,9 @@ import software.amazon.awssdk.services.ecrpublic.model.GetAuthorizationTokenRequ
 
 import scala.concurrent.Future
 
-
-class AmazonEcrPublic(override val config: DockerRegistryConfig, ecrClient: EcrPublicClient = EcrPublicClient.create()) extends AmazonEcrAbstract(config) {
- private val logger: Logger = LoggerFactory.getLogger(this.getClass)
-
+class AmazonEcrPublic(override val config: DockerRegistryConfig, ecrClient: EcrPublicClient = EcrPublicClient.create())
+    extends AmazonEcrAbstract(config) {
+  private val logger: Logger = LoggerFactory.getLogger(this.getClass)
 
   /**
     * public.ecr.aws
@@ -23,15 +22,19 @@ class AmazonEcrPublic(override val config: DockerRegistryConfig, ecrClient: EcrP
     * Returns true if this flow is able to process this docker image,
     * false otherwise
     */
-  override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean = dockerImageIdentifier.hostAsString.contains("public.ecr.aws")
+  override def accepts(dockerImageIdentifier: DockerImageIdentifier): Boolean =
+    dockerImageIdentifier.hostAsString.contains("public.ecr.aws")
 
-
-  override protected def getToken(dockerInfoContext: DockerInfoActor.DockerInfoContext)(implicit client: Client[IO]): IO[Option[String]] = {
+  override protected def getToken(
+    dockerInfoContext: DockerInfoActor.DockerInfoContext
+  )(implicit client: Client[IO]): IO[Option[String]] = {
     logger.info("obtaining access token for '{}'", dockerInfoContext.dockerImageID.fullName)
     val eventualMaybeToken: Future[Option[String]] = Future(
-      Option(ecrClient
-        .getAuthorizationToken(GetAuthorizationTokenRequest.builder().build())
-        .authorizationData.authorizationToken()
+      Option(
+        ecrClient
+          .getAuthorizationToken(GetAuthorizationTokenRequest.builder().build())
+          .authorizationData
+          .authorizationToken()
       )
     )
 

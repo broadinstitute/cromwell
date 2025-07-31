@@ -38,7 +38,12 @@ import com.typesafe.config.Config
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.services.metadata.MetadataEvent
-import cromwell.services.metadata.MetadataService.{MetadataWriteFailure, MetadataWriteSuccess, PutMetadataAction, PutMetadataActionAndRespond}
+import cromwell.services.metadata.MetadataService.{
+  MetadataWriteFailure,
+  MetadataWriteSuccess,
+  PutMetadataAction,
+  PutMetadataActionAndRespond
+}
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProviderChain
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sns.SnsClient
@@ -48,7 +53,6 @@ import spray.json.enrichAny
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success, Try}
 
-
 /**
   * An actor that publishes metadata events to AWS SNS
   * @param serviceConfig the source of service config information
@@ -56,10 +60,12 @@ import scala.util.{Failure, Success, Try}
   * @param serviceRegistryActor the actor for registering services
   * @see cromwell.services.metadata.impl.sns.HybridSnsMetadataServiceActor
   */
-class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef) extends Actor with ActorLogging {
+class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends Actor
+    with ActorLogging {
   implicit val ec: ExecutionContextExecutor = context.dispatcher
 
-  //setup sns client
+  // setup sns client
   val topicArn: String = serviceConfig.getString("aws.topicArn")
   val publishStatusOnly: Boolean = Try(serviceConfig.getBoolean("aws.publishStatusOnly")) match {
     case Failure(_) => false
@@ -68,9 +74,10 @@ class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 
   val awsConfig: AwsConfiguration = AwsConfiguration(globalConfig)
   val credentialsProviderChain: AwsCredentialsProviderChain =
-    AwsCredentialsProviderChain.of(awsConfig.authsByName.values.map(_.provider()).toSeq :_*)
+    AwsCredentialsProviderChain.of(awsConfig.authsByName.values.map(_.provider()).toSeq: _*)
 
-  lazy val snsClient: SnsClient = SnsClient.builder()
+  lazy val snsClient: SnsClient = SnsClient
+    .builder()
     .region(awsConfig.region.getOrElse(Region.US_EAST_1))
     .credentialsProvider(credentialsProviderChain)
     .build()
@@ -83,11 +90,12 @@ class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
     } else {
       events.toJson
     }
-    //if there are no events then don't publish anything
-    if( eventsJson.length < 1) { return Future(())}
+    // if there are no events then don't publish anything
+    if (eventsJson.length < 1) { return Future(()) }
     log.debug(f"Publishing to $topicArn : $eventsJson")
 
-    val message = PublishRequest.builder()
+    val message = PublishRequest
+      .builder()
       .message("[" + eventsJson.mkString(",") + "]")
       .topicArn(topicArn)
       .subject("cromwell-metadata-event")
@@ -99,9 +107,11 @@ class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
     }
 
     Future {
-      snsClient.publish(message
-        .build())
-      () //return unit
+      snsClient.publish(
+        message
+          .build()
+      )
+      () // return unit
     }
   }
 
@@ -119,9 +129,9 @@ class AwsSnsMetadataServiceActor(serviceConfig: Config, globalConfig: Config, se
 }
 
 object AwsSnsMetadataServiceActor {
-  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef): Props = {
-    Props(new AwsSnsMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor)).withDispatcher(ServiceDispatcher)
-  }
+  def props(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef): Props =
+    Props(new AwsSnsMetadataServiceActor(serviceConfig, globalConfig, serviceRegistryActor))
+      .withDispatcher(ServiceDispatcher)
 
   implicit class EnhancedMetadataEvents(val e: Iterable[MetadataEvent]) extends AnyVal {
     import cromwell.services.metadata.MetadataJsonSupport._
@@ -129,4 +139,3 @@ object AwsSnsMetadataServiceActor {
     def toJson: Seq[String] = e.map(_.toJson.toString()).toSeq
   }
 }
-

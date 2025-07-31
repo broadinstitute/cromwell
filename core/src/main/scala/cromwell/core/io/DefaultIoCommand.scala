@@ -63,7 +63,7 @@ object DefaultIoCommand {
   case class DefaultIoNoopCommand(override val file: Path) extends IoNoopCommand(file) {
     override def commandDescription: String = s"DefaultIoNoopCommand file '$file'"
   }
-  
+
   case class DefaultIoReadLinesCommand(override val file: Path) extends IoReadLinesCommand(file) {
     override def commandDescription: String = s"DefaultIoReadLinesCommand file '$file'"
   }

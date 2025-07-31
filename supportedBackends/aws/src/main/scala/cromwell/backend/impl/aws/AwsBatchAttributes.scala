@@ -196,11 +196,11 @@ object AwsBatchAttributes {
         case false => None
       }
     }
-    // from config if set: 
-    val tagResources:ErrorOr[Option[Boolean]] = validate {
-        backendConfig.hasPath("default-runtime-attributes.tagResources") match {
-            case true => Some(backendConfig.getBoolean("default-runtime-attributes.tagResources"))
-            case false => None
+    // from config if set:
+    val tagResources: ErrorOr[Option[Boolean]] = validate {
+      backendConfig.hasPath("default-runtime-attributes.tagResources") match {
+        case true => Some(backendConfig.getBoolean("default-runtime-attributes.tagResources"))
+        case false => None
       }
     }
     // from config if set.

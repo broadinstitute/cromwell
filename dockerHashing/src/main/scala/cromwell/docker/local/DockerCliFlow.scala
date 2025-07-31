@@ -113,10 +113,10 @@ object DockerCliFlow {
   private def cliKeyFromImageId(context: DockerInfoContext): DockerCliKey = {
     val imageId = context.dockerImageID
     // private aws ECR does not have library, check for ECR in docker host.
-    if ( imageId.hostAsString.matches(raw"\d+\.dkr\.ecr\..+\.amazonaws\.com/") ) {
-       val repository = s"${imageId.hostAsString}${imageId.image}"
-       val tag = imageId.reference
-       DockerCliKey(repository, tag)
+    if (imageId.hostAsString.matches(raw"\d+\.dkr\.ecr\..+\.amazonaws\.com/")) {
+      val repository = s"${imageId.hostAsString}${imageId.image}"
+      val tag = imageId.reference
+      DockerCliKey(repository, tag)
     } else {
       (imageId.host, imageId.repository) match {
         case (None, None) =>
@@ -129,8 +129,8 @@ object DockerCliFlow {
           val repository = s"${imageId.hostAsString}${imageId.nameWithDefaultRepository}"
           val tag = imageId.reference
           DockerCliKey(repository, tag)
-      
-       }
+
+      }
     }
   }
 }

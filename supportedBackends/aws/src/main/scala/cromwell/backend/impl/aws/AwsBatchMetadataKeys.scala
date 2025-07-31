@@ -39,6 +39,6 @@ object AwsBatchMetadataKeys {
   val MonitoringLog = "monitoringLog"
   val LogStreamName = "logConfig:logStreamName"
   val LogGroupName = "logConfig:logGroupName"
-  //val JobStatusReason = "jobStatusReason"
+  // val JobStatusReason = "jobStatusReason"
   val LogStreamRegion = "logConfig:region"
 }

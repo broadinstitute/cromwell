@@ -69,7 +69,7 @@ object AwsBatchVolume {
         s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
 
     }
-    
+
     Try(validation match {
       case Valid(localDisk) => localDisk
       case Invalid(nels) =>

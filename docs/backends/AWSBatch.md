@@ -123,7 +123,7 @@ Include this option in your workflow options JSON file:
 - When you specify a prefix, scripts will be stored directly at that prefix location
 - The prefix should include any subfolder structure you want (including `/scripts` if desired)
 - If no prefix is specified or an empty string is provided, the default `scripts/` location is used
-- A trailing slash will be added automatically if not present
+- A trailing slash will be added automatically if not present to ensure proper S3 key formation (e.g., `my-prefix` becomes `my-prefix/`)
 
 **Example:**
 If your `scriptBucketName` is configured as `my-cromwell-scripts` and you set:

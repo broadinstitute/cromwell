@@ -197,6 +197,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
   }
 
   it should "use custom script prefix from workflow options" in {
+    // Test that a custom prefix is used as-is, with a trailing slash automatically added
     val workflowOptionsWithPrefix = WorkflowOptions(
       JsObject(
         Map(
@@ -221,6 +222,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       workflowOptionsWithPrefix
     )
 
+    // Verify the trailing slash is added to ensure proper S3 key formation
     job.scriptKeyPrefix should be("my-project/workflow-123/")
   }
 
@@ -253,6 +255,10 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
   }
 
   it should "preserve trailing slash in custom script prefix" in {
+    // Test that if a user provides a trailing slash, we don't add another one.
+    // This is important because the script key (MD5 hash) is concatenated directly to the prefix.
+    // We want "my-project/scripts/" + "abc123" = "my-project/scripts/abc123"
+    // NOT "my-project/scripts//" + "abc123" = "my-project/scripts//abc123"
     val workflowOptionsWithTrailingSlash = WorkflowOptions(
       JsObject(
         Map(
@@ -277,6 +283,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       workflowOptionsWithTrailingSlash
     )
 
+    // Verify that the existing trailing slash is preserved (not doubled)
     job.scriptKeyPrefix should be("my-project/scripts/")
   }
 }

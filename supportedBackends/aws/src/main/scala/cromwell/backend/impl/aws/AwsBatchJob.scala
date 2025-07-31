@@ -99,6 +99,9 @@ final case class AwsBatchJob(
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
 
   // this will be the "folder" that scripts will live in (underneath the script bucket)
+  // IMPORTANT: We always ensure a trailing slash exists because the script key (MD5 hash) is concatenated
+  // directly to this prefix throughout the code (e.g., scriptKeyPrefix + key). Without the trailing slash,
+  // we'd get malformed S3 keys like "my-projectabc123" instead of "my-project/abc123".
   val scriptKeyPrefix: String = workflowOptions.getOrElse(AwsBatchWorkflowOptionKeys.ScriptBucketPrefix, "") match {
     case "" => "scripts/"
     case prefix => if (prefix.endsWith("/")) prefix else s"$prefix/"

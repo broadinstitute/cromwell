@@ -143,9 +143,3 @@ Or for a custom structure without the `scripts` subfolder:
 ```
 
 Scripts will be stored at: `s3://my-cromwell-scripts/workflows/2024/genomics-pipeline/[script-hash]`
-
-**Benefits:**
-- **Organization**: Group scripts by workflow, project, team, or any other logical structure
-- **Access Control**: Easier to implement S3 bucket policies based on prefixes
-- **Cleanup**: Simpler to identify and remove old workflow scripts
-- **Multi-tenancy**: Different teams or projects can have isolated script locations

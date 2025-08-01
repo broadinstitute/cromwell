@@ -39,6 +39,7 @@ import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
 import cromwell.backend.io.JobPaths
 import cromwell.cloudsupport.aws.auth.AwsAuthMode
+import cromwell.core.WorkflowOptions
 import fs2.Stream
 import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
@@ -86,6 +87,7 @@ final case class AwsBatchJob(
   jobPaths: JobPaths, // Based on config, calculated in Job Paths, key to all things outside container
   parameters: Seq[AwsBatchParameter],
   configRegion: Option[Region],
+  workflowOptions: WorkflowOptions,
   optAwsAuthMode: Option[AwsAuthMode] = None,
   fsxMntPoint: Option[List[String]],
   efsMntPoint: Option[String],
@@ -98,7 +100,13 @@ final case class AwsBatchJob(
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
   // this will be the "folder" that scripts will live in (underneath the script bucket)
-  val scriptKeyPrefix = "scripts/"
+  // IMPORTANT: We always ensure a trailing slash exists because the script key (MD5 hash) is concatenated
+  // directly to this prefix throughout the code (e.g., scriptKeyPrefix + key). Without the trailing slash,
+  // we'd get malformed S3 keys like "my-projectabc123" instead of "my-project/abc123".
+  val scriptKeyPrefix: String = workflowOptions.getOrElse(AwsBatchWorkflowOptionKeys.ScriptBucketPrefix, "") match {
+    case "" => "scripts/"
+    case prefix => if (prefix.endsWith("/")) prefix else s"$prefix/"
+  }
 
   lazy val batchClient: BatchClient = {
     val builder = BatchClient.builder()

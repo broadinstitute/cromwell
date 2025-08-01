@@ -179,6 +179,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths,
       Seq.empty[AwsBatchParameter],
       None,
+      WorkflowOptions(JsObject.empty),
       None,
       None,
       None,
@@ -205,6 +206,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths,
       Seq.empty[AwsBatchParameter],
       None,
+      WorkflowOptions(JsObject.empty),
       None,
       None,
       None,
@@ -231,6 +233,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths,
       Seq.empty[AwsBatchParameter],
       None,
+      WorkflowOptions(JsObject.empty),
       None,
       None,
       None,
@@ -614,6 +617,126 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     val actual = jobDefinition.containerProperties.linuxParameters()
     val expected = LinuxParameters.builder().sharedMemorySize(100).build()
     expected should equal(actual)
+  }
+
+  it should "use default script prefix when no workflow option is provided" in {
+    val job = generateBasicJob
+    job.scriptKeyPrefix should be("scripts/")
+  }
+
+  it should "use custom script prefix from workflow options" in {
+    // Test that a custom prefix is used as-is, with a trailing slash automatically added
+    val workflowOptionsWithPrefix = WorkflowOptions(
+      JsObject(
+        Map(
+          AwsBatchWorkflowOptionKeys.ScriptBucketPrefix -> JsString("my-project/workflow-123")
+        )
+      )
+    )
+
+    val job = AwsBatchJob(
+      null,
+      runtimeAttributes,
+      "commandLine",
+      script,
+      "/cromwell_root/hello-rc.txt",
+      "/cromwell_root/hello-stdout.log",
+      "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet,
+      Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths,
+      Seq.empty[AwsBatchParameter],
+      None,
+      workflowOptionsWithPrefix,
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      "",
+      Map.empty
+    )
+
+    // Verify the trailing slash is added to ensure proper S3 key formation
+    job.scriptKeyPrefix should be("my-project/workflow-123/")
+  }
+
+  it should "handle empty script prefix from workflow options" in {
+    val workflowOptionsWithEmptyPrefix = WorkflowOptions(
+      JsObject(
+        Map(
+          AwsBatchWorkflowOptionKeys.ScriptBucketPrefix -> JsString("")
+        )
+      )
+    )
+
+    val job = AwsBatchJob(
+      null,
+      runtimeAttributes,
+      "commandLine",
+      script,
+      "/cromwell_root/hello-rc.txt",
+      "/cromwell_root/hello-stdout.log",
+      "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet,
+      Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths,
+      Seq.empty[AwsBatchParameter],
+      None,
+      workflowOptionsWithEmptyPrefix,
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      "",
+      Map.empty
+    )
+
+    job.scriptKeyPrefix should be("scripts/")
+  }
+
+  it should "preserve trailing slash in custom script prefix" in {
+    // Test that if a user provides a trailing slash, we don't add another one.
+    // This is important because the script key (MD5 hash) is concatenated directly to the prefix.
+    // We want "my-project/scripts/" + "abc123" = "my-project/scripts/abc123"
+    // NOT "my-project/scripts//" + "abc123" = "my-project/scripts//abc123"
+    val workflowOptionsWithTrailingSlash = WorkflowOptions(
+      JsObject(
+        Map(
+          AwsBatchWorkflowOptionKeys.ScriptBucketPrefix -> JsString("my-project/scripts/")
+        )
+      )
+    )
+
+    val job = AwsBatchJob(
+      null,
+      runtimeAttributes,
+      "commandLine",
+      script,
+      "/cromwell_root/hello-rc.txt",
+      "/cromwell_root/hello-stdout.log",
+      "/cromwell_root/hello-stderr.log",
+      Seq.empty[AwsBatchInput].toSet,
+      Seq.empty[AwsBatchFileOutput].toSet,
+      jobPaths,
+      Seq.empty[AwsBatchParameter],
+      None,
+      workflowOptionsWithTrailingSlash,
+      None,
+      None,
+      None,
+      None,
+      None,
+      None,
+      "",
+      Map.empty
+    )
+
+    // Verify that the existing trailing slash is preserved (not doubled)
+    job.scriptKeyPrefix should be("my-project/scripts/")
   }
 }
 

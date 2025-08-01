@@ -19,7 +19,7 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 export AWS_ACCESS_KEY=$(vault read -field=access_key secret/dsde/cromwell/common/cromwell-aws)
 export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common/cromwell-aws)
 
-# TODO (AN-710) Add back some of these tests (space, scatter, docker_hash_dockerhub)
+# TODO (AN-710) Add back some of these tests (space, scatter, docker_hash_dockerhub, awswdlresultscopying etc.)
 cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
@@ -32,21 +32,8 @@ cromwell::build::run_centaur \
     -e scatter \
     -e runtwiceexpectingcallcaching \
     -e papi_v2alpha1_gcsa \
-    -e docker_hash_dockerhub
-# TODO (AN-710) Add back this test
-
-#    -e smartseq2singlesample \
- #    -e arrays \
- #    -e haplotypecaller \
- #    -e jointdiscovery \
- #    -e mutect2 \
- #    -e singlesample \
- #    -e singlesample_production \
- #    -e cnv_somatic_pair \
- #    -e cnv_somatic_panel \
-#     -e non_root_default_user \
-#     -e non_root_specified_user \
-#     -e cachewithinwf \
-#     -e long_cmd \
+    -e docker_hash_dockerhub \
+    -e awswdlresultscopying \
+    -e awswdlresultscopyingrelative
 
 cromwell::build::generate_code_coverage

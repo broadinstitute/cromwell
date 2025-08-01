@@ -500,14 +500,12 @@ trait StandardAsyncExecutionActor
           |touch $stdoutRedirection $stderrRedirection
           |tee $stdoutRedirection < "$$$out" &
           |tee $stderrRedirection < "$$$err" >&2 &
-          |set -x
           |(
           |cd ${cwd.pathAsString}
           |ENVIRONMENT_VARIABLES
           |INSTANTIATED_COMMAND
           |) $stdinRedirection > "$$$out" 2> "$$$err"
           |echo $$? > $rcTmpPath
-          |set +x
           |$emptyDirectoryFillCommand
           |(
           |cd ${cwd.pathAsString}

@@ -11,7 +11,7 @@
 * Job IDs will be derived from workflow and call details with a hash generated using call name. 
 This will allow for better grouping of jobs in the Batch UI and ensure deterministic job IDs to prevent duplicates upon Cromwell restart. Example of job ID: `job-e21cbbd3-scatterworkflowmytask-2-1-175f647b`. 
 * Jobs that fail with exit code 50002 before even getting to RUNNING state will now be eligible for automatic transient retries.
-* Set a timeout of 24 hours for many runnables in Batch jobs. This prevents jobs from hanging indefinitely when localization or other setup steps fail. User command runnables are not affected.
+* Set a timeout of 24 hours for many runnables in Batch jobs. This prevents excess spend when localization or other setup steps hang. User command runnables are not affected.
 
 ### AWS Batch
 * Added support for specifying an IAM role for AWS Batch job containers via the `aws_batch_job_role_arn` workflow option. This allows containers to access AWS resources based on the permissions granted to the specified role.

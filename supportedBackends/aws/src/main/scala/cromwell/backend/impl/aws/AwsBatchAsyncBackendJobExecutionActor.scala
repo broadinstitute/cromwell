@@ -1012,7 +1012,8 @@ class AwsBatchAsyncBackendJobExecutionActor(
     lastAttemptOpt
       .map { lastAttempt =>
         // if missing, set to failed.
-        val containerRC = Try(lastAttempt.container.exitCode).map(_.toInt).toOption.getOrElse(1)
+        // Guard against either container or exitCode being null.
+        val containerRC = Option(lastAttempt.container).flatMap(e => Option(e.exitCode)).map(_.toInt).getOrElse(1)
 
         // if not zero => get reason, else set retry to false.
         containerRC.toString match {
@@ -1025,8 +1026,9 @@ class AwsBatchAsyncBackendJobExecutionActor(
           case _ =>
             // failed job due to command errors (~ user errors) don't have a container exit reason.
             val containerStatusReason: String = {
-              // if no attempts were made (rare) : container is null:
-              val lastReason = Try(lastAttempt.container.reason).toOption
+              // if no attempts were made (rare) : container is null.
+              // Guard against either container or reason being null.
+              val lastReason = Option(lastAttempt.container).flatMap(r => Option(r.reason))
               if (lastReason.isEmpty) {
                 log.debug("No exit reason found for container.")
               } else {

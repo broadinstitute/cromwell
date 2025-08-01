@@ -230,7 +230,7 @@ object RunnableBuilder extends BatchUtilityConversions {
       flags,
       labels = runnableLabels collect {
         case (key, value) if key == Key.Tag => Key.Logging -> value
-        case (key, value) => key -> value,
+        case (key, value) => key -> value
       },
       timeout = 30.minutes
     )

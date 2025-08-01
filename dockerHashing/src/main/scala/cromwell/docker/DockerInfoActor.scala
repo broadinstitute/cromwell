@@ -244,8 +244,10 @@ object DockerInfoActor {
       ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) }),
       ("ecr", { c: DockerRegistryConfig => new AmazonEcr(c) }),
       ("ecr-public", { c: DockerRegistryConfig => new AmazonEcrPublic(c) })
-    ).traverse[ErrorOr, DockerRegistry] { case (configPath, constructor) =>
-      DockerRegistryConfig.fromConfig(config.as[Config](configPath)).map(constructor)
-    }.unsafe("Docker registry configuration")
+    ).filter(r => config.hasPath(r._1)) // Ignore registries that don't appear in config
+      .traverse[ErrorOr, DockerRegistry] { case (configPath, constructor) =>
+        DockerRegistryConfig.fromConfig(config.as[Config](configPath)).map(constructor)
+      }
+      .unsafe("Docker registry configuration")
   }
 }

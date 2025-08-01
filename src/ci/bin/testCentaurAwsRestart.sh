@@ -5,14 +5,10 @@ export CROMWELL_BUILD_REQUIRES_SECURE=true
 # import in shellcheck / CI / IntelliJ compatible ways
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
-# shellcheck source=/dev/null
-source "${BASH_SOURCE%/*}/test_aws.inc.sh" || source test_aws.inc.sh
 
 cromwell::build::setup_common_environment
 
 cromwell::build::setup_centaur_environment
-
-#cromwell::build::batch::setup_aws_centaur_environment
 
 cromwell::build::assemble_jars
 

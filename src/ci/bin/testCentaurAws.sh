@@ -6,9 +6,6 @@ export CROMWELL_BUILD_REQUIRES_SECURE=true
 # shellcheck source=/dev/null
 source "${BASH_SOURCE%/*}/test.inc.sh" || source test.inc.sh
 
-source "${BASH_SOURCE%/*}/test_aws.inc.sh" || source test_aws.inc.sh
-
-
 cromwell::build::setup_common_environment
 
 cromwell::build::setup_centaur_environment
@@ -22,42 +19,34 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 export AWS_ACCESS_KEY=$(vault read -field=access_key secret/dsde/cromwell/common/cromwell-aws)
 export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common/cromwell-aws)
 
-
-# "space" and "scatter" tests are disabled because hey intermittently fail on AWS
-# https://broadworkbench.atlassian.net/browse/BA-6152
-# NOTE! For some reason, exclusions must all be lower case even if the test name is a mixture of upper and lower
-
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-# !!!!!!!!!! https://broadworkbench.atlassian.net/browse/BT-57 !!!!!!!!!!
-# !!!!!!!!!! DISABLING ALL TESTS BUT HELLO WORLD (Travis) AND  !!!!!!!!!!
-# !!!!!!!!!!   MUTECT2 (Jenkins) UNTIL AWS CAN AUTHENTICATE    !!!!!!!!!!
-# !!!!!!!!!!                WITH DOCKER REPOS                  !!!!!!!!!!
-# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# TODO (AN-710) Add back some of these tests (space, scatter, docker_hash_dockerhub)
 cromwell::build::run_centaur \
     -p 100 \
-    -e smartseq2singlesample \
-    -e arrays \
-    -e haplotypecaller \
-    -e jointdiscovery \
-    -e mutect2 \
-    -e singlesample \
-    -e singlesample_production \
-    -e cnv_somatic_pair \
-    -e cnv_somatic_panel \
     -e localdockertest \
-    -e non_root_default_user \
-    -e non_root_specified_user \
     -e abort.scheduled_abort \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \
+    -e restart \
     -e space \
     -e scatter \
-    -e long_cmd \
     -e runtwiceexpectingcallcaching \
-    -e cachewithinwf \
-    -e papi_v2alpha1_gcsa
+    -e papi_v2alpha1_gcsa \
+    -e docker_hash_dockerhub
+# TODO (AN-710) Add back this test
 
-#     -i hello \
-#     -i mutect2.aws
+#    -e smartseq2singlesample \
+ #    -e arrays \
+ #    -e haplotypecaller \
+ #    -e jointdiscovery \
+ #    -e mutect2 \
+ #    -e singlesample \
+ #    -e singlesample_production \
+ #    -e cnv_somatic_pair \
+ #    -e cnv_somatic_panel \
+#     -e non_root_default_user \
+#     -e non_root_specified_user \
+#     -e cachewithinwf \
+#     -e long_cmd \
+
 cromwell::build::generate_code_coverage

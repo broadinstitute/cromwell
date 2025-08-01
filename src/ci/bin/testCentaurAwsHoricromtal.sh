@@ -12,6 +12,8 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
+cromwell::build::build_cromwell_docker
+
 export AWS_SHARED_CREDENTIALS_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_credentials
 export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 
@@ -21,7 +23,7 @@ export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common
 
 # TODO (AN-710) Add back some of these tests (space, scatter, docker_hash_dockerhub, awswdlresultscopying etc.)
 cromwell::build::run_centaur \
-    -p 100 \
+    -p 500 \
     -e localdockertest \
     -e abort.scheduled_abort \
     -e relative_output_paths \
@@ -37,3 +39,5 @@ cromwell::build::run_centaur \
     -e awswdlresultscopyingrelative
 
 cromwell::build::generate_code_coverage
+
+cromwell::build::print_workflow_statistics

@@ -234,6 +234,12 @@ class AwsBatchAsyncBackendJobExecutionActor(
     case _ => execScript
   }
 
+  lazy val jobRoleArn =
+    jobDescriptor.workflowDescriptor.workflowOptions.get(AwsBatchWorkflowOptionKeys.JobRoleArn).toOption
+
+  lazy val scriptBucketPrefix =
+    jobDescriptor.workflowDescriptor.workflowOptions.get(AwsBatchWorkflowOptionKeys.ScriptBucketPrefix).toOption
+
   lazy val batchJob: AwsBatchJob =
     AwsBatchJob(
       jobDescriptor,
@@ -248,7 +254,7 @@ class AwsBatchAsyncBackendJobExecutionActor(
       jobPaths,
       Seq.empty[AwsBatchParameter],
       configuration.awsConfig.region,
-      jobDescriptor.workflowDescriptor.workflowOptions,
+      jobRoleArn,
       Option(configuration.awsAuth),
       configuration.fsxMntPoint,
       configuration.efsMntPoint,
@@ -256,7 +262,8 @@ class AwsBatchAsyncBackendJobExecutionActor(
       Option(runtimeAttributes.efsDelocalize),
       Option(runtimeAttributes.tagResources),
       runtimeAttributes.logGroupName,
-      runtimeAttributes.additionalTags
+      runtimeAttributes.additionalTags,
+      scriptBucketPrefix
     )
 
   // setup batch client to query job container info

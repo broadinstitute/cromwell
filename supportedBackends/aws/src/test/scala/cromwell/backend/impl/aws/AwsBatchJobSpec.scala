@@ -36,7 +36,7 @@ import cromwell.backend.BackendSpec._
 import cromwell.backend.impl.aws.io.{AwsBatchJobPaths, AwsBatchWorkflowPaths, AwsBatchWorkingDisk}
 import cromwell.backend.validation.ContinueOnReturnCodeFlag
 import cromwell.backend.{BackendJobDescriptor, BackendJobDescriptorKey, BackendWorkflowDescriptor}
-import cromwell.core.{TestKitSuite, WorkflowOptions}
+import cromwell.core.TestKitSuite
 import cromwell.core.path.DefaultPathBuilder
 import cromwell.util.SampleWdl
 import eu.timepit.refined.api.Refined
@@ -159,7 +159,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     None,
     None,
     None,
-    WorkflowOptions(JsObject.empty)
+    None
   )
 
   val containerDetail: ContainerDetail = ContainerDetail.builder().exitCode(0).build()
@@ -179,7 +179,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths,
       Seq.empty[AwsBatchParameter],
       None,
-      WorkflowOptions(JsObject.empty),
+      None,
       None,
       None,
       None,
@@ -187,7 +187,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       "",
-      Map.empty
+      Map.empty,
+      None
     )
     job
   }
@@ -206,7 +207,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths,
       Seq.empty[AwsBatchParameter],
       None,
-      WorkflowOptions(JsObject.empty),
+      None,
       None,
       None,
       None,
@@ -214,7 +215,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       "",
-      Map.empty
+      Map.empty,
+      None
     )
     job
   }
@@ -233,7 +235,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths,
       Seq.empty[AwsBatchParameter],
       None,
-      WorkflowOptions(JsObject.empty),
+      None,
       None,
       None,
       None,
@@ -241,7 +243,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       "",
-      Map.empty
+      Map.empty,
+      None
     )
     job
   }
@@ -626,13 +629,6 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
   it should "use custom script prefix from workflow options" in {
     // Test that a custom prefix is used as-is, with a trailing slash automatically added
-    val workflowOptionsWithPrefix = WorkflowOptions(
-      JsObject(
-        Map(
-          AwsBatchWorkflowOptionKeys.ScriptBucketPrefix -> JsString("my-project/workflow-123")
-        )
-      )
-    )
 
     val job = AwsBatchJob(
       null,
@@ -647,7 +643,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths,
       Seq.empty[AwsBatchParameter],
       None,
-      workflowOptionsWithPrefix,
+      None,
       None,
       None,
       None,
@@ -655,7 +651,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       "",
-      Map.empty
+      Map.empty,
+      Some("my-project/workflow-123")
     )
 
     // Verify the trailing slash is added to ensure proper S3 key formation
@@ -663,13 +660,6 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
   }
 
   it should "handle empty script prefix from workflow options" in {
-    val workflowOptionsWithEmptyPrefix = WorkflowOptions(
-      JsObject(
-        Map(
-          AwsBatchWorkflowOptionKeys.ScriptBucketPrefix -> JsString("")
-        )
-      )
-    )
 
     val job = AwsBatchJob(
       null,
@@ -684,7 +674,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths,
       Seq.empty[AwsBatchParameter],
       None,
-      workflowOptionsWithEmptyPrefix,
+      None,
       None,
       None,
       None,
@@ -692,7 +682,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       "",
-      Map.empty
+      Map.empty,
+      Some("")
     )
 
     job.scriptKeyPrefix should be("scripts/")
@@ -703,14 +694,6 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     // This is important because the script key (MD5 hash) is concatenated directly to the prefix.
     // We want "my-project/scripts/" + "abc123" = "my-project/scripts/abc123"
     // NOT "my-project/scripts//" + "abc123" = "my-project/scripts//abc123"
-    val workflowOptionsWithTrailingSlash = WorkflowOptions(
-      JsObject(
-        Map(
-          AwsBatchWorkflowOptionKeys.ScriptBucketPrefix -> JsString("my-project/scripts/")
-        )
-      )
-    )
-
     val job = AwsBatchJob(
       null,
       runtimeAttributes,
@@ -724,7 +707,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       jobPaths,
       Seq.empty[AwsBatchParameter],
       None,
-      workflowOptionsWithTrailingSlash,
+      None,
       None,
       None,
       None,
@@ -732,7 +715,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       "",
-      Map.empty
+      Map.empty,
+      Some("my-project/scripts/")
     )
 
     // Verify that the existing trailing slash is preserved (not doubled)

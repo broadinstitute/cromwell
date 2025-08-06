@@ -50,7 +50,7 @@ jobs:
 #            friendly_name: Check Publish
 #          - build_type: centaurAws
 #            build_mysql: 8.4
-            friendly_name: Centaur AWS with MySQL 8.4
+#            friendly_name: Centaur AWS with MySQL 8.4
           - build_type: centaurAwsRestart
             build_mysql: 8.4
             friendly_name: Centaur AWS (restart)

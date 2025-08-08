@@ -3,8 +3,17 @@ package cromwell.backend.google.batch.api.request
 import akka.actor.ActorRef
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.batch.actors.BatchApiAbortClient
-import cromwell.backend.google.batch.actors.BatchApiAbortClient.{BatchAbortRequestSuccessful, BatchOperationIsAlreadyBeingAborted, BatchOperationIsAlreadyTerminal}
-import cromwell.backend.google.batch.api.BatchApiRequestManager.{BatchAbortRequest, BatchApiAbortQueryFailed, BatchApiException, SystemBatchApiException}
+import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
+  BatchAbortRequestSuccessful,
+  BatchOperationIsAlreadyBeingAborted,
+  BatchOperationIsAlreadyTerminal
+}
+import cromwell.backend.google.batch.api.BatchApiRequestManager.{
+  BatchAbortRequest,
+  BatchApiAbortQueryFailed,
+  BatchApiException,
+  SystemBatchApiException
+}
 import cromwell.backend.google.batch.api.BatchApiResponse
 
 import scala.concurrent.ExecutionContext
@@ -32,7 +41,9 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
           abortQuery.requester ! BatchAbortRequestSuccessful(jobId)
           Success(())
 
-        case Success(BatchApiResponse.CancelJobRequested(BatchApiAbortClient.BatchOperationIsAlreadyBeingAborted(jobId))) =>
+        case Success(
+              BatchApiResponse.CancelJobRequested(BatchApiAbortClient.BatchOperationIsAlreadyBeingAborted(jobId))
+            ) =>
           logger.info(s"Job was not aborted because it is already in aborting state: $jobId")
           abortQuery.requester ! BatchOperationIsAlreadyBeingAborted(jobId)
           Success(())

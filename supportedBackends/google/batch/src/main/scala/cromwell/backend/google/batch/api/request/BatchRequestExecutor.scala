@@ -5,7 +5,11 @@ import com.google.api.gax.rpc.{ApiException, StatusCode}
 import com.google.cloud.batch.v1.AllocationPolicy.ProvisioningModel
 import com.google.cloud.batch.v1._
 import com.typesafe.scalalogging.LazyLogging
-import cromwell.backend.google.batch.actors.BatchApiAbortClient.{BatchAbortRequestSuccessful, BatchOperationIsAlreadyBeingAborted, BatchOperationIsAlreadyTerminal}
+import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
+  BatchAbortRequestSuccessful,
+  BatchOperationIsAlreadyBeingAborted,
+  BatchOperationIsAlreadyTerminal
+}
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.google.batch.api.{BatchApiRequestManager, BatchApiResponse}
 import cromwell.backend.google.batch.models.{GcpBatchExitCode, RunStatus}

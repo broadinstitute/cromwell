@@ -23,7 +23,8 @@ object RunStatus {
   case class Running(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
       extends RunStatus { override def toString = "Running" }
 
-  case class Aborting(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty) extends RunStatus { override def toString = "Aborting" }
+  case class Aborting(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
+      extends RunStatus { override def toString = "Aborting" }
 
   sealed trait TerminalRunStatus extends RunStatus
 

@@ -360,6 +360,7 @@ class AwsBatchAsyncBackendJobExecutionActor(
     *
     * relativeLocalizationPath("foo/bar.txt") -> "foo/bar.txt"
     * relativeLocalizationPath("s3://some/bucket/foo.txt") -> "some/bucket/foo.txt"
+    * relativeLocalizationPath("gs://some/bucket/foo.txt") -> "some/bucket/foo.txt"
     */
   override protected def relativeLocalizationPath(file: WomFile): WomFile =
     file.mapFile(value =>
@@ -372,7 +373,11 @@ class AwsBatchAsyncBackendJobExecutionActor(
             case _ =>
               URLDecoder.decode(path.toString, "UTF-8")
           }
-        // non-s3 paths
+        // for GCS paths (Google Cloud Storage)
+        case _ if value.startsWith("gs://") =>
+          // Strip the gs:// prefix to get bucket/path format
+          URLDecoder.decode(value.substring(5), "UTF-8")
+        // other paths
         case _ =>
           URLDecoder.decode(value, "UTF-8")
       }

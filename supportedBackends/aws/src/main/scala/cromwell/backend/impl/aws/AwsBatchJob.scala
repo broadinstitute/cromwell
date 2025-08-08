@@ -132,6 +132,8 @@ final case class AwsBatchJob(
   lazy val reconfiguredScript: String = {
     // this is the location of the aws cli mounted into the container by the ec2 launch template
     val awsCmd = "/usr/local/aws-cli/v2/current/bin/aws"
+    // this is the location of the gcloud cli mounted into the container by the ec2 launch template
+    val gcloudCmd = "/usr/local/google-cloud-sdk/bin/gcloud"
     // internal to the container, therefore not mounted
     val workDir = "/tmp/scratch"
     // working in a mount will cause collisions in long running workers
@@ -141,7 +143,7 @@ final case class AwsBatchJob(
     // load the config
     val conf: Config = ConfigFactory.load();
 
-    /* generate a series of s3 copy statements to copy any s3 files into the container. */
+    /* generate a series of s3/gcs copy statements to copy any cloud storage files into the container. */
     val inputCopyCommand = Random
       .shuffle(inputs.map {
         case input: AwsBatchFileInput if input.s3key.startsWith("s3://") && input.s3key.endsWith(".tmp") =>
@@ -153,6 +155,16 @@ final case class AwsBatchJob(
         // s3 files : isOptional and locOptional are handled in localization script.
         case input: AwsBatchFileInput if input.s3key.startsWith("s3://") =>
           s"""_s3_localize_with_retry "${input.s3key}" "${input.mount.mountPoint.pathAsString}/${input.local}" "${input.optional}" "${input.locOptional}" """.stripMargin
+            .replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
+        // GCS files (.tmp): we are localizing a tmp file which may contain workdirectory paths that need to be reconfigured
+        case input: AwsBatchFileInput if input.s3key.startsWith("gs://") && input.s3key.endsWith(".tmp") =>
+          s"""
+             |_gcs_localize_with_retry "${input.s3key}" "$workDir/${input.local}"
+             |sed -i 's#${AwsBatchWorkingDisk.MountPoint.pathAsString}#$workDir#g' "$workDir/${input.local}"
+             |""".stripMargin
+        // GCS files : isOptional and locOptional are handled in localization script.
+        case input: AwsBatchFileInput if input.s3key.startsWith("gs://") =>
+          s"""_gcs_localize_with_retry "${input.s3key}" "${input.mount.mountPoint.pathAsString}/${input.local}" "${input.optional}" "${input.locOptional}" """.stripMargin
             .replace(AwsBatchWorkingDisk.MountPoint.pathAsString, workDir)
 
         case input: AwsBatchFileInput if efsMntPoint.isDefined && input.s3key.startsWith(efsMntPoint.get) =>
@@ -244,6 +256,58 @@ final case class AwsBatchJob(
          |    # check data integrity
          |    _check_data_integrity "$$destination" "$$s3_path" ||
          |       { echo "data content length difference detected in attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
+         |    # copy succeeded
+         |    return
+         |  done
+         |}
+         |
+         |function _gcs_localize_with_retry() {
+         |  local gcs_path="$$1"
+         |  # destination must be the path to a file and not just the directory you want the file in
+         |  local destination="$$2"
+         |  # if third option is specified, it is the optional tag (true / false)
+         |  local is_optional="$${3:-false}"
+         |  # if fourth option is specified, it is the locOptional tag (true / false)
+         |  local loc_optional="$${4:-false}"
+         |
+         |  for i in {1..6};
+         |  do
+         |    # abort if tries are exhausted
+         |    if [ "$$i" -eq 6 ]; then
+         |        echo "failed to copy $$gcs_path after $$(( $$i - 1 )) attempts."
+         |        LOCALIZATION_FAILED=1
+         |        return
+         |    fi
+         |    # check validity of source path
+         |    if ! [[ "$$gcs_path" =~ gs://([^/]+)/(.+) ]]; then
+         |      echo "$$gcs_path is not a GCS path with a bucket and key."
+         |      LOCALIZATION_FAILED=1
+         |      return
+         |    fi
+         |    ## if missing on GCS : check if optional:
+         |    if ! $gcloudCmd storage ls "$$gcs_path" > /dev/null 2>&1 ; then
+         |      if [[ "$$is_optional" == "true" ]]; then
+         |        echo "Optional file '$$gcs_path' does not exist. skipping localization"
+         |      else
+         |        echo "$$gcs_path does not exist. skipping localization"
+         |        LOCALIZATION_FAILED=1
+         |      fi
+         |      return
+         |    fi
+         |    # if localization is optional : skip
+         |    if [[ "$$loc_optional" == "true" ]]; then
+         |       echo "File $$gcs_path does not have to be localized. Skipping localization"
+         |       return 
+         |    fi
+         |    # copy
+         |    $gcloudCmd storage cp "$$gcs_path" "$$destination"  ||
+         |        { echo "attempt $$i to copy $$gcs_path failed" && sleep $$((7 * "$$i")) && continue; }
+         |    # check data integrity - for GCS we'll check file size
+         |    # Note: GCS doesn't have a direct equivalent to S3's content-length check in the same way
+         |    # but we can verify the file was created and has non-zero size
+         |    if [[ ! -f "$$destination" || ! -s "$$destination" ]]; then
+         |       echo "data integrity check failed in attempt $$i to copy $$gcs_path" && sleep $$((7 * "$$i")) && continue;
+         |    fi
          |    # copy succeeded
          |    return
          |  done

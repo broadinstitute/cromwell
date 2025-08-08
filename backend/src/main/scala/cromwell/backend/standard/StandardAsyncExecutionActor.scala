@@ -357,7 +357,7 @@ trait StandardAsyncExecutionActor
   def scriptPreamble: ErrorOr[ScriptPreambleData] = ScriptPreambleData("").valid
 
   /** Any custom code that should be run within commandScriptContents right before exiting. */
-  def scriptClosure: String = ""
+  def scriptClosure: Option[String] = None
 
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
@@ -515,7 +515,7 @@ trait StandardAsyncExecutionActor
         .replace("INSTANTIATED_COMMAND", commandString)
         .replace("SCRIPT_EPILOGUE", scriptEpilogue)
         .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir)
-        .replace("SCRIPT_CLOSURE", scriptClosure)
+        .replace("SCRIPT_CLOSURE", scriptClosure.getOrElse(""))
     )
   }
 

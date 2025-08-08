@@ -285,10 +285,6 @@ class AwsBatchAsyncBackendJobExecutionActor(
     Log.info(
       s"Attempted CancelJob operation in AWS Batch for Job ID ${job.jobId}. There were no errors during the operation"
     )
-    Log.info(
-      s"We have normality. Anything you still can't cope with is therefore your own problem"
-    )
-    Log.info(s"https://www.youtube.com/watch?v=YCRxnjE7JVs")
     ()
   }
 
@@ -734,10 +730,10 @@ class AwsBatchAsyncBackendJobExecutionActor(
       case _ => ScriptPreambleData("").validNel
     }
 
-  override def scriptClosure: String =
+  override def scriptClosure: Option[String] =
     configuration.fileSystem match {
-      case AWSBatchStorageSystems.s3 => ""
-      case _ => s"exit $$(head -n 1 $rcPath)"
+      case AWSBatchStorageSystems.s3 => None
+      case _ => Some(s"exit $$(head -n 1 $rcPath)")
     }
 
   override def globParentDirectory(womGlobFile: WomGlobFile): Path =

@@ -387,56 +387,6 @@ runtime {
 }
 ```
 
-
-### `awsBatchRetryAttempts`
-
-*Default: _0_*
-
-This runtime attribute adds support to [*AWS Batch Automated Job Retries*](https://docs.aws.amazon.com/batch/latest/userguide/job_retries.html) which makes it possible to tackle transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. This option is also very useful when using SPOT instances.
-
-It takes an Int, between 1 and 10, as a value that indicates the maximum number of times AWS Batch should retry a failed task. If the value 0 is passed, the [*Retry Strategy*](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#retryStrategy) will not be added to the job definiton and the task will run just once.
-
-```
-runtime {
-  awsBatchRetryAttempts: integer
-}
-```
-
-
-### `ulimits`
-
-*Default: _empty_*
-
-A list of [`ulimits`](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#containerProperties) values to set in the container. This parameter maps to `Ulimits` in the [Create a container](https://docs.docker.com/engine/api/v1.38/) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `--ulimit` option to [docker run](https://docs.docker.com/engine/reference/commandline/run/).
-
-```
-"ulimits": [
-  {
-    "name": string,
-    "softLimit": integer,
-    "hardLimit": integer
-  }
-  ...
-]
-```
-Parameter description:
-
-- `name`
-  - The `type` of the `ulimit`.
-  - Type: String
-  - Required: Yes, when `ulimits` is used.
-
-- `softLimit`
-  - The soft limit for the `ulimit` type.
-  - Type: Integer
-  - Required: Yes, when `ulimits` is used.
-
-- `hardLimit`
-  - The hard limit for the `ulimit` type.
-  - Type: Integer
-  - Required: Yes, when `ulimits` is used.
-
-
 #### How to Setup
 
 Configure your Google network to use "Private Google Access". This will allow your VMs to access Google Services including Google Container Registry, as well as Dockerhub images.
@@ -500,3 +450,51 @@ The following CPU platforms are currently supported by the Google Cloud backend:
 This option is specific to the Google Cloud backend, moreover it is only supported by Google Life Sciences API starting from version v2 beta.
 In order to use this feature Cromwell has to have PAPI v2 backend configured with this feature enabled.  
 More information about this feature and it's configuration can be found [in the Google backend section of documentation](backends/Google.md).
+
+### `awsBatchRetryAttempts`
+
+*Default: _0_*
+
+This runtime attribute adds support to [*AWS Batch Automated Job Retries*](https://docs.aws.amazon.com/batch/latest/userguide/job_retries.html) which makes it possible to tackle transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. This option is also very useful when using SPOT instances.
+
+It takes an Int, between 1 and 10, as a value that indicates the maximum number of times AWS Batch should retry a failed task. If the value 0 is passed, the [*Retry Strategy*](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#retryStrategy) will not be added to the job definiton and the task will run just once.
+
+```
+runtime {
+  awsBatchRetryAttempts: integer
+}
+```
+
+
+### `ulimits`
+
+*Default: _empty_*
+
+This attribute is only supported for AWS. A list of [`ulimits`](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#containerProperties) values to set in the container. This parameter maps to `Ulimits` in the [Create a container](https://docs.docker.com/engine/api/v1.38/) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `--ulimit` option to [docker run](https://docs.docker.com/engine/reference/commandline/run/).
+
+```
+"ulimits": [
+  {
+    "name": string,
+    "softLimit": integer,
+    "hardLimit": integer
+  }
+  ...
+]
+```
+Parameter description:
+
+- `name`
+  - The `type` of the `ulimit`.
+  - Type: String
+  - Required: Yes, when `ulimits` is used.
+
+- `softLimit`
+  - The soft limit for the `ulimit` type.
+  - Type: Integer
+  - Required: Yes, when `ulimits` is used.
+
+- `hardLimit`
+  - The hard limit for the `ulimit` type.
+  - Type: Integer
+  - Required: Yes, when `ulimits` is used.

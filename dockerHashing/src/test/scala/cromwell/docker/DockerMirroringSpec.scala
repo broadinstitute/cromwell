@@ -64,6 +64,17 @@ class DockerMirroringSpec extends TestKitSuite with AnyFlatSpecLike with Matcher
 
   behavior of "DockerMirroring"
 
+  it should "apply a mirror with multiple path components" in {
+    val mirroring = DockerMirroring(mirrors = List(DockerHubMirror("my.mirror.io/more/stuff")))
+    val imgOpt = DockerImageIdentifier.fromString("docker.io/broadinstitute/cromwell")
+    val img = imgOpt.get
+    val m = mirroring.mirrorImage(img)
+    m.map(_.fullName) shouldBe Some("my.mirror.io/more/stuff/broadinstitute/cromwell:latest")
+    m.flatMap(_.host) shouldBe Some("my.mirror.io")
+    m.flatMap(_.repository) shouldBe Some("more/stuff/broadinstitute")
+    m.map(_.image) shouldBe Some("cromwell")
+  }
+
   val mirroring = DockerMirroring(mirrors = List(DockerHubMirror("my.mirror.io")))
 
   val dockerMirrorInputs = Table(

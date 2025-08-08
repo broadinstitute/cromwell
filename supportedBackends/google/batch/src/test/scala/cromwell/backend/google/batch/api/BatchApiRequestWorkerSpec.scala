@@ -3,12 +3,8 @@ package cromwell.backend.google.batch.api
 import akka.actor.{ActorRef, PoisonPill}
 import akka.testkit._
 import cats.data.NonEmptyList
-import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest}
-import cromwell.backend.google.batch.api.BatchApiRequestManager.{
-  BatchAbortRequest,
-  BatchRunCreationRequest,
-  BatchStatusPollRequest
-}
+import com.google.cloud.batch.v1.{CancelJobRequest, CreateJobRequest, GetJobRequest}
+import cromwell.backend.google.batch.api.BatchApiRequestManager.{BatchAbortRequest, BatchRunCreationRequest, BatchStatusPollRequest}
 import cromwell.backend.google.batch.api.request.{BatchApiRequestHandler, BatchRequestExecutor, GcpBatchGroupedRequests}
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.{TestKitSuite, WorkflowId}
@@ -114,7 +110,7 @@ class BatchApiRequestWorkerSpec
     BatchAbortRequest(
       WorkflowId.randomId(),
       requester = null,
-      DeleteJobRequest.newBuilder().build(),
+      CancelJobRequest.newBuilder().build(),
       StandardAsyncJob("id")
     )
 

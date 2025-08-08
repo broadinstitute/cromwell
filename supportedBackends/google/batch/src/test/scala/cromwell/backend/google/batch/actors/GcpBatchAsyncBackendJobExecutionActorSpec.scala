@@ -8,7 +8,7 @@ import cats.data.NonEmptyList
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.cloud.NoCredentials
-import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest, JobName}
+import com.google.cloud.batch.v1.{CancelJobRequest, CreateJobRequest, GetJobRequest, JobName}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.collections.EnhancedCollections._
 import common.mock.MockSugar
@@ -23,12 +23,7 @@ import cromwell.backend.google.batch.models._
 import cromwell.backend.google.batch.runnable.RunnableUtils.MountPoint
 import cromwell.backend.google.batch.util.BatchExpressionFunctions
 import cromwell.backend.io.JobPathsSpecHelper._
-import cromwell.backend.standard.{
-  DefaultStandardAsyncExecutionActorParams,
-  StandardAsyncExecutionActorParams,
-  StandardAsyncJob,
-  StandardExpressionFunctionsParams
-}
+import cromwell.backend.standard.{DefaultStandardAsyncExecutionActorParams, StandardAsyncExecutionActorParams, StandardAsyncJob, StandardExpressionFunctionsParams}
 import cromwell.core._
 import cromwell.core.callcaching.NoDocker
 import cromwell.core.labels.Labels
@@ -149,7 +144,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
       override def queryRequest(jobName: JobName): GetJobRequest = null
 
-      override def abortRequest(jobName: JobName): DeleteJobRequest = null
+      override def abortRequest(jobName: JobName): CancelJobRequest = null
     }
     GcpBackendInitializationData(workflowPaths,
                                  runtimeAttributesBuilder,

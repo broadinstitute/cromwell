@@ -6,22 +6,7 @@ import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.LogsPolicy.Destination
-import com.google.cloud.batch.v1.{
-  AllocationPolicy,
-  ComputeResource,
-  CreateJobRequest,
-  DeleteJobRequest,
-  GCS,
-  GetJobRequest,
-  Job,
-  JobName,
-  LogsPolicy,
-  Runnable,
-  ServiceAccount,
-  TaskGroup,
-  TaskSpec,
-  Volume
-}
+import com.google.cloud.batch.v1.{AllocationPolicy, CancelJobRequest, ComputeResource, CreateJobRequest, GCS, GetJobRequest, Job, JobName, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
 import com.google.protobuf.Duration
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
@@ -46,8 +31,8 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
 
   override def queryRequest(jobName: JobName): GetJobRequest = GetJobRequest.newBuilder.setName(jobName.toString).build
 
-  override def abortRequest(jobName: JobName): DeleteJobRequest =
-    DeleteJobRequest.newBuilder.setName(jobName.toString).build()
+  override def abortRequest(jobName: JobName): CancelJobRequest =
+    CancelJobRequest.newBuilder.setName(jobName.toString).build
 
   def createNetworkWithVPC(vpcAndSubnetworkProjectLabelValues: VpcAndSubnetworkProjectLabelValues,
                            data: GcpBatchRequest

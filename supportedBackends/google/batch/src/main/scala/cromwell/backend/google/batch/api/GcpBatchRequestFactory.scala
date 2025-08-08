@@ -1,6 +1,6 @@
 package cromwell.backend.google.batch.api
 
-import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest, JobName}
+import com.google.cloud.batch.v1.{CancelJobRequest, CreateJobRequest, GetJobRequest, JobName}
 import cromwell.backend.BackendJobDescriptor
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
@@ -17,7 +17,7 @@ trait GcpBatchRequestFactory {
 
   def queryRequest(jobName: JobName): GetJobRequest
 
-  def abortRequest(jobName: JobName): DeleteJobRequest
+  def abortRequest(jobName: JobName): CancelJobRequest
 
 }
 

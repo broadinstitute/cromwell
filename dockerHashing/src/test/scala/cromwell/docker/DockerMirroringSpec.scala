@@ -68,7 +68,11 @@ class DockerMirroringSpec extends TestKitSuite with AnyFlatSpecLike with Matcher
 
   val dockerMirrorInputs = Table(
     ("testName", "origImg", "mirrorResult"),
-    ("mirror a Dockerhub image", "ubuntu:latest", Some("my.mirror.io/ubuntu:latest")),
+    ("mirror a Dockerhub image with default repository", "ubuntu:latest", Some("my.mirror.io/library/ubuntu:latest")),
+    ("mirror a Dockerhub image with explicit repository",
+     "broadinstitute/cromwell:v100",
+     Some("my.mirror.io/broadinstitute/cromwell:v100")
+    ),
     ("mirror a docker.io Dockerhub image",
      "docker.io/broadinstitute/cromwell",
      Some("my.mirror.io/broadinstitute/cromwell:latest")

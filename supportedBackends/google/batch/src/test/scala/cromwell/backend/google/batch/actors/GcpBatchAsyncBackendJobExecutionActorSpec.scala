@@ -1840,13 +1840,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   }
 
   it should "send bard metrics message on task failure" in {
-    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
-    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val expectedJobStart = OffsetDateTime.now().minus(5, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmEnd = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
 
     val pollResult0 = RunStatus.Initializing(Seq.empty)
     val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
     val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
-    val abortStatus = RunStatus.Aborted()
+    val abortStatus = RunStatus.Aborted(Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, expectedVmEnd)))
 
     val serviceRegistryProbe = TestProbe()
 

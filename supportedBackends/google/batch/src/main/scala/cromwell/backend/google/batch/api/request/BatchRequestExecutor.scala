@@ -77,8 +77,8 @@ object BatchRequestExecutor {
             Success(result)
 
           case r: BatchAbortRequest =>
-            // In Batch, it seems that even if the job is in Cancelled state, it will still except a request to cancel it.
-            // So we check the job status before sending the cancel request
+            // In Batch, even if the job is in Cancelled state (one of terminal states), it will still accept
+            // a request to cancel the job. So we check the job status before sending the cancel request
             val getResult = internalGetHandler(client, GetJobRequest.newBuilder.setName(r.httpRequest.getName).build())
             val abortResult = getResult.status match {
               // If the job is already in Cancelling state and we try to cancel it again, it will throw a GRPC StatusRuntimeException.
@@ -134,10 +134,6 @@ object BatchRequestExecutor {
         val result = interpretOperationStatus(job)
         BatchApiResponse.StatusQueried(result)
       } catch {
-        // A job can't be cancelled but deleted, which is why we consider 404 status as the job being cancelled successfully
-        case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.NOT_FOUND =>
-          BatchApiResponse.StatusQueried(RunStatus.Aborted())
-
         // We don't need to detect preemptible VMs because that's handled automatically by GCP
         case apiException: ApiException if apiException.getStatusCode.getCode == StatusCode.Code.RESOURCE_EXHAUSTED =>
           BatchApiResponse.StatusQueried(RunStatus.AwaitingCloudQuota(Seq.empty))
@@ -174,9 +170,9 @@ object BatchRequestExecutor {
       val instantiatedVmInfo = Some(InstantiatedVmInfo(region, machineType, preemptible))
 
       job.getStatus.getState match {
-        case JobStatus.State.SUCCEEDED => RunStatus.Success(events, instantiatedVmInfo)
         case JobStatus.State.RUNNING => RunStatus.Running(events, instantiatedVmInfo)
         case JobStatus.State.CANCELLATION_IN_PROGRESS => RunStatus.Aborting(events, instantiatedVmInfo)
+        case JobStatus.State.SUCCEEDED => RunStatus.Success(events, instantiatedVmInfo)
         case JobStatus.State.FAILED =>
           val batchExitCode =
             events
@@ -184,7 +180,7 @@ object BatchRequestExecutor {
               .headOption
               .getOrElse(GcpBatchExitCode.Success)
           RunStatus.Failed(batchExitCode, events, instantiatedVmInfo)
-        case JobStatus.State.CANCELLED => RunStatus.Aborted(instantiatedVmInfo)
+        case JobStatus.State.CANCELLED => RunStatus.Aborted(events, instantiatedVmInfo)
         case _ => RunStatus.Initializing(events, instantiatedVmInfo)
       }
     }
@@ -195,9 +191,10 @@ object BatchRequestExecutor {
       val startedRegex = ".*to SCHEDULED.*".r
 
       // job terminal events can occur in 2 ways:
-      //    - job transitions from a RUNNING state to either SUCCEEDED or FAILED state
-      //    - job never enters the RUNNING state and instead transitions from SCHEDULED -> SCHEDULED_PENDING_FAILED -> FAILED
-      val endedRegex = ".*RUNNING to.*|.*SCHEDULED_PENDING_FAILED to FAILED.*".r
+      //    - job transitions from a RUNNING state to either SUCCEEDED/FAILED/CANCELLED state
+      //    - job never enters RUNNING state and instead transitions from SCHEDULED -> SCHEDULED_PENDING_FAILED -> FAILED
+      //    - job never enters RUNNING state and instead transitions from SCHEDULED -> CANCELLATION_IN_PROGRESS -> CANCELLED
+      val endedRegex = ".*RUNNING to.*|.*SCHEDULED_PENDING_FAILED to FAILED.*|.*CANCELLATION_IN_PROGRESS to CANCELLED.*".r
 
       events.flatMap { e =>
         val time = java.time.Instant

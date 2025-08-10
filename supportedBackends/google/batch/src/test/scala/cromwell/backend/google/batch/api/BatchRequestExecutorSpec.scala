@@ -57,6 +57,27 @@ class BatchRequestExecutorSpec
     .setDescription("Job state is set from SCHEDULED_PENDING_FAILED to FAILED for job...")
     .build()
 
+  val cancellingFromScheduledStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(3).build())
+    .setDescription("Job state is set from SCHEDULED to CANCELLATION_IN_PROGRESS for job...")
+    .build()
+
+  val cancellingFromRunningStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(4).build())
+    .setDescription("Job state is set from RUNNING to CANCELLATION_IN_PROGRESS for job...")
+    .build()
+
+  val cancelledStatusEvent = StatusEvent
+    .newBuilder()
+    .setType("STATUS_CHANGED")
+    .setEventTime(Timestamp.newBuilder().setSeconds(6).build())
+    .setDescription("Job state is set from CANCELLATION_IN_PROGRESS to CANCELLED for job...")
+    .build()
+
   val preemptionError = "Job state is set from SCHEDULED to FAILED for job projects/....Job failed due to task " +
     "failure. Specifically, task with index 0 failed due to the following task event: \"Task state is updated " +
     "from PENDING to FAILED on zones/... due to Spot VM preemption with exit code 50001.\""
@@ -289,6 +310,79 @@ class BatchRequestExecutorSpec
         vmStartTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:01Z"
         vmEndTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:05Z"
       case _ => fail("Expected RunStatus.Failed with events")
+    }
+  }
+
+  it should "return Aborting status for job that is being cancelled from Scheduled state" in {
+    val mockClient =
+      setupBatchClient(jobState = JobStatus.State.CANCELLATION_IN_PROGRESS,
+        events = List(schedulingStatusEvent, cancellingFromScheduledStatusEvent)
+      )
+
+    // Create the BatchRequestExecutor
+    val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
+
+    // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
+    val internalGetHandler = PrivateMethod[BatchApiResponse.StatusQueried](Symbol("internalGetHandler"))
+    val result = batchRequestExecutor invokePrivate internalGetHandler(mockClient, GetJobRequest.newBuilder().build())
+
+    // Verify the events
+    result.status match {
+      case RunStatus.Aborting(events, _) =>
+        val eventNames = events.map(_.name)
+        eventNames should contain allOf("Job state is set from SCHEDULED to CANCELLATION_IN_PROGRESS for job...", "Job state is set from QUEUED to SCHEDULED for job...")
+      case _ => fail("Expected RunStatus.Aborting with events")
+    }
+  }
+
+  it should "return Aborting status for job that is being cancelled from Running state" in {
+    val mockClient =
+      setupBatchClient(jobState = JobStatus.State.CANCELLATION_IN_PROGRESS,
+        events = List(schedulingStatusEvent, runningStatusEvent, cancellingFromRunningStatusEvent)
+      )
+
+    // Create the BatchRequestExecutor
+    val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
+
+    // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
+    val internalGetHandler = PrivateMethod[BatchApiResponse.StatusQueried](Symbol("internalGetHandler"))
+    val result = batchRequestExecutor invokePrivate internalGetHandler(mockClient, GetJobRequest.newBuilder().build())
+
+    // Verify the events
+    result.status match {
+      case RunStatus.Aborting(events, _) =>
+        val eventNames = events.map(_.name)
+        eventNames should contain allOf("Job state is set from RUNNING to CANCELLATION_IN_PROGRESS for job...", "Job state is set from QUEUED to SCHEDULED for job...")
+      case _ => fail("Expected RunStatus.Aborting with events")
+    }
+  }
+
+  it should "send vmStartTime and vmEndTime metadata info along with other events when a job is aborted" in {
+    val mockClient =
+      setupBatchClient(jobState = JobStatus.State.CANCELLED,
+        events = List(schedulingStatusEvent, runningStatusEvent, cancelledStatusEvent)
+      )
+
+    // Create the BatchRequestExecutor
+    val batchRequestExecutor = new BatchRequestExecutor.CloudImpl(BatchServiceSettings.newBuilder().build())
+
+    // testing a private method see https://www.scalatest.org/user_guide/using_PrivateMethodTester
+    val internalGetHandler = PrivateMethod[BatchApiResponse.StatusQueried](Symbol("internalGetHandler"))
+    val result = batchRequestExecutor invokePrivate internalGetHandler(mockClient, GetJobRequest.newBuilder().build())
+
+    // Verify the events
+    result.status match {
+      case RunStatus.Aborted(events, _) =>
+        val eventNames = events.map(_.name)
+        eventNames should contain allOf("vmStartTime", "vmEndTime")
+
+        val vmStartTime = events.find(e => e.name == "vmStartTime").get
+        val vmEndTime = events.find(e => e.name == "vmEndTime").get
+
+        eventNames should contain allOf("Job state is set from CANCELLATION_IN_PROGRESS to CANCELLED for job...", "Job state is set from QUEUED to SCHEDULED for job...")
+        vmStartTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:01Z"
+        vmEndTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:06Z"
+      case _ => fail("Expected RunStatus.Aborted with events")
     }
   }
 }

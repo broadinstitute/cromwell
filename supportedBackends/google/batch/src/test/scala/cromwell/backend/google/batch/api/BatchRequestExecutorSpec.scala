@@ -316,7 +316,7 @@ class BatchRequestExecutorSpec
   it should "return Aborting status for job that is being cancelled from Scheduled state" in {
     val mockClient =
       setupBatchClient(jobState = JobStatus.State.CANCELLATION_IN_PROGRESS,
-        events = List(schedulingStatusEvent, cancellingFromScheduledStatusEvent)
+                       events = List(schedulingStatusEvent, cancellingFromScheduledStatusEvent)
       )
 
     // Create the BatchRequestExecutor
@@ -330,7 +330,7 @@ class BatchRequestExecutorSpec
     result.status match {
       case RunStatus.Aborting(events, _) =>
         val eventNames = events.map(_.name)
-        eventNames should contain allOf("Job state is set from SCHEDULED to CANCELLATION_IN_PROGRESS for job...", "Job state is set from QUEUED to SCHEDULED for job...")
+        eventNames should contain allOf ("Job state is set from SCHEDULED to CANCELLATION_IN_PROGRESS for job...", "Job state is set from QUEUED to SCHEDULED for job...")
       case _ => fail("Expected RunStatus.Aborting with events")
     }
   }
@@ -338,7 +338,7 @@ class BatchRequestExecutorSpec
   it should "return Aborting status for job that is being cancelled from Running state" in {
     val mockClient =
       setupBatchClient(jobState = JobStatus.State.CANCELLATION_IN_PROGRESS,
-        events = List(schedulingStatusEvent, runningStatusEvent, cancellingFromRunningStatusEvent)
+                       events = List(schedulingStatusEvent, runningStatusEvent, cancellingFromRunningStatusEvent)
       )
 
     // Create the BatchRequestExecutor
@@ -352,7 +352,7 @@ class BatchRequestExecutorSpec
     result.status match {
       case RunStatus.Aborting(events, _) =>
         val eventNames = events.map(_.name)
-        eventNames should contain allOf("Job state is set from RUNNING to CANCELLATION_IN_PROGRESS for job...", "Job state is set from QUEUED to SCHEDULED for job...")
+        eventNames should contain allOf ("Job state is set from RUNNING to CANCELLATION_IN_PROGRESS for job...", "Job state is set from QUEUED to SCHEDULED for job...")
       case _ => fail("Expected RunStatus.Aborting with events")
     }
   }
@@ -360,7 +360,7 @@ class BatchRequestExecutorSpec
   it should "send vmStartTime and vmEndTime metadata info along with other events when a job is aborted" in {
     val mockClient =
       setupBatchClient(jobState = JobStatus.State.CANCELLED,
-        events = List(schedulingStatusEvent, runningStatusEvent, cancelledStatusEvent)
+                       events = List(schedulingStatusEvent, runningStatusEvent, cancelledStatusEvent)
       )
 
     // Create the BatchRequestExecutor
@@ -374,12 +374,12 @@ class BatchRequestExecutorSpec
     result.status match {
       case RunStatus.Aborted(events, _) =>
         val eventNames = events.map(_.name)
-        eventNames should contain allOf("vmStartTime", "vmEndTime")
+        eventNames should contain allOf ("vmStartTime", "vmEndTime")
 
         val vmStartTime = events.find(e => e.name == "vmStartTime").get
         val vmEndTime = events.find(e => e.name == "vmEndTime").get
 
-        eventNames should contain allOf("Job state is set from CANCELLATION_IN_PROGRESS to CANCELLED for job...", "Job state is set from QUEUED to SCHEDULED for job...")
+        eventNames should contain allOf ("Job state is set from CANCELLATION_IN_PROGRESS to CANCELLED for job...", "Job state is set from QUEUED to SCHEDULED for job...")
         vmStartTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:01Z"
         vmEndTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:06Z"
       case _ => fail("Expected RunStatus.Aborted with events")

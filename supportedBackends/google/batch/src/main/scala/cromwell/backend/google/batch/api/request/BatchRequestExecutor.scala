@@ -194,7 +194,8 @@ object BatchRequestExecutor {
       //    - job transitions from a RUNNING state to either SUCCEEDED/FAILED/CANCELLED state
       //    - job never enters RUNNING state and instead transitions from SCHEDULED -> SCHEDULED_PENDING_FAILED -> FAILED
       //    - job never enters RUNNING state and instead transitions from SCHEDULED -> CANCELLATION_IN_PROGRESS -> CANCELLED
-      val endedRegex = ".*RUNNING to.*|.*SCHEDULED_PENDING_FAILED to FAILED.*|.*CANCELLATION_IN_PROGRESS to CANCELLED.*".r
+      val endedRegex =
+        ".*RUNNING to.*|.*SCHEDULED_PENDING_FAILED to FAILED.*|.*CANCELLATION_IN_PROGRESS to CANCELLED.*".r
 
       events.flatMap { e =>
         val time = java.time.Instant

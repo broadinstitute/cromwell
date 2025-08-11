@@ -17,6 +17,7 @@ This will allow for better grouping of jobs in the Batch UI and ensure determini
 ### AWS Batch
 * Pulled in AWS improvements, features, and fixes from [henriqueribeiro/cromwell](https://github.com/henriqueribeiro/cromwell)
 * Added support for specifying an IAM role for AWS Batch job containers via the `aws_batch_job_role_arn` workflow option. This allows containers to access AWS resources based on the permissions granted to the specified role.
+* ECR [pull-through caches](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html) can now be used to access Docker images. See [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/AWSBatch/) for details.
 
 ### Other changes
 * Removed unused code related to Azure cloud services.

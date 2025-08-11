@@ -51,7 +51,7 @@ class DockerImageIdentifierSpec
        "supercalifragilisticexpialidociouseventhoughthesoundofitissomethingquiteatrociousifyousayitloudenoughyoullalwayssoundprecocious"
       ),
       ("952500931000.dkr.ecr.us-east-1.amazonaws.com/docker-hub/broadinstitute/cromwell",
-       Option("952500931424.dkr.ecr.us-east-1.amazonaws.com"),
+       Option("952500931000.dkr.ecr.us-east-1.amazonaws.com"),
        Option("docker-hub/broadinstitute"),
        "cromwell",
        "latest"

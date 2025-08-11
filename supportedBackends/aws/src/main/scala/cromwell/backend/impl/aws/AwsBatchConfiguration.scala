@@ -36,6 +36,7 @@ import cromwell.backend.BackendConfigurationDescriptor
 import cromwell.core.BackendDockerConfiguration
 import cromwell.core.path.PathBuilderFactory
 import cromwell.cloudsupport.aws.AwsConfiguration
+import cromwell.docker.DockerMirroring
 
 class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDescriptor) {
 
@@ -54,6 +55,7 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
     case true => S3PathBuilderFactory(configurationDescriptor.globalConfig, configurationDescriptor.backendConfig)
     case false => PathBuilderFactory
   }
+  val dockerMirroringOpt: Option[DockerMirroring] = DockerMirroring.fromConfig(configurationDescriptor.backendConfig)
   val dockerCredentials = BackendDockerConfiguration.build(configurationDescriptor.backendConfig).dockerCredentials
   val dockerToken: Option[String] = dockerCredentials map { _.token }
   val fsxMntPoint = batchAttributes.fsxMntPoint
@@ -63,6 +65,7 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
   val tagResources = batchAttributes.tagResources
   val globLinkCommand = batchAttributes.globLinkCommand
   val checkSiblingMd5 = batchAttributes.checkSiblingMd5
+
 }
 
 object AWSBatchStorageSystems {

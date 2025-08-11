@@ -87,6 +87,8 @@ object AwsBatchAttributes {
     "filesystems.local.caching.check-sibling-md5",
     "filesystems.s3.auth",
     "filesystems.s3.caching.duplication-strategy",
+    "docker-mirror.dockerhub.address",
+    "docker-mirror.dockerhub.enabled",
     "auth",
     "numCreateDefinitionAttempts",
     "numSubmitAttempts",

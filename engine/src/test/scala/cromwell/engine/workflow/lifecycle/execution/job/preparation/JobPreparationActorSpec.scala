@@ -204,8 +204,9 @@ class JobPreparationActorSpec
 
     val dockerMirroring = DockerMirroring(List(DockerHubMirror("my.mirror.io")))
     val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
-    val mirroredValue = "my.mirror.io/ubuntu:latest"
-    val finalValue = "my.mirror.io/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+    val mirroredValue = "my.mirror.io/library/ubuntu:latest"
+    val finalValue =
+      "my.mirror.io/library/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val actor = TestActorRef(
       helper.buildTestJobPreparationActor(1 minute,
                                           1 minutes,

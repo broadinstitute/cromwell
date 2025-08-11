@@ -21,22 +21,25 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 export AWS_ACCESS_KEY=$(vault read -field=access_key secret/dsde/cromwell/common/cromwell-aws)
 export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common/cromwell-aws)
 
+# TODO (AN-721) Turn most tests back on once we resolve Dockerhub rate limiting issues
 # TODO (AN-710) Add back some of these tests (space, scatter, docker_hash_dockerhub, awswdlresultscopying etc.)
 cromwell::build::run_centaur \
-    -p 500 \
-    -e localdockertest \
-    -e abort.scheduled_abort \
-    -e relative_output_paths \
-    -e relative_output_paths_colliding \
-    -e standard_output_paths_colliding_prevented \
-    -e restart \
-    -e space \
-    -e scatter \
-    -e runtwiceexpectingcallcaching \
-    -e papi_v2alpha1_gcsa \
-    -e docker_hash_dockerhub \
-    -e awswdlresultscopying \
-    -e awswdlresultscopyingrelative
+     -i hello \
+     -i mutect2.aws
+#    -p 500 \
+#    -e localdockertest \
+#    -e abort.scheduled_abort \
+#    -e relative_output_paths \
+#    -e relative_output_paths_colliding \
+#    -e standard_output_paths_colliding_prevented \
+#    -e restart \
+#    -e space \
+#    -e scatter \
+#    -e runtwiceexpectingcallcaching \
+#    -e papi_v2alpha1_gcsa \
+#    -e docker_hash_dockerhub \
+#    -e awswdlresultscopying \
+#    -e awswdlresultscopyingrelative
 
 cromwell::build::generate_code_coverage
 

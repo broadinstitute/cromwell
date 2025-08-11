@@ -103,3 +103,43 @@ java -jar cromwell.jar run workflow.wdl -o workflow_options.json
   ]
 }
 ```
+
+### aws_batch_script_bucket_prefix
+
+The `aws_batch_script_bucket_prefix` workflow option allows you to specify a custom prefix (subfolder) within the script bucket where execution scripts will be stored. This enables better organization and isolation of scripts for different workflows, projects, or teams.
+
+**Usage:**
+
+Include this option in your workflow options JSON file:
+
+```json
+{
+  "aws_batch_script_bucket_prefix": "project-x/workflow-123/scripts"
+}
+```
+
+**How it works:**
+- By default (when not specified), scripts are stored in the `scripts/` folder within the configured `scriptBucketName`
+- When you specify a prefix, scripts will be stored directly at that prefix location
+- The prefix should include any subfolder structure you want (including `/scripts` if desired)
+- If no prefix is specified or an empty string is provided, the default `scripts/` location is used
+- A trailing slash will be added automatically if not present to ensure proper S3 key formation (e.g., `my-prefix` becomes `my-prefix/`)
+
+**Example:**
+If your `scriptBucketName` is configured as `my-cromwell-scripts` and you set:
+```json
+{
+  "aws_batch_script_bucket_prefix": "team-alpha/project-genomics/scripts"
+}
+```
+
+Scripts will be stored at: `s3://my-cromwell-scripts/team-alpha/project-genomics/scripts/[script-hash]`
+
+Or for a custom structure without the `scripts` subfolder:
+```json
+{
+  "aws_batch_script_bucket_prefix": "workflows/2024/genomics-pipeline"
+}
+```
+
+Scripts will be stored at: `s3://my-cromwell-scripts/workflows/2024/genomics-pipeline/[script-hash]`

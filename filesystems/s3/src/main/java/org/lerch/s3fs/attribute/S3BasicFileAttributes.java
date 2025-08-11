@@ -1,9 +1,9 @@
 package org.lerch.s3fs.attribute;
 
-import static java.lang.String.format;
-
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
+
+import static java.lang.String.format;
 
 public class S3BasicFileAttributes implements BasicFileAttributes {
     private final FileTime lastModifiedTime;

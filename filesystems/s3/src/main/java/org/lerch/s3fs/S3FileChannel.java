@@ -1,8 +1,15 @@
 package org.lerch.s3fs;
 
 import org.apache.tika.Tika;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -13,13 +20,6 @@ import java.nio.file.*;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Object;
 
 import static java.lang.String.format;
 
@@ -46,7 +46,7 @@ public class S3FileChannel extends FileChannel implements S3Channel {
         boolean removeTempFile = true;
         try {
             if (exists) {
-                try (ResponseInputStream<GetObjectResponse> byteStream = path.getFileSystem()
+                try (ResponseInputStream<GetObjectResponse> byteStream = path.getFileStore()
                         .getClient()
                         .getObject(GetObjectRequest
                                        .builder()
@@ -171,7 +171,7 @@ public class S3FileChannel extends FileChannel implements S3Channel {
                    .contentLength(length)
                    .contentType(new Tika().detect(stream, path.getFileName().toString()));
 
-            path.getFileSystem().getClient().putObject(builder.build(), RequestBody.fromInputStream(stream, length));
+            path.getFileStore().getClient().putObject(builder.build(), RequestBody.fromInputStream(stream, length));
         }
     }
 }

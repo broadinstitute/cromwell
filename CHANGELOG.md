@@ -15,6 +15,7 @@ This will allow for better grouping of jobs in the Batch UI and ensure determini
 * Updated cost estimation documentation to make it explicit that the Cloud Billing API must be enabled.
 
 ### AWS Batch
+* Pulled in AWS improvements, features, and fixes from [henriqueribeiro/cromwell](https://github.com/henriqueribeiro/cromwell)
 * Added support for specifying an IAM role for AWS Batch job containers via the `aws_batch_job_role_arn` workflow option. This allows containers to access AWS resources based on the permissions granted to the specified role.
 
 ### Other changes

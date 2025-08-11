@@ -94,6 +94,8 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   implicit val cs = IO.contextShift(ec)
   implicit val timer = IO.timer(ec)
 
+  protected val authorizationScheme: AuthScheme = AuthScheme.Bearer
+
   /**
     * This is the main function. Given a docker context and an http client, retrieve information about the docker image.
     */
@@ -241,8 +243,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
                               imageId: DockerImageIdentifier,
                               manifestHeader: Accept
   ): IO[Request[IO]] = {
-    val authorizationHeader: Option[Authorization] =
-      token.map(t => Authorization(Credentials.Token(AuthScheme.Bearer, t)))
+    val authorizationHeader = token.map(t => Authorization(Credentials.Token(authorizationScheme, t)))
     val request = Method.GET(
       buildManifestUri(imageId),
       List(
@@ -317,7 +318,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
         IO.pure(None)
     }
 
-  private def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
+  protected def getDigestFromResponse(response: Response[IO]): IO[DockerHashResult] = response match {
     case Status.Successful(r) => extractDigestFromHeaders(r.headers)
     case Status.Unauthorized(r) =>
       r.as[String].flatMap(body => IO.raiseError(new Unauthorized(r.status.toString + " " + body)))

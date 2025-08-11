@@ -239,6 +239,10 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           data.commandsToWaitFor.flatten.headOption match {
             case Some(command: IoCopyCommand) =>
               logCacheHitCopyCommand(command)
+            case Some(command: IoTouchCommand) =>
+              logCacheHitTouchCommand(command)
+            case Some(command: IoWriteCommand) =>
+              logCacheHitWriteCommand(command)
             case huh =>
               log.warning(s"BT-322 {} unexpected commandsToWaitFor: {}", jobTag, huh)
           }
@@ -317,6 +321,12 @@ abstract class StandardCacheHitCopyingActor(val standardParams: StandardCacheHit
           log.info(s"BT-322 {} cache hit copy across buckets: {} -> {}", jobTag, source, destination)
       case _ =>
     }
+
+  private def logCacheHitTouchCommand(command: IoTouchCommand): Unit =
+    log.info(s"BT-322 {} cache touch hit for file : {}", jobTag, command.toString)
+
+  private def logCacheHitWriteCommand(command: IoWriteCommand): Unit =
+    log.info(s"BT-322 {} cache write hit for file : {}", jobTag, command.toString)
 
   def succeedAndStop(returnCode: Option[Int], copiedJobOutputs: CallOutputs, detritusMap: DetritusMap): State = {
     import cromwell.services.metadata.MetadataService.implicits.MetadataAutoPutter

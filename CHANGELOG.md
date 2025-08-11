@@ -13,6 +13,7 @@ This will allow for better grouping of jobs in the Batch UI and ensure determini
 * Jobs that fail with exit code 50002 before even getting to RUNNING state will now be eligible for automatic transient retries.
 * Set a timeout of 24 hours for many runnables in Batch jobs. This prevents excess spend when localization or other setup steps hang. User command runnables are not affected.
 * Updated cost estimation documentation to make it explicit that the Cloud Billing API must be enabled.
+* Added support for cancelling jobs - aborted Batch jobs will now be marked as Cancelled instead of being deleted. This will allow users to view job details even after job is aborted.
 
 ### AWS Batch
 * Added support for specifying an IAM role for AWS Batch job containers via the `aws_batch_job_role_arn` workflow option. This allows containers to access AWS resources based on the permissions granted to the specified role.

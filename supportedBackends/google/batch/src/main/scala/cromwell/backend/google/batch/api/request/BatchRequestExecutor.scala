@@ -190,7 +190,7 @@ object BatchRequestExecutor {
       // startup time. Hence, the 'vmStartTime' corresponds to when the job enters the SCHEDULED state.
       val startedRegex = ".*to SCHEDULED.*".r
 
-      // job terminal events can occur in 2 ways:
+      // job terminal events can occur as below:
       //    - job transitions from a RUNNING state to either SUCCEEDED/FAILED/CANCELLED state
       //    - job never enters RUNNING state and instead transitions from SCHEDULED -> SCHEDULED_PENDING_FAILED -> FAILED
       //    - job never enters RUNNING state and instead transitions from SCHEDULED -> CANCELLATION_IN_PROGRESS -> CANCELLED

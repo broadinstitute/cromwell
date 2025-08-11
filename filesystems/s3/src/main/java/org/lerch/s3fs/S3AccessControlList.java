@@ -1,14 +1,14 @@
 package org.lerch.s3fs;
 
-import static java.lang.String.format;
+import software.amazon.awssdk.services.s3.model.Grant;
+import software.amazon.awssdk.services.s3.model.Owner;
+import software.amazon.awssdk.services.s3.model.Permission;
 
 import java.nio.file.AccessDeniedException;
 import java.nio.file.AccessMode;
 import java.util.EnumSet;
 
-import software.amazon.awssdk.services.s3.model.Grant;
-import software.amazon.awssdk.services.s3.model.Owner;
-import software.amazon.awssdk.services.s3.model.Permission;
+import static java.lang.String.format;
 
 public class S3AccessControlList {
     private String fileStoreName;

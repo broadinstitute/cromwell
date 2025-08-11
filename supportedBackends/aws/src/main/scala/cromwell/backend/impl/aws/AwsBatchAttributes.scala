@@ -61,7 +61,14 @@ case class AwsBatchAttributes(fileSystem: String,
                               executionBucket: String,
                               duplicationStrategy: AwsBatchCacheHitDuplicationStrategy,
                               submitAttempts: Int Refined Positive,
-                              createDefinitionAttempts: Int Refined Positive
+                              createDefinitionAttempts: Int Refined Positive,
+                              fsxMntPoint: Option[List[String]],
+                              efsMntPoint: Option[String],
+                              efsMakeMD5: Option[Boolean],
+                              tagResources: Option[Boolean],
+                              efsDelocalize: Option[Boolean],
+                              globLinkCommand: Option[String],
+                              checkSiblingMd5: Option[Boolean]
 )
 
 object AwsBatchAttributes {
@@ -72,9 +79,27 @@ object AwsBatchAttributes {
     "root",
     "filesystems",
     "filesystems.local.auth",
+    "filesystems.local.fsx",
+    "filesystems.local.efs",
+    "filesystems.local.localization",
+    "filesystems.local.caching.hashing-strategy",
+    "filesystems.local.caching.duplication-strategy",
+    "filesystems.local.caching.check-sibling-md5",
     "filesystems.s3.auth",
     "filesystems.s3.caching.duplication-strategy",
-    "filesystems.local.caching.duplication-strategy"
+    "auth",
+    "numCreateDefinitionAttempts",
+    "numSubmitAttempts",
+    "default-runtime-attributes.scriptBucketName",
+    "awsBatchRetryAttempts",
+    "awsBatchEvaluateOnExit",
+    "ulimits",
+    "gpuCount",
+    "efsDelocalize",
+    "efsMakeMD5",
+    "tagResources",
+    "maxRetries",
+    "glob-link-command"
   )
 
   private val deprecatedAwsBatchKeys: Map[String, String] = Map(
@@ -96,6 +121,18 @@ object AwsBatchAttributes {
         logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}")
       }
     }
+
+    def parseFSx(config: List[String]): Option[List[String]] =
+      config.isEmpty match {
+        case true => None
+        case false => Some(config)
+      }
+
+    def parseConfigString(config: String): Option[String] =
+      config.isEmpty match {
+        case true => None
+        case false => Some(config)
+      }
 
     warnDeprecated(configKeys, deprecatedAwsBatchKeys, context, Logger)
 
@@ -132,13 +169,69 @@ object AwsBatchAttributes {
         }
       }
 
+    val fsxMntPoint: ErrorOr[Option[List[String]]] = validate {
+      backendConfig.hasPath("filesystems.local.fsx") match {
+        case true => parseFSx(backendConfig.getStringList("filesystems.local.fsx").asScala.toList)
+        case false => None
+      }
+    }
+
+    // EFS settings:
+    val efsMntPoint: ErrorOr[Option[String]] = validate {
+      backendConfig.hasPath("filesystems.local.efs") match {
+        case true => parseConfigString(backendConfig.getString("filesystems.local.efs"))
+        case false => None
+      }
+    }
+    val efsMakeMD5: ErrorOr[Option[Boolean]] = validate {
+      backendConfig.hasPath("default-runtime-attributes.efsMakeMD5") match {
+        case true => Some(backendConfig.getBoolean("default-runtime-attributes.efsMakeMD5"))
+        case false => None
+      }
+    }
+    // if set for job : use that; else from defaults; else None
+    val efsDelocalize: ErrorOr[Option[Boolean]] = validate {
+      backendConfig.hasPath("default-runtime-attributes.efsDelocalize") match {
+        case true => Some(backendConfig.getBoolean("default-runtime-attributes.efsDelocalize"))
+        case false => None
+      }
+    }
+    // from config if set:
+    val tagResources: ErrorOr[Option[Boolean]] = validate {
+      backendConfig.hasPath("default-runtime-attributes.tagResources") match {
+        case true => Some(backendConfig.getBoolean("default-runtime-attributes.tagResources"))
+        case false => None
+      }
+    }
+    // from config if set.
+    val globLinkCommand: ErrorOr[Option[String]] = validate {
+      backendConfig.hasPath("glob-link-command") match {
+        case true => Some(backendConfig.getString("glob-link-command"))
+        case false => None
+      }
+    }
+    // from config if set:
+    val checkSiblingMd5: ErrorOr[Option[Boolean]] = validate {
+      backendConfig.hasPath("filesystems.local.caching.check-sibling-md5") match {
+        case true => Some(backendConfig.getBoolean("filesystems.local.caching.check-sibling-md5"))
+        case false => None
+      }
+    }
+
     (
       fileSysStr,
       filesystemAuthMode,
       executionBucket,
       duplicationStrategy,
       backendConfig.as[ErrorOr[Int Refined Positive]]("numSubmitAttempts"),
-      backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts")
+      backendConfig.as[ErrorOr[Int Refined Positive]]("numCreateDefinitionAttempts"),
+      fsxMntPoint,
+      efsMntPoint,
+      efsMakeMD5,
+      efsDelocalize,
+      tagResources,
+      globLinkCommand,
+      checkSiblingMd5
     ).tupled.map((AwsBatchAttributes.apply _).tupled) match {
       case Valid(r) => r
       case Invalid(f) =>

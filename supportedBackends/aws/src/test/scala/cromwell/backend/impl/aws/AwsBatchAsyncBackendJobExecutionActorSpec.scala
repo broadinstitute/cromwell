@@ -32,7 +32,6 @@
 package cromwell.backend.impl.aws
 
 import java.util.UUID
-
 import akka.actor.{ActorRef, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestDuration}
 import common.collections.EnhancedCollections._
@@ -41,7 +40,7 @@ import cromwell.backend._
 import cromwell.backend.async.{ExecutionHandle, FailedNonRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.impl.aws.AwsBatchAsyncBackendJobExecutionActor.AwsBatchPendingExecutionHandle
 import cromwell.backend.impl.aws.RunStatus.UnsuccessfulRunStatus
-import cromwell.backend.impl.aws.io.AwsBatchWorkingDisk
+import cromwell.backend.impl.aws.io.{AwsBatchWorkflowPaths, AwsBatchWorkingDisk}
 import cromwell.backend.io.JobPathsSpecHelper._
 import cromwell.backend.standard.{
   DefaultStandardAsyncExecutionActorParams,
@@ -628,56 +627,72 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
           AwsBatchFileInput("stringToFileMap-0",
                             "s3://path/to/stringTofile1",
                             DefaultPathBuilder.get("path/to/stringTofile1"),
-                            workingDisk
+                            workingDisk,
+                            false,
+                            false
           )
         )
         batchInputs should contain(
           AwsBatchFileInput("stringToFileMap-1",
                             "s3://path/to/stringTofile2",
                             DefaultPathBuilder.get("path/to/stringTofile2"),
-                            workingDisk
+                            workingDisk,
+                            false,
+                            false
           )
         )
         batchInputs should contain(
           AwsBatchFileInput("fileToStringMap-0",
                             "s3://path/to/fileToString1",
                             DefaultPathBuilder.get("path/to/fileToString1"),
-                            workingDisk
+                            workingDisk,
+                            false,
+                            false
           )
         )
         batchInputs should contain(
           AwsBatchFileInput("fileToStringMap-1",
                             "s3://path/to/fileToString2",
                             DefaultPathBuilder.get("path/to/fileToString2"),
-                            workingDisk
+                            workingDisk,
+                            false,
+                            false
           )
         )
         batchInputs should contain(
           AwsBatchFileInput("fileToFileMap-0",
                             "s3://path/to/fileToFile1Key",
                             DefaultPathBuilder.get("path/to/fileToFile1Key"),
-                            workingDisk
+                            workingDisk,
+                            false,
+                            false
           )
         )
         batchInputs should contain(
           AwsBatchFileInput("fileToFileMap-1",
                             "s3://path/to/fileToFile1Value",
                             DefaultPathBuilder.get("path/to/fileToFile1Value"),
-                            workingDisk
+                            workingDisk,
+                            false,
+                            false
           )
         )
         batchInputs should contain(
           AwsBatchFileInput("fileToFileMap-2",
                             "s3://path/to/fileToFile2Key",
                             DefaultPathBuilder.get("path/to/fileToFile2Key"),
-                            workingDisk
+                            workingDisk,
+                            false,
+                            false
           )
         )
         batchInputs should contain(
           AwsBatchFileInput("fileToFileMap-3",
                             "s3://path/to/fileToFile2Value",
                             DefaultPathBuilder.get("path/to/fileToFile2Value"),
-                            workingDisk
+                            workingDisk,
+                            false,
+                            false
           )
         )
 
@@ -746,7 +761,7 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
     val batchInputs = backend.generateAwsBatchInputs(jobDescriptor)
     batchInputs should have size 1
     batchInputs should contain(
-      AwsBatchFileInput("in-0", "s3://blah/b/c.txt", DefaultPathBuilder.get("blah/b/c.txt"), workingDisk)
+      AwsBatchFileInput("in-0", "s3://blah/b/c.txt", DefaultPathBuilder.get("blah/b/c.txt"), workingDisk, false, false)
     )
     val outputs = backend.generateAwsBatchOutputs(jobDescriptor)
     outputs should have size 1
@@ -754,7 +769,8 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
       AwsBatchFileOutput("out",
                          s"s3://my-cromwell-workflows-bucket/file_passing/$workflowId/call-a/out",
                          DefaultPathBuilder.get("out"),
-                         workingDisk
+                         workingDisk,
+                         false
       )
     )
   }
@@ -783,7 +799,9 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
       AwsBatchFileInput("c6fd5c91-0",
                         "s3://some/path/file.txt",
                         DefaultPathBuilder.get("some/path/file.txt"),
-                        workingDisk
+                        workingDisk,
+                        false,
+                        false
       )
     )
     val outputs = backend.generateAwsBatchOutputs(jobDescriptor)
@@ -795,7 +813,13 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
     val batchInputsLocal = backend.generateAwsBatchInputs(jobDescriptorLocal)
     batchInputsLocal should have size 1
     batchInputsLocal should contain(
-      AwsBatchFileInput("c6fd5c91-0", "/some/path/file.txt", DefaultPathBuilder.get("some/path/file.txt"), workingDisk)
+      AwsBatchFileInput("c6fd5c91-0",
+                        "/some/path/file.txt",
+                        DefaultPathBuilder.get("some/path/file.txt"),
+                        workingDisk,
+                        false,
+                        false
+      )
     )
     val outputsLocal = backendLocal.generateAwsBatchOutputs(jobDescriptorLocal)
     outputsLocal should have size 0
@@ -852,10 +876,22 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
         val batchInputs = testActorRef.underlyingActor.generateAwsBatchInputs(jobDescriptor)
         batchInputs should have size 2
         batchInputs should contain(
-          AwsBatchFileInput("fileArray-0", "s3://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk)
+          AwsBatchFileInput("fileArray-0",
+                            "s3://path/to/file1",
+                            DefaultPathBuilder.get("path/to/file1"),
+                            workingDisk,
+                            false,
+                            false
+          )
         )
         batchInputs should contain(
-          AwsBatchFileInput("fileArray-1", "s3://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk)
+          AwsBatchFileInput("fileArray-1",
+                            "s3://path/to/file2",
+                            DefaultPathBuilder.get("path/to/file2"),
+                            workingDisk,
+                            false,
+                            false
+          )
         )
       case Left(badness) => fail(badness.toList.mkString(", "))
     }
@@ -910,10 +946,22 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
         val batchInputs = testActorRef.underlyingActor.generateAwsBatchInputs(jobDescriptor)
         batchInputs should have size 2
         batchInputs should contain(
-          AwsBatchFileInput("file1-0", "s3://path/to/file1", DefaultPathBuilder.get("path/to/file1"), workingDisk)
+          AwsBatchFileInput("file1-0",
+                            "s3://path/to/file1",
+                            DefaultPathBuilder.get("path/to/file1"),
+                            workingDisk,
+                            false,
+                            false
+          )
         )
         batchInputs should contain(
-          AwsBatchFileInput("file2-0", "s3://path/to/file2", DefaultPathBuilder.get("path/to/file2"), workingDisk)
+          AwsBatchFileInput("file2-0",
+                            "s3://path/to/file2",
+                            DefaultPathBuilder.get("path/to/file2"),
+                            workingDisk,
+                            false,
+                            false
+          )
         )
 
       case Left(badness) => fail(badness.toList.mkString(", "))
@@ -925,27 +973,32 @@ class AwsBatchAsyncBackendJobExecutionActorSpec
       AwsBatchFileOutput("/cromwell_root/path/to/file1",
                          "s3://path/to/file1",
                          DefaultPathBuilder.get("/cromwell_root/path/to/file1"),
-                         workingDisk
+                         workingDisk,
+                         false
       ),
       AwsBatchFileOutput("/cromwell_root/path/to/file2",
                          "s3://path/to/file2",
                          DefaultPathBuilder.get("/cromwell_root/path/to/file2"),
-                         workingDisk
+                         workingDisk,
+                         false
       ),
       AwsBatchFileOutput("/cromwell_root/path/to/file3",
                          "s3://path/to/file3",
                          DefaultPathBuilder.get("/cromwell_root/path/to/file3"),
-                         workingDisk
+                         workingDisk,
+                         false
       ),
       AwsBatchFileOutput("/cromwell_root/path/to/file4",
                          "s3://path/to/file4",
                          DefaultPathBuilder.get("/cromwell_root/path/to/file4"),
-                         workingDisk
+                         workingDisk,
+                         false
       ),
       AwsBatchFileOutput("/cromwell_root/path/to/file5",
                          "s3://path/to/file5",
                          DefaultPathBuilder.get("/cromwell_root/path/to/file5"),
-                         workingDisk
+                         workingDisk,
+                         false
       )
     )
     val outputValues = Seq(

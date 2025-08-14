@@ -23,6 +23,9 @@ object RunStatus {
   case class Running(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
       extends RunStatus { override def toString = "Running" }
 
+  case class Aborting(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
+      extends RunStatus { override def toString = "Aborting" }
+
   sealed trait TerminalRunStatus extends RunStatus
 
   case class Success(eventList: Seq[ExecutionEvent], instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
@@ -40,10 +43,9 @@ object RunStatus {
     override def toString = "Failed"
   }
 
-  final case class Aborted(instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty)
-      extends UnsuccessfulRunStatus {
+  final case class Aborted(eventList: Seq[ExecutionEvent],
+                           instantiatedVmInfo: Option[InstantiatedVmInfo] = Option.empty
+  ) extends UnsuccessfulRunStatus {
     override def toString = "Aborted"
-
-    override def eventList: Seq[ExecutionEvent] = List.empty
   }
 }

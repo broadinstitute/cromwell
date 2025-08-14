@@ -8,7 +8,7 @@ task getAverage {
         Float average = read_float(stdout())
     }
     runtime {
-       docker: "gcr.io/broad-dsde-cromwell-dev/cromwell-oci-manifest-test@sha256:bac1423e2ae5b22a85905abff553cc9f0a7569ef0c1ab0732c821ce5e435a602"
+       docker: "us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/public-test-images/cromwell-oci-manifest-test:latest"
     }
 }
 
@@ -23,7 +23,7 @@ task heightProduct{
 		Float trapezoidalArea = read_float(stdout())
    }
    runtime {
-       docker: "gcr.io/broad-dsde-cromwell-dev/cromwell-oci-manifest-test@sha256:bac1423e2ae5b22a85905abff553cc9f0a7569ef0c1ab0732c821ce5e435a602"
+       docker: "us-central1-docker.pkg.dev/broad-dsde-cromwell-dev/public-test-images/cromwell-oci-manifest-test:latest"
    }
 }
 

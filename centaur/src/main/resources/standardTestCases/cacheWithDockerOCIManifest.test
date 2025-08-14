@@ -1,6 +1,5 @@
 name: cacheWithDockerOCIManifest
 testFormat: runtwiceexpectingcallcaching
-backends: ["GCPBATCH"]
 
 files {
   workflow: cacheBetweenWF/cacheWithDockerOCIManifest.wdl

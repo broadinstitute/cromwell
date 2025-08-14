@@ -21,7 +21,7 @@ export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
 export AWS_ACCESS_KEY=$(vault read -field=access_key secret/dsde/cromwell/common/cromwell-aws)
 export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common/cromwell-aws)
 
-# TODO (AN-721) Turn most tests back on once we resolve Dockerhub rate limiting issues
+# TODO turn most tests back on once we resolve timeouts
 # TODO (AN-710) Add back some of these tests (space, scatter, docker_hash_dockerhub, awswdlresultscopying etc.)
 cromwell::build::run_centaur \
      -i hello \

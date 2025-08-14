@@ -53,6 +53,31 @@ AWS Batch allows the use of private Docker containers by providing `dockerhub` c
 }
 ```
 
+### DockerHub Mirroring
+
+Cromwell supports automatic use of ECR [pull-through caches](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html)
+to access DockerHub images in the AWS backend. When enabled, Dockerhub images will be pulled through this mirror rather than directly from Dockerhub. This can be important for avoiding rate limits imposed by Docker. This is an alternative to providing credentials as described 
+above. If you want to enable your pull-through cache to access private DockerHub images, you'll need to provide your DockerHub login
+when setting up the cache through AWS.
+
+To use, include the below `docker-mirror` config in your backend configuration:
+```
+(backend.providers.AWSBatch.config.)docker-mirror = {
+    dockerhub {
+      enabled: true
+      address: "<your-private-ECR-cache-endpoint>"
+    }
+}
+```
+
+To ensure call caching works, confirm that ECR is enabled in your higher-level Cromwell config:
+```
+docker.hash-lookup = {
+    ecr.num-threads = 10
+    ecr-public.num-threads = 10
+}
+```
+
 ### More configuration options
 
 * `(backend.providers.AWSBatch.config.)concurrent-job-limit` specifies the number of jobs that Cromwell will allow to be running in AWS at the same time. Tune this parameter based on how many nodes are in the compute environment.

@@ -21,9 +21,9 @@ export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common
 
 # TODO turn most tests back on once we resolve timeouts
 # TODO (AN-710) Add back some of these tests (space, scatter, docker_hash_dockerhub, awswdlresultscopying etc.)
-cromwell::build::run_centaur \
 #     -i hello \
 #     -i mutect2.aws
+cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
     -e abort.scheduled_abort \

@@ -153,18 +153,18 @@ object Publishing {
       ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"))
 
     // It is optimal to use a single `Run` instruction to minimize the number of layers in the image.
-    //
+    // Server agent version must match desktop client.
     // Documentation:
-    // - https://www.yourkit.com/docs/java-profiler/2024.3/help/docker_broker.jsp#setup
+    // - https://www.yourkit.com/docs/java-profiler/2025.3/help/docker_broker.jsp#setup
     Instructions.Run(
       s"""apt-get update -qq && \\
          |apt-get install -qq --no-install-recommends file gpg htop jq less nload unzip vim && \\
          |rm -rf /var/lib/apt/lists/* && \\
          |mkdir /tmp/docker-build-cache && \\
-         |wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2024.3-docker.zip -P /tmp/docker-build-cache/ && \\
-         |unzip /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3-docker.zip -d /tmp/docker-build-cache && \\
-         |mkdir -p /usr/local/YourKit-JavaProfiler-2024.3/bin/ && \\
-         |cp -R /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ /usr/local/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ && \\
+         |wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2025.3-docker.zip -P /tmp/docker-build-cache/ && \\
+         |unzip /tmp/docker-build-cache/YourKit-JavaProfiler-2025.3-docker.zip -d /tmp/docker-build-cache && \\
+         |mkdir -p /usr/local/YourKit-JavaProfiler-2025.3/bin/ && \\
+         |cp -R /tmp/docker-build-cache/YourKit-JavaProfiler-2025.3/bin/linux-x86-64/ /usr/local/YourKit-JavaProfiler-2025.3/bin/linux-x86-64/ && \\
          |rm -rf /tmp/docker-build-cache && \\
          |echo "Version $displayVersion built at $buildTime" > /etc/motd && \\
          |echo "[ ! -z "\\$$TERM" -a -r /etc/motd ] && cat /etc/motd" > /etc/bash.bashrc

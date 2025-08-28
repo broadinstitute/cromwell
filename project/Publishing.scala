@@ -1,15 +1,14 @@
-import Version.{cromwellVersion, Debug, Release, Snapshot, Standard}
+import Version._
 import org.apache.ivy.Ivy
 import org.apache.ivy.core.IvyPatternHelper
 import org.apache.ivy.core.module.descriptor.{DefaultModuleDescriptor, MDArtifact}
 import org.apache.ivy.plugins.resolver.IBiblioResolver
-import sbt.Keys._
 import sbt._
+import sbt.Keys._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin.autoImport._
 import sbtdocker.Instruction
 
-import java.io.FileNotFoundException
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
 
@@ -146,8 +145,9 @@ object Publishing {
     */
   def installDebugFacilities(displayVersion: String): Instruction = {
     import sbtdocker.Instructions
-    import java.time.{ZoneId, ZonedDateTime}
+
     import java.time.format.DateTimeFormatter
+    import java.time.{ZoneId, ZonedDateTime}
 
     val buildTime =
       ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"))
@@ -209,6 +209,14 @@ object Publishing {
     "Google Artifact Registry Snapshots" at
       "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot-standard/"
 
+  private val garVirtualResolver: Resolver =
+    "Google Artifact Registry Virtual" at
+      "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release/"
+
+  private val garVirtualResolverSnap: Resolver =
+    "Google Artifact Registry Virtual Snapshots" at
+      "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot/"
+
   // https://stackoverflow.com/questions/9819965/artifactory-snapshot-filename-handling
   private val buildTimestamp = System.currentTimeMillis() / 1000
 
@@ -218,17 +226,10 @@ object Publishing {
 
   val additionalResolvers = List(
     garResolver,
-    garResolverSnap
+    garResolverSnap,
+    garVirtualResolver,
+    garVirtualResolverSnap
   ) ++ Resolver.sonatypeOssRepos("releases")
-
-  private val artifactoryCredentialsFile =
-    file("target/ci/resources/artifactory_credentials.properties").getAbsoluteFile
-
-  private val artifactoryCredentials: Seq[Credentials] =
-    if (artifactoryCredentialsFile.exists)
-      List(Credentials(artifactoryCredentialsFile))
-    else
-      Nil
 
   // BT-250 Check if publishing will fail due to already published artifacts
   val checkAlreadyPublished = taskKey[Boolean]("Verifies if publishing has already occurred")
@@ -310,22 +311,6 @@ object Publishing {
         sys.error(
           s"Some ${version.value} artifacts were already published and will need to be manually deleted. " +
             "See the errors above for the list of published artifacts."
-        )
-      }
-    }
-  )
-
-  val verifyArtifactoryCredentialsExist = taskKey[Unit]("Verify that the artifactory credentials file exists.")
-
-  val rootPublishingSettings: Seq[Setting[_]] = List(
-    verifyArtifactoryCredentialsExist := {
-      if (!artifactoryCredentialsFile.exists) {
-        throw new FileNotFoundException(
-          s"""|${artifactoryCredentialsFile.toString}
-              |The artifactory credentials file was not found.
-              |Possibly the file was not rendered from vault,
-              |or an `sbt clean` removed the /target directory.
-              |""".stripMargin
         )
       }
     }

@@ -203,11 +203,11 @@ object Publishing {
 
   private val garResolver: Resolver =
     "Google Artifact Registry" at
-      "https://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release/"
+      "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release-standard/"
 
   private val garResolverSnap: Resolver =
     "Google Artifact Registry Snapshots" at
-      "https://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot/"
+      "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot-standard/"
 
   // https://stackoverflow.com/questions/9819965/artifactory-snapshot-filename-handling
   private val buildTimestamp = System.currentTimeMillis() / 1000
@@ -290,8 +290,9 @@ object Publishing {
   }
 
   val publishingSettings: Seq[Setting[_]] = List(
-    publishTo := Option(broadArtifactoryLocalResolver),
-    credentials ++= artifactoryCredentials,
+    publishTo := Option(garResolverSnap)
+      .filter(_ => Version.buildType == Snapshot)
+      .orElse(Option(garResolver)),
     checkAlreadyPublished := {
       val module = ivyModule.value
       val log = streams.value.log

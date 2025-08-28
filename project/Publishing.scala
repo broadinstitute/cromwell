@@ -201,6 +201,7 @@ object Publishing {
       )
     }
 
+  // Standard resolvers - we publish to these and can read packages from them
   private val garResolver: Resolver =
     "Google Artifact Registry" at
       "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release-standard/"
@@ -209,6 +210,8 @@ object Publishing {
     "Google Artifact Registry Snapshots" at
       "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot-standard/"
 
+  // Virtual resolvers - these host packages we depend on, we do not publish to them
+  // Likely an artifact of the jfrog -> GAR migration of 2025
   private val garVirtualResolver: Resolver =
     "Google Artifact Registry Virtual" at
       "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release/"

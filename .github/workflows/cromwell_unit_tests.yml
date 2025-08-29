@@ -19,6 +19,8 @@ jobs:
     #This action is using a Github free runner, rather than a Broad self-hosted one.
     #This is because the Broad ones don't have sbt installed by default.
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
 
     steps:
     - uses: actions/checkout@v3 # checkout the cromwell repo
@@ -26,8 +28,15 @@ jobs:
     - uses: ./.github/set_up_cromwell_action #Exectute this reusable github action. It will set up java/sbt/git-secrets/cromwell.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-  
-    #Invoke SBT to run all unit tests for Cromwell. 
+    - name: Auth to GCP
+      id: 'auth'
+      uses: google-github-actions/auth@v2
+      with:
+        token_format: 'access_token'
+        workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
+        service_account: 'dsp-artifact-registry-push@dsp-artifact-registry.iam.gserviceaccount.com'
+
+      #Invoke SBT to run all unit tests for Cromwell.
     - name: Run tests
       run: |
         set -e

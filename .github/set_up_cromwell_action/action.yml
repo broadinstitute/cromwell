@@ -16,15 +16,6 @@ runs:
       - uses: coursier/cache-action@v6
         name: Enable Coursier Cache
 
-      - name: Auth to GCP
-        id: 'auth'
-        uses: google-github-actions/auth@v2
-        with:
-          token_format: 'access_token'
-          workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
-          service_account: 'dsp-artifact-registry-push@dsp-artifact-registry.iam.gserviceaccount.com'
-          export_environment_variables: true
-
       #Cromwell requires git-secrets be setup. Here, we set up secrets and verify success with a script.
       - name: Git secrets setup 
         run: |
@@ -54,3 +45,12 @@ runs:
         with:
           distribution: temurin
           java-version: 17
+
+      # Must come after checkout step or token file will be deleted
+      - name: Auth to GCP
+        id: 'auth'
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
+          service_account: 'dsp-artifact-registry-push@dsp-artifact-registry.iam.gserviceaccount.com'

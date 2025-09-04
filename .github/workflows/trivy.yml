@@ -1,6 +1,9 @@
 name: dsp-appsec-trivy
 on: [pull_request]
 
+permissions:
+  id-token: write
+
 jobs:
   appsec-trivy:
     # Parse Dockerfile and build, scan image if a "blessed" base image is not used

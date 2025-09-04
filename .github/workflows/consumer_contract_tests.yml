@@ -139,7 +139,7 @@ jobs:
           docker run --rm -v $PWD:/working \
                           -v jar-cache:/root/.ivy \
                           -v jar-cache:/root/.ivy2 \
-                          -v ${GOOGLE_APPLICATION_CREDENTIALS}:gha-gcloud-creds.json \ 
+                          -v ${GOOGLE_APPLICATION_CREDENTIALS}:/gha-gcloud-creds.json \ 
                           -e GOOGLE_APPLICATION_CREDENTIALS="/gha-gcloud-creds.json" \
                           -w /working \
                           sbtscala/scala-sbt:openjdk-17.0.2_1.7.2_2.13.10 \

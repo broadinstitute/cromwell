@@ -35,8 +35,6 @@ class PipelinesApiAsyncBackendJobExecutionActor(standardParams: StandardAsyncExe
     extends cromwell.backend.google.pipelines.common.PipelinesApiAsyncBackendJobExecutionActor(standardParams)
     with PipelinesApiReferenceFilesMappingOperations {
 
-  jobLogger.info("AN-436 Instantiated class")
-
   // The original implementation assumes the WomFiles are all WomMaybePopulatedFiles and wraps everything in a PipelinesApiFileInput
   // In v2 we can differentiate files from directories
   override protected def pipelinesApiInputsFromWomFiles(inputName: String,

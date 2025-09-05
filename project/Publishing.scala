@@ -1,16 +1,16 @@
-import Version._
+import Version.*
 import org.apache.ivy.Ivy
 import org.apache.ivy.core.IvyPatternHelper
 import org.apache.ivy.core.module.descriptor.{DefaultModuleDescriptor, MDArtifact}
 import org.apache.ivy.plugins.resolver.IBiblioResolver
-import sbt._
-import sbt.Keys._
-import sbtassembly.AssemblyPlugin.autoImport._
-import sbtdocker.DockerPlugin.autoImport._
+import sbt.*
+import sbt.Keys.*
+import sbtassembly.AssemblyPlugin.autoImport.*
+import sbtdocker.DockerPlugin.autoImport.*
 import sbtdocker.Instruction
 
-import scala.jdk.CollectionConverters._
-import scala.sys.process._
+import scala.jdk.CollectionConverters.*
+import scala.sys.process.*
 
 object Publishing {
 
@@ -201,24 +201,26 @@ object Publishing {
       )
     }
 
-  // Standard resolvers - we publish to these and can read packages from them
-  private val garResolver: Resolver =
+  // These are the GAR repositories we publish to, they require authentication
+  // Builds should not depend on these resolvers
+  private lazy val garPublishResolver: Resolver =
     "Google Artifact Registry" at
       "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release-standard/"
 
-  private val garResolverSnap: Resolver =
+  private lazy val garPublishResolverSnap: Resolver =
     "Google Artifact Registry Snapshots" at
       "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot-standard/"
 
-  // Virtual resolvers - these host packages we depend on, we do not publish to them
+  // These GAR resolvers host packages we depend on, we do not publish to them
+  // Using https:// here because it enables users to build Cromwell without being authenticated with GCP
   // Likely an artifact of the jfrog -> GAR migration of 2025
   private val garVirtualResolver: Resolver =
     "Google Artifact Registry Virtual" at
-      "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release/"
+      "https://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release/"
 
   private val garVirtualResolverSnap: Resolver =
     "Google Artifact Registry Virtual Snapshots" at
-      "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot/"
+      "https://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot/"
 
   // https://stackoverflow.com/questions/9819965/artifactory-snapshot-filename-handling
   private val buildTimestamp = System.currentTimeMillis() / 1000
@@ -228,8 +230,6 @@ object Publishing {
       s"https://broadinstitute.jfrog.io/broadinstitute/libs-release-local;build.timestamp=$buildTimestamp/"
 
   val additionalResolvers = List(
-    garResolver,
-    garResolverSnap,
     garVirtualResolver,
     garVirtualResolverSnap
   ) ++ Resolver.sonatypeOssRepos("releases")
@@ -260,7 +260,7 @@ object Publishing {
     * Retrieve the IBiblioResolver from sbt's Ivy setup.
     */
   private def getIBiblioResolver(ivy: Ivy): IBiblioResolver =
-    ivy.getSettings.getResolver(garResolver.name) match {
+    ivy.getSettings.getResolver(garVirtualResolver.name) match {
       case iBiblioResolver: IBiblioResolver => iBiblioResolver
       case other => sys.error(s"Expected an IBiblioResolver, got $other")
     }
@@ -294,9 +294,9 @@ object Publishing {
   }
 
   val publishingSettings: Seq[Setting[_]] = List(
-    publishTo := Option(garResolverSnap)
+    publishTo := Option(garPublishResolverSnap)
       .filter(_ => Version.buildType == Snapshot)
-      .orElse(Option(garResolver)),
+      .orElse(Option(garPublishResolver)),
     checkAlreadyPublished := {
       val module = ivyModule.value
       val log = streams.value.log

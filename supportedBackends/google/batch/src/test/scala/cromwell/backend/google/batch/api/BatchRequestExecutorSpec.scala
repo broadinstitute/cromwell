@@ -164,7 +164,7 @@ class BatchRequestExecutorSpec
         val eventNames = events.map(_.name)
         val vmEndTime = events.find(e => e.name == "vmEndTime").get
 
-        eventNames should contain allOf(preemptionError, "vmEndTime")
+        eventNames should contain allOf (preemptionError, "vmEndTime")
         vmEndTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:04Z"
         failedStatus.errorCode shouldBe GcpBatchExitCode.VMPreemption
       case _ => fail("Expected RunStatus.Failed")

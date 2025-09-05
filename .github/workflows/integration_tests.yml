@@ -101,6 +101,7 @@ jobs:
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
+        gar_login: "false"
     # Activate SSH and idle for 30 minutes
 #    - name: Setup tmate session
 #      uses: mxschmitt/action-tmate@v3

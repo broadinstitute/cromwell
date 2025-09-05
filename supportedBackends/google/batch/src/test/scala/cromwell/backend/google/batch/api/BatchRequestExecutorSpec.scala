@@ -396,7 +396,7 @@ class BatchRequestExecutorSpec
   it should "send vmStartTime and vmEndTime metadata info along with other events when a job goes from SCHEDULED to FAILED" in {
     val mockClient =
       setupBatchClient(jobState = JobStatus.State.FAILED,
-        events = List(schedulingStatusEvent, scheduledToFailedStatusEvent)
+                       events = List(schedulingStatusEvent, scheduledToFailedStatusEvent)
       )
 
     // Create the BatchRequestExecutor
@@ -410,12 +410,12 @@ class BatchRequestExecutorSpec
     result.status match {
       case RunStatus.Failed(_, events, _) =>
         val eventNames = events.map(_.name)
-        eventNames should contain allOf("vmStartTime", "vmEndTime")
+        eventNames should contain allOf ("vmStartTime", "vmEndTime")
 
         val vmStartTime = events.find(e => e.name == "vmStartTime").get
         val vmEndTime = events.find(e => e.name == "vmEndTime").get
 
-        eventNames should contain allOf("Job state is set from SCHEDULED to FAILED for job...", "Job state is set from QUEUED to SCHEDULED for job...")
+        eventNames should contain allOf ("Job state is set from SCHEDULED to FAILED for job...", "Job state is set from QUEUED to SCHEDULED for job...")
         vmStartTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:01Z"
         vmEndTime.offsetDateTime.toString shouldBe "1970-01-01T00:00:10Z"
       case _ => fail("Expected RunStatus.Failed with events")

@@ -5,3 +5,9 @@ addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.0.4")
 addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.16")
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.2")
 addDependencyTreePlugin
+
+/**
+  * Force the version scheme for scala-xml to not use semantic versioning to anticipate a binary incompatibility
+  * This currently was already happening for some build servers, but bloop seems to struggle with this.
+  */
+libraryDependencySchemes += "org.scala-lang.modules" % "scala-xml_2.12" % VersionScheme.Always

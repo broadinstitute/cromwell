@@ -15,6 +15,7 @@ import womtool.graph.WomGraph
 import womtool.input.WomGraphMaker
 import womtool.inputs.Inputs
 import womtool.outputs.Outputs
+import womtool.parametermeta.ParameterMeta
 import womtool.validate.Validate
 
 import scala.util.{Failure, Success}
@@ -53,6 +54,7 @@ object WomtoolMain extends App with StrictLogging {
     case o: OutputsCommandLine => Outputs.outputsJson(o.workflowSource)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource)
+    case pm: ParameterMetaCommandLine => ParameterMeta.parameterMetaInfoJson(pm.workflowSource)
     case _ => BadUsageTermination(WomtoolCommandLineParser.instance.usage)
   }
 

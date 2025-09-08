@@ -1,16 +1,16 @@
-import Version.*
+import Version._
 import org.apache.ivy.Ivy
 import org.apache.ivy.core.IvyPatternHelper
 import org.apache.ivy.core.module.descriptor.{DefaultModuleDescriptor, MDArtifact}
 import org.apache.ivy.plugins.resolver.IBiblioResolver
-import sbt.*
-import sbt.Keys.*
-import sbtassembly.AssemblyPlugin.autoImport.*
-import sbtdocker.DockerPlugin.autoImport.*
+import sbt._
+import sbt.Keys._
+import sbtassembly.AssemblyPlugin.autoImport._
+import sbtdocker.DockerPlugin.autoImport._
 import sbtdocker.Instruction
 
-import scala.jdk.CollectionConverters.*
-import scala.sys.process.*
+import scala.jdk.CollectionConverters._
+import scala.sys.process._
 
 object Publishing {
 

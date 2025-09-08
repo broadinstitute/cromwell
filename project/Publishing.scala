@@ -238,6 +238,12 @@ object Publishing {
   val checkAlreadyPublished = taskKey[Boolean]("Verifies if publishing has already occurred")
   val errorIfAlreadyPublished = taskKey[Unit]("Fails the build if publishing has already occurred")
 
+  // Check if sbt-gcs-plugin is expected to be enabled - this is required to publish to GAR. We only add
+  // this plugin when the PUBLISH_TO_GAR env var is set, so checking this gives us an opportunity
+  // to inform the user of that. See more context in plugins.sbt.
+  val errorIfGcsPluginNotEnabled = taskKey[Unit]("Verifies if PUBLISH_TO_GAR env var is present")
+  val gcsPluginEnabled = sys.env.contains("PUBLISH_TO_GAR")
+
   private case class CromwellMDArtifactType(artifactType: String,
                                             artifactExtension: String,
                                             classifierOption: Option[String]
@@ -294,6 +300,15 @@ object Publishing {
   }
 
   val publishingSettings: Seq[Setting[_]] = List(
+    errorIfGcsPluginNotEnabled := {
+      if (!gcsPluginEnabled) {
+        sys.error(
+          "The sbt-gcs-plugin, which is required for publishing, may not be enabled. To fix this problem, set the " +
+            "PUBLISH_TO_GAR environment variable and re-run sbt. Note that GCP auth will be required."
+        )
+      }
+    },
+    publish := publish.dependsOn(errorIfGcsPluginNotEnabled).value,
     publishTo := Option(garPublishResolverSnap)
       .filter(_ => Version.buildType == Snapshot)
       .orElse(Option(garPublishResolver)),

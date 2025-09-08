@@ -28,7 +28,7 @@ jobs:
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
 
-      #Invoke SBT to run all unit tests for Cromwell.
+    #Invoke SBT to run all unit tests for Cromwell.
     - name: Run tests
       run: |
         set -e

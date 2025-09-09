@@ -12,6 +12,8 @@ import wom.values._
   *
   * There is no default, however `optional` can be used return the validated value as an `Option`, wrapped in a `Some`,
   * if present, or `None` if not found.
+ *
+ * NOTE: As of WDL 1.1 this attribute is deprecated in favor of `container`.
   */
 object DockerValidation {
   lazy val instance: RuntimeAttributesValidation[String] = new DockerValidation

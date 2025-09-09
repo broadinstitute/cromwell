@@ -1,9 +1,6 @@
 name: dsp-appsec-trivy
 on: [pull_request]
 
-permissions:
-  id-token: write
-
 jobs:
   appsec-trivy:
     # Parse Dockerfile and build, scan image if a "blessed" base image is not used
@@ -20,15 +17,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-
-      # Must come after checkout step or token file will be deleted
-      - name: Auth to GCP
-        id: 'auth'
-        uses: google-github-actions/auth@v2
-        with:
-          token_format: 'access_token'
-          workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
-          service_account: 'dsp-artifact-registry-push@dsp-artifact-registry.iam.gserviceaccount.com'
       - uses: sbt/setup-sbt@v1
 
       # fetch SBT package

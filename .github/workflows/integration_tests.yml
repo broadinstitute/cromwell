@@ -15,7 +15,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   # Don't run this workflow concurrently on the same branch
@@ -101,7 +100,6 @@ jobs:
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-        gar_login: "false" # Centaur tests handle their own GCP auth.
     # Activate SSH and idle for 30 minutes
 #    - name: Setup tmate session
 #      uses: mxschmitt/action-tmate@v3

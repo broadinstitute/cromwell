@@ -17,6 +17,7 @@ class DockerImageIdentifierSpec
       ("sourceString", "host", "repo", "image", "reference"),
       // Without tags -> latest
       ("ubuntu", None, None, "ubuntu", "latest"),
+      ("docker://ubuntu:latest", None, None, "ubuntu", "latest"),
       ("broad/cromwell", None, Option("broad"), "cromwell", "latest"),
       ("index.docker.io/ubuntu", Option("index.docker.io"), None, "ubuntu", "latest"),
       ("broad/cromwell/submarine", None, Option("broad/cromwell"), "submarine", "latest"),

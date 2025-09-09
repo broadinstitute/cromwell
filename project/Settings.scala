@@ -220,7 +220,6 @@ object Settings {
           .disablePlugins(AssemblyPlugin)
           .settings(publish := {})
           .settings(ciSettings)
-          .settings(rootPublishingSettings)
       )
 
       buildProject(project, "root", Nil, builders)

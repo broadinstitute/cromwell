@@ -6,14 +6,10 @@ import common.mock.MockSugar
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{DockerWithHash, FloatingDockerTagWithoutHash}
-import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse, DockerSize}
+import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
 import cromwell.docker._
 import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFailure
-import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{
-  BackendJobPreparationSucceeded,
-  CallPreparationFailed,
-  Start
-}
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed, KvPair}
 import org.scalatest.BeforeAndAfter
@@ -25,7 +21,8 @@ import wom.callable.CommandTaskDefinition
 import wom.core.LocallyQualifiedName
 import wom.expression.ValueAsAnExpression
 import wom.graph.{CommandCallNode, WomIdentifier}
-import wom.values.{WomString, WomValue}
+import wom.types.{WomArrayType, WomStringType}
+import wom.values.{WomArray, WomString, WomValue}
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -192,7 +189,7 @@ class JobPreparationActorSpec
     }
   }
 
-  it should "correctly apply DockerMirroring to a Dockerhub image" in {
+  it should "correctly apply DockerMirroring to a Dockerhub image defined in docker attr" in {
     // Create a mock job with the desired runtime attribute
     val callable: CommandTaskDefinition = mock[CommandTaskDefinition]
     callable.runtimeAttributes returns RuntimeAttributes(
@@ -219,12 +216,59 @@ class JobPreparationActorSpec
       self
     )
     actor ! Start(ValueStore.empty)
-    helper.workflowDockerLookupActor.expectMsgClass(classOf[DockerInfoRequest])
+    helper.workflowDockerLookupActor.expectMsgPF(5 seconds) { case success: DockerInfoRequest =>
+      success.dockerImageID.fullName shouldBe mirroredValue
+    }
     helper.workflowDockerLookupActor.reply(
       DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest])
     )
     expectMsgPF(5 seconds) { case success: BackendJobPreparationSucceeded =>
       success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe mirroredValue
+      success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash(finalValue)
+    }
+  }
+
+  it should "correctly apply DockerMirroring to a Dockerhub image defined in container attr" in {
+    // Create a mock job with the desired runtime attribute
+    val callable: CommandTaskDefinition = mock[CommandTaskDefinition]
+    callable.runtimeAttributes returns RuntimeAttributes(
+      Map(
+        "container" -> ValueAsAnExpression(
+          WomArray(WomArrayType(WomStringType),
+            Seq(WomString("alpine:latest"), WomString("ubuntu:latest")))
+        )
+      )
+    )
+    val call: CommandCallNode =
+      CommandCallNode(WomIdentifier("JobPreparationSpec_call"), callable, Set.empty, List.empty, Set.empty, null, None)
+    val mockJobKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
+
+    val dockerMirroring = DockerMirroring(List(DockerHubMirror("my.mirror.io")))
+    val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
+    val mirroredUbuntuValue = "my.mirror.io/library/ubuntu:latest"
+    val mirroredAlpineValue = "my.mirror.io/library/alpine:latest"
+    val finalValue =
+      "my.mirror.io/library/alpine@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+    val actor = TestActorRef(
+      helper.buildTestJobPreparationActor(1 minute,
+        1 minutes,
+        List.empty,
+        None,
+        List.empty,
+        mockJobKey,
+        Option(dockerMirroring)
+      ),
+      self
+    )
+    actor ! Start(ValueStore.empty)
+    helper.workflowDockerLookupActor.expectMsgPF(5 seconds) { case success: DockerInfoRequest =>
+      success.dockerImageID.fullName shouldBe mirroredAlpineValue
+    }
+    helper.workflowDockerLookupActor.reply(
+      DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest])
+    )
+    expectMsgPF(5 seconds) { case success: BackendJobPreparationSucceeded =>
+      success.jobDescriptor.runtimeAttributes("container").toString shouldBe s"[\"${mirroredAlpineValue}\", \"${mirroredUbuntuValue}\"]"
       success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash(finalValue)
     }
   }
@@ -263,6 +307,45 @@ class JobPreparationActorSpec
     )
     expectMsgPF(5 seconds) { case success: BackendJobPreparationSucceeded =>
       success.jobDescriptor.runtimeAttributes("docker").valueString shouldBe dockerValue
+      success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash(finalValue)
+    }
+  }
+
+  it should "prefer `container` over `docker` as image source when both are present" in {
+    // Create a mock job with the desired runtime attribute
+    val callable: CommandTaskDefinition = mock[CommandTaskDefinition]
+    callable.runtimeAttributes returns RuntimeAttributes(
+      Map(
+        "docker" -> ValueAsAnExpression(WomString("ubuntu:latest")),
+        "container" -> ValueAsAnExpression(WomArray(WomArrayType(WomStringType), Seq(WomString("alpine:latest"))))
+      )
+    )
+    val call: CommandCallNode =
+      CommandCallNode(WomIdentifier("JobPreparationSpec_call"), callable, Set.empty, List.empty, Set.empty, null, None)
+    val mockJobKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
+
+    val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
+    val finalValue =
+      "alpine@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+    val actor = TestActorRef(
+      helper.buildTestJobPreparationActor(1 minute,
+        1 minutes,
+        List.empty,
+        None,
+        List.empty,
+        mockJobKey,
+        None
+      ),
+      self
+    )
+    actor ! Start(ValueStore.empty)
+    helper.workflowDockerLookupActor.expectMsgPF(5 seconds) { case success: DockerInfoRequest =>
+      success.dockerImageID.fullName shouldBe "alpine:latest"
+    }
+    helper.workflowDockerLookupActor.reply(
+      DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest])
+    )
+    expectMsgPF(5 seconds) { case success: BackendJobPreparationSucceeded =>
       success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash(finalValue)
     }
   }

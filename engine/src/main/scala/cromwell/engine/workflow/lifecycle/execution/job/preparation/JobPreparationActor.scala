@@ -13,7 +13,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{Dispatcher, DockerConfiguration}
-import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse, DockerSize}
+import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
@@ -28,6 +28,7 @@ import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.expression.IoFunctionSet
 import wom.format.MemorySize
+import wom.types.{WomArrayType, WomStringType}
 import wom.values._
 
 import scala.concurrent.duration._
@@ -145,6 +146,25 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     )
   }
 
+  private def getPreferredContainerName(attributes: Map[LocallyQualifiedName, WomValue]): Option[String] = {
+    val containers = attributes.get(RuntimeAttributesKeys.ContainerKey) match {
+      case Some(containerValue) =>
+        containerValue match {
+          case WomArray(_, values) => values.map(_.valueString)
+          case _ => Seq.empty
+        }
+      case None => Seq.empty
+    }
+
+    // Deprecated as of WDL 1.1
+    val docker = attributes.get(RuntimeAttributesKeys.DockerKey).map(_.valueString)
+
+    // TODO enhance to select the best container from the list if multiple are provided.
+    // Currently we always choose the first, should prefer one that matches our platform.
+
+    containers.headOption.orElse(docker)
+  }
+
   private[preparation] def evaluateInputsAndAttributes(
     valueStore: ValueStore
   ): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
@@ -191,8 +211,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
 
-    attributes.get(RuntimeAttributesKeys.DockerKey) match {
-      case Some(dockerValue) => handleDockerValue(dockerValue.valueString)
+    getPreferredContainerName(attributes) match {
+      case Some(dockerValue) => handleDockerValue(dockerValue)
       case None =>
         // If there is no docker attribute at all - we're ok for call caching
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker, None)
@@ -327,29 +347,43 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     )
   }
 
+  // Apply the configured Docker mirroring to the docker and container runtime attributes. Depending on the
+  // WDL version in use, either or both attributes may be present. If both are present, both will be mirrored.
+  // If mirroring is not configured, this is a no-op.
+  private[preparation] def applyDockerMirroring(attributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
+
+    def mirrorContainerName(original: String): String = {
+      DockerImageIdentifier.fromString(original) match {
+        case Success(origDockerImg) =>
+          dockerMirroring.flatMap(_.mirrorImage(origDockerImg)).map(_.fullName).getOrElse(original)
+        case Failure(e) =>
+          workflowLogger.warn(s"Failed to attempt mirroring image ${original} due to ${e.toString}")
+          original
+      }
+    }
+
+    val mirroredDockerAttribute = attributes.get(RuntimeAttributesKeys.DockerKey) map { dockerValue =>
+        (RuntimeAttributesKeys.DockerKey -> WomString(mirrorContainerName(dockerValue.valueString)))
+    }
+
+    val mirroredContainerAttribute = attributes.get(RuntimeAttributesKeys.ContainerKey) map {
+      case WomArray(_, values) =>
+        val mirroredValues = values.map(v => WomString(mirrorContainerName(v.valueString)))
+        (RuntimeAttributesKeys.ContainerKey -> WomArray(WomArrayType(WomStringType), mirroredValues))
+      case containerValue =>
+        // If it's not an array, we leave it unchanged
+        (RuntimeAttributesKeys.ContainerKey -> containerValue)
+    }
+
+    attributes ++ mirroredDockerAttribute.toList ++ mirroredContainerAttribute.toList
+  }
+
   private[preparation] def prepareRuntimeAttributes(
     inputEvaluation: Map[InputDefinition, WomValue]
   ): ErrorOr[Map[LocallyQualifiedName, WomValue]] = {
     import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
     val curriedAddDefaultsToAttributes =
       addDefaultsToAttributes(runtimeAttributeDefinitions, workflowDescriptor.backendDescriptor.workflowOptions) _
-
-    def applyDockerMirroring(attributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
-      val mirroredImageAttribute = for {
-        mirror <- dockerMirroring
-        origDockerStr <- attributes.get(RuntimeAttributesKeys.DockerKey).map(_.valueString)
-        origDockerImg <- DockerImageIdentifier.fromString(origDockerStr) match {
-          case Success(i) => Some(i)
-          case Failure(e) =>
-            workflowLogger.warn(s"Failed to attempt mirroring image ${origDockerStr} due to ${e.toString}")
-            None
-        }
-        mirroredImage <- mirror.mirrorImage(origDockerImg)
-        newDockerImageAttribute = (RuntimeAttributesKeys.DockerKey, WomString(mirroredImage.fullName))
-      } yield newDockerImageAttribute
-
-      attributes ++ mirroredImageAttribute.toList
-    }
 
     val unevaluatedRuntimeAttributes = jobKey.call.callable.runtimeAttributes
     evaluateRuntimeAttributes(unevaluatedRuntimeAttributes,

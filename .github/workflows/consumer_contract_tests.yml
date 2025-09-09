@@ -44,9 +44,6 @@ on:
     branches:
       - develop
 
-permissions:
-  id-token: write
-
 env:
   PUBLISH_CONTRACTS_RUN_NAME: 'publish-contracts-${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
   CAN_I_DEPLOY_RUN_NAME: 'can-i-deploy-${{ github.event.repository.name }}-${{ github.run_id }}-${{ github.run_attempt }}'
@@ -125,22 +122,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Must come after checkout step or token file will be deleted
-      - name: Auth to GCP
-        id: 'auth'
-        uses: google-github-actions/auth@v2
-        with:
-          token_format: 'access_token'
-          workload_identity_provider: 'projects/1038484894585/locations/global/workloadIdentityPools/github-wi-pool/providers/github-wi-provider'
-          service_account: 'dsp-artifact-registry-push@dsp-artifact-registry.iam.gserviceaccount.com'
-
       - name: Run consumer tests
         run: |
           docker run --rm -v $PWD:/working \
                           -v jar-cache:/root/.ivy \
                           -v jar-cache:/root/.ivy2 \
-                          -v ${GOOGLE_APPLICATION_CREDENTIALS}:/gha-gcloud-creds.json \
-                          -e GOOGLE_APPLICATION_CREDENTIALS="/gha-gcloud-creds.json" \
                           -w /working \
                           sbtscala/scala-sbt:openjdk-17.0.2_1.7.2_2.13.10 \
                           sbt "project pact4s" clean test

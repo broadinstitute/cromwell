@@ -2,7 +2,7 @@
 
 name: final_call_logs_dir_jes
 # not sure
-backends: [Papi, GCPBATCH_ALT]
+backends: [GCPBATCH_ALT]
 
 testFormat: workflowsuccess
 

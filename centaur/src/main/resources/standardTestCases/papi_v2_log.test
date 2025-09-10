@@ -5,7 +5,7 @@ testFormat: workflowsuccess
 # localization and delocalization commands.
 #
 # The GCP Batch backend does not currently have file-based logging of container setup, localization or delocalization.
-backends: [Papiv2, GCPBATCH_NEEDS_FILE_BASED_LOCALIZATION_LOGGING]
+backends: [GCPBATCH_NEEDS_FILE_BASED_LOCALIZATION_LOGGING]
 
 files {
   workflow: papi_v2_log/papi_v2_log.wdl

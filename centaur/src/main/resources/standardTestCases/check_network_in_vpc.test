@@ -1,7 +1,7 @@
 name: check_network_in_vpc
 testFormat: workflowsuccess
 # alt exists but is not exactly as capable as PAPI v2, see https://github.com/broadinstitute/cromwell/pull/7505
-backends: [Papiv2-Virtual-Private-Cloud-Labels, Papiv2-Virtual-Private-Cloud-Literals, GCPBATCH_ALT]
+backends: [GCPBATCH_ALT]
 
 files {
   workflow: virtual_private_cloud/check_network_in_vpc.wdl

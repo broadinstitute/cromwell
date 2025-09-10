@@ -1,6 +1,6 @@
 name: drs_usa_jdr
 testFormat: WorkflowSuccess
-backends: ["papi-v2-usa", "GCPBATCH_ALT"]
+backends: ["GCPBATCH_ALT"]
 tags: [ drs ]
 skipDescribeEndpointValidation: true
 

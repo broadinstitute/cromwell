@@ -1,6 +1,6 @@
 name: prepare_scatter_gather_papi
 testFormat: workflowsuccess
-backends: [Papi, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: scatter_simples/prepare_scatter_gather.wdl

@@ -1,6 +1,6 @@
 name: monitoring_image_script
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: monitoring_image_script/monitoring_image_script.wdl

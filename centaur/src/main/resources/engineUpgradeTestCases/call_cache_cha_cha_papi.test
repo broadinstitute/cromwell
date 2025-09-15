@@ -1,7 +1,7 @@
 name: call_cache_cha_cha_papi
 testFormat: CromwellRestartWithRecover
 callMark: call_cache_cha_cha.sleep_during_restart
-backends: [Papi, GCPBATCH]
+backends: [GCPBATCH]
 tags: [engine_upgrade]
 retryTestFailures: false
 

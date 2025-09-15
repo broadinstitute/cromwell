@@ -1,7 +1,7 @@
 name: gpu_on_papi_valid
 testFormat: workflowsuccess
 backendsMode: any
-backends: [Papi, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: gpu_on_papi/gpu_on_papi.wdl

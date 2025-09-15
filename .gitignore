@@ -46,7 +46,6 @@ cromwell-service-account.json
 cwl_conformance_test.inputs.json
 dockerhub_provider_config_v1.inc.conf
 dockerhub_provider_config_v2.inc.conf
-papi_application.inc.conf
 papi_refresh_token.options.json
 papi_v2_gcsa.options.json
 private_docker_papi_v2_usa.options

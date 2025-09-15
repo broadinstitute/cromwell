@@ -1,6 +1,6 @@
 name: gcs_path_ending_with_newline
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: gcs_path_ending_with_newline/gcs_path_ending_with_newline.wdl

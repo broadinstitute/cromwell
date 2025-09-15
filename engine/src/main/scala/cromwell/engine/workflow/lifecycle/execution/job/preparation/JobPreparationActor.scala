@@ -13,7 +13,7 @@ import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
 import cromwell.core.{Dispatcher, DockerConfiguration}
-import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
+import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse, DockerSize}
 import cromwell.docker._
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.WorkflowDockerLookupActor.{WorkflowDockerLookupFailure, WorkflowDockerTerminalFailure}
@@ -350,9 +350,11 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   // Apply the configured Docker mirroring to the docker and container runtime attributes. Depending on the
   // WDL version in use, either or both attributes may be present. If both are present, both will be mirrored.
   // If mirroring is not configured, this is a no-op.
-  private[preparation] def applyDockerMirroring(attributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
+  private[preparation] def applyDockerMirroring(
+    attributes: Map[LocallyQualifiedName, WomValue]
+  ): Map[LocallyQualifiedName, WomValue] = {
 
-    def mirrorContainerName(original: String): String = {
+    def mirrorContainerName(original: String): String =
       DockerImageIdentifier.fromString(original) match {
         case Success(origDockerImg) =>
           dockerMirroring.flatMap(_.mirrorImage(origDockerImg)).map(_.fullName).getOrElse(original)
@@ -360,19 +362,18 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
           workflowLogger.warn(s"Failed to attempt mirroring image ${original} due to ${e.toString}")
           original
       }
-    }
 
     val mirroredDockerAttribute = attributes.get(RuntimeAttributesKeys.DockerKey) map { dockerValue =>
-        (RuntimeAttributesKeys.DockerKey -> WomString(mirrorContainerName(dockerValue.valueString)))
+      RuntimeAttributesKeys.DockerKey -> WomString(mirrorContainerName(dockerValue.valueString))
     }
 
     val mirroredContainerAttribute = attributes.get(RuntimeAttributesKeys.ContainerKey) map {
       case WomArray(_, values) =>
         val mirroredValues = values.map(v => WomString(mirrorContainerName(v.valueString)))
-        (RuntimeAttributesKeys.ContainerKey -> WomArray(WomArrayType(WomStringType), mirroredValues))
+        RuntimeAttributesKeys.ContainerKey -> WomArray(WomArrayType(WomStringType), mirroredValues)
       case containerValue =>
         // If it's not an array, we leave it unchanged
-        (RuntimeAttributesKeys.ContainerKey -> containerValue)
+        RuntimeAttributesKeys.ContainerKey -> containerValue
     }
 
     attributes ++ mirroredDockerAttribute.toList ++ mirroredContainerAttribute.toList

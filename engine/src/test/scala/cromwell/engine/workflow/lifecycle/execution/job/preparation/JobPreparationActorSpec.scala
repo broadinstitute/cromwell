@@ -6,10 +6,14 @@ import common.mock.MockSugar
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.core.TestKitSuite
 import cromwell.core.callcaching.{DockerWithHash, FloatingDockerTagWithoutHash}
-import cromwell.docker.DockerInfoActor.{DockerInfoSuccessResponse, DockerInformation, DockerSize}
+import cromwell.docker.DockerInfoActor.{DockerInformation, DockerInfoSuccessResponse, DockerSize}
 import cromwell.docker._
 import cromwell.engine.workflow.WorkflowDockerLookupActor.WorkflowDockerLookupFailure
-import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{BackendJobPreparationSucceeded, CallPreparationFailed, Start}
+import cromwell.engine.workflow.lifecycle.execution.job.preparation.CallPreparation.{
+  BackendJobPreparationSucceeded,
+  CallPreparationFailed,
+  Start
+}
 import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 import cromwell.services.keyvalue.KeyValueServiceActor.{KvGet, KvKeyLookupFailed, KvPair}
 import org.scalatest.BeforeAndAfter
@@ -234,8 +238,7 @@ class JobPreparationActorSpec
     callable.runtimeAttributes returns RuntimeAttributes(
       Map(
         "container" -> ValueAsAnExpression(
-          WomArray(WomArrayType(WomStringType),
-            Seq(WomString("alpine:latest"), WomString("ubuntu:latest")))
+          WomArray(WomArrayType(WomStringType), Seq(WomString("alpine:latest"), WomString("ubuntu:latest")))
         )
       )
     )
@@ -251,12 +254,12 @@ class JobPreparationActorSpec
       "my.mirror.io/library/alpine@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val actor = TestActorRef(
       helper.buildTestJobPreparationActor(1 minute,
-        1 minutes,
-        List.empty,
-        None,
-        List.empty,
-        mockJobKey,
-        Option(dockerMirroring)
+                                          1 minutes,
+                                          List.empty,
+                                          None,
+                                          List.empty,
+                                          mockJobKey,
+                                          Option(dockerMirroring)
       ),
       self
     )
@@ -268,7 +271,9 @@ class JobPreparationActorSpec
       DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest])
     )
     expectMsgPF(5 seconds) { case success: BackendJobPreparationSucceeded =>
-      success.jobDescriptor.runtimeAttributes("container").toString shouldBe s"[\"${mirroredAlpineValue}\", \"${mirroredUbuntuValue}\"]"
+      success.jobDescriptor
+        .runtimeAttributes("container")
+        .toString shouldBe s"[\"${mirroredAlpineValue}\", \"${mirroredUbuntuValue}\"]"
       success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash(finalValue)
     }
   }
@@ -328,14 +333,7 @@ class JobPreparationActorSpec
     val finalValue =
       "alpine@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
     val actor = TestActorRef(
-      helper.buildTestJobPreparationActor(1 minute,
-        1 minutes,
-        List.empty,
-        None,
-        List.empty,
-        mockJobKey,
-        None
-      ),
+      helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, None, List.empty, mockJobKey, None),
       self
     )
     actor ! Start(ValueStore.empty)

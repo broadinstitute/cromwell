@@ -109,7 +109,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     val command = womInstantiation.toTry.get.commandString
     jobLogger.info(s"executing: $command")
     val scriptBody =
-      s"""|#!/bin/bash
+      s"""|#!/usr/bin/env bash
           |SCRIPT_COMMAND
           |""".stripMargin.replace("SCRIPT_COMMAND", command)
     script.write(scriptBody)

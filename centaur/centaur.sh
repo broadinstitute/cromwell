@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 CMD='sbt'
 if [ -n "$1" ]; then

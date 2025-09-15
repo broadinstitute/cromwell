@@ -1,11 +1,16 @@
 package wdl.transforms.biscayne
 
 import common.transforms.CheckedAtoB
-import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, PrimitiveLiteralExpressionElement}
+import wdl.model.draft3.elements.ExpressionElement.{ArrayLiteral, KvPair, PrimitiveLiteralExpressionElement}
 import wdl.model.draft3.elements.RuntimeAttributesSectionElement
 import wdl.transforms.base.wdlom2wom.TaskDefinitionElementToWomTaskDefinition.TaskDefinitionElementToWomInputs
 import wdl.transforms.base.wdlom2wom.WorkflowDefinitionElementToWomWorkflowDefinition.WorkflowDefinitionConvertInputs
-import wdl.transforms.base.wdlom2wom.{FileElementToWomBundle, FileElementToWomBundleInputs, TaskDefinitionElementToWomTaskDefinition, WorkflowDefinitionElementToWomWorkflowDefinition}
+import wdl.transforms.base.wdlom2wom.{
+  FileElementToWomBundle,
+  FileElementToWomBundleInputs,
+  TaskDefinitionElementToWomTaskDefinition,
+  WorkflowDefinitionElementToWomWorkflowDefinition
+}
 import wdl.transforms.biscayne.linking.expression.consumed._
 import wdl.transforms.biscayne.linking.expression.files._
 import wdl.transforms.biscayne.linking.expression.types._

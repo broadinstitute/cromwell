@@ -1,4 +1,4 @@
-version 1.1
+version development-1.1
 
 task dockerOnly {
     command <<<

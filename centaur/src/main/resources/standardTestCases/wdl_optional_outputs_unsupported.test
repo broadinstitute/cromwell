@@ -1,6 +1,6 @@
 name: wdl_optional_outputs_unsupported
 testFormat: workflowfailure
-backends: [Papiv2, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: wdl_optional_outputs/wdl_optional_outputs_unsupported.wdl

@@ -20,6 +20,11 @@ This will allow for better grouping of jobs in the Batch UI and ensure determini
 * Added support for specifying an IAM role for AWS Batch job containers via the `aws_batch_job_role_arn` workflow option. This allows containers to access AWS resources based on the permissions granted to the specified role.
 * ECR [pull-through caches](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html) can now be used to access Docker images. See [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/AWSBatch/) for details.
 
+### Progress toward WDL 1.1 Support
+ * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. As of Cromwell 91, `development-1.1` includes:
+   * Runtime attribute `container`, which may be a single string or an array of strings, is preferred over `docker` for specifying the image a task should run on. If given a list of multiple images, Cromwell will choose the first.
+   * `docker://` is permitted as a prefix for image names, ex. `container: docker://ubuntu:latest`.
+
 ### Other changes
 * Removed unused code related to Azure cloud services.
 

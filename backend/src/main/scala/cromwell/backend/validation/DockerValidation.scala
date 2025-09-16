@@ -31,4 +31,11 @@ class DockerValidation extends StringRuntimeAttributesValidation(RuntimeAttribut
   override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = { case WomString(value) =>
     value.validNel
   }
+
+  // Before doing normal validation of this attribute, ensure that 'container' is not also present. These two
+  // different ways of specifying the container image are mutually exclusive.
+  override def validate(values: Map[String, WomValue]): ErrorOr[String] =
+    if (values.contains(RuntimeAttributesKeys.DockerKey) && values.contains(RuntimeAttributesKeys.ContainerKey)) {
+      s"Must provide only one of '${RuntimeAttributesKeys.DockerKey}' and '${RuntimeAttributesKeys.ContainerKey}' runtime attributes.".invalidNel
+    } else super.validate(values)
 }

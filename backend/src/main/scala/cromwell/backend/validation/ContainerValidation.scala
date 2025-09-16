@@ -1,7 +1,9 @@
 package cromwell.backend.validation
 
+import akka.stream.scaladsl.Flow.identityTraversalBuilder.attributes
 import cats.syntax.validated._
 import common.validation.ErrorOr.ErrorOr
+import liquibase.pro.packaged.is
 import wom.RuntimeAttributesKeys
 import wom.types.{WomArrayType, WomStringType, WomType}
 import wom.values._
@@ -39,4 +41,11 @@ class ContainerValidation extends RuntimeAttributesValidation[Seq[String]] {
     case WomArray(womType, values) if womType.memberType == WomStringType =>
       values.map(_.valueString).toSeq.validNel
   }
+
+  // Before doing normal validation of this attribute, ensure that 'docker' is not also present. These two
+  // different ways of specifying the container image are mutually exclusive.
+  override def validate(values: Map[String, WomValue]): ErrorOr[Seq[String]] =
+    if (values.contains(RuntimeAttributesKeys.DockerKey) && values.contains(RuntimeAttributesKeys.ContainerKey)) {
+      s"Must provide only one of '${RuntimeAttributesKeys.DockerKey}' and '${RuntimeAttributesKeys.ContainerKey}' runtime attributes.".invalidNel
+    } else super.validate(values)
 }

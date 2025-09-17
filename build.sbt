@@ -375,6 +375,7 @@ lazy val pact4s = project.in(file("pact4s"))
 lazy val server = project
   .withExecutableSettings("cromwell", serverDependencies)
   .dependsOn(engine)
+  .dependsOn(googlePipelinesCommon)
   .dependsOn(googleBatch)
   .dependsOn(awsBackend)
   .dependsOn(tesBackend)

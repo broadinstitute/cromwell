@@ -1,0 +1,3 @@
+google-cloud-monitoring
+psutil
+requests

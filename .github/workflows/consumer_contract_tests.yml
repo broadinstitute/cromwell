@@ -121,6 +121,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+
       - name: Run consumer tests
         run: |
           docker run --rm -v $PWD:/working \

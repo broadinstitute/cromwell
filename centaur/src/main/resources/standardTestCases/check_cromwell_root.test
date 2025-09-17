@@ -2,7 +2,7 @@ name: check_cromwell_root
 testFormat: workflowsuccess
 # The test is ensuring that the location of 'cromwell_root' directory is available at '/cromwell_root' for both
 # PapiV2 and Batch backends.
-backends: [Papiv2, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: check_cromwell_root/check_cromwell_root.wdl

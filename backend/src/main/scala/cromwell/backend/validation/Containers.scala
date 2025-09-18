@@ -2,6 +2,7 @@ package cromwell.backend.validation
 
 import cats.implicits.catsSyntaxValidatedId
 import common.validation.ErrorOr.ErrorOr
+import wdl.draft2.model.LocallyQualifiedName
 import wom.RuntimeAttributesKeys
 import wom.types.{WomStringType, WomType}
 import wom.values.{WomArray, WomString, WomValue}
@@ -36,6 +37,27 @@ object Containers {
     val containerContainer = RuntimeAttributesValidation
       .extractOption(ContainerValidation.instance, validatedRuntimeAttributes)
       .flatMap(_.values.headOption)
+
+    containerContainer.orElse(dockerContainer)
+  }
+
+  def extractContainerFromPreValidationAttrs(attributes: Map[LocallyQualifiedName, WomValue]): Option[String] = {
+    val containerContainer = attributes.get(RuntimeAttributesKeys.ContainerKey) match {
+      case Some(WomArray(_, values)) =>
+        values.headOption.map(_.valueString)
+      case Some(WomString(value)) => Some(value)
+      case _ => None
+    }
+
+    val dockerContainer = attributes.get(RuntimeAttributesKeys.DockerKey) match {
+      case Some(WomArray(_, values)) =>
+        values.headOption.map(_.valueString)
+      case Some(WomString(value)) => Some(value)
+      case _ => None
+    }
+
+    // TODO enhance to select the best container from the list if multiple are provided.
+    // Currently we always choose the first, should prefer one that matches our platform.
 
     containerContainer.orElse(dockerContainer)
   }

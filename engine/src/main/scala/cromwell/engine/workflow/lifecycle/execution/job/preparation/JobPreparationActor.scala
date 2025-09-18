@@ -146,25 +146,6 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     )
   }
 
-  private def getPreferredContainerName(attributes: Map[LocallyQualifiedName, WomValue]): Option[String] = {
-    val containers = attributes.get(RuntimeAttributesKeys.ContainerKey) match {
-      case Some(containerValue) =>
-        containerValue match {
-          case WomArray(_, values) => values.map(_.valueString)
-          case _ => Seq.empty
-        }
-      case None => Seq.empty
-    }
-
-    // Deprecated as of WDL 1.1
-    val docker = attributes.get(RuntimeAttributesKeys.DockerKey).map(_.valueString)
-
-    // TODO enhance to select the best container from the list if multiple are provided.
-    // Currently we always choose the first, should prefer one that matches our platform.
-
-    containers.headOption.orElse(docker)
-  }
-
   private[preparation] def evaluateInputsAndAttributes(
     valueStore: ValueStore
   ): ErrorOr[(WomEvaluatedCallInputs, Map[LocallyQualifiedName, WomValue])] = {
@@ -211,7 +192,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
 
-    getPreferredContainerName(attributes) match {
+    Containers.extractContainerFromPreValidationAttrs(attributes) match {
       case Some(dockerValue) => handleDockerValue(dockerValue)
       case None =>
         // If there is no docker attribute at all - we're ok for call caching
@@ -363,20 +344,20 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
           original
       }
 
-    val mirroredDockerAttribute = attributes.get(RuntimeAttributesKeys.DockerKey) map { dockerValue =>
-      RuntimeAttributesKeys.DockerKey -> WomString(mirrorContainerName(dockerValue.valueString))
+    val mirroredContainersAttributes = Containers.runtimeAttrKeys flatMap { key =>
+      attributes.get(key) map {
+        case WomArray(_, values) =>
+          val mirroredValues = values.map(v => WomString(mirrorContainerName(v.valueString)))
+          key -> WomArray(WomArrayType(WomStringType), mirroredValues)
+        case WomString(value) =>
+          key -> WomString(mirrorContainerName(value))
+        case containerValue =>
+          // If it's not an array, we leave it unchanged
+          key -> containerValue
+      }
     }
 
-    val mirroredContainerAttribute = attributes.get(RuntimeAttributesKeys.ContainerKey) map {
-      case WomArray(_, values) =>
-        val mirroredValues = values.map(v => WomString(mirrorContainerName(v.valueString)))
-        RuntimeAttributesKeys.ContainerKey -> WomArray(WomArrayType(WomStringType), mirroredValues)
-      case containerValue =>
-        // If it's not an array, we leave it unchanged
-        RuntimeAttributesKeys.ContainerKey -> containerValue
-    }
-
-    attributes ++ mirroredDockerAttribute.toList ++ mirroredContainerAttribute.toList
+    attributes ++ mirroredContainersAttributes.toList
   }
 
   private[preparation] def prepareRuntimeAttributes(

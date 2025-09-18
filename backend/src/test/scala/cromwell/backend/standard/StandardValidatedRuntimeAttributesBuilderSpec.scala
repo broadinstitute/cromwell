@@ -170,7 +170,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     val builder = if (includeDockerSupport) {
       StandardValidatedRuntimeAttributesBuilder
         .default(mockBackendRuntimeConfig)
-        .withValidation(DockerValidation.optional)
+        .withValidation(DockerValidation.instance)
     } else {
       StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
     }
@@ -203,7 +203,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
       val builder = if (supportsDocker) {
         StandardValidatedRuntimeAttributesBuilder
           .default(mockBackendRuntimeConfig)
-          .withValidation(DockerValidation.optional)
+          .withValidation(DockerValidation.instance)
       } else {
         StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
       }

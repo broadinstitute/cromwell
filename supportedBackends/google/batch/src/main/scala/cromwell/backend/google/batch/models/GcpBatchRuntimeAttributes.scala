@@ -97,8 +97,8 @@ object GcpBatchRuntimeAttributes {
   ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
 
   // As of WDL 1.1 these two are aliases of each other
-  private val dockerValidation: RuntimeAttributesValidation[Containers] = DockerValidation.instance
-  private val containerValidation: RuntimeAttributesValidation[Containers] = ContainerValidation.instance
+  private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
+  private val containerValidation: OptionalRuntimeAttributesValidation[Containers] = ContainerValidation.instance
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 

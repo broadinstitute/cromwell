@@ -7,8 +7,7 @@ import wom.RuntimeAttributesKeys
   * WDL 1.0 supports only `docker`, WDL 1.1 and later support `container` (preferred) and `docker` (deprecated).
   */
 object DockerValidation {
-  lazy val instance: RuntimeAttributesValidation[Containers] = new DockerValidation
-  lazy val optional: OptionalRuntimeAttributesValidation[Containers] = instance.optional
+  lazy val instance: OptionalRuntimeAttributesValidation[Containers] = new DockerValidation
 }
 
 class DockerValidation extends ContainersValidation {
@@ -16,8 +15,7 @@ class DockerValidation extends ContainersValidation {
 }
 
 object ContainerValidation {
-  lazy val instance: RuntimeAttributesValidation[Containers] = new ContainerValidation
-  lazy val optional: OptionalRuntimeAttributesValidation[Containers] = instance.optional
+  lazy val instance: OptionalRuntimeAttributesValidation[Containers] = new ContainerValidation
 }
 
 class ContainerValidation extends ContainersValidation {

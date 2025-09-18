@@ -32,10 +32,10 @@ object Containers {
 
   def extractContainerOption(validatedRuntimeAttributes: ValidatedRuntimeAttributes): Option[String] = {
     val dockerContainer = RuntimeAttributesValidation
-      .extractOption(DockerValidation.instance, validatedRuntimeAttributes)
+      .extractOption[Containers](RuntimeAttributesKeys.DockerKey, validatedRuntimeAttributes)
       .flatMap(_.values.headOption)
     val containerContainer = RuntimeAttributesValidation
-      .extractOption(ContainerValidation.instance, validatedRuntimeAttributes)
+      .extractOption[Containers](RuntimeAttributesKeys.ContainerKey, validatedRuntimeAttributes)
       .flatMap(_.values.headOption)
 
     containerContainer.orElse(dockerContainer)
@@ -67,7 +67,7 @@ object Containers {
  * Trait to handle validation of both 'docker' and 'container' runtime attributes, which are mutually exclusive
  * ways of specifying the container image to use for a task.
  */
-trait ContainersValidation extends RuntimeAttributesValidation[Containers] {
+trait ContainersValidation extends OptionalRuntimeAttributesValidation[Containers] {
   override def coercion: Set[WomType] = Containers.validWdlTypes
 
   override def usedInCallCaching: Boolean = true
@@ -76,13 +76,13 @@ trait ContainersValidation extends RuntimeAttributesValidation[Containers] {
 
   override protected def invalidValueMessage(value: WomValue): String = super.missingValueMessage
 
-  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Containers]] = {
+  override protected def validateOption: PartialFunction[WomValue, ErrorOr[Containers]] = {
     case WomString(value) => value.validNel.map(v => Containers(v))
     case WomArray(womType, values) if womType.memberType == WomStringType =>
       Containers(values.map(_.valueString).toList).validNel
   }
 
-  override def validate(values: Map[String, WomValue]): ErrorOr[Containers] =
+  override def validate(values: Map[String, WomValue]): ErrorOr[Option[Containers]] =
     if (Containers.runtimeAttrKeys.count(v => values.contains(v)) > 1) {
       s"Must provide only one of the following runtime attributes: ${Containers.runtimeAttrKeys.mkString(", ")}".invalidNel
     } else super.validate(values)

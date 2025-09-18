@@ -214,8 +214,8 @@ object AwsBatchRuntimeAttributes {
     )
 
   // As of WDL 1.1 these two are aliases of each other
-  private val dockerValidation: RuntimeAttributesValidation[Containers] = DockerValidation.instance
-  private val containerValidation: RuntimeAttributesValidation[Containers] = ContainerValidation.instance
+  private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
+  private val containerValidation: OptionalRuntimeAttributesValidation[Containers] = ContainerValidation.instance
 
   private def queueArnValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
     QueueArnValidation.withDefault(

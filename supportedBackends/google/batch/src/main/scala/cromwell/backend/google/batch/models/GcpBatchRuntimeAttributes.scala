@@ -96,7 +96,9 @@ object GcpBatchRuntimeAttributes {
     runtimeConfig: Option[Config]
   ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
 
-  private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
+  // As of WDL 1.1 these two are aliases of each other
+  private val dockerValidation: RuntimeAttributesValidation[Containers] = DockerValidation.instance
+  private val containerValidation: RuntimeAttributesValidation[Containers] = ContainerValidation.instance
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
@@ -150,7 +152,8 @@ object GcpBatchRuntimeAttributes {
         memoryValidation(runtimeConfig),
         bootDiskSizeValidation(runtimeConfig),
         checkpointFileValidationInstance,
-        dockerValidation
+        dockerValidation,
+        containerValidation
       )
   }
 
@@ -183,7 +186,7 @@ object GcpBatchRuntimeAttributes {
       None
     }
 
-    val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
+    val docker: String = Containers.extractContainer(validatedRuntimeAttributes)
     val failOnStderr: Boolean =
       RuntimeAttributesValidation.extract(failOnStderrValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val continueOnReturnCode: ContinueOnReturnCode = RuntimeAttributesValidation.extract(

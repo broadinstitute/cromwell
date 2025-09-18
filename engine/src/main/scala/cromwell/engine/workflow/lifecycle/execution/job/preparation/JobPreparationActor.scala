@@ -8,7 +8,7 @@ import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendLifecycleActorFactory.MemoryMultiplierKey
 import cromwell.backend._
-import cromwell.backend.validation.DockerValidation
+import cromwell.backend.validation.Containers
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
@@ -79,7 +79,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)
   private[preparation] lazy val runtimeAttributeDefinitions = factory.runtimeAttributeDefinitions(initializationData)
   private[preparation] lazy val hasDockerDefinition =
-    runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)
+    runtimeAttributeDefinitions.map(_.name).exists(Containers.runtimeAttrKeys.contains)
   private[preparation] lazy val dockerMirroring = factory.dockerMirroring
   private[preparation] lazy val platform = factory.platform
 

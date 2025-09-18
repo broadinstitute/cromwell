@@ -20,7 +20,7 @@ object Containers {
   val validWdlTypes: Set[wom.types.WomType] =
     Set(wom.types.WomStringType, wom.types.WomArrayType(wom.types.WomStringType))
 
-  val runtimeAttrKeys = Set(RuntimeAttributesKeys.DockerKey, RuntimeAttributesKeys.ContainerKey)
+  val runtimeAttrKeys = List(RuntimeAttributesKeys.ContainerKey, RuntimeAttributesKeys.DockerKey)
 
   def apply(value: String): Containers = Containers(List(value))
 

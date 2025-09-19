@@ -4,12 +4,8 @@ import cats.data.Validated
 import cats.syntax.validated._
 import com.typesafe.config.Config
 import common.validation.ErrorOr.ErrorOr
-import cromwell.backend.google.pipelines.common.DisksValidation
-import cromwell.backend.google.pipelines.common.io.{
-  PipelinesApiAttachedDisk,
-  PipelinesApiEmptyMountedDisk,
-  PipelinesApiWorkingDisk
-}
+import cromwell.backend.google.batch.io.{BatchApiEmptyMountedDisk, GcpBatchAttachedDisk, GcpBatchWorkingDisk}
+import cromwell.backend.google.batch.models.DisksValidation
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import eu.timepit.refined.api.Refined
@@ -53,7 +49,7 @@ object TesRuntimeAttributes {
 
   private def diskSizeCompatValidation(
     runtimeConfig: Option[Config]
-  ): OptionalRuntimeAttributesValidation[Seq[PipelinesApiAttachedDisk]] =
+  ): OptionalRuntimeAttributesValidation[Seq[GcpBatchAttachedDisk]] =
     DisksValidation.optional
 
   private def memoryValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] =
@@ -104,14 +100,14 @@ object TesRuntimeAttributes {
                                validatedRuntimeAttributes: ValidatedRuntimeAttributes
   ): Option[MemorySize] = {
 
-    def adaptPapiDisks(disks: Seq[PipelinesApiAttachedDisk]): MemorySize =
+    def adaptPapiDisks(disks: Seq[GcpBatchAttachedDisk]): MemorySize =
       disks match {
-        case disk :: Nil if disk.isInstanceOf[PipelinesApiWorkingDisk] =>
+        case disk :: Nil if disk.isInstanceOf[GcpBatchWorkingDisk] =>
           MemorySize(disk.sizeGb.toDouble, MemoryUnit.GB)
         case _ :: _ =>
           // When a user specifies only a custom disk, we add the default disk in the background, so we technically have multiple disks.
           // But we don't want to confuse the user with `multiple disks` message when they only put one.
-          if (disks.exists(_.isInstanceOf[PipelinesApiEmptyMountedDisk]))
+          if (disks.exists(_.isInstanceOf[BatchApiEmptyMountedDisk]))
             throw new IllegalArgumentException("Disks with custom mount points are not supported by this backend")
           else
             // Multiple `local-disk` is not legal, but possible and should be detected
@@ -122,7 +118,7 @@ object TesRuntimeAttributes {
       RuntimeAttributesValidation.extractOption(diskSizeValidation(backendRuntimeConfig).key,
                                                 validatedRuntimeAttributes
       )
-    val maybePapiDisk: Option[Seq[PipelinesApiAttachedDisk]] =
+    val maybePapiDisk: Option[Seq[GcpBatchAttachedDisk]] =
       RuntimeAttributesValidation.extractOption(diskSizeCompatValidation(backendRuntimeConfig).key,
                                                 validatedRuntimeAttributes
       )
@@ -132,7 +128,7 @@ object TesRuntimeAttributes {
         Option(
           tesDisk
         ) // If WDLs are in circulation with both `disk` and `disks`, pick the one intended for this backend
-      case (None, Some(papiDisks: Seq[PipelinesApiAttachedDisk])) =>
+      case (None, Some(papiDisks: Seq[GcpBatchAttachedDisk])) =>
         Option(adaptPapiDisks(papiDisks))
       case _ =>
         None

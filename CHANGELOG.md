@@ -2,6 +2,10 @@
 
 ## 91 Release Notes
 
+#### Removal of Google LifeSciences backend code
+Code related to the Google's Cloud LifeSciences API (`Papiv2` or `v2Beta`) has been removed following Google’s shutdown of the service in July 2025. 
+Google Batch (`batch`) is now the supported GCP backend.
+
 ### GCP Batch
 * Task log files are now included in the group of files copied for call cache hits.
 * Tweak automatic retry of transient errors: retry if task is SCHEDULED but not RUNNING. This should result in more retries, reducing the number of workflows that fail due to transient Batch issues.

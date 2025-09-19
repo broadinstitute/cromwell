@@ -8,7 +8,6 @@ import com.google.api.client.http.{HttpRequest, HttpResponse}
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
 import com.google.api.services.cloudkms.v1.{CloudKMS, CloudKMSScopes}
 import com.google.api.services.cloudresourcemanager.{CloudResourceManager, CloudResourceManagerScopes}
-import com.google.api.services.lifesciences.v2beta.CloudLifeSciencesScopes
 import com.google.api.services.storage.StorageScopes
 import com.google.auth.Credentials
 import com.google.auth.http.HttpCredentialsAdapter
@@ -76,7 +75,7 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
   private lazy val batchCredentials: Future[Credentials] = gcpBatchConfiguration.batchAttributes.auths.batch
     .retryCredentials(workflowOptions,
                       List(
-                        CloudLifeSciencesScopes.CLOUD_PLATFORM
+                        "https://www.googleapis.com/auth/cloud-platform"
                       )
     )
 

@@ -15,7 +15,9 @@ import wom.values.{WomArray, WomString, WomValue}
 // `container` being preferred and `docker` deprecated. Only one of they two may be provided in runtime attrs.
 // Note that we strip `container` out of pre-1.1 WDL files during parsing, so at this stage we only see `docker`
 // in those cases.
-case class Containers(values: List[String])
+case class Containers(values: List[String]) {
+  override def toString: String = values.mkString(", ")
+}
 
 object Containers {
   val validWdlTypes: Set[wom.types.WomType] =

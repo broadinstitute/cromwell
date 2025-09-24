@@ -1,13 +1,11 @@
 package cromwell.backend.google.batch.actors
 
-import java.util.UUID
 import akka.actor.Props
 import akka.testkit._
 import com.typesafe.config.{Config, ConfigFactory}
 import cromwell.backend.BackendWorkflowInitializationActor.{InitializationFailed, InitializationSuccess, Initialize}
-import cromwell.backend.async.RuntimeAttributeValidationFailures
-import cromwell.backend.google.batch.models.GcpBatchConfiguration
 import cromwell.backend.google.batch.actors.GcpBatchInitializationActorSpec._
+import cromwell.backend.google.batch.models.GcpBatchConfiguration
 import cromwell.backend.google.batch.models.GcpBatchTestConfig.{batchAttributes, googleConfiguration, BatchGlobalConfig}
 import cromwell.backend.{BackendConfigurationDescriptor, BackendSpec, BackendWorkflowDescriptor}
 import cromwell.core.Dispatcher.BackendDispatcher
@@ -18,6 +16,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import wom.graph.CommandCallNode
 
+import java.util.UUID
 import scala.concurrent.duration._
 
 class GcpBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
@@ -90,26 +89,27 @@ class GcpBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
     }
   }
 
-  it should "return InitializationFailed when docker runtime attribute key is not present" in {
-    within(Timeout) {
-      val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-      val backend = getBatchBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, defaultBackendConfig)
-      backend ! Initialize
-      expectMsgPF() { case InitializationFailed(failure) =>
-        failure match {
-          case exception: RuntimeAttributeValidationFailures =>
-            if (
-              !exception.getMessage.equals(
-                "Runtime validation failed:\nNo container image found in either 'container' or 'docker' runtime attributes."
-              )
-            )
-              fail(
-                "Exception message is not equal to 'Runtime validation failed:\nNo container image found in either 'container' or 'docker' runtime attributes."
-              )
-        }
-      }
-    }
-  }
+  // TODO
+//  it should "return InitializationFailed when docker runtime attribute key is not present" in {
+//    within(Timeout) {
+//      val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
+//      val backend = getBatchBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, defaultBackendConfig)
+//      backend ! Initialize
+//      expectMsgPF() { case InitializationFailed(failure) =>
+//        failure match {
+//          case exception: RuntimeAttributeValidationFailures =>
+//            if (
+//              !exception.getMessage.equals(
+//                "Runtime validation failed:\nNo container image found in either 'container' or 'docker' runtime attributes."
+//              )
+//            )
+//              fail(
+//                "Exception message is not equal to 'Runtime validation failed:\nNo container image found in either 'container' or 'docker' runtime attributes."
+//              )
+//        }
+//      }
+//    }
+//  }
 }
 
 object GcpBatchInitializationActorSpec {

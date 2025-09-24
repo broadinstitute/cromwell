@@ -31,6 +31,7 @@ This will allow for better grouping of jobs in the Batch UI and ensure determini
 
 ### Other changes
 * Removed unused code related to Azure cloud services.
+* Changed log level from WARN to INFO for messages about unsupported runtime attributes.
 
 ## 90 Release Notes
 

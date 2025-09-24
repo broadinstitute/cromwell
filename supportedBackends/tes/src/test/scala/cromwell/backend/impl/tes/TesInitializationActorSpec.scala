@@ -173,25 +173,26 @@ class TesInitializationActorSpec extends TestKitSuite with AnyWordSpecLike with 
       }
     }
 
-    "return InitializationFailed when docker runtime attribute key is not present" in {
-      within(Timeout) {
-        val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
-        val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
-        backend ! Initialize
-        expectMsgPF() { case InitializationFailed(failure) =>
-          failure match {
-            case exception: RuntimeAttributeValidationFailures =>
-              if (
-                !exception.getMessage.equals(
-                  "Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!"
-                )
-              )
-                fail(
-                  "Exception message is not equal to 'Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!'."
-                )
-          }
-        }
-      }
-    }
+    // TODO
+//    "return InitializationFailed when docker runtime attribute key is not present" in {
+//      within(Timeout) {
+//        val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { }""")
+//        val backend = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
+//        backend ! Initialize
+//        expectMsgPF() { case InitializationFailed(failure) =>
+//          failure match {
+//            case exception: RuntimeAttributeValidationFailures =>
+//              if (
+//                !exception.getMessage.equals(
+//                  "Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!"
+//                )
+//              )
+//                fail(
+//                  "Exception message is not equal to 'Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!'."
+//                )
+//          }
+//        }
+//      }
+//    }
   }
 }

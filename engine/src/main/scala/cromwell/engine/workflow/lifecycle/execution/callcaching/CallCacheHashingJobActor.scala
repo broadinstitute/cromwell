@@ -163,20 +163,32 @@ class CallCacheHashingJobActor(jobDescriptor: BackendJobDescriptor,
     val outputCountHash =
       HashResult(HashKey("output count"), jobDescriptor.taskCall.callable.outputs.size.toString.md5HashValue)
 
-    val runtimeAttributeHashes = runtimeAttributeDefinitions map { definition =>
+    val runtimeAttributeHashes = runtimeAttributeDefinitions flatMap { definition =>
       jobDescriptor.runtimeAttributes.get(definition.name) match {
+        // We expect only one runtime attribute determining the container to run the task in, completely
+        // ignore the attribute not being used for this task, it should not effect call caching. This change
+        // was required to add support for both 'docker' and 'container' attributes without invalidating previous
+        // call cache results.
+        case None if Containers.runtimeAttrKeys.contains(definition.name) =>
+          None
         case Some(_)
             if Containers.runtimeAttrKeys.contains(definition.name) && callCachingEligible.dockerHash.isDefined =>
-          HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
-                     callCachingEligible.dockerHash.get.md5HashValue
+          Option(
+            HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
+                       callCachingEligible.dockerHash.get.md5HashValue
+            )
           )
         case Some(womValue) =>
-          HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
-                     womValue.valueString.md5HashValue
+          Option(
+            HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
+                       womValue.valueString.md5HashValue
+            )
           )
         case None =>
-          HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
-                     UnspecifiedRuntimeAttributeHashValue
+          Option(
+            HashResult(HashKey(definition.usedInCallCaching, "runtime attribute", definition.name),
+                       UnspecifiedRuntimeAttributeHashValue
+            )
           )
       }
     }

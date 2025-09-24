@@ -2,7 +2,7 @@ version development-1.1
 
 task dockerSingle {
     command <<<
-        echo "Run on ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9"
+        echo "Run with WDL 1.1 on ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9"
     >>>
     output {
         File out = stdout()
@@ -14,7 +14,7 @@ task dockerSingle {
 
 task containerSingle {
     command <<<
-        echo "Run on debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526"
+        echo "Run with WDL 1.1 on debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526"
     >>>
     output {
         File out = stdout()
@@ -26,7 +26,7 @@ task containerSingle {
 
 task dockerList {
     command <<<
-        echo "Run on ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9"
+        echo "Run with WDL 1.1 on ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9"
     >>>
     output {
         File out = stdout()
@@ -41,7 +41,7 @@ task dockerList {
 
 task containerList {
     command <<<
-        echo "Run on debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526"
+        echo "Run with WDL 1.1 on debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526"
     >>>
     output {
         File out = stdout()

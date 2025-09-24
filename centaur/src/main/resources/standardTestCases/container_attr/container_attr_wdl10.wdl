@@ -2,7 +2,7 @@ version 1.0
 
 task dockerOnly {
     command <<<
-        echo "Run on ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9"
+        echo "Run with WDL 1.0 on ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9"
     >>>
     output {
         File out = stdout()
@@ -14,7 +14,7 @@ task dockerOnly {
 
 task dockerAndContainer {
     command <<<
-        echo "Run on ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9"
+        echo "Run with WDL 1.0 on ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9"
     >>>
     output {
         File out = stdout()

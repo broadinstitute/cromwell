@@ -44,7 +44,7 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
     "throw an exception when there are no runtime attributes defined." in {
       val runtimeAttributes = Map.empty[String, WomValue]
-      assertFailure(runtimeAttributes, "Can't find an attribute value for key docker")
+      assertFailure(runtimeAttributes, "No container image found in either 'container' or 'docker' runtime attributes.")
     }
 
     "validate a valid Docker entry" in {
@@ -55,7 +55,10 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
     "fail to validate an invalid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertFailure(runtimeAttributes, "Expecting docker runtime attribute to be a String")
+      assertFailure(
+        runtimeAttributes,
+        "Expecting docker runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
     }
 
     "validate a valid failOnStderr entry" in {

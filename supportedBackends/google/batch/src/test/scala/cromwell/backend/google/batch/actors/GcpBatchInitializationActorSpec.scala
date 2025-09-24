@@ -80,7 +80,7 @@ class GcpBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
       val backend = getBatchBackend(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, defaultBackendConfig)
       val eventPattern =
         "Key/s [test] is/are not supported by backend. Unsupported attributes will not be part of job executions."
-      EventFilter.warning(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
+      EventFilter.info(pattern = escapePattern(eventPattern), occurrences = 1) intercept {
         backend ! Initialize
       }
       expectMsgPF() {
@@ -100,11 +100,11 @@ class GcpBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
           case exception: RuntimeAttributeValidationFailures =>
             if (
               !exception.getMessage.equals(
-                "Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!"
+                "Runtime validation failed:\nNo container image found in either 'container' or 'docker' runtime attributes."
               )
             )
               fail(
-                "Exception message is not equal to 'Runtime validation failed:\nTask hello has an invalid runtime attribute docker = !! NOT FOUND !!'."
+                "Exception message is not equal to 'Runtime validation failed:\nNo container image found in either 'container' or 'docker' runtime attributes."
               )
         }
       }

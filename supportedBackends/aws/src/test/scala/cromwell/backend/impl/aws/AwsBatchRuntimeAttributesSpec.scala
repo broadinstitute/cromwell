@@ -113,7 +113,10 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
 
     "throw an exception when there are no runtime attributes defined." in {
       val runtimeAttributes = Map.empty[String, WomValue]
-      assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Can't find an attribute value for key docker")
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "No container image found in either 'container' or 'docker' runtime attributes."
+      )
     }
 
     // TODO: Fix this test. The functionality works fine - the idea is that
@@ -158,8 +161,9 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
 
     "fail to validate an invalid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes,
-                                                    "Expecting docker runtime attribute to be a String"
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting docker runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
       )
     }
 

@@ -73,8 +73,9 @@ final class GcpBatchRuntimeAttributesSpec
 
     "fail to validate presence of both Docker and container attributes" in {
       val runtimeAttributes = Map("container" -> WomString("ubuntu:latest"), "docker" -> WomString("debian:latest"))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes,
-                                                 "Must provide only one of the following runtime attributes: container, docker"
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Must provide only one of the following runtime attributes: container, docker"
       )
     }
 

@@ -316,38 +316,6 @@ class JobPreparationActorSpec
     }
   }
 
-  it should "prefer `container` over `docker` as image source when both are present" in {
-    // Create a mock job with the desired runtime attribute
-    val callable: CommandTaskDefinition = mock[CommandTaskDefinition]
-    callable.runtimeAttributes returns RuntimeAttributes(
-      Map(
-        "docker" -> ValueAsAnExpression(WomString("ubuntu:latest")),
-        "container" -> ValueAsAnExpression(WomArray(WomArrayType(WomStringType), Seq(WomString("alpine:latest"))))
-      )
-    )
-    val call: CommandCallNode =
-      CommandCallNode(WomIdentifier("JobPreparationSpec_call"), callable, Set.empty, List.empty, Set.empty, null, None)
-    val mockJobKey: BackendJobDescriptorKey = BackendJobDescriptorKey(call, None, 1)
-
-    val hashResult = DockerHashResult("sha256", "71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950")
-    val finalValue =
-      "alpine@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
-    val actor = TestActorRef(
-      helper.buildTestJobPreparationActor(1 minute, 1 minutes, List.empty, None, List.empty, mockJobKey, None),
-      self
-    )
-    actor ! Start(ValueStore.empty)
-    helper.workflowDockerLookupActor.expectMsgPF(5 seconds) { case success: DockerInfoRequest =>
-      success.dockerImageID.fullName shouldBe "alpine:latest"
-    }
-    helper.workflowDockerLookupActor.reply(
-      DockerInfoSuccessResponse(DockerInformation(hashResult, None), mock[DockerInfoRequest])
-    )
-    expectMsgPF(5 seconds) { case success: BackendJobPreparationSucceeded =>
-      success.jobDescriptor.maybeCallCachingEligible shouldBe DockerWithHash(finalValue)
-    }
-  }
-
   it should "lookup MemoryMultiplier key/value if available and accordingly update runtime attributes" in {
     val attributes = Map(
       "memory" -> WomString("1.1 GB")

@@ -329,7 +329,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
   }
 
   // Apply the configured Docker mirroring to the docker and container runtime attributes. Depending on the
-  // WDL version in use, either or both attributes may be present. If both are present, both will be mirrored.
+  // WDL version in use, either attribute may be present. If both are present, both will be mirrored.
   // This method does not have an opinion about WHICH container should be used, see getPreferredContainerName for that.
   private[preparation] def applyDockerMirroring(
     attributes: Map[LocallyQualifiedName, WomValue]

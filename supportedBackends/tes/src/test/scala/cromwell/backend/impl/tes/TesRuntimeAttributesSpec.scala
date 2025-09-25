@@ -61,6 +61,28 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       )
     }
 
+    "validate a valid container entry" in {
+      val runtimeAttributes = Map("container" -> WomArray(WomArrayType(WomStringType), Seq(WomString("ubuntu:latest"))))
+      val expectedRuntimeAttributes = expectedDefaults
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid container entry" in {
+      val runtimeAttributes = Map("container" -> WomInteger(1))
+      assertFailure(
+        runtimeAttributes,
+        "Expecting container runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
+    }
+
+    "fail to validate presence of both Docker and container attributes" in {
+      val runtimeAttributes = Map("container" -> WomString("ubuntu:latest"), "docker" -> WomString("debian:latest"))
+      assertFailure(
+        runtimeAttributes,
+        "Must provide only one of the following runtime attributes: container, docker"
+      )
+    }
+
     "validate a valid failOnStderr entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"), "failOnStderr" -> WomBoolean(true))
       val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(failOnStderr = true)

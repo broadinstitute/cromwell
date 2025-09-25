@@ -167,6 +167,30 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       )
     }
 
+    "validate a valid container entry" in {
+      val runtimeAttributes = Map("container" -> WomArray(WomArrayType(WomStringType), Seq(WomString("ubuntu:latest"))),
+                                  "scriptBucketName" -> WomString("my-stuff")
+      )
+      val expectedRuntimeAttributes = expectedDefaults
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid container entry" in {
+      val runtimeAttributes = Map("container" -> WomInteger(1))
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting container runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
+    }
+
+    "fail to validate presence of both Docker and container attributes" in {
+      val runtimeAttributes = Map("container" -> WomString("ubuntu:latest"), "docker" -> WomString("debian:latest"))
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Must provide only one of the following runtime attributes: container, docker"
+      )
+    }
+
     "validate a valid failOnStderr entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"),
                                   "scriptBucketName" -> WomString("my-stuff"),

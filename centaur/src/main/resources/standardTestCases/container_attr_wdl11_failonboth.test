@@ -1,0 +1,6 @@
+name: container_attr_wdl11_failonboth
+testFormat: workflowfailure
+
+files {
+  workflow: container_attr/container_attr_wdl11_failonboth.wdl
+}

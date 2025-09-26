@@ -102,6 +102,9 @@ object RuntimeAttributesValidation {
       override def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
 
       override protected def staticDefaultOption = Option(default)
+
+      override def validate(values: Map[String, WomValue]): ErrorOr[ValidatedType] =
+        validation.validate(values)
     }
 
   def withUsedInCallCaching[ValidatedType](validation: RuntimeAttributesValidation[ValidatedType],
@@ -126,6 +129,9 @@ object RuntimeAttributesValidation {
       override def usedInCallCaching: Boolean = usedInCallCachingValue
 
       override protected def staticDefaultOption = validation.staticDefaultOption
+
+      override def validate(values: Map[String, WomValue]): ErrorOr[ValidatedType] =
+        validation.validate(values)
     }
 
   def optional[ValidatedType](
@@ -150,6 +156,9 @@ object RuntimeAttributesValidation {
       override def usedInCallCaching: Boolean = validation.usedInCallCachingPackagePrivate
 
       override protected def staticDefaultOption = validation.staticDefaultOption
+
+      override def validate(values: Map[String, WomValue]): ErrorOr[Option[ValidatedType]] =
+        validation.validate(values) map (Option.apply)
     }
 
   /**

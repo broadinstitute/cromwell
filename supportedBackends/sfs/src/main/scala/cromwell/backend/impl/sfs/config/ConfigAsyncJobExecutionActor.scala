@@ -178,10 +178,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
 
   // `runtimeAttributeInputs` has already adjusted for the case of a `JobDescriptor` with `DockerWithHash`.
   override lazy val dockerImageUsed: Option[String] =
-    Containers.runtimeAttrKeys // Per validation, only one of these keys can be present.
-      .flatMap(runtimeAttributeInputs.get)
-      .headOption
-      .map(_.valueString)
+    Containers.extractContainerFromPreValidationAttrs(runtimeAttributeInputs)
 
   /**
     * Generates a command for a job id, using a config task.

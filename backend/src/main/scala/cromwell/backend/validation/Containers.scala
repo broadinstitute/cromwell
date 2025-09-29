@@ -83,9 +83,4 @@ trait ContainersValidation extends OptionalRuntimeAttributesValidation[Container
     case WomArray(womType, values) if womType.memberType == WomStringType =>
       Containers(values.map(_.valueString).toList).validNel
   }
-
-  override def validate(values: Map[String, WomValue]): ErrorOr[Option[Containers]] =
-    if (Containers.runtimeAttrKeys.count(v => values.contains(v)) > 1) {
-      s"Must provide only one of the following runtime attributes: ${Containers.runtimeAttrKeys.mkString(", ")}".invalidNel
-    } else super.validate(values)
 }

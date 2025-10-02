@@ -6,7 +6,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wdl.model.draft3.elements.CommandPartElement.{PlaceholderCommandPartElement, StringCommandPartElement}
 import wdl.model.draft3.elements.ExpressionElement._
-import wdl.model.draft3.elements.{CallElement, FileElement, _}
+import wdl.model.draft3.elements._
 import wdl.transforms.biscayne.ast2wdlom.WdlFileToWdlomSpec._
 import wom.SourceFileLocation
 import wom.types._
@@ -467,6 +467,79 @@ object WdlFileToWdlomSpec {
           Some(SourceFileLocation(13))
         )
       )
-    )
+    ),
+    "call_input_passthrough" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(
+          WorkflowDefinitionElement(
+            name = "callInputPassthrough",
+            inputsSection = None,
+            graphElements = Set(
+              IntermediateValueDeclarationElement(
+                PrimitiveTypeElement(WomStringType),
+                "name",
+                StringLiteral("friend")
+              ),
+              IntermediateValueDeclarationElement(
+                PrimitiveTypeElement(WomStringType),
+                "greeting",
+                StringLiteral("hello")
+              ),
+              CallElement(
+                "sayHi",
+                None,
+                Vector.empty,
+                Some(
+                  CallBodyElement(
+                    Vector(
+                      KvPair("name", IdentifierLookup("name")),
+                      KvPair("greeting", IdentifierLookup("greeting"))
+                    )
+                  )
+                ),
+                Some(SourceFileLocation(18))
+              )
+            ),
+            outputsSection = None,
+            metaSection = None,
+            parameterMetaSection = None,
+            sourceLocation = Some(SourceFileLocation(13))
+          )
+        ),
+        tasks = Vector(
+          TaskDefinitionElement(
+            name = "sayHi",
+            inputsSection = Some(
+              InputsSectionElement(
+                Vector(
+                  InputDeclarationElement(PrimitiveTypeElement(WomStringType), "name", None),
+                  InputDeclarationElement(PrimitiveTypeElement(WomStringType), "greeting", None)
+                )
+              )
+            ),
+            declarations = Vector.empty,
+            outputsSection = None,
+            commandSection = CommandSectionElement(
+              List(
+                CommandSectionLine(
+                  Vector(
+                    StringCommandPartElement("cat \""),
+                    PlaceholderCommandPartElement(IdentifierLookup("greeting"), PlaceholderAttributeSet.empty),
+                    StringCommandPartElement(" "),
+                    PlaceholderCommandPartElement(IdentifierLookup("name"), PlaceholderAttributeSet.empty),
+                    StringCommandPartElement("\" > /tmp/helloFile")
+                  )
+                )
+              )
+            ),
+            runtimeSection = None,
+            metaSection = None,
+            parameterMetaSection = None,
+            sourceLocation = Some(SourceFileLocation(3))
+          )
+        )
+      )
   )
 }

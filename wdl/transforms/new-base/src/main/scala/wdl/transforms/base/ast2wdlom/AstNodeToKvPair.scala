@@ -2,6 +2,7 @@ package wdl.transforms.base.ast2wdlom
 
 import cats.syntax.apply._
 import cats.syntax.either._
+import common.Checked
 import common.transforms.CheckedAtoB
 import common.validation.ErrorOr.ErrorOr
 import common.validation.ErrorOr._
@@ -13,19 +14,18 @@ object AstNodeToKvPair {
     astNodeToExpressionElement: CheckedAtoB[GenericAstNode, ExpressionElement]
   ): CheckedAtoB[GenericAstNode, KvPair] = CheckedAtoB.fromErrorOr {
     case a: GenericAst if a.getName == "ObjectKV" || a.getName == "MapLiteralKv" || a.getName == "RuntimeAttribute" =>
-      val keyValidation: ErrorOr[String] = a.getAttributeAs[String]("key").toValidated
+      validate(a.getAttributeAs[String]("key"), a.getAttributeAs[ExpressionElement]("value"))
+  }
 
-      val valueValidation: ErrorOr[ExpressionElement] = {
-        val validation = a.getAttributeAs[ExpressionElement]("value").toValidated
-        val forKeyContext: Option[String] = keyValidation.map(k => s"read value for key '$k'").toOption
+  def validate(key: Checked[String], value: Checked[ExpressionElement]): ErrorOr[KvPair] = {
+    val keyValidation = key.toValidated
+    val valueValidation = value.toValidated
+    val forKeyContext: Option[String] = keyValidation.map(k => s"read value for key '$k'").toOption
 
-        forKeyContext match {
-          case Some(context) => validation.contextualizeErrors(context)
-          case None => validation
-        }
-
-      }
-
-      (keyValidation, valueValidation) mapN { (key, value) => KvPair(key, value) }
+    forKeyContext match {
+      case Some(context) => valueValidation.contextualizeErrors(context)
+      case None => valueValidation
+    }
+    (keyValidation, valueValidation) mapN { (key, value) => KvPair(key, value) }
   }
 }

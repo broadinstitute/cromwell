@@ -19,12 +19,13 @@ object AstNodeToKvPair {
 
   def validate(key: Checked[String], value: Checked[ExpressionElement]): ErrorOr[KvPair] = {
     val keyValidation = key.toValidated
-    val valueValidation = value.toValidated
-    val forKeyContext: Option[String] = keyValidation.map(k => s"read value for key '$k'").toOption
-
-    forKeyContext match {
-      case Some(context) => valueValidation.contextualizeErrors(context)
-      case None => valueValidation
+    val valueValidation: ErrorOr[ExpressionElement] = {
+      val validation = value.toValidated
+      val forKeyContext: Option[String] = keyValidation.map(k => s"read value for key '$k'").toOption
+      forKeyContext match {
+        case Some(context) => validation.contextualizeErrors(context)
+        case None => validation
+      }
     }
     (keyValidation, valueValidation) mapN { (key, value) => KvPair(key, value) }
   }

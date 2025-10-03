@@ -156,7 +156,7 @@ engine {
 ### Backend Filesystems
 
 Similarly to the engine, you can also configure backend filesystems individually. Some backends might require the use of a specific filesystem.
-For example, the [GCP Batch](../tutorials/GCPBatch101.md) backend requires Google Cloud Storage.
+For example, the [GCP Batch](../tutorials/GcpBatch101.md) backend requires Google Cloud Storage.
 Let's take another example:
 
 ```wdl

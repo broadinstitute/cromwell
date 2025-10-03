@@ -112,18 +112,18 @@ allows Cromwell to record which file path prefixes were involved in cache result
 If Cromwell sees that the file paths for a candidate cache hit have a blacklisted prefix, Cromwell will quickly 
 fail the copy attempt without doing any potentially expensive I/O.
 
-Path prefix blacklisting could be supported by any backend type though it is currently implemented only for Google
-(PAPI) backends. For Google backends the GCS bucket is considered the prefix for blacklisting purposes.
+Path prefix blacklisting could be supported by any backend type though it is currently implemented only for Google backends. 
+For Google backends the GCS bucket is considered the prefix for blacklisting purposes.
 
 
 ***Call cache whitelisting***
  
 In a multi-user environment where access to job outputs may be restricted among different users, it can be useful to limit
 cache hits to those that are more likely to actually be readable for cache hit copies.
-Cromwell now supports a `call_cache_hit_path_prefixes` workflow option for this purpose. This is particularly useful in the PAPI backend where the workflow
-root can be specified in workflow options via `jes_gcs_root`. The value of `call_cache_hit_path_prefixes` should be an array of strings representing  
-prefixes that call cache hit output files should have in order to be considered as a cache hit. Using PAPI as an example and assuming Alice and Bob have
-made their data accessible to each other, Alice could submit a workflow with these options:
+Cromwell now supports a `call_cache_hit_path_prefixes` workflow option for this purpose. This is particularly useful in the GCP Batch backend where the workflow
+root can be specified in workflow options via `gcp_batch_gcs_root`. The value of `call_cache_hit_path_prefixes` should be an array of strings representing  
+prefixes that call cache hit output files should have in order to be considered as a cache hit. Assuming Alice and Bob have made their data accessible to each other, 
+Alice could submit a workflow with these options:
 
 ```
 {
@@ -133,10 +133,10 @@ made their data accessible to each other, Alice could submit a workflow with the
 
 With these workflow options Cromwell would only look for cache hits for Alice's jobs in Alice's or Bob's buckets.
 
-As a further optimization the PAPI backend has the concept of "this" bucket on a per-workflow basis, where "this" bucket is
+As a further optimization the Batch backend has the concept of "this" bucket on a per-workflow basis, where "this" bucket is
 the bucket that contains the current workflow root.
 If `call_cache_hit_path_prefixes` is specified in 
-workflow options on the PAPI backend, Cromwell will automatically prepend "this" bucket to the call cache hit path prefixes to search.
+workflow options on the Batch backend, Cromwell will automatically prepend "this" bucket to the call cache hit path prefixes to search.
 For example, if Charles specified the same workflow options as in the example above and his workflow root was under `gs://charles_bucket`,
 Cromwell would search cache hits in all of the `gs://alice_bucket`, `gs://bob_bucket` and `gs://charles_bucket` buckets without having to specify
 `gs://charles_bucket` bucket explicitly in `call_cache_hit_path_prefixes`.

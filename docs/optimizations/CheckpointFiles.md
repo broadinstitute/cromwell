@@ -80,7 +80,5 @@ task count {
 
 ## Backend Support
 
-Cromwell supports the `checkpointFile` attribute on the following backends:
+Cromwell supports the `checkpointFile` attribute on the Google Batch backend
 
-* The Google PAPIv2 (alpha1) backend
-* The Google Life Sciences (beta) backend

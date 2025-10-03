@@ -1,4 +1,6 @@
-## Getting started on Google Cloud with the Genomics Pipelines API
+## Getting started on Google Cloud with the Genomics Pipelines API (DEPRECATED)
+
+Pipelines API deprecated, please use GcpBatch instead: [GcpBatch101](./GcpBatch101.md)
 
 ## Pipelines API v2
 

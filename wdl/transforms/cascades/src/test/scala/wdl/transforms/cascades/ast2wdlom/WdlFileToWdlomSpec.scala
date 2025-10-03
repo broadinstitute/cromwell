@@ -485,6 +485,11 @@ object WdlFileToWdlomSpec {
                 "greeting",
                 StringLiteral("hello")
               ),
+              IntermediateValueDeclarationElement(
+                PrimitiveTypeElement(WomStringType),
+                "inquiry",
+                StringLiteral("how are you?")
+              ),
               CallElement(
                 "sayHi",
                 None,
@@ -493,17 +498,18 @@ object WdlFileToWdlomSpec {
                   CallBodyElement(
                     Vector(
                       KvPair("name", IdentifierLookup("name")),
-                      KvPair("greeting", IdentifierLookup("greeting"))
+                      KvPair("greeting", IdentifierLookup("greeting")),
+                      KvPair("inquiry", IdentifierLookup("inquiry"))
                     )
                   )
                 ),
-                Some(SourceFileLocation(18))
+                Some(SourceFileLocation(20))
               )
             ),
             outputsSection = None,
             metaSection = None,
             parameterMetaSection = None,
-            sourceLocation = Some(SourceFileLocation(13))
+            sourceLocation = Some(SourceFileLocation(14))
           )
         ),
         tasks = Vector(
@@ -513,7 +519,8 @@ object WdlFileToWdlomSpec {
               InputsSectionElement(
                 Vector(
                   InputDeclarationElement(PrimitiveTypeElement(WomStringType), "name", None),
-                  InputDeclarationElement(PrimitiveTypeElement(WomStringType), "greeting", None)
+                  InputDeclarationElement(PrimitiveTypeElement(WomStringType), "greeting", None),
+                  InputDeclarationElement(PrimitiveTypeElement(WomStringType), "inquiry", None)
                 )
               )
             ),
@@ -527,6 +534,8 @@ object WdlFileToWdlomSpec {
                     PlaceholderCommandPartElement(IdentifierLookup("greeting"), PlaceholderAttributeSet.empty),
                     StringCommandPartElement(" "),
                     PlaceholderCommandPartElement(IdentifierLookup("name"), PlaceholderAttributeSet.empty),
+                    StringCommandPartElement(" "),
+                    PlaceholderCommandPartElement(IdentifierLookup("inquiry"), PlaceholderAttributeSet.empty),
                     StringCommandPartElement("\" > /tmp/helloFile")
                   )
                 )

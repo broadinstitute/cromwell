@@ -95,7 +95,7 @@ engine {
 }
 ```
 
-(See the [Google section](../backends/Google.md) for information about the `auth` field.)
+(See the [Google section](../backends/PAPI.md) for information about the `auth` field.)
 
 We can now run this workflow
 

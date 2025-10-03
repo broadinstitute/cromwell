@@ -1,7 +1,8 @@
-**Google Cloud Backend**
+**Google Cloud Pipelines Backend (DEPRECATED)**
 
 Google Genomics Pipelines API is a Docker-as-a-service from Google. It was formerly called JES (Job Execution Service);
-you may see outdated references to the older JES terminology in Cromwell configuration files and code.
+you may see outdated references to the older JES terminology in Cromwell configuration files and code. 
+This has since been replaced by the [Google Batch Service](../backends/GCPBatch.md).
 
 This section offers detailed configuration instructions for using Cromwell with the Pipelines API in all supported
 authentication modes. Before reading futher in this section please see the

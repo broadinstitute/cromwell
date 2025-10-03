@@ -124,28 +124,23 @@ Note: To exclude a specific test from a test suite, find the `.sh` file that run
 
 ## Upgrade / Horicromtal / etc.
 
-| CI Test Type                  | Cromwell Config                                                  | Centaur Config                                         |
-|-------------------------------|------------------------------------------------------------------|--------------------------------------------------------|
-| Engine Upgrade                | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
-| Horicromtal                   | `papi_[v2beta or v2alpha1]_horicromtal_application.conf`**       | `centaur_application_`<br>`horicromtal.conf`           |
-| Horicromtal<br>Engine Upgrade | `papi_v2beta_application.conf`**                                 | `centaur_application_`<br>`horicromtal_no_assert.conf` |
-| PAPI Upgrade                  | `papi_v1_v2alpha1_upgrade_application.conf`**                    | `centaur_application.conf`*                            |
-| Papi Upgrade<br>New Workflows | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
-| WDL Upgrade                   | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
-| (other)                       | `(backend)_application.conf`                                     | `centaur_application.conf`*                            |
+| CI Test Type                   | Cromwell Config                               | Centaur Config                                         |
+|--------------------------------|-----------------------------------------------|--------------------------------------------------------|
+| Engine Upgrade                 | `(backend)_application.conf`                  | `centaur_application.conf`*                            |
+| Horicromtal                    | `gcp_batch_horicromtal_application.conf`**    | `centaur_application_`<br>`horicromtal.conf`           |
+| Batch Upgrade<br>New Workflows | `(backend)_application.conf`                  | `centaur_application.conf`*                            |
+| WDL Upgrade                    | `(backend)_application.conf`                  | `centaur_application.conf`*                            |
+| (other)                        | `(backend)_application.conf`                  | `centaur_application.conf`*                            |
 
 | CI Test Type                  | ScalaTest Spec              | Test Directory                      |
 |-------------------------------|-----------------------------|-------------------------------------|
 | Engine Upgrade                | `EngineUpgradeTestCaseSpec` | `engineUpgradeTestCases`            |
 | Horicromtal                   | `CentaurTestSuite`          | `standardTestCases`***              |
 | Horicromtal<br>Engine Upgrade | `EngineUpgradeTestCaseSpec` | `engineUpgradeTestCases`***         |
-| PAPI Upgrade                  | `PapiUpgradeTestCaseSpec`   | `papiUpgradeTestCases`              |
-| PAPI Upgrade<br>New Workflows | `CentaurTestSuite`          | `papiUpgradeNewWorkflowsTestCases`  |
 | (other)                       | `CentaurTestSuite`          | `standardTestCases`                 |
 
 <small>
-\* Centaur Config always uses `centaur_application.conf` except when overridden with `papi_v2alpha1_centaur_application.conf`
-or `papi_v2beta_centaur_application.conf`
+\* Centaur Config always uses `centaur_application.conf` except when overridden with `gcp_batch_centaur_application.conf`
   ([48 preview link](https://github.com/broadinstitute/cromwell/blob/a7d0601/src/ci/bin/test.inc.sh#L455-L457))  
 \*\* Cromwell Config overrides
   ([47 link](https://github.com/broadinstitute/cromwell/blob/47/src/ci/bin/test.inc.sh#L213-L221))  
@@ -159,8 +154,6 @@ or `papi_v2beta_centaur_application.conf`
     2. sum-back: runs summarizer
     3. front-back: exposes HTTP
 - Horicromtal Engine Upgrade: Combination of Horicromtal and Engine Upgrade
-- PAPI Upgrade: Tests run with an older version of Papi and upon restart use a newer version of Papi
-- PAPI Upgrade New Workflows: Test definition [does not run any tests](https://travis-ci.org/broadinstitute/cromwell/jobs/475378412)
 - WDL Upgrade: Upgrades WDL from draft-2 to 1.0 before testing
 - (other): Runs `*.test` files listing the configured backend names
 
@@ -170,7 +163,6 @@ or `papi_v2beta_centaur_application.conf`
 |---------|:------:|:-----------:|:--------:|
 | AWS     |   ✅   |             |          |
 | Local   |   ✅   |      ✅     |          |
-| PAPI V2 |   ✅   |             |    ⭕    |
 | SLURM   |   ✅   |             |          |
 | TES     |   ✅   |             |          |
 

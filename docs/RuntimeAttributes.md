@@ -448,8 +448,8 @@ The following CPU platforms are currently supported by the Google Cloud backend:
 ### 'useDockerImageCache'
 
 This option is specific to the Google Cloud backend, moreover it is only supported by Google Life Sciences API starting from version v2 beta.
-In order to use this feature Cromwell has to have PAPI v2 backend configured with this feature enabled.  
-More information about this feature and it's configuration can be found [in the Google backend section of documentation](backends/Google.md).
+In order to use this feature Cromwell has to have GCPBATCH backend configured with this feature enabled.  
+More information about this feature and it's configuration can be found [in the Google backend section of documentation](backends/PAPI.md).
 
 ### `awsBatchRetryAttempts`
 

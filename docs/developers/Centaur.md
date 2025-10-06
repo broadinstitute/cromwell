@@ -124,13 +124,13 @@ Note: To exclude a specific test from a test suite, find the `.sh` file that run
 
 ## Upgrade / Horicromtal / etc.
 
-| CI Test Type                   | Cromwell Config                               | Centaur Config                                         |
-|--------------------------------|-----------------------------------------------|--------------------------------------------------------|
-| Engine Upgrade                 | `(backend)_application.conf`                  | `centaur_application.conf`*                            |
-| Horicromtal                    | `gcp_batch_horicromtal_application.conf`**    | `centaur_application_`<br>`horicromtal.conf`           |
-| Batch Upgrade<br>New Workflows | `(backend)_application.conf`                  | `centaur_application.conf`*                            |
-| WDL Upgrade                    | `(backend)_application.conf`                  | `centaur_application.conf`*                            |
-| (other)                        | `(backend)_application.conf`                  | `centaur_application.conf`*                            |
+| CI Test Type                   | Cromwell Config                            | Centaur Config                                         |
+|--------------------------------|--------------------------------------------|--------------------------------------------------------|
+| Engine Upgrade                 | `(backend)_application.conf`               | `centaur_application.conf`*                            |
+| Horicromtal                    | `(backend)_horicromtal_application.conf`** | `centaur_application_`<br>`horicromtal.conf`           |
+| Horicromtal<br>Engine Upgrade | `(backend))_application.conf`**            | `centaur_application_`<br>`horicromtal_no_assert.conf` |
+| WDL Upgrade                    | `(backend)_application.conf`               | `centaur_application.conf`*                            |
+| (other)                        | `(backend)_application.conf`               | `centaur_application.conf`*                            |
 
 | CI Test Type                  | ScalaTest Spec              | Test Directory                      |
 |-------------------------------|-----------------------------|-------------------------------------|
@@ -140,7 +140,7 @@ Note: To exclude a specific test from a test suite, find the `.sh` file that run
 | (other)                       | `CentaurTestSuite`          | `standardTestCases`                 |
 
 <small>
-\* Centaur Config always uses `centaur_application.conf` except when overridden with `gcp_batch_centaur_application.conf`
+\* Centaur Config always uses `centaur_application.conf` except when overridden with `centaur_application_horicromtal.conf`
   ([48 preview link](https://github.com/broadinstitute/cromwell/blob/a7d0601/src/ci/bin/test.inc.sh#L455-L457))  
 \*\* Cromwell Config overrides
   ([47 link](https://github.com/broadinstitute/cromwell/blob/47/src/ci/bin/test.inc.sh#L213-L221))  
@@ -153,21 +153,23 @@ Note: To exclude a specific test from a test suite, find the `.sh` file that run
     1. db-mstr: started first
     2. sum-back: runs summarizer
     3. front-back: exposes HTTP
-- Horicromtal Engine Upgrade: Combination of Horicromtal and Engine Upgrade
+- Horicromtal Engine Upgrade: Combination of Horicromtal and Engine Upgrade
 - WDL Upgrade: Upgrades WDL from draft-2 to 1.0 before testing
 - (other): Runs `*.test` files listing the configured backend names
 
 ## RDBMS
 
-| Backend | MySQL  | PostgreSQL  | MariaDB  |
-|---------|:------:|:-----------:|:--------:|
-| AWS     |   ✅   |             |          |
-| Local   |   ✅   |      ✅     |          |
-| SLURM   |   ✅   |             |          |
-| TES     |   ✅   |             |          |
+| Backend   | MySQL  | PostgreSQL  | MariaDB  |
+|-----------|:------:|:-----------:|:--------:|
+| AWS       |   ✅  ⭕ |             |          |
+| GCP Batch |   ✅ ⭕  |             |          |
+| Local     |   ✅   |      ✅     |          |
+| SLURM     |   ✅   |             |          |
+| TES       |   ✅   |             |          |
 
 <small>
-⭕ Tests Horicromtal Engine Upgrade versus standard Centaur suite
+⭕ Tests Horicromtal Engine versus standard Centaur suite
 </small>
 
-All backends run against MySQL. The Local backend also test PostgreSQL, allowing contributors ensure WDLs work with PostgreSQL. MariaDB is tested on a specialized upgrade, where the MySQL connector client is used first, and the MariaDB client is used after restart.
+All backends run against MySQL. The Local backend also test PostgreSQL, allowing contributors ensure WDLs work with PostgreSQL. 
+MariaDB is tested on a specialized upgrade, where the MySQL connector client is used first, and the MariaDB client is used after restart.

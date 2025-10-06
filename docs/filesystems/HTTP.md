@@ -12,7 +12,7 @@ URLs.
 Cromwell's default configuration defines an instance of the HTTP filesystem named `http`. There is no additional configuration
 required for the HTTP filesystem itself so adding HTTP filesystem support to a backend is a simple as
 adding a reference to this filesystem within the backend's `filesystems` stanza. e.g. Cromwell's default `Local` shared filesystem
-backend is configured like this:
+backend is configured like this (a GCP Batch or AWS backend would be configured in a similar way):
 
 ```
 backend {

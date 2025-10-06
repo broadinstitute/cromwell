@@ -12,8 +12,8 @@ First, clone Hermes and create then activate a new Python virtual environment (i
 ```
 $ git clone git@github.com:scottfrazer/hermes.git
 $ cd hermes
-$ python -m venv hermes-venv
-$ source hermes-venv/bin/activate
+$ pyenv virtualenv 3.5.10 hermes-venv
+$ pyenv activate hermes-venv
 ```
 
 In the Hermes repo, make sure you have the latest ‘develop’ branch checked out. Then, install Hermes into the virtual environment (need to separately run pip installs because the Python 3.5 default index URL doesn't work anymore):

@@ -46,8 +46,8 @@ cromwell::build::run_centaur \
     -e dont_cache_to_failed_jobs \
     -e continue_on_return_code \
     -e return_codes \
-    -e globbingBehavior \
-    -e cacheWithinWF \
+    -e globbingbehavior \
+    -e cachewithinwf \
     -e failures.terminal_status
 
 cromwell::build::generate_code_coverage

@@ -25,7 +25,7 @@ This will allow for better grouping of jobs in the Batch UI and ensure determini
 * ECR [pull-through caches](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html) can now be used to access Docker images. See [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/AWSBatch/) for details.
 
 ### Progress toward WDL 1.1 Support
- * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. As of Cromwell 91, `development-1.1` includes:
+ * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 91, `development-1.1` has been enhanced to include:
    * Runtime attribute `container`, which may be a single string or an array of strings, is preferred over `docker` for specifying the image a task should run on. If given a list of multiple images, Cromwell will choose the first.
    * `docker://` is permitted as a prefix for image names, ex. `container: docker://ubuntu:latest`.
 

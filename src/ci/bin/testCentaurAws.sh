@@ -46,7 +46,8 @@ cromwell::build::run_centaur \
     -e return_codes \
     -e globbingbehavior \
     -e cachewithinwf \
-    -e failures.terminal_status
+    -e failures.terminal_status \
+    -e lots_of_inputs
 
 cromwell::build::generate_code_coverage
 

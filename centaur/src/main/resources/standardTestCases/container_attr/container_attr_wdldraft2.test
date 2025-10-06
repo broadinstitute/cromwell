@@ -2,7 +2,7 @@ name: container_attr_wdldraft2
 testFormat: workflowsuccess
 
 files {
-  workflow: container_attr/container_attr_wdldraft2.wdl
+  workflow: wdl/container_attr_wdldraft2.wdl
 }
 
 metadata {

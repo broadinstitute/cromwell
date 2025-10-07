@@ -115,7 +115,7 @@ during execution as `/mnt/three` was not present inside the running container.
 ### Additional FileSystems
 
 HPC backends (as well as the Local backend) can be configured to be able to interact with other type of filesystems, where the input files can be located for example.
-Currently the only other filesystem supported is Google Cloud Storage (GCS). See the [Google section](Google) of the documentation for information on how to configure GCS in Cromwell.
+Currently the only other filesystem supported is Google Cloud Storage (GCS). See the [Google section](GCPBatch) of the documentation for information on how to configure GCS in Cromwell.
 Once you have a google authentication configured, you can simply add a `gcs` stanza in your configuration file to enable GCS:
 
 ```

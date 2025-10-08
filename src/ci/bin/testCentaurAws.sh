@@ -47,7 +47,8 @@ cromwell::build::run_centaur \
     -e globbingbehavior \
     -e cachewithinwf \
     -e failures.terminal_status \
-    -e invalid_runtime_attributes
+    -e bad_file_string \
+
 
 cromwell::build::generate_code_coverage
 

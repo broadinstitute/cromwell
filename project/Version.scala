@@ -6,7 +6,7 @@ import com.github.sbt.git.SbtGit
 
 object Version {
   // Upcoming release, or current if we're on a master / hotfix branch
-  val cromwellVersion = "91"
+  val cromwellVersion = "92"
 
   sealed trait BuildType
   case object Snapshot extends BuildType

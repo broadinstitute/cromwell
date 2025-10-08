@@ -2,7 +2,6 @@ package cromwell.engine.workflow.lifecycle.materialization
 
 import akka.actor.{ActorRef, FSM, LoggingFSM, Props, Status}
 import akka.pattern.pipe
-import akka.util.Timeout
 import cats.data.EitherT._
 import cats.data.NonEmptyList
 import cats.data.Validated.{Invalid, Valid}
@@ -52,7 +51,6 @@ import wom.runtime.WomOutputRuntimeExtractor
 import wom.values.{WomString, WomValue}
 
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
@@ -209,8 +207,6 @@ class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: Acto
 
   protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
 
-  final private val githubAuthVendingTimeout = Timeout(60.seconds)
-
   startWith(ReadyToMaterializeState, ())
 
   when(ReadyToMaterializeState) {
@@ -355,7 +351,7 @@ class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: Acto
     for {
       _ <- publishLabelsToMetadata(id, labels.asMap, serviceRegistryActor)
       zippedImportResolver <- zippedResolverCheck
-      importAuthProviderOpt <- importAuthProvider(conf)(githubAuthVendingTimeout).toIOChecked
+      importAuthProviderOpt <- importAuthProvider(conf).toIOChecked
       importResolvers = zippedImportResolver.toList ++ localFilesystemResolvers :+ HttpResolver(
         None,
         Map.empty,

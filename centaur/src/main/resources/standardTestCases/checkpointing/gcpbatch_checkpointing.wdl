@@ -58,7 +58,7 @@ task count {
   >>>
 
   runtime {
-    docker: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    docker: "mirror.gcr.io/google/cloud-sdk:slim"
     preemptible: 3
     checkpointFile: "my_checkpoint"
   }

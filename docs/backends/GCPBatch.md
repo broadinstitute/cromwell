@@ -322,10 +322,11 @@ backend {
 
 The `network-label-key` and `subnetwork-label-key` should reference the keys in your project's labels whose value is the name of your private network
 and subnetwork within that network respectively. `auth` should reference an auth scheme in the `google` stanza which will be used to get the project metadata from Google Cloud.
-The `subnetwork-label-key` is an optional config. Note that in the
-PAPI v2 backend `subnetwork-label-key` was an optional configuration parameter which accepted a `*` wildcard for choosing the
-appropriate subnetwork region, but in GCP Batch the `subnetwork-label-key` specification can be omitted
-and GCP Batch will choose the appropriate subnetwork automatically.
+Cromwell will construct the fully qualified network and subnetwork paths using the network and subnet names.
+
+Note that the `subnetwork-label-key` is an optional config. In the PAPI v2 backend, it was an optional configuration parameter which accepted a `*` wildcard for choosing the
+appropriate subnetwork region. However, in GCP Batch the `subnetwork-label-key` can be omitted _only_ when the network mode is `Auto` -- in this case GCP Batch will automatically choose 
+the appropriate subnetwork. If the network mode is `Custom`, the `subnetwork-label-key` needs to be specified in the configuration, and corresponding label key must exist in project metadata.
 
 For example, if your `virtual-private-cloud` config looks like the one above, and one of the labels in your project is
 

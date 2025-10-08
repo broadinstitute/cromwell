@@ -8,7 +8,7 @@ import cats.data.NonEmptyList
 import cloud.nio.impl.drs.DrsCloudNioFileProvider.DrsReadInterpreter
 import cloud.nio.impl.drs.{DrsCloudNioFileSystemProvider, GoogleOauthDrsCredentials}
 import com.google.cloud.NoCredentials
-import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest, JobName}
+import com.google.cloud.batch.v1.{CancelJobRequest, CreateJobRequest, GetJobRequest, JobName}
 import com.typesafe.config.{Config, ConfigFactory}
 import common.collections.EnhancedCollections._
 import common.mock.MockSugar
@@ -46,6 +46,7 @@ import cromwell.services.metrics.bard.BardEventing.BardEventRequest
 import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.util.SampleWdl
+import org.apache.commons.codec.digest.DigestUtils
 import org.mockito.Mockito._
 import org.scalatest._
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -148,7 +149,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
 
       override def queryRequest(jobName: JobName): GetJobRequest = null
 
-      override def abortRequest(jobName: JobName): DeleteJobRequest = null
+      override def abortRequest(jobName: JobName): CancelJobRequest = null
     }
     GcpBackendInitializationData(workflowPaths,
                                  runtimeAttributesBuilder,
@@ -619,15 +620,28 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
     checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution) // no VM start time - task has not started
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    checkFailedResult(GcpBatchExitCode.VMReportingTimeout)
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
+    checkFailedResult(
+      GcpBatchExitCode.VMReportingTimeout,
+      List(ExecutionEvent("Job state is set from QUEUED to SCHEDULED for job f00bar123", OffsetDateTime.now()))
+    )
+      .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
 
     // Should not retry
     checkFailedResult(GcpBatchExitCode.Success)
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     checkFailedResult(GcpBatchExitCode.TaskRunsOverMaximumRuntime)
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-    checkFailedResult(GcpBatchExitCode.VMRecreatedDuringExecution,
-                      List(ExecutionEvent(CallMetadataKeys.VmStartTime, OffsetDateTime.now()))
+    checkFailedResult(
+      GcpBatchExitCode.VMRecreatedDuringExecution,
+      List(ExecutionEvent("Job state is set from SCHEDULED to RUNNING for job f00b4r", OffsetDateTime.now()))
     ).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
+    checkFailedResult(
+      GcpBatchExitCode.VMReportingTimeout,
+      List(ExecutionEvent("Job state is set from SCHEDULED to RUNNING for job f00bar123", OffsetDateTime.now()))
+    )
+      .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     actorRef.stop()
   }
 
@@ -1548,7 +1562,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val actual = batchBackend.startMetadataKeyValues.safeMapValues(_.toString)
     actual should be(
       Map(
-        "backendLogs:log" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye/goodbye.log",
         "callRoot" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye",
         "gcpBatch:executionBucket" -> batchGcsRoot,
         "gcpBatch:googleProject" -> googleProject,
@@ -1570,6 +1583,100 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         "stdout" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye/stdout"
       )
     )
+  }
+
+  "generateJobId" should "generate a valid job IDs for various cases" in {
+    val womFile = WomSingleFile("gs://blah/b/c.txt")
+    val workflowInputs = Map("file_passing.f" -> womFile)
+    val callInputs = Map(
+      "in" -> womFile,
+      "out_name" -> WomString("out")
+    )
+    val mockBatchBackendActor =
+      makeBatchActorRef(SampleWdl.FilePassingWorkflow, workflowInputs, "a", callInputs).underlyingActor
+
+    val workflowId1 = WorkflowId.randomId()
+    val workflowId1Str = workflowId1.toString
+    val workflowId2 = WorkflowId.randomId()
+    val workflowId2Str = workflowId2.toString
+
+    val simpleCallName = "myWorkflow.myTask"
+    val specialCallName1 = "myWorkflow.my_special_task"
+    val specialCallName2 = "myWorkflow.myspecial_task"
+    val longCallName = "myWorkflow.myTaskWithAnExtremelyLongNameThatExceedsLimit"
+
+    val testCases = Seq(
+      // simple call name cases
+      (workflowId1,
+       simpleCallName,
+       None,
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"
+      ),
+      (workflowId1,
+       simpleCallName,
+       Some(10),
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytask-10-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-10-1").take(8)}"
+      ),
+      (workflowId1,
+       simpleCallName,
+       Some(10000),
+       3,
+       s"job-${workflowId1.shortString}-myworkflowmytask-10000-3-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-10000-3").take(8)}"
+      ),
+      // call names which upon sanitization have same names but hashes should be different resulting in still unique job IDs
+      (workflowId1,
+       specialCallName1,
+       None,
+       2,
+       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-2-${DigestUtils.md5Hex(s"$workflowId1Str-$specialCallName1-2").take(8)}"
+      ),
+      (workflowId1,
+       specialCallName2,
+       None,
+       2,
+       s"job-${workflowId1.shortString}-myworkflowmyspecialtask-2-${DigestUtils.md5Hex(s"$workflowId1Str-$specialCallName2-2").take(8)}"
+      ),
+      // long name cases
+      (workflowId1,
+       longCallName,
+       None,
+       3,
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongname-3-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-3").take(8)}"
+      ),
+      (workflowId1,
+       longCallName,
+       Some(10),
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylongn-10-1-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-10-1").take(8)}"
+      ),
+      (workflowId1,
+       longCallName,
+       Some(10000),
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytaskwithanextremelylo-10000-1-${DigestUtils.md5Hex(s"$workflowId1Str-$longCallName-10000-1").take(8)}"
+      ),
+      // same tasks but different workflow cases
+      (workflowId1,
+       simpleCallName,
+       None,
+       1,
+       s"job-${workflowId1.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId1Str-$simpleCallName-1").take(8)}"
+      ),
+      (workflowId2,
+       simpleCallName,
+       None,
+       1,
+       s"job-${workflowId2.shortString}-myworkflowmytask-1-${DigestUtils.md5Hex(s"$workflowId2Str-$simpleCallName-1").take(8)}"
+      )
+    )
+
+    testCases.foreach { case (workflowId, callName, scatterIndex, attempt, expectedJobId) =>
+      val actualJobId = mockBatchBackendActor.generateJobName(workflowId, callName, scatterIndex, attempt)
+      actualJobId shouldBe expectedJobId
+      actualJobId.length should be <= 63
+    }
   }
 
   private def buildJobDescriptor(): BackendJobDescriptor = {
@@ -1733,13 +1840,14 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
   }
 
   it should "send bard metrics message on task failure" in {
-    val expectedJobStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
-    val expectedVmStart = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val expectedJobStart = OffsetDateTime.now().minus(5, ChronoUnit.HOURS)
+    val expectedVmStart = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val expectedVmEnd = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
 
     val pollResult0 = RunStatus.Initializing(Seq.empty)
     val pollResult1 = RunStatus.Running(Seq(ExecutionEvent("fakeEvent", expectedJobStart)))
     val pollResult2 = RunStatus.Running(Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, expectedVmStart)))
-    val abortStatus = RunStatus.Aborted()
+    val abortStatus = RunStatus.Aborted(Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, expectedVmEnd)))
 
     val serviceRegistryProbe = TestProbe()
 

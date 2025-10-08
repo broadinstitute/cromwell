@@ -1,15 +1,14 @@
-import Version.{cromwellVersion, Debug, Release, Snapshot, Standard}
+import Version._
 import org.apache.ivy.Ivy
 import org.apache.ivy.core.IvyPatternHelper
 import org.apache.ivy.core.module.descriptor.{DefaultModuleDescriptor, MDArtifact}
 import org.apache.ivy.plugins.resolver.IBiblioResolver
-import sbt.Keys._
 import sbt._
+import sbt.Keys._
 import sbtassembly.AssemblyPlugin.autoImport._
 import sbtdocker.DockerPlugin.autoImport._
 import sbtdocker.Instruction
 
-import java.io.FileNotFoundException
 import scala.jdk.CollectionConverters._
 import scala.sys.process._
 
@@ -146,25 +145,26 @@ object Publishing {
     */
   def installDebugFacilities(displayVersion: String): Instruction = {
     import sbtdocker.Instructions
-    import java.time.{ZoneId, ZonedDateTime}
+
     import java.time.format.DateTimeFormatter
+    import java.time.{ZoneId, ZonedDateTime}
 
     val buildTime =
       ZonedDateTime.now(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss z"))
 
     // It is optimal to use a single `Run` instruction to minimize the number of layers in the image.
-    //
+    // Server agent version must match desktop client.
     // Documentation:
-    // - https://www.yourkit.com/docs/java-profiler/2024.3/help/docker_broker.jsp#setup
+    // - https://www.yourkit.com/docs/java-profiler/2025.3/help/docker_broker.jsp#setup
     Instructions.Run(
       s"""apt-get update -qq && \\
          |apt-get install -qq --no-install-recommends file gpg htop jq less nload unzip vim && \\
          |rm -rf /var/lib/apt/lists/* && \\
          |mkdir /tmp/docker-build-cache && \\
-         |wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2024.3-docker.zip -P /tmp/docker-build-cache/ && \\
-         |unzip /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3-docker.zip -d /tmp/docker-build-cache && \\
-         |mkdir -p /usr/local/YourKit-JavaProfiler-2024.3/bin/ && \\
-         |cp -R /tmp/docker-build-cache/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ /usr/local/YourKit-JavaProfiler-2024.3/bin/linux-x86-64/ && \\
+         |wget -q https://www.yourkit.com/download/docker/YourKit-JavaProfiler-2025.3-docker.zip -P /tmp/docker-build-cache/ && \\
+         |unzip /tmp/docker-build-cache/YourKit-JavaProfiler-2025.3-docker.zip -d /tmp/docker-build-cache && \\
+         |mkdir -p /usr/local/YourKit-JavaProfiler-2025.3/bin/ && \\
+         |cp -R /tmp/docker-build-cache/YourKit-JavaProfiler-2025.3/bin/linux-x86-64/ /usr/local/YourKit-JavaProfiler-2025.3/bin/linux-x86-64/ && \\
          |rm -rf /tmp/docker-build-cache && \\
          |echo "Version $displayVersion built at $buildTime" > /etc/motd && \\
          |echo "[ ! -z "\\$$TERM" -a -r /etc/motd ] && cat /etc/motd" > /etc/bash.bashrc
@@ -201,13 +201,26 @@ object Publishing {
       )
     }
 
-  private val broadArtifactoryResolver: Resolver =
-    "Broad Artifactory" at
-      "https://broadinstitute.jfrog.io/broadinstitute/libs-release/"
+  // These are the GAR repositories we publish to, they require authentication
+  // Builds should not depend on these resolvers
+  private lazy val garPublishResolver: Resolver =
+    "Google Artifact Registry" at
+      "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release-standard/"
 
-  private val broadArtifactoryResolverSnap: Resolver =
-    "Broad Artifactory Snapshots" at
-      "https://broadinstitute.jfrog.io/broadinstitute/libs-snapshot-local/"
+  private lazy val garPublishResolverSnap: Resolver =
+    "Google Artifact Registry Snapshots" at
+      "artifactregistry://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot-standard/"
+
+  // These GAR resolvers host packages we depend on, we do not publish to them
+  // Using https:// here because it enables users to build Cromwell without being authenticated with GCP
+  // Likely an artifact of the jfrog -> GAR migration of 2025
+  private val garVirtualResolver: Resolver =
+    "Google Artifact Registry Virtual" at
+      "https://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-release/"
+
+  private val garVirtualResolverSnap: Resolver =
+    "Google Artifact Registry Virtual Snapshots" at
+      "https://us-central1-maven.pkg.dev/dsp-artifact-registry/libs-snapshot/"
 
   // https://stackoverflow.com/questions/9819965/artifactory-snapshot-filename-handling
   private val buildTimestamp = System.currentTimeMillis() / 1000
@@ -217,22 +230,19 @@ object Publishing {
       s"https://broadinstitute.jfrog.io/broadinstitute/libs-release-local;build.timestamp=$buildTimestamp/"
 
   val additionalResolvers = List(
-    broadArtifactoryResolver,
-    broadArtifactoryResolverSnap
+    garVirtualResolver,
+    garVirtualResolverSnap
   ) ++ Resolver.sonatypeOssRepos("releases")
-
-  private val artifactoryCredentialsFile =
-    file("target/ci/resources/artifactory_credentials.properties").getAbsoluteFile
-
-  private val artifactoryCredentials: Seq[Credentials] =
-    if (artifactoryCredentialsFile.exists)
-      List(Credentials(artifactoryCredentialsFile))
-    else
-      Nil
 
   // BT-250 Check if publishing will fail due to already published artifacts
   val checkAlreadyPublished = taskKey[Boolean]("Verifies if publishing has already occurred")
   val errorIfAlreadyPublished = taskKey[Unit]("Fails the build if publishing has already occurred")
+
+  // Check if sbt-gcs-plugin is expected to be enabled - this is required to publish to GAR. We only add
+  // this plugin when the PUBLISH_TO_GAR env var is set, so checking this gives us an opportunity
+  // to inform the user of that. See more context in plugins.sbt.
+  val errorIfGcsPluginNotEnabled = taskKey[Unit]("Verifies if PUBLISH_TO_GAR env var is present")
+  val gcsPluginEnabled = sys.env.contains("PUBLISH_TO_GAR")
 
   private case class CromwellMDArtifactType(artifactType: String,
                                             artifactExtension: String,
@@ -256,7 +266,7 @@ object Publishing {
     * Retrieve the IBiblioResolver from sbt's Ivy setup.
     */
   private def getIBiblioResolver(ivy: Ivy): IBiblioResolver =
-    ivy.getSettings.getResolver(broadArtifactoryResolver.name) match {
+    ivy.getSettings.getResolver(garVirtualResolver.name) match {
       case iBiblioResolver: IBiblioResolver => iBiblioResolver
       case other => sys.error(s"Expected an IBiblioResolver, got $other")
     }
@@ -290,8 +300,18 @@ object Publishing {
   }
 
   val publishingSettings: Seq[Setting[_]] = List(
-    publishTo := Option(broadArtifactoryLocalResolver),
-    credentials ++= artifactoryCredentials,
+    errorIfGcsPluginNotEnabled := {
+      if (!gcsPluginEnabled) {
+        sys.error(
+          "The sbt-gcs-plugin, which is required for publishing, may not be enabled. To fix this problem, set the " +
+            "PUBLISH_TO_GAR environment variable and re-run sbt. Note that GCP auth will be required."
+        )
+      }
+    },
+    publish := publish.dependsOn(errorIfGcsPluginNotEnabled).value,
+    publishTo := Option(garPublishResolverSnap)
+      .filter(_ => Version.buildType == Snapshot)
+      .orElse(Option(garPublishResolver)),
     checkAlreadyPublished := {
       val module = ivyModule.value
       val log = streams.value.log
@@ -309,22 +329,6 @@ object Publishing {
         sys.error(
           s"Some ${version.value} artifacts were already published and will need to be manually deleted. " +
             "See the errors above for the list of published artifacts."
-        )
-      }
-    }
-  )
-
-  val verifyArtifactoryCredentialsExist = taskKey[Unit]("Verify that the artifactory credentials file exists.")
-
-  val rootPublishingSettings: Seq[Setting[_]] = List(
-    verifyArtifactoryCredentialsExist := {
-      if (!artifactoryCredentialsFile.exists) {
-        throw new FileNotFoundException(
-          s"""|${artifactoryCredentialsFile.toString}
-              |The artifactory credentials file was not found.
-              |Possibly the file was not rendered from vault,
-              |or an `sbt clean` removed the /target directory.
-              |""".stripMargin
         )
       }
     }

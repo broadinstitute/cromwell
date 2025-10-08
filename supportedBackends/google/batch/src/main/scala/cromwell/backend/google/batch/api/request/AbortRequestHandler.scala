@@ -3,7 +3,11 @@ package cromwell.backend.google.batch.api.request
 import akka.actor.ActorRef
 import com.typesafe.scalalogging.LazyLogging
 import cromwell.backend.google.batch.actors.BatchApiAbortClient
-import cromwell.backend.google.batch.actors.BatchApiAbortClient.BatchAbortRequestSuccessful
+import cromwell.backend.google.batch.actors.BatchApiAbortClient.{
+  BatchAbortRequestSuccessful,
+  BatchOperationIsAlreadyBeingAborted,
+  BatchOperationIsAlreadyTerminal
+}
 import cromwell.backend.google.batch.api.BatchApiRequestManager.{
   BatchAbortRequest,
   BatchApiAbortQueryFailed,
@@ -32,24 +36,31 @@ trait AbortRequestHandler extends LazyLogging { this: RequestHandler =>
 
     val _ = resultF
       .map {
-        case Success(BatchApiResponse.DeleteJobRequested(BatchApiAbortClient.BatchAbortRequestSuccessful(jobId))) =>
+        case Success(BatchApiResponse.CancelJobRequested(BatchApiAbortClient.BatchAbortRequestSuccessful(jobId))) =>
           logger.info(s"Abort job requested successfully: $jobId")
           abortQuery.requester ! BatchAbortRequestSuccessful(jobId)
           Success(())
 
-        case Success(BatchApiResponse.DeleteJobRequested(BatchApiAbortClient.BatchOperationIsAlreadyTerminal(jobId))) =>
+        case Success(
+              BatchApiResponse.CancelJobRequested(BatchApiAbortClient.BatchOperationIsAlreadyBeingAborted(jobId))
+            ) =>
+          logger.info(s"Job was not aborted because it is already in aborting state: $jobId")
+          abortQuery.requester ! BatchOperationIsAlreadyBeingAborted(jobId)
+          Success(())
+
+        case Success(BatchApiResponse.CancelJobRequested(BatchApiAbortClient.BatchOperationIsAlreadyTerminal(jobId))) =>
           logger.info(s"Job was not aborted because it is already in a terminal state: $jobId")
-          abortQuery.requester ! BatchAbortRequestSuccessful(jobId)
+          abortQuery.requester ! BatchOperationIsAlreadyTerminal(jobId)
           Success(())
 
         case Success(result) =>
           logger.error(
-            s"Programming error, abort operation failed due to no DeleteJobRequested object, got this instead: $result"
+            s"Programming error, abort operation failed due to no CancelJobRequested object, got this instead: $result"
           )
           onFailure(
             new SystemBatchApiException(
               new RuntimeException(
-                "This is likely a programming error, onSuccess was called without a DeleteJobRequested object"
+                "This is likely a programming error, onSuccess was called without a CancelJobRequested object"
               )
             )
           )

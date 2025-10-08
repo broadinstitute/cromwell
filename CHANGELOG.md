@@ -1,10 +1,38 @@
 # Cromwell Change Log
 
+## 91 Release Notes
+
+#### Removal of Google LifeSciences backend code
+Code related to the Google's Cloud LifeSciences API (`Papiv2` or `v2Beta`) has been removed following Google’s shutdown of the service in July 2025. 
+Google Batch (`batch`) is now the supported GCP backend.
+
+### GCP Batch
+* Task log files are now included in the group of files copied for call cache hits.
+* Tweak automatic retry of transient errors: retry if task is SCHEDULED but not RUNNING. This should result in more retries, reducing the number of workflows that fail due to transient Batch issues.
+* Fixed an issue that caused WDL tasks to fail when invoking `gcloud` or `gsutil`. Affected tasks returned an error message referencing `python3: not found`.
+* Fixed an issue that could cause a valid WDL using an `Int?` value to fail with an error mentioning `bootDiskSizeGb`.
+* Increased timeout for logging runnables in response to a low rate of sporadic timeout errors.
+* Job IDs will be derived from workflow and call details with a hash generated using call name. 
+This will allow for better grouping of jobs in the Batch UI and ensure deterministic job IDs to prevent duplicates upon Cromwell restart. Example of job ID: `job-e21cbbd3-scatterworkflowmytask-2-1-175f647b`. 
+* Jobs that fail with exit code 50002 before even getting to RUNNING state will now be eligible for automatic transient retries.
+* Set a timeout of 24 hours for many runnables in Batch jobs. This prevents excess spend when localization or other setup steps hang. User command runnables are not affected.
+* Updated cost estimation documentation to make it explicit that the Cloud Billing API must be enabled.
+* Added support for cancelling jobs - aborted Batch jobs will now be marked as Cancelled instead of being deleted. This will allow users to view job details even after job is aborted.
+
+### AWS Batch
+* Pulled in AWS improvements, features, and fixes from [henriqueribeiro/cromwell](https://github.com/henriqueribeiro/cromwell)
+* Added support for specifying an IAM role for AWS Batch job containers via the `aws_batch_job_role_arn` workflow option. This allows containers to access AWS resources based on the permissions granted to the specified role.
+* ECR [pull-through caches](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html) can now be used to access Docker images. See [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/AWSBatch/) for details.
+
+### Other changes
+* Removed unused code related to Azure cloud services.
+
 ## 90 Release Notes
 
 ### GCP Batch
  * Cromwell now supports automatic use of the [GAR Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images), see [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/) for details.
  * VM initialization time in now included in estimated cost calculation for jobs. 
+ * Task log files are now included in the group of files copied for call cache hits.
 
 ### Bug fixes
  * Fixed a concurrency bug that in rare cases caused tasks to never start.

@@ -1,6 +1,6 @@
 package cromwell.backend.google.batch.api.request
 
-import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest}
+import com.google.cloud.batch.v1.{CancelJobRequest, CreateJobRequest, GetJobRequest}
 import cromwell.backend.google.batch.api.BatchApiRequestManager._
 import cromwell.backend.standard.StandardAsyncJob
 import cromwell.core.WorkflowId
@@ -63,7 +63,7 @@ class GcpBatchGroupedRequestsSpec extends AnyWordSpec with Matchers {
     BatchAbortRequest(
       workflowId = WorkflowId.randomId(),
       requester = null,
-      httpRequest = DeleteJobRequest.newBuilder().build(),
+      httpRequest = CancelJobRequest.newBuilder().build(),
       jobId = StandardAsyncJob(java.util.UUID.randomUUID().toString)
     )
 }

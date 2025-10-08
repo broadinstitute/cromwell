@@ -31,9 +31,8 @@
 
 package cromwell.backend.impl.aws
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigException, ConfigFactory}
 import common.assertion.CromwellTimeoutSpec
-import common.exception.MessageAggregation
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.core.Tags._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -63,14 +62,11 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
                                   |}
         """.stripMargin)
 
-    val exception = intercept[IllegalArgumentException with MessageAggregation] {
+    val exception = intercept[ConfigException.Missing] {
       AwsBatchAttributes.fromConfigs(config, nakedConfig)
     }
-    val errorsList = exception.errorMessages.toList
-    errorsList should contain("No configuration setting found for key 'project'")
-    errorsList should contain("No configuration setting found for key 'root'")
-    errorsList should contain("No configuration setting found for key 'filesystems'")
-    errorsList should contain("URI is not absolute")
+    val errorsList = exception.getMessage
+    errorsList should equal("String: 2: No configuration setting found for key 'numSubmitAttempts'")
   }
 
   def configString(): String =

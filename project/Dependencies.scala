@@ -7,19 +7,7 @@ object Dependencies {
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
   private val apacheHttpClient5V = "5.3.1"
-  private val awsSdkV = "2.17.265"
-  // We would like to use the BOM to manage Azure SDK versions, but SBT doesn't support it.
-  // https://github.com/Azure/azure-sdk-for-java/tree/main/sdk/boms/azure-sdk-bom
-  // https://github.com/sbt/sbt/issues/4531
-  private val azureIdentitySdkV = "1.9.1"
-  private val azureIdentityExtensionsV = "1.1.4"
-  private val azureCoreManagementV = "1.7.1"
-  // We are using the older AppInsights 2 because we want to use the
-  // logback appender to send logs. AppInsights 3 does not have a standalone
-  // appender, and its auto-hoovering of logs didn't meet our needs.
-  // (Specifically, the side-by-side root logger and workflow logger resulted in
-  // duplicate messages in AI. See WX-1122.)
-  private val azureAppInsightsLogbackV = "2.6.4"
+  private val awsSdkV = "2.29.20"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.5.2"
   private val bardClientV = "1.0.8"
@@ -33,6 +21,7 @@ object Dependencies {
   private val circeOpticsV = "0.14.1"
   private val circeV = "0.14.1"
   private val circeYamlV = "0.15.1"
+  private val commonsBeanUtilsV = "1.11.0"
   private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
   private val commonsCsvV = "1.9.0"
   private val commonsIoV = "2.11.0" // via: https://commons.apache.org/proper/commons-io/
@@ -54,10 +43,8 @@ object Dependencies {
   private val googleGaxGrpcV = "2.48.0"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.42.3"
-  private val googleCloudBatchV1 = "0.18.0"
-  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
-  private val googleOauth2V = "1.23.0"
+  private val googleCloudBatchV1 = "0.68.0"
+  private val googleOauth2V = "1.37.1"
   private val googleOauthClientV = "1.33.1"
   private val googleCloudResourceManagerV = "1.17.0"
   private val grpcV = "1.65.1"
@@ -65,13 +52,12 @@ object Dependencies {
   private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.14.0"
+  private val jacksonV = "2.15.0"
   private val jakartaActivationV = "1.2.2"
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
   private val janinoV = "3.1.7"
-  private val jerseyV = "2.32" // Use a jersey compatible with WSM. See notes in wsmDependencies below.
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kindProjectorV = "0.13.2"
@@ -98,8 +84,7 @@ object Dependencies {
    */
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.119.Final"
-  private val owlApiV = "5.1.19"
-  private val pact4sV = "0.9.0"
+  private val pact4sV = "0.16.2"
   private val postgresV = "42.4.4"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
@@ -121,17 +106,6 @@ object Dependencies {
   private val simulacrumV = "1.0.1"
   private val slf4jV = "1.7.32"
   private val slickCatsV = "0.10.4"
-  /* If you're about to update our Slick version:
-    * Consider checking whether the new Slick version passes tests with upserts enabled (eg KeyValueDatabaseSpec)
-    *
-    * Current version 3.3.2-2076hotfix was built locally from https://github.com/grsterin/slick/tree/v3.3.2-2076hotfix
-    * and manually uploaded to the Broad Institute artifactory at https://broadinstitute.jfrog.io/broadinstitute/.
-    * Consider updating to the official newer Slick version once they fix issue #2076
-    * Related Slick PR: https://github.com/slick/slick/pull/2101
-    *
-    * Update 2022-03-23: This #2201 PR cherry picks Greg's #2101 PR above and claims to fix the issue:
-    * https://github.com/slick/slick/pull/2201
-  */
   private val slickV = "3.4.0-M1"
   private val snakeyamlV = "2.3"
   private val sprayJsonV = "1.3.6"
@@ -193,10 +167,9 @@ object Dependencies {
     google-cloud-java is still using javax.annotation and guice is sticking with javax.inject:
      - https://github.com/google/guice/issues/1383
      - https://github.com/googleapis/google-cloud-java/blob/v0.201.0/google-cloud-jar-parent/pom.xml#L131-L136
-
      Globally use of jakarta instead of javax until Google does themselves.
      The javax.annotation exclusion is below in cromwellExcludeDependencies.
-     */
+    */
     "jakarta.annotation" % "jakarta.annotation-api" % jakartaAnnotationV,
   )
 
@@ -207,68 +180,6 @@ object Dependencies {
   val spiUtilDependencies = List(
     "com.iheart" %% "ficus" % ficusV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
-  )
-
-  /*
-   Due to complications with the public preview Nio filesystem for azure,
-  we include this FS implementation locally and include its dependencies
-   */
-  val azureBlobNioDependencies = List(
-    "com.azure" % "azure-core" % "1.51.0",
-    "com.azure" % "azure-storage-blob" % "12.23.0-beta.1",
-    "com.azure" % "azure-storage-common" % "12.22.0-beta.1",
-    "com.azure" % "azure-core-test" % "1.26.2",
-    "org.junit.jupiter" % "junit-jupiter-params" % "5.9.3",
-    "org.junit.jupiter" % "junit-jupiter-engine" % "5.9.3",
-    "org.junit.jupiter" % "junit-jupiter-api" % "5.9.3",
-    "io.projectreactor" % "reactor-test" % "3.4.29",
-    "cglib" % "cglib-nodep" % "3.2.7",
-    "com.azure" % "azure-core-http-okhttp" % "1.11.10",
-    "org.mockito" % "mockito-core" % "4.11.0",
-    "com.github.sbt" % "junit-interface" % "0.13.2"
-  )
-
-  val azureDependencies: List[ModuleID] = List(
-    "com.azure" % "azure-identity" % azureIdentitySdkV
-      exclude("jakarta.xml.bind", "jakarta.xml.bind-api")
-      exclude("jakarta.activation", "jakarta.activation-api")
-      exclude("net.minidev", "json-smart"),
-    "com.azure" % "azure-identity-extensions" % azureIdentityExtensionsV,
-    "com.azure" % "azure-core-management" % azureCoreManagementV,
-    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-xml" % jacksonV,
-    "com.azure.resourcemanager" % "azure-resourcemanager" % "2.18.0",
-    "net.minidev" % "json-smart" % jsonSmartV,
-    "com.microsoft.azure" % "applicationinsights-logging-logback" % azureAppInsightsLogbackV,
-  ) ++ azureBlobNioDependencies
-
-  val wsmDependencies: List[ModuleID] = List(
-    "bio.terra" % "workspace-manager-client" % "0.254.452-SNAPSHOT"
-      exclude("com.sun.activation", "jakarta.activation"),
-    /*
-    1. WSM is looking for the rs-api under javax.*.
-
-    Jersey 3.x switched to jakarta.ws.rs-api 3.x. If one uses jakarta's rs-api, 3.x will automatically evict 2.x.
-
-    However, jakarta's rs-api 2.x provides packages javax.* while 3.x provides jakarta.* instead.
-     - https://javadoc.io/doc/jakarta.ws.rs/jakarta.ws.rs-api/2.1.6/javax/ws/rs/package-summary.html
-     - https://javadoc.io/doc/jakarta.ws.rs/jakarta.ws.rs-api/3.1.0/jakarta.ws.rs/module-summary.html
-
-    TODO: Perhaps coordinate with the WSM team to use the jakarta 3.x rs-api and jakarta.* instead of javax.*.
-
-    2. Use the exact version of jersey that WSM is using.
-
-    Jersey libraries cannot be mixed and matched as the various modules cannot be mixed and matched.
-    For example jersey-client 2.32 is not compatible with jersey-common 2.37.
-
-    If needed one may also explicitly enumerate the list of jersey artifacts and explicitly set the versions similar to
-    catsDepeendencies, akkaHttpDependencies, etc.
-     - https://broadinstitute.jfrog.io/ui/repos/tree/PomView/libs-snapshot-local/bio/terra/workspace-manager-client/0.254.452-SNAPSHOT/workspace-manager-client-0.254.452-20221114.190249-1.pom
-     - https://github.com/eclipse-ee4j/jersey/blob/2.32/core-client/src/main/java/org/glassfish/jersey/client/ClientExecutorProvidersConfigurator.java#L139
-     - https://github.com/eclipse-ee4j/jersey/blob/2.37/core-client/src/main/java/org/glassfish/jersey/client/ClientExecutorProvidersConfigurator.java#L136-L137
-     */
-    "org.glassfish.jersey.inject" % "jersey-hk2" % jerseyV
-      exclude("com.sun.activation", "jakarta.activation"),
-    "jakarta.activation" % "jakarta.activation-api" % jakartaActivationV,
   )
 
   val implFtpDependencies = List(
@@ -282,7 +193,7 @@ object Dependencies {
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV
-  ) ++ circeDependencies ++ catsDependencies ++ azureDependencies
+  ) ++ circeDependencies ++ catsDependencies
 
   // Internal collections of dependencies
 
@@ -365,18 +276,11 @@ object Dependencies {
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
-  private val googleLifeSciencesV2BetaDependency = List(
-    "com.google.apis" % "google-api-services-lifesciences" % googleLifeSciencesServicesV2BetaApiV
-      exclude("com.google.guava", "guava-jdk5")
-  )
-
   private val googleBatchv1Dependency = List(
     "com.google.cloud" % "google-cloud-batch" % googleCloudBatchV1,
     "com.google.api.grpc" % "proto-google-cloud-batch-v1" % googleCloudBatchV1,
     "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
   )
-
-  private val googlePapiBatchDependencies =  googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
 
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`
@@ -399,6 +303,12 @@ object Dependencies {
     "cloudwatchlogs",
     "s3",
     "sts",
+    "ecs",
+    "ecr",
+    "ecrpublic",
+    "secretsmanager",
+    "sns",
+    "eventbridge",
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -408,7 +318,6 @@ object Dependencies {
     The google-cloud-nio has the same problems with an ancient inject as guice:
      - https://github.com/google/guice/issues/1383
      - https://github.com/googleapis/java-storage-nio/blob/v0.124.20/google-cloud-nio/pom.xml#L49-L53
-
      Force use of jakarta instead of javax until Google does themselves.
      */
     "com.google.cloud" % "google-cloud-nio" % googleCloudNioV
@@ -444,7 +353,7 @@ object Dependencies {
     "com.lihaoyi" %% "pprint" % pprintV,
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
-  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ googlePapiBatchDependencies ++ betterFilesDependencies ++ awsCloudDependencies ++ azureDependencies
+  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ googleBatchv1Dependency ++ betterFilesDependencies ++ awsCloudDependencies
 
   val databaseSqlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,
@@ -497,8 +406,6 @@ object Dependencies {
     List("scalatest", "mysql", "mariadb", "postgresql")
       .map(name => "com.dimafeng" %% s"testcontainers-scala-$name" % testContainersScalaV % Test)
 
-  val blobFileSystemDependencies: List[ModuleID] = azureDependencies ++ wsmDependencies ++ akkaHttpDependencies
-
   val s3FileSystemDependencies: List[ModuleID] = junitDependencies
 
   val gcsFileSystemDependencies: List[ModuleID] = akkaHttpDependencies
@@ -547,7 +454,7 @@ object Dependencies {
 
   val databaseMigrationDependencies: List[ModuleID] = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies
+  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ awsCloudDependencies
 
   val cromwellApiClientDependencies: List[ModuleID] = List(
     "org.typelevel" %% "cats-effect" % catsEffectV,
@@ -565,10 +472,8 @@ object Dependencies {
     "commons-io" % "commons-io" % commonsIoV,
     /*
     Maybe ScalaMeter should be used, but is anyone?
-
     For now keep its dependencies from breaking jackson for other libraries. If someone wants to use it they can
     re-fight with dependency-hell at that point.
-
     Avoid:
     "com.fasterxml.jackson.databind.JsonMappingException: Scala module 2.11.3 requires Jackson Databind
     version >= 2.11.0 and < 2.12.0":
@@ -593,7 +498,6 @@ object Dependencies {
     sttp 1.x was last released in 2019
     See above comment regarding "cats-effect, fs2, http4s, and sttp" all needing to update together.
     For now, replace sttp 1.x's com.sun.activation usage with the jakarta version.
-
     NOTE when upgrading: sttp 3.x no longer requires an async-http-client-backend-future so jakarta.activation can
     probably be removed from the dependencies:
      - https://sttp.softwaremill.com/en/v3/backends/future.html#using-async-http-client
@@ -644,7 +548,7 @@ object Dependencies {
     "com.github.scopt" %% "scopt" % scoptV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
     "io.spray" %% "spray-json" % sprayJsonV,
-  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies ++ azureDependencies
+  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
 
   val allProjectDependencies: List[ModuleID] =
     backendDependencies ++
@@ -786,7 +690,7 @@ object Dependencies {
   )
 
   private val protobufJavaOverrides = List(
-    "com.google.protobuf" % "protobuf-java" % "3.25.3",
+    "com.google.protobuf" % "protobuf-java" % "3.25.5",
   )
 
   val servicesDependencies: List[ModuleID] = List(
@@ -827,7 +731,6 @@ object Dependencies {
     google-cloud-java is still using javax.annotation and guice is sticking with javax.inject:
      - https://github.com/google/guice/issues/1383
      - https://github.com/googleapis/google-cloud-java/blob/v0.201.0/google-cloud-jar-parent/pom.xml#L131-L136
-
      Globally use of jakarta instead of javax until Google does themselves.
      The jakarta.annotation inclusion is above in googleApiClientDependencies.
      */
@@ -843,6 +746,9 @@ object Dependencies {
   val pact4sCirce = "io.github.jbwheatley" %% "pact4s-circe" % pact4sV
   val pact4sSpray = "io.github.jbwheatley" %% "pact4s-spray-json" % pact4sV
 
+  // Pact4s pulls in an older version of beanutils, need newer one for security patch.
+  val apacheBeanUtils =  "commons-beanutils" % "commons-beanutils" % commonsBeanUtilsV
+
   val pact4sDependencies = Seq(
     pact4sScalaTest,
     pact4sCirce,
@@ -852,5 +758,6 @@ object Dependencies {
     http4sEmberServer,
     http4sCirce,
     scalaTest,
+    apacheBeanUtils,
   ) ++ akkaDependencies
 }

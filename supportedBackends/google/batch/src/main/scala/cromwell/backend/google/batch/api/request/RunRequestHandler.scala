@@ -29,6 +29,10 @@ trait RunRequestHandler extends LazyLogging { this: RequestHandler =>
           runCreationQuery.requester ! getJob(job.getName)
           Success(())
 
+        case Success(BatchApiResponse.JobAlreadyExists(jobName)) =>
+          runCreationQuery.requester ! getJob(jobName)
+          Success(())
+
         case Success(result) =>
           logger.error(
             s"Programming error, run operation failed for job ${runCreationQuery.httpRequest.getJobId} due to no job object. got this instead: ${result}"

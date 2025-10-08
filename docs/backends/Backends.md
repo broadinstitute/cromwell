@@ -9,7 +9,7 @@ Cromwell distribution:
     * Run jobs as subprocesses or via a dispatcher.
     * Supports launching in Docker containers.
     * Use `bash`, `qsub`, and `bsub` to run scripts.
-* **[Google Cloud](Google)** 
+* **[Google Cloud](GCPBatch)** 
     * Launch jobs on Google Compute Engine through Google Batch.
 * **[GA4GH TES](TES)** 
     * Launch jobs on servers that support the GA4GH Task Execution Schema (TES).

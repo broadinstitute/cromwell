@@ -1,5 +1,11 @@
 # Cromwell Change Log
 
+## 92 Release Notes
+
+### Progress toward WDL 1.1 Support
+* WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 92, `development-1.1` has been enhanced to include:
+    * Support for passthrough syntax for call inputs, e.g. `{ input: foo }` rather than `{ input: foo = foo }`.
+
 ## 91 Release Notes
 
 #### Removal of Google LifeSciences backend code

@@ -75,6 +75,7 @@ nav:
     - How to Build: developers/Building.md
     - Architecture: developers/Arch.md
     - Backend Development: developers/Backend.md
+    - Update WDL Parsers: developers/UpdateWDLParser.md
     - Instrumentation: developers/Instrumentation.md
     - Integration tests: developers/Centaur.md
     - Security: developers/Security.md

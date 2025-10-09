@@ -26,8 +26,15 @@ object RuntimeAttributesValidation {
     if (unrecognized.nonEmpty) logger.warn(s"Unrecognized runtime attribute keys: $unrecognized")
   }
 
-  def validateDocker(docker: Option[WomValue], onMissingKey: => ErrorOr[Option[String]]): ErrorOr[Option[String]] =
-    validateWithValidation(docker, DockerValidation.instance.optional, onMissingKey)
+  def validateDocker(docker: Option[WomValue],
+                     onMissingKey: => ErrorOr[Option[Containers]]
+  ): ErrorOr[Option[Containers]] =
+    validateWithValidation(docker, DockerValidation.instance, onMissingKey)
+
+  def validateContainer(container: Option[WomValue],
+                        onMissingKey: => ErrorOr[Option[Containers]]
+  ): ErrorOr[Option[Containers]] =
+    validateWithValidation(container, ContainerValidation.instance, onMissingKey)
 
   def validateFailOnStderr(value: Option[WomValue], onMissingKey: => ErrorOr[Boolean]): ErrorOr[Boolean] =
     validateWithValidation(value, FailOnStderrValidation.instance, onMissingKey)

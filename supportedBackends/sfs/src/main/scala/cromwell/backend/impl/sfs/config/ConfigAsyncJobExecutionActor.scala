@@ -1,13 +1,11 @@
 package cromwell.backend.impl.sfs.config
 
-import java.nio.file.FileAlreadyExistsException
-import java.time.Instant
 import common.validation.Validation._
 import cromwell.backend.Platform
 import cromwell.backend.impl.sfs.config.ConfigConstants._
 import cromwell.backend.sfs._
 import cromwell.backend.standard.{StandardAsyncExecutionActorParams, StandardAsyncJob}
-import cromwell.backend.validation.DockerValidation
+import cromwell.backend.validation.Containers
 import cromwell.core.path.Path
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
@@ -18,6 +16,8 @@ import wom.expression.NoIoFunctionSet
 import wom.transforms.WomCommandTaskDefinitionMaker.ops._
 import wom.values.{WomEvaluatedCallInputs, WomOptionalValue, WomString, WomValue}
 
+import java.nio.file.FileAlreadyExistsException
+import java.time.Instant
 import scala.util.{Failure, Success}
 
 /**
@@ -163,7 +163,9 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
     val inputOptions = declarationValidations map {
       // Is it always the right thing to pass the Docker hash to a config backend?  What if it can't use hashes?
       case declarationValidation
-          if declarationValidation.key == DockerValidation.instance.key && jobDescriptor.maybeCallCachingEligible.dockerHash.isDefined =>
+          if Containers.runtimeAttrKeys.contains(
+            declarationValidation.key
+          ) && jobDescriptor.maybeCallCachingEligible.dockerHash.isDefined =>
         val dockerHash = jobDescriptor.maybeCallCachingEligible.dockerHash.get
         Option(declarationValidation.key -> WomString(dockerHash))
       case declarationValidation =>
@@ -176,7 +178,7 @@ sealed trait ConfigAsyncJobExecutionActor extends SharedFileSystemAsyncJobExecut
 
   // `runtimeAttributeInputs` has already adjusted for the case of a `JobDescriptor` with `DockerWithHash`.
   override lazy val dockerImageUsed: Option[String] =
-    runtimeAttributeInputs.get(DockerValidation.instance.key).map(_.valueString)
+    Containers.extractContainerFromPreValidationAttrs(runtimeAttributeInputs)
 
   /**
     * Generates a command for a job id, using a config task.

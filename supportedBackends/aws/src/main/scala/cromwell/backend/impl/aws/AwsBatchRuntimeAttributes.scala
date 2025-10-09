@@ -213,7 +213,9 @@ object AwsBatchRuntimeAttributes {
         .getOrElse(throw new RuntimeException("scriptBucketName is required"))
     )
 
-  private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
+  // As of WDL 1.1 these two are aliases of each other
+  private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
+  private val containerValidation: OptionalRuntimeAttributesValidation[Containers] = ContainerValidation.instance
 
   private def queueArnValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
     QueueArnValidation.withDefault(
@@ -301,6 +303,7 @@ object AwsBatchRuntimeAttributes {
         memoryValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
+        containerValidation,
         queueArnValidation(runtimeConfig),
         scriptS3BucketNameValidation(runtimeConfig),
         logGroupNameValidation(runtimeConfig),
@@ -324,6 +327,7 @@ object AwsBatchRuntimeAttributes {
         memoryValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
+        containerValidation,
         queueArnValidation(runtimeConfig),
         logGroupNameValidation(runtimeConfig),
         awsBatchRetryAttemptsValidation(runtimeConfig),
@@ -357,7 +361,7 @@ object AwsBatchRuntimeAttributes {
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[AwsBatchVolume] =
       RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
+    val docker: String = Containers.extractContainer(validatedRuntimeAttributes)
     val queueArn: String =
       RuntimeAttributesValidation.extract(queueArnValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val failOnStderr: Boolean =

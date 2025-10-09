@@ -1,0 +1,11 @@
+name: container_attr_wdldraft2
+testFormat: workflowsuccess
+
+files {
+  workflow: wdl/container_attr_wdldraft2.wdl
+}
+
+metadata {
+  "calls.container_attr_wdldraft2.dockerOnly.dockerImageUsed": "ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9",
+  "calls.container_attr_wdldraft2.dockerAndContainer.dockerImageUsed": "ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9"
+}

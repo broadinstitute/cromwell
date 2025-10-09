@@ -4,6 +4,7 @@ import wom.expression.WomExpression
 
 object RuntimeAttributesKeys {
   val DockerKey = "docker"
+  val ContainerKey = "container" // New for WDL 1.1, preferred over "docker"
   val MaxRetriesKey = "maxRetries"
 
   val CpuKey = "cpu"

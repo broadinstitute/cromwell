@@ -1,0 +1,10 @@
+name: gcp_machine_type
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: gcp_machine_type.wdl
+}
+
+metadata {
+}

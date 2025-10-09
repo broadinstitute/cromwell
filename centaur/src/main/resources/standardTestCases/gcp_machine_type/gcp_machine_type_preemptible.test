@@ -1,0 +1,11 @@
+name: gcp_machine_type_preemptible
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: gcp_machine_type.wdl
+  inputs: preemptible_inputs.json
+}
+
+metadata {
+}

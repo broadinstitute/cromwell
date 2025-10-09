@@ -55,7 +55,9 @@ object TesRuntimeAttributes {
   private def memoryValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] =
     MemoryValidation.optional(RuntimeAttributesKeys.MemoryKey)
 
-  private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
+  // As of WDL 1.1 these two are aliases of each other
+  private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
+  private val containerValidation: OptionalRuntimeAttributesValidation[Containers] = ContainerValidation.instance
 
   private val dockerWorkingDirValidation: OptionalRuntimeAttributesValidation[String] =
     DockerWorkingDirValidation.optional
@@ -74,6 +76,7 @@ object TesRuntimeAttributes {
         diskSizeValidation(backendRuntimeConfig),
         diskSizeCompatValidation(backendRuntimeConfig),
         dockerValidation,
+        containerValidation,
         dockerWorkingDirValidation,
         preemptibleValidation(backendRuntimeConfig),
         localizedSasValidation
@@ -140,7 +143,7 @@ object TesRuntimeAttributes {
             config: TesConfiguration
   ): TesRuntimeAttributes = {
     val backendRuntimeConfig = config.runtimeConfig
-    val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
+    val docker: String = Containers.extractContainer(validatedRuntimeAttributes)
     val dockerWorkingDir: Option[String] =
       RuntimeAttributesValidation.extractOption(dockerWorkingDirValidation.key, validatedRuntimeAttributes)
     val cpu: Option[Int Refined Positive] =
@@ -164,6 +167,7 @@ object TesRuntimeAttributes {
     // Location 1 of 2
     val validations = Set(
       dockerValidation,
+      containerValidation,
       dockerWorkingDirValidation,
       cpuValidation(backendRuntimeConfig),
       memoryValidation(backendRuntimeConfig),

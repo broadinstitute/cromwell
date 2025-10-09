@@ -1860,6 +1860,65 @@ object WdlFileToWdlomSpec {
         )
       ),
       Vector.empty
-    )
+    ),
+    "container_attribute" ->
+      FileElement(
+        imports = Vector.empty,
+        structs = Vector.empty,
+        workflows = Vector(
+          WorkflowDefinitionElement(
+            name = "standalone_task",
+            inputsSection = None,
+            graphElements = Set(
+              CallElement(
+                "standalone",
+                None,
+                Vector.empty,
+                Some(CallBodyElement(Vector(KvPair("bar", StringLiteral("Hello, World!"))))),
+                Some(SourceFileLocation(4))
+              )
+            ),
+            outputsSection = None,
+            metaSection = None,
+            parameterMetaSection = None,
+            sourceLocation = Some(SourceFileLocation(3))
+          )
+        ),
+        tasks = Vector(
+          TaskDefinitionElement(
+            name = "standalone",
+            inputsSection = Some(
+              InputsSectionElement(Vector(InputDeclarationElement(PrimitiveTypeElement(WomStringType), "bar", None)))
+            ),
+            declarations = Vector.empty,
+            outputsSection = Some(
+              OutputsSectionElement(
+                Vector(OutputDeclarationElement(PrimitiveTypeElement(WomStringType), "out", IdentifierLookup("bar")))
+              )
+            ),
+            commandSection = CommandSectionElement(
+              List(
+                CommandSectionLine(
+                  Vector(
+                    StringCommandPartElement("echo "),
+                    PlaceholderCommandPartElement(IdentifierLookup("bar"), PlaceholderAttributeSet.empty)
+                  )
+                )
+              )
+            ),
+            runtimeSection = Some(
+              RuntimeAttributesSectionElement(
+                Vector(
+                  KvPair("docker", StringLiteral("someFakeDockerRuntime")),
+                  KvPair("container", StringLiteral("someOtherDockerRuntime"))
+                )
+              )
+            ),
+            metaSection = None,
+            parameterMetaSection = None,
+            sourceLocation = Some(SourceFileLocation(7))
+          )
+        )
+      )
   )
 }

@@ -28,7 +28,10 @@ final class GcpBatchRuntimeAttributesSpec
 
     "throw an exception when there are no runtime attributes defined." in {
       val runtimeAttributes = Map.empty[String, WomValue]
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Can't find an attribute value for key docker")
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "No container image found in either 'container' or 'docker' runtime attributes."
+      )
     }
 
     "use hardcoded defaults if not declared in task, workflow options, or config (except for docker)" in {
@@ -48,7 +51,30 @@ final class GcpBatchRuntimeAttributesSpec
 
     "fail to validate an invalid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String")
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting docker runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
+    }
+
+    "validate a valid container entry" in {
+      val runtimeAttributes = Map("container" -> WomArray(WomArrayType(WomStringType), Seq(WomString("ubuntu:latest"))))
+      val expectedRuntimeAttributes = expectedDefaults
+      assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid container entry" in {
+      val runtimeAttributes = Map("container" -> WomInteger(1))
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting container runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
+    }
+
+    "validate presence of both Docker and container attributes and prefer container" in {
+      val runtimeAttributes = Map("container" -> WomString("ubuntu:latest"), "docker" -> WomString("debian:latest"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(dockerImage = "ubuntu:latest")
+      assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid failOnStderr entry" in {

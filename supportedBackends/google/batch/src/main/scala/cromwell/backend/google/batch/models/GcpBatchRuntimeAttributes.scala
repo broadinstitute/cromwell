@@ -34,6 +34,8 @@ object GpuResource {
 
 final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive)
 
+final case class Machine(machineType: String)
+
 final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            cpuPlatform: Option[String],
                                            gpuResource: Option[GpuResource],
@@ -41,6 +43,7 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            preemptible: Int,
                                            bootDiskSize: Int,
                                            memory: MemorySize,
+                                           machine: Option[Machine] = None,
                                            disks: Seq[GcpBatchAttachedDisk],
                                            dockerImage: String,
                                            failOnStderr: Boolean,

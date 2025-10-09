@@ -256,14 +256,33 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       isBackground = _.getBackground
     )
 
+    /**
+     * The "compute resource" concept is a suggestion to Batch regarding how many jobs can fit on a single VM.
+     * The Cromwell backend currently creates VMs at a 1:1 ratio with jobs, so the compute resource is effectively ignored.
+     *
+     * That said, it has a cosmetic effect in the Batch web UI, where it drives the "Cores" and "Memory" readouts.
+     * The machine type is the "real" VM shape; one can set bogus cores/memory in the compute resource,
+     * and it will have no effect other than the display.
+     */
     val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-    val taskSpec = createTaskSpec(sortedRunnables, computeResource, durationInSeconds, allVolumes)
+    val taskSpec = createTaskSpec(sortedRunnables, computeResource , durationInSeconds, allVolumes)
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
-    val machineType = GcpBatchMachineConstraints.machineType(runtimeAttributes.memory,
-                                                             runtimeAttributes.cpu,
-                                                             cpuPlatformOption = runtimeAttributes.cpuPlatform,
-                                                             jobLogger = jobLogger
-    )
+
+    val machineType = runtimeAttributes.machine match {
+      case Some(m) =>
+        // Allow users to select predefined machine types, such as `n2-standard-4`.
+        // Overrides CPU count and memory attributes.
+        // Compatible with CPU platform, it is the user's responsibility to select a valid type/platform combination
+        m.machineType
+      case None =>
+        // CPU platform drives selection of machine type, but is not encoded in the `machineType` return value itself
+        GcpBatchMachineConstraints.machineType(runtimeAttributes.memory,
+          runtimeAttributes.cpu,
+          cpuPlatformOption = runtimeAttributes.cpuPlatform,
+          jobLogger = jobLogger
+        )
+    }
+
     val instancePolicy =
       createInstancePolicy(cpuPlatform = cpuPlatform, spotModel, accelerators, allDisks, machineType = machineType)
     val locationPolicy = LocationPolicy.newBuilder.addAllAllowedLocations(zones.asJava).build

@@ -6,9 +6,9 @@ files {
 }
 
 metadata {
-  "calls.container_attr_wdl11.dockerSingle.dockerImageUsed": "ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9",
-  "calls.container_attr_wdl11.containerSingle.dockerImageUsed": "debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526",
-  "calls.container_attr_wdl11.dockerList.dockerImageUsed": "ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9",
-  "calls.container_attr_wdl11.containerList.dockerImageUsed": "debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526",
-  "calls.container_attr_wdl11.dockerAndContainer.dockerImageUsed": "debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526",
+  "calls.container_attr_wdl11.dockerSingle.dockerImageUsed": ~~"ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9",
+  "calls.container_attr_wdl11.containerSingle.dockerImageUsed": ~~"debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526",
+  "calls.container_attr_wdl11.dockerList.dockerImageUsed": ~~"ubuntu@sha256:d0afa9fbcf16134b776fbba4a04c31d476eece2d080c66c887fdd2608e4219a9",
+  "calls.container_attr_wdl11.containerList.dockerImageUsed": ~~"debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526",
+  "calls.container_attr_wdl11.dockerAndContainer.dockerImageUsed": ~~"debian@sha256:9f67f90b1574ea7263a16eb64756897d3fa42a8e43cce61065b8a1f0f9367526",
 }

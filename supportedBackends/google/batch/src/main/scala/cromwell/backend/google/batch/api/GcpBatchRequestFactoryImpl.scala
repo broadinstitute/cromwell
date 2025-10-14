@@ -6,26 +6,11 @@ import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.LogsPolicy.Destination
-import com.google.cloud.batch.v1.{
-  AllocationPolicy,
-  CancelJobRequest,
-  ComputeResource,
-  CreateJobRequest,
-  GCS,
-  GetJobRequest,
-  Job,
-  JobName,
-  LogsPolicy,
-  Runnable,
-  ServiceAccount,
-  TaskGroup,
-  TaskSpec,
-  Volume
-}
+import com.google.cloud.batch.v1.{AllocationPolicy, CancelJobRequest, ComputeResource, CreateJobRequest, GCS, GetJobRequest, Job, JobName, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
 import com.google.protobuf.Duration
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
-import cromwell.backend.google.batch.models.{GcpBatchRequest, VpcAndSubnetworkProjectLabelValues}
+import cromwell.backend.google.batch.models.{GcpBatchRequest, MachineType, VpcAndSubnetworkProjectLabelValues}
 import cromwell.backend.google.batch.runnable._
 import cromwell.backend.google.batch.util.{BatchUtilityConversions, GcpBatchMachineConstraints}
 import cromwell.core.labels.{Label, Labels}
@@ -269,7 +254,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
 
     val machineType = runtimeAttributes.machine match {
-      case Some(m) =>
+      case Some(m: MachineType) =>
         // Allow users to select predefined machine types, such as `n2-standard-4`.
         // Overrides CPU count and memory attributes.
         // Compatible with CPU platform, it is the user's responsibility to select a valid type/platform combination

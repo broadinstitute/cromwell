@@ -6,7 +6,22 @@ import com.google.api.services.oauth2.Oauth2Scopes
 import com.google.api.services.storage.StorageScopes
 import com.google.cloud.batch.v1.AllocationPolicy._
 import com.google.cloud.batch.v1.LogsPolicy.Destination
-import com.google.cloud.batch.v1.{AllocationPolicy, CancelJobRequest, ComputeResource, CreateJobRequest, GCS, GetJobRequest, Job, JobName, LogsPolicy, Runnable, ServiceAccount, TaskGroup, TaskSpec, Volume}
+import com.google.cloud.batch.v1.{
+  AllocationPolicy,
+  CancelJobRequest,
+  ComputeResource,
+  CreateJobRequest,
+  GCS,
+  GetJobRequest,
+  Job,
+  JobName,
+  LogsPolicy,
+  Runnable,
+  ServiceAccount,
+  TaskGroup,
+  TaskSpec,
+  Volume
+}
 import com.google.protobuf.Duration
 import cromwell.backend.google.batch.io.GcpBatchAttachedDisk
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
@@ -250,7 +265,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
      * and it will have no effect other than the display.
      */
     val computeResource = createComputeResource(cpuCores, memory, gcpBootDiskSizeMb)
-    val taskSpec = createTaskSpec(sortedRunnables, computeResource , durationInSeconds, allVolumes)
+    val taskSpec = createTaskSpec(sortedRunnables, computeResource, durationInSeconds, allVolumes)
     val taskGroup: TaskGroup = createTaskGroup(taskCount, taskSpec)
 
     val machineType = runtimeAttributes.machine match {
@@ -262,9 +277,9 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       case None =>
         // CPU platform drives selection of machine type, but is not encoded in the `machineType` return value itself
         GcpBatchMachineConstraints.machineType(runtimeAttributes.memory,
-          runtimeAttributes.cpu,
-          cpuPlatformOption = runtimeAttributes.cpuPlatform,
-          jobLogger = jobLogger
+                                               runtimeAttributes.cpu,
+                                               cpuPlatformOption = runtimeAttributes.cpuPlatform,
+                                               jobLogger = jobLogger
         )
     }
 

@@ -174,7 +174,9 @@ object Callable {
                                                   womType: WomOptionalType,
                                                   valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,
                                                   parameterMeta: Option[MetaValueElement] = None
-  ) extends InputDefinition
+  ) extends InputDefinition {
+    def overriddenAttrName = localName.value.stripPrefix("runtime.")
+  }
 
   object OutputDefinition {
     def apply(name: String, womType: WomType, expression: WomExpression): OutputDefinition =

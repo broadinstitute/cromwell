@@ -83,8 +83,8 @@ object RuntimeAttributeDefinition {
                                inputs: Map[InputDefinition, WomValue]
   ): Map[String, WomValue] = {
     val overrides = inputs.collect {
-      case (RuntimeOverrideInputDefinition(name, _, _, _), WomOptionalValue(_, Some(value))) =>
-        name.value -> value
+      case (overrideDef: RuntimeOverrideInputDefinition, WomOptionalValue(_, Some(value))) =>
+        overrideDef.overriddenAttrName -> value
     }
     attributes ++ overrides
   }

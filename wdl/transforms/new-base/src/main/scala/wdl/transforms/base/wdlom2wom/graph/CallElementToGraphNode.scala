@@ -185,7 +185,7 @@ object CallElementToGraphNode {
 
         case runtimeOverride @ RuntimeOverrideInputDefinition(n, womType, _, _) =>
           val identifier = WomIdentifier(
-            localName = s"$callName.${n.value.stripPrefix("runtime.")}",
+            localName = s"$callName.${n.value}",
             fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
           )
           withGraphInputNode(runtimeOverride,

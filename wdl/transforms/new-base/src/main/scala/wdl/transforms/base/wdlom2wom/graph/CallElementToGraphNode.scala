@@ -183,6 +183,15 @@ object CallElementToGraphNode {
             InputDefinitionFold(mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression)))
           }
 
+        case runtimeOverride @ RuntimeOverrideInputDefinition(n, womType, _, _) =>
+          val identifier = WomIdentifier(
+            localName = s"$callName.${n.value.stripPrefix("runtime.")}",
+            fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
+          )
+          withGraphInputNode(runtimeOverride,
+                             OptionalGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value)
+          )
+
         // Not an input, use the default expression:
         case fixedExpression @ FixedInputDefinitionWithDefault(_, _, expression, _, _) =>
           InputDefinitionFold(

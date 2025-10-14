@@ -4,10 +4,9 @@ import _root_.wdl.draft2.model._
 import cromwell.core.WorkflowOptions
 import cromwell.util.JsonFormatting.WomValueJsonFormatter
 import common.validation.ErrorOr.ErrorOr
-import wom.callable.Callable.InputDefinition
+import wom.callable.Callable.{InputDefinition, RuntimeOverrideInputDefinition}
 import wom.expression.IoFunctionSet
-import wom.values.WomObject
-import wom.values.WomValue
+import wom.values.{WomObject, WomOptionalValue, WomValue}
 import wom.{RuntimeAttributes, WomExpressionException}
 
 import scala.util.{Success, Try}
@@ -42,7 +41,7 @@ object RuntimeAttributeDefinition {
     // e.g. `gcp: userDefinedObject` to find out what its runtime value is.
     // The type system informs us of this because a `WomExpression` in `unevaluated`
     // cannot be safely read as a `WomObject` with a `values` map until evaluation
-    evaluated.map(e => applyPlatform(e, platform))
+    evaluated.map(e => applyPlatform(e, platform)).map(e => applyOverridesFromInputs(e, evaluatedInputs))
   }
 
   def applyPlatform(attributes: Map[String, WomValue], maybePlatform: Option[Platform]): Map[String, WomValue] = {
@@ -72,6 +71,22 @@ object RuntimeAttributeDefinition {
     // With `++` keys from the RHS overwrite duplicates in LHS, which is what we want
     // RHS `Map.empty` is a no-op
     originalAttributesWithoutPlatforms ++ platformAttributes
+  }
+
+  /**
+   * The inputs may contain runtime overrides in the form of e.g. "${callFQN}.runtime.docker: ubuntu:latest"
+   * @param attributes evaluated WOM expressions from the runtime section of a task
+   * @param inputs The inputs from the workflow, which may contain runtime overrides
+   * @return
+   */
+  def applyOverridesFromInputs(attributes: Map[String, WomValue],
+                               inputs: Map[InputDefinition, WomValue]
+  ): Map[String, WomValue] = {
+    val overrides = inputs.collect {
+      case (RuntimeOverrideInputDefinition(name, _, _, _), WomOptionalValue(_, Some(value))) =>
+        name.value -> value
+    }
+    attributes ++ overrides
   }
 
   def buildMapBasedLookup(evaluatedDeclarations: Map[InputDefinition, Try[WomValue]])(identifier: String): WomValue = {

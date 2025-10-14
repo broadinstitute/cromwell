@@ -164,6 +164,18 @@ object Callable {
                                            parameterMeta: Option[MetaValueElement] = None
   ) extends InputDefinition
 
+  object RuntimeOverrideInputDefinition {
+    def apply(name: String, womType: WomOptionalType): RuntimeOverrideInputDefinition =
+      RuntimeOverrideInputDefinition(LocalName(name), womType)
+  }
+
+  // Add default, populated with value of attribute in WDL?
+  final case class RuntimeOverrideInputDefinition(localName: LocalName,
+                                                  womType: WomOptionalType,
+                                                  valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,
+                                                  parameterMeta: Option[MetaValueElement] = None
+  ) extends InputDefinition
+
   object OutputDefinition {
     def apply(name: String, womType: WomType, expression: WomExpression): OutputDefinition =
       OutputDefinition(LocalName(name), womType, expression)

@@ -23,7 +23,7 @@ import wdl.transforms.base.wdlom2wom.expression.renaming.expressionEvaluator
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement}
 import wom.expression.WomExpression
-import wom.types.{WomOptionalType, WomType}
+import wom.types.{WomOptionalType, WomStringType, WomType}
 import wom.{CommandPart, RuntimeAttributes}
 
 object TaskDefinitionElementToWomTaskDefinition extends Util {
@@ -44,11 +44,13 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     val inputElements = a.taskDefinitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty)
 
     val declarations = a.taskDefinitionElement.declarations
+    val runtimeSection = a.taskDefinitionElement.runtimeSection
     val outputElements = a.taskDefinitionElement.outputsSection.map(_.outputs).getOrElse(Seq.empty)
 
     val conversion = (
       createTaskGraph(inputElements,
                       declarations,
+                      runtimeSection,
                       outputElements,
                       a.taskDefinitionElement.parameterMetaSection,
                       a.typeAliases
@@ -59,7 +61,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
       )
     ) flatMapN { (taskGraph, _) =>
       val validRuntimeAttributes: ErrorOr[RuntimeAttributes] =
-        runtimeAttrTransformer(a.taskDefinitionElement.runtimeSection) match {
+        runtimeAttrTransformer(runtimeSection) match {
           case Some(attributeSection) => createRuntimeAttributes(attributeSection, taskGraph.linkedGraph)
           case None => RuntimeAttributes(Map.empty).validNel
         }
@@ -231,6 +233,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
 
   private def createTaskGraph(inputs: Seq[InputDeclarationElement],
                               declarations: Seq[IntermediateValueDeclarationElement],
+                              runtimeSection: Option[RuntimeAttributesSectionElement],
                               outputs: Seq[OutputDeclarationElement],
                               parameterMeta: Option[ParameterMetaSectionElement],
                               typeAliases: Map[String, WomType]
@@ -315,12 +318,23 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
           }
       }
 
-      val initialState: ErrorOr[TaskGraph] = TaskGraph(List.empty, List.empty, linked).validNel
+      val runtimeOverrideInputs = createRuntimeOverrideInputs(runtimeSection)
+
+      val initialState: ErrorOr[TaskGraph] = TaskGraph(runtimeOverrideInputs, List.empty, linked).validNel
       ordered flatMap {
         _.foldLeft(initialState)(foldFunction)
       }
     }
   }
+
+  private def createRuntimeOverrideInputs(
+    runtimeSection: Option[RuntimeAttributesSectionElement]
+  ): List[Callable.InputDefinition] =
+    runtimeSection.toList.flatMap(_.runtimeAttributes).map(_.key).map { key =>
+      val inputName = s"runtime.$key"
+      val inputType = WomOptionalType(WomStringType) // TODO ?
+      RuntimeOverrideInputDefinition(inputName, inputType)
+    }
 
   private def createRuntimeAttributes(attributes: RuntimeAttributesSectionElement, linkedGraph: LinkedGraph)(implicit
     expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],

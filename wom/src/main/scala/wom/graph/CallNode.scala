@@ -143,6 +143,9 @@ object TaskCall {
           Some(OptionalGraphInputNodeWithDefault(identifier(name), womType, default, name.value, valueMapper))
         case OptionalInputDefinition(name, womType, valueMapper, _) =>
           Some(OptionalGraphInputNode(identifier(name), womType, name.value, valueMapper))
+        case RuntimeOverrideInputDefinition(name, womType, valueMapper, _) =>
+          // TODO not an identifier, though?
+          Some(OptionalGraphInputNode(identifier(name), womType, name.value, valueMapper))
         case _: FixedInputDefinitionWithDefault => None
       }
 

@@ -1,15 +1,15 @@
 package cromwell.backend
 
 import _root_.wdl.draft2.model._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.core.WorkflowOptions
 import cromwell.util.JsonFormatting.WomValueJsonFormatter
-import common.validation.ErrorOr.ErrorOr
+import wom.RuntimeAttributes
 import wom.callable.Callable.{InputDefinition, RuntimeOverrideInputDefinition}
 import wom.expression.IoFunctionSet
 import wom.values.{WomObject, WomOptionalValue, WomValue}
-import wom.{RuntimeAttributes, WomExpressionException}
 
-import scala.util.{Success, Try}
+import scala.util.Success
 
 /**
   * @param name Attribute name (LHS of name: "value" in the runtime section).
@@ -87,16 +87,6 @@ object RuntimeAttributeDefinition {
         overrideDef.overriddenAttrName -> value
     }
     attributes ++ overrides
-  }
-
-  def buildMapBasedLookup(evaluatedDeclarations: Map[InputDefinition, Try[WomValue]])(identifier: String): WomValue = {
-    val successfulEvaluations = evaluatedDeclarations collect {
-      case (k, v) if v.isSuccess => k.name -> v.get
-    }
-    successfulEvaluations.getOrElse(
-      identifier,
-      throw new WomExpressionException(s"Could not resolve variable $identifier as a task input")
-    )
   }
 
   def addDefaultsToAttributes(runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],

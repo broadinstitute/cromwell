@@ -33,6 +33,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
   )
 
   def convert(b: TaskDefinitionElementToWomInputs,
+              createRuntimeOverrideInputs: Boolean,
               runtimeAttrTransformer: Option[RuntimeAttributesSectionElement] => Option[RuntimeAttributesSectionElement]
   )(implicit
     expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
@@ -48,12 +49,13 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     val outputElements = a.taskDefinitionElement.outputsSection.map(_.outputs).getOrElse(Seq.empty)
 
     val conversion = (
-      createTaskGraph(inputElements,
-                      declarations,
-                      runtimeSection,
-                      outputElements,
-                      a.taskDefinitionElement.parameterMetaSection,
-                      a.typeAliases
+      createTaskGraph(
+        inputElements,
+        declarations,
+        if (createRuntimeOverrideInputs) runtimeSection else None,
+        outputElements,
+        a.taskDefinitionElement.parameterMetaSection,
+        a.typeAliases
       ),
       validateParameterMetaEntries(a.taskDefinitionElement.parameterMetaSection,
                                    a.taskDefinitionElement.inputsSection,

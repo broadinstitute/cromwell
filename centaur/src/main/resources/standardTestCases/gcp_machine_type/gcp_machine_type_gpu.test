@@ -12,7 +12,7 @@ files {
 }
 
 metadata {
-    "calls.minimal_hello_world.hello_world.runtimeAttributes.gcp_machine_type": "g2-standard-4"
+    "calls.minimal_hello_world.hello_world.runtimeAttributes.predefinedMachineType": "g2-standard-4"
     "calls.minimal_hello_world.hello_world.runtimeAttributes.preemptible": "0"
     "outputs.minimal_hello_world.actual_machine_type": ~~"machineTypes/g2-standard-4"
     "outputs.minimal_hello_world.is_preemptible": "FALSE"

@@ -81,7 +81,7 @@ object GcpBatchRuntimeAttributes {
   val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
 
-  val MachineTypeKey = "gcp_machine_type"
+  val MachineTypeKey = "predefinedMachineType"
 
   val CheckpointFileKey = "checkpointFile"
   private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional

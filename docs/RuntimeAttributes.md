@@ -60,7 +60,7 @@ There are a number of additional runtime attributes that apply to the Google Clo
 
 - [zones](#zones)
 - [preemptible](#preemptible)
-- [gcp_machine_type](#gcp_machine_type-alpha)
+- [predefinedMachineType](#predefinedMachineType-alpha)
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
 - [gpuCount and gpuType](#gpucount-and-gputype)
@@ -316,7 +316,7 @@ runtime {
 
 Defaults to the configuration setting `genomics.default-zones` in the Google Cloud configuration block, which in turn defaults to using `us-central1-b`.
 
-### `gcp_machine_type` **(alpha)**
+### `predefinedMachineType` **(alpha)**
 
 *Default: none*
 
@@ -324,13 +324,13 @@ Defaults to the configuration setting `genomics.default-zones` in the Google Clo
 
 Select a specific GCP machine type, such as `n2-standard-2` or `a2-highgpu-1g`.
 
-Setting `gcp_machine_type` overrides `cpu`, `memory`, `gpuCount`, and `gpuType`.
+Setting `predefinedMachineType` overrides `cpu`, `memory`, `gpuCount`, and `gpuType`.
 
-`gcp_machine_type` _is_ compatible with `cpuPlatform` so long as the platform is a valid option for the specified type.
+`predefinedMachineType` _is_ compatible with `cpuPlatform` so long as the platform is a valid option for the specified type.
 
 ```
 runtime {
-  gcp_machine_type: "n2-standard-2"
+  predefinedMachineType: "n2-standard-2"
 }
 ```
 

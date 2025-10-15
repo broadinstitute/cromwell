@@ -12,9 +12,9 @@
 
 In GCP Batch, the `nvidiaDriverVersion` attribute is ignored. Now that Life Sciences has retired, the attribute is now fully deprecated and can be removed from workflows.
 
-#### Added `gcp_machine_type` (alpha)
+#### Added `predefinedMachineType` (alpha)
 
-The new `gcp_machine_type` attribute is introduced in alpha. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#gcp_machine_type-alpha) for details.  
+The new `predefinedMachineType` attribute is introduced in alpha. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#predefinedMachineType-alpha) for details.  
 
 ## 91 Release Notes
 

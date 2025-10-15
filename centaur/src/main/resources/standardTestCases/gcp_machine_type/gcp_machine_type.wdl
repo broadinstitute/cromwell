@@ -44,7 +44,7 @@ task hello_world {
 
   runtime {
     docker: image
-    gcp_machine_type: machine_type
+    predefinedMachineType: machine_type
     preemptible: preemptible
     zones: zones
   }

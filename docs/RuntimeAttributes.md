@@ -435,15 +435,12 @@ The types of compute GPU supported are:
 * `nvidia-tesla-p4`
 * `nvidia-tesla-t4`
 
-On Life Sciences API, the default driver is `418.87.00`. You may specify your own via the `nvidiaDriverVersion` key.  Make sure that driver exists in the `nvidia-drivers-us-public` beforehand, per the [Google Pipelines API documentation](https://cloud.google.com/genomics/reference/rest/Shared.Types/Metadata#VirtualMachine). 
-
-On GCP Batch, `nvidiaDriverVersion` is currently ignored; Batch selects the correct driver version automatically.
+`nvidiaDriverVersion` is deprecated and ignored; GCP Batch selects the correct driver version automatically.
 
 ```
 runtime {
     gpuType: "nvidia-tesla-t4"
     gpuCount: 2
-    nvidiaDriverVersion: "418.87.00"
     zones: ["us-central1-c"]
 }
 ```

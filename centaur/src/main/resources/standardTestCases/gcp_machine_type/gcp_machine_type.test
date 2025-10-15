@@ -7,4 +7,6 @@ files {
 }
 
 metadata {
+    "calls.minimal_hello_world.hello_world.runtimeAttributes.gcp_machine_type": "n2-standard-2"
+    "calls.minimal_hello_world.hello_world.runtimeAttributes.preemptible": "0"
 }

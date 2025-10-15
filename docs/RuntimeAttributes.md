@@ -63,7 +63,7 @@ There are a number of additional runtime attributes that apply to the Google Clo
 - [gcp_machine_type](#gcp_machine_type-alpha)
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
-- [gpuCount, gpuType, and nvidiaDriverVersion](#gpucount-gputype-and-nvidiadriverversion)
+- [gpuCount and gpuType](#gpucount-and-gputype)
 - [cpuPlatform](#cpuplatform)
 
 
@@ -425,7 +425,7 @@ Configure your Google network to use "Private Google Access". This will allow yo
 
 That's it!  You can now run with `noAddress` runtime attribute and it will work as expected.
 
-### `gpuCount`, `gpuType`, and `nvidiaDriverVersion`
+### `gpuCount` and `gpuType`
 
 Attach [GPUs](https://cloud.google.com/compute/docs/gpus/) to the [GCP Batch instance](https://cloud.google.com/batch/docs/create-run-job-gpus).
 Make sure to choose a zone in which the type of GPU you want is available.

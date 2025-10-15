@@ -34,7 +34,9 @@ object GpuResource {
 
 final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive)
 
-final case class MachineType(machineType: String)
+final case class MachineType(machineType: String) {
+  override def toString: String = machineType
+}
 
 final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            cpuPlatform: Option[String],

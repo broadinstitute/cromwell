@@ -60,6 +60,7 @@ There are a number of additional runtime attributes that apply to the Google Clo
 
 - [zones](#zones)
 - [preemptible](#preemptible)
+- [gcp_machine_type](#gcp_machine_type-alpha)
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
 - [gpuCount, gpuType, and nvidiaDriverVersion](#gpucount-gputype-and-nvidiadriverversion)
@@ -314,6 +315,33 @@ runtime {
 ```
 
 Defaults to the configuration setting `genomics.default-zones` in the Google Cloud configuration block, which in turn defaults to using `us-central1-b`.
+
+### `gcp_machine_type` **(alpha)**
+
+*Default: none*
+
+**This attribute is in testing with alpha-level support. Please see limitations for details.** 
+
+Select a specific GCP machine type, such as `n2-standard-2` or `a2-highgpu-1g`.
+
+Setting `gcp_machine_type` overrides `cpu`, `memory`, `gpuCount`, and `gpuType`.
+
+```
+runtime {
+  gcp_machine_type: "n2-standard-2"
+}
+```
+
+Possible benefits:
+* Access to [GPU types](https://cloud.google.com/compute/docs/gpus#gpu-models) such as Ampere, Lovelace, and other newer models
+* Avoid [5% surcharge](https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#custom_machine_type_pricing) on custom machine types (Cromwell default)
+* Reduce preemption by using predefined types with [better availability](https://cloud.google.com/compute/docs/instances/create-use-preemptible#best_practices)
+
+Limitations:
+* Cost estimation not yet supported
+* GPU availability may be limited due to resource or quota exhaustion
+* GCP types are non-portable and proprietary to Google Cloud Platform
+* GCP Batch job details display incorrect "Cores", "Memory" values (cosmetic)
 
 ### `preemptible`
 

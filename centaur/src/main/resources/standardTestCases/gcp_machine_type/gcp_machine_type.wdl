@@ -5,13 +5,15 @@ workflow minimal_hello_world {
     String image = "rockylinux/rockylinux:10"
     String machine_type = "n2-standard-2"
     Int preemptible = 0
+    String zones = "northamerica-northeast1-a northamerica-northeast1-b northamerica-northeast1-c"
   }
 
   call hello_world {
     input:
       image = image,
       machine_type = machine_type,
-      preemptible = preemptible
+      preemptible = preemptible,
+      zones = zones
   }
 
   output {
@@ -27,8 +29,11 @@ task hello_world {
     String image
     String machine_type
     Int preemptible
+    String zones
   }
 
+  # Check machine specs by querying instance metadata
+  # https://cloud.google.com/compute/docs/metadata/predefined-metadata-keys#instance-metadata
   command <<<
     cat /etc/os-release
     uname -a
@@ -41,6 +46,7 @@ task hello_world {
     docker: image
     gcp_machine_type: machine_type
     preemptible: preemptible
+    zones: zones
   }
 
   meta {

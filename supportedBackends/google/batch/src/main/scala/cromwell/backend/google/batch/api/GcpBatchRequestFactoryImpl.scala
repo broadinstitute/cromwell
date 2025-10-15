@@ -272,7 +272,7 @@ class GcpBatchRequestFactoryImpl()(implicit gcsTransferConfiguration: GcsTransfe
       case Some(m: MachineType) =>
         // Allow users to select predefined machine types, such as `n2-standard-4`.
         // Overrides CPU count and memory attributes.
-        // Compatible with CPU platform, it is the user's responsibility to select a valid type/platform combination
+        // We still pass platform when machine is specified, it is the user's responsibility to select a valid type/platform combination
         m.machineType
       case None =>
         // CPU platform drives selection of machine type, but is not encoded in the `machineType` return value itself

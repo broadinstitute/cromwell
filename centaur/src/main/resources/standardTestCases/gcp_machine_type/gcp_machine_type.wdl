@@ -16,6 +16,8 @@ workflow minimal_hello_world {
 
   output {
     String stdout = hello_world.stdout
+    String actual_machine_type = hello_world.actual_machine_type
+    String is_preemptible = hello_world.is_preemptible
   }
 }
 
@@ -31,6 +33,8 @@ task hello_world {
     cat /etc/os-release
     uname -a
     cat /proc/cpuinfo
+    curl --header "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/machine-type > actual_machine_type.txt
+    curl --header "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/scheduling/preemptible > is_preemptible.txt
   >>>
 
   runtime {
@@ -45,5 +49,7 @@ task hello_world {
 
   output {
     String stdout = read_string(stdout())
+    String actual_machine_type = read_string("actual_machine_type.txt")
+    String is_preemptible = read_string("is_preemptible.txt")
   }
 }

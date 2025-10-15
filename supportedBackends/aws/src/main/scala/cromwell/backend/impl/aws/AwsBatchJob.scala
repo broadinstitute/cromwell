@@ -699,7 +699,8 @@ final case class AwsBatchJob(
             "_"
           )
         )
-        submitJobRequest = submitJobRequest.tags(tags.asJava).propagateTags(propagateTags.getOrElse(true))
+        val doPropagation = propagateTags.getOrElse(false)
+        submitJobRequest = submitJobRequest.tags(tags.asJava).propagateTags(doPropagation)
       }
       // JobTimeout provided (positive value) : add to request
       if (runtimeAttributes.jobTimeout > 0) {

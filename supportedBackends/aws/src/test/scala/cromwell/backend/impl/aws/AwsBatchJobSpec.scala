@@ -188,6 +188,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       "",
       Map.empty,
+      None,
       None
     )
     job
@@ -216,6 +217,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       "",
       Map.empty,
+      None,
       None
     )
     job
@@ -244,6 +246,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       "",
       Map.empty,
+      None,
       None
     )
     job
@@ -652,7 +655,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       "",
       Map.empty,
-      Some("my-project/workflow-123")
+      Some("my-project/workflow-123"),
+      None
     )
 
     // Verify the trailing slash is added to ensure proper S3 key formation
@@ -683,7 +687,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       "",
       Map.empty,
-      Some("")
+      Some(""),
+      None
     )
 
     job.scriptKeyPrefix should be("scripts/")
@@ -716,7 +721,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       "",
       Map.empty,
-      Some("my-project/scripts/")
+      Some("my-project/scripts/"),
+      None
     )
 
     // Verify that the existing trailing slash is preserved (not doubled)

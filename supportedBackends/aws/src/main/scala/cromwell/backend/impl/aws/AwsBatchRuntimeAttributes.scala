@@ -425,7 +425,8 @@ object AwsBatchRuntimeAttributes {
     val tagResources: Boolean = RuntimeAttributesValidation.extract(awsBatchtagResourcesValidation(runtimeAttrsConfig),
                                                                     validatedRuntimeAttributes
     )
-    val propagateTags: Boolean = RuntimeAttributesValidation.extract(awsBatchPropagateTagsValidation(runtimeAttrsConfig),
+    val propagateTags: Boolean = RuntimeAttributesValidation.extract(
+      awsBatchPropagateTagsValidation(runtimeAttrsConfig),
       validatedRuntimeAttributes
     )
     val sharedMemorySize: MemorySize =

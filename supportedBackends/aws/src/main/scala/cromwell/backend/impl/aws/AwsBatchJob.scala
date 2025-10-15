@@ -96,7 +96,7 @@ final case class AwsBatchJob(
   logGroupName: String,
   additionalTags: Map[String, String],
   scriptBucketPrefix: Option[String],
-  propagateTags: Boolean
+  propagateTags: Option[Boolean]
 ) {
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
@@ -699,7 +699,7 @@ final case class AwsBatchJob(
             "_"
           )
         )
-        submitJobRequest = submitJobRequest.tags(tags.asJava).propagateTags(propagateTags)
+        submitJobRequest = submitJobRequest.tags(tags.asJava).propagateTags(propagateTags.getOrElse(true))
       }
       // JobTimeout provided (positive value) : add to request
       if (runtimeAttributes.jobTimeout > 0) {

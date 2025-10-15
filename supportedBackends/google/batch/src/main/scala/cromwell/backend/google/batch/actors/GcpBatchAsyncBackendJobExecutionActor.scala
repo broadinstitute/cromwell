@@ -81,7 +81,7 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
     new Exception(
       s"Task $jobTag failed. $returnCodeMessage GCP Batch task exited with ${errorCode}(${errorCode.code}). ${message}"
-    )
+    ) with NoStackTrace
   }
 
   // GCS path regexes comments:

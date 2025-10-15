@@ -333,11 +333,13 @@ runtime {
 ```
 
 Possible benefits:
-- Access to [GPU types](https://cloud.google.com/compute/docs/gpus#gpu-models) such as Ampere, Lovelace, and other newer models
-- Avoid [5% surcharge](https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#custom_machine_type_pricing) on custom machine types (Cromwell default)
-- Reduce preemption by using predefined types with [better availability](https://cloud.google.com/compute/docs/instances/create-use-preemptible#best_practices)
+
+* Access to [GPU types](https://cloud.google.com/compute/docs/gpus#gpu-models) such as Ampere, Lovelace, and other newer models
+* Avoid [5% surcharge](https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#custom_machine_type_pricing) on custom machine types (Cromwell default)
+* Reduce preemption by using predefined types with [better availability](https://cloud.google.com/compute/docs/instances/create-use-preemptible#best_practices)
 
 Limitations:
+
 * Cost estimation not yet supported
 * GPU availability may be limited due to resource or quota exhaustion
 * GCP types are non-portable and proprietary to Google Cloud Platform
@@ -425,8 +427,8 @@ That's it!  You can now run with `noAddress` runtime attribute and it will work 
 
 ### `gpuCount`, `gpuType`, and `nvidiaDriverVersion`
 
-Attach GPUs to the instance when running on the Pipelines API([GPU documentation](https://cloud.google.com/compute/docs/gpus/)).
-Make sure to choose a zone for which the type of GPU you want to attach is available.
+Attach [GPUs](https://cloud.google.com/compute/docs/gpus/) to the [GCP Batch instance](https://cloud.google.com/batch/docs/create-run-job-gpus).
+Make sure to choose a zone in which the type of GPU you want is available.
 
 The types of compute GPU supported are:
 
@@ -435,8 +437,6 @@ The types of compute GPU supported are:
 * `nvidia-tesla-p4`
 * `nvidia-tesla-t4`
 
-`nvidiaDriverVersion` is deprecated and ignored; GCP Batch selects the correct driver version automatically.
-
 ```
 runtime {
     gpuType: "nvidia-tesla-t4"
@@ -444,6 +444,8 @@ runtime {
     zones: ["us-central1-c"]
 }
 ```
+
+`nvidiaDriverVersion` is deprecated and ignored; GCP Batch selects the correct driver version automatically.
 
 ### `cpuPlatform`
 

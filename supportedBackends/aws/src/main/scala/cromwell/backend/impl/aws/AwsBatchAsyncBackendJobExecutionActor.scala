@@ -263,7 +263,8 @@ class AwsBatchAsyncBackendJobExecutionActor(
       Option(runtimeAttributes.tagResources),
       runtimeAttributes.logGroupName,
       runtimeAttributes.additionalTags,
-      scriptBucketPrefix
+      scriptBucketPrefix,
+      runtimeAttributes.propagateTags
     )
 
   // setup batch client to query job container info

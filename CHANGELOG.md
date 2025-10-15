@@ -6,6 +6,16 @@
 * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 92, `development-1.1` has been enhanced to include:
     * Support for passthrough syntax for call inputs, e.g. `{ input: foo }` rather than `{ input: foo = foo }`.
 
+### GPU changes on Google Cloud backend
+
+#### Removed `nvidiaDriverVersion`
+
+In GCP Batch, the `nvidiaDriverVersion` attribute is ignored. Now that Life Sciences has retired, the attribute is now fully deprecated and can be removed from workflows.
+
+#### Added `gcp_machine_type` (alpha)
+
+The new `gcp_machine_type` attribute is introduced in alpha. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#gcp_machine_type-alpha) for details.  
+
 ## 91 Release Notes
 
 #### Removal of Google LifeSciences backend code

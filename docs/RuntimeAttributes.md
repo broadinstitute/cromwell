@@ -336,7 +336,7 @@ runtime {
 
 Possible benefits:
 
-* Access [GPU types](https://cloud.google.com/compute/docs/gpus#gpu-models) such as Ampere, Lovelace, and other newer models
+* Access [GPU machine types](https://cloud.google.com/compute/docs/gpus#gpu-models) such as Ampere, Lovelace, and other newer models
 * Avoid [5% surcharge](https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#custom_machine_type_pricing) on custom machine types (Cromwell default)
 * Reduce preemption by using predefined types with [better availability](https://cloud.google.com/compute/docs/instances/create-use-preemptible#best_practices)
 * Run basic tasks at the lowest possible cost with [shared-core machines](https://cloud.google.com/compute/docs/general-purpose-machines#sharedcore) like `e2-medium`

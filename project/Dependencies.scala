@@ -7,7 +7,7 @@ object Dependencies {
   private val ammoniteOpsV = "2.4.1"
   private val apacheHttpClientV = "4.5.13"
   private val apacheHttpClient5V = "5.3.1"
-  private val awsSdkV = "2.17.265"
+  private val awsSdkV = "2.29.20"
   private val betterFilesV = "3.9.1"
   private val jsonSmartV = "2.5.2"
   private val bardClientV = "1.0.8"
@@ -43,10 +43,8 @@ object Dependencies {
   private val googleGaxGrpcV = "2.48.0"
   private val googleHttpClientApacheV = "2.1.2"
   private val googleHttpClientV = "1.42.3"
-  private val googleCloudBatchV1 = "0.18.0"
-  // latest date via: https://mvnrepository.com/artifact/com.google.apis/google-api-services-lifesciences
-  private val googleLifeSciencesServicesV2BetaApiV = "v2beta-rev20220916-2.0.0"
-  private val googleOauth2V = "1.23.0"
+  private val googleCloudBatchV1 = "0.68.0"
+  private val googleOauth2V = "1.37.1"
   private val googleOauthClientV = "1.33.1"
   private val googleCloudResourceManagerV = "1.17.0"
   private val grpcV = "1.65.1"
@@ -278,18 +276,11 @@ object Dependencies {
     "org.yaml" % "snakeyaml" % snakeyamlV % Test
   )
 
-  private val googleLifeSciencesV2BetaDependency = List(
-    "com.google.apis" % "google-api-services-lifesciences" % googleLifeSciencesServicesV2BetaApiV
-      exclude("com.google.guava", "guava-jdk5")
-  )
-
   private val googleBatchv1Dependency = List(
     "com.google.cloud" % "google-cloud-batch" % googleCloudBatchV1,
     "com.google.api.grpc" % "proto-google-cloud-batch-v1" % googleCloudBatchV1,
     "com.google.api.grpc" % "proto-google-cloud-resourcemanager-v3" % "1.17.0"
   )
-
-  private val googlePapiBatchDependencies =  googleLifeSciencesV2BetaDependency ++ googleBatchv1Dependency
 
   /*
   Used instead of `"org.lerch" % "s3fs" % s3fsV exclude("org.slf4j", "jcl-over-slf4j")`
@@ -312,6 +303,12 @@ object Dependencies {
     "cloudwatchlogs",
     "s3",
     "sts",
+    "ecs",
+    "ecr",
+    "ecrpublic",
+    "secretsmanager",
+    "sns",
+    "eventbridge",
   ).map(artifactName => "software.amazon.awssdk" % artifactName % awsSdkV)
 
   private val googleCloudDependencies = List(
@@ -356,7 +353,7 @@ object Dependencies {
     "com.lihaoyi" %% "pprint" % pprintV,
   ) ++ catsDependencies ++ configDependencies ++ slf4jFacadeDependencies ++ refinedTypeDependenciesList
 
-  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ googlePapiBatchDependencies ++ betterFilesDependencies ++ awsCloudDependencies
+  val cloudSupportDependencies: List[ModuleID] = googleApiClientDependencies ++ googleCloudDependencies ++ googleBatchv1Dependency ++ betterFilesDependencies ++ awsCloudDependencies
 
   val databaseSqlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,
@@ -457,7 +454,7 @@ object Dependencies {
 
   val databaseMigrationDependencies: List[ModuleID] = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies
+  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ awsCloudDependencies
 
   val cromwellApiClientDependencies: List[ModuleID] = List(
     "org.typelevel" %% "cats-effect" % catsEffectV,
@@ -693,7 +690,7 @@ object Dependencies {
   )
 
   private val protobufJavaOverrides = List(
-    "com.google.protobuf" % "protobuf-java" % "3.25.3",
+    "com.google.protobuf" % "protobuf-java" % "3.25.5",
   )
 
   val servicesDependencies: List[ModuleID] = List(

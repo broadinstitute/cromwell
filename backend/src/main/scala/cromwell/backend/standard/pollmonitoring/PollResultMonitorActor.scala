@@ -1,14 +1,8 @@
 package cromwell.backend.standard.pollmonitoring
 
 import akka.actor.{Actor, ActorRef}
+import cromwell.backend.validation._
 import cromwell.backend.{BackendJobDescriptor, BackendWorkflowDescriptor, Platform}
-import cromwell.backend.validation.{
-  CpuValidation,
-  DockerValidation,
-  MemoryValidation,
-  RuntimeAttributesValidation,
-  ValidatedRuntimeAttributes
-}
 import cromwell.core.logging.JobLogger
 import cromwell.services.cost.InstantiatedVmInfo
 import cromwell.services.metadata.CallMetadataKeys
@@ -70,8 +64,7 @@ trait PollResultMonitorActor[PollResultType] extends Actor {
     val workflowDescriptor = params.workflowDescriptor
     val jobDescriptor = params.jobDescriptor
     val platform = params.platform.map(_.runtimeKey)
-    val dockerImage =
-      RuntimeAttributesValidation.extractOption(DockerValidation.instance, validatedRuntimeAttributes)
+    val dockerImage = Containers.extractContainerOption(validatedRuntimeAttributes)
     val cpus = RuntimeAttributesValidation.extract(CpuValidation.instance, validatedRuntimeAttributes).value
     val memory = RuntimeAttributesValidation
       .extract(MemoryValidation.instance(), validatedRuntimeAttributes)

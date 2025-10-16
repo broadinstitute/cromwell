@@ -42,14 +42,23 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 import wom.RuntimeAttributesKeys
 import wom.format.MemorySize
+import wdl4s.parser.MemoryUnit
 import wom.types._
 import wom.values._
+import com.typesafe.config.{ConfigException, ConfigValueFactory}
 
 import scala.util.matching.Regex
+import org.slf4j.{Logger, LoggerFactory}
+import wom.RuntimeAttributesKeys.GpuKey
+
+import scala.util.{Failure, Success, Try}
+import scala.jdk.CollectionConverters._
 
 /**
  * Attributes that are provided to the job at runtime
+ *
  * @param cpu number of vCPU
+ * @param gpuCount number of gpu
  * @param zones the aws availability zones to run in
  * @param memory memory to allocate
  * @param disks a sequence of disk volumes
@@ -60,8 +69,17 @@ import scala.util.matching.Regex
  * @param noAddress is there no address
  * @param scriptS3BucketName the s3 bucket where the execution command or script will be written and, from there, fetched into the container and executed
  * @param fileSystem the filesystem type, default is "s3"
+ * @param awsBatchRetryAttempts number of attempts that AWS Batch will retry the task if it fails
+ * @param awsBatchEvaluateOnExit Evaluate on exit strategy setting for AWS batch retry
+ * @param ulimits ulimit values to be passed to the container
+ * @param efsDelocalize should we delocalize efs files to s3
+ * @param efsMakeMD5 should we make a sibling md5 file as part of the job
+ * @param tagResources should we tag resources
+ * @param logGroupName the CloudWatch log group name to write logs to
+ * @param additionalTags a map of tags to add to the AWS Batch job submission
  */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
+                                     gpuCount: Int,
                                      zones: Vector[String],
                                      memory: MemorySize,
                                      disks: Seq[AwsBatchVolume],
@@ -71,15 +89,38 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      continueOnReturnCode: ContinueOnReturnCode,
                                      noAddress: Boolean,
                                      scriptS3BucketName: String,
-                                     fileSystem: String = "s3"
+                                     awsBatchRetryAttempts: Int,
+                                     awsBatchEvaluateOnExit: Vector[Map[String, String]],
+                                     ulimits: Vector[Map[String, String]],
+                                     efsDelocalize: Boolean,
+                                     efsMakeMD5: Boolean,
+                                     sharedMemorySize: MemorySize,
+                                     jobTimeout: Int,
+                                     logGroupName: String,
+                                     additionalTags: Map[String, String],
+                                     fuseMount: Boolean,
+                                     fileSystem: String = "s3",
+                                     tagResources: Boolean = false
 )
 
 object AwsBatchRuntimeAttributes {
-
+  val Log: Logger = LoggerFactory.getLogger(this.getClass)
   val QueueArnKey = "queueArn"
 
   val scriptS3BucketKey = "scriptBucketName"
 
+  val awsBatchRetryAttemptsKey = "awsBatchRetryAttempts"
+
+  val awsBatchEvaluateOnExitKey = "awsBatchEvaluateOnExit"
+
+  val defaultSharedMemorySize = MemorySize(64, MemoryUnit.MB)
+
+  private val awsBatchEvaluateOnExitDefault =
+    WomArray(WomArrayType(WomMapType(WomStringType, WomStringType)), Vector(WomMap(Map.empty[WomValue, WomValue])))
+
+  val awsBatchefsDelocalizeKey = "efsDelocalize"
+  val awsBatchefsMakeMD5Key = "efsMakeMD5"
+  val tagResourcesKey = "tagResources"
   val ZonesKey = "zones"
   private val ZonesDefaultValue = WomString("us-east-1a")
 
@@ -93,9 +134,30 @@ object AwsBatchRuntimeAttributes {
 
   private val MemoryDefaultValue = "2 GB"
 
+  private val logGroupNameKey = "logGroupName"
+  private val logGroupNameValidationInstance = new StringRuntimeAttributesValidation(logGroupNameKey)
+  private val LogGroupNameDefaultValue = WomString("/aws/batch/job")
+
+  private val additionalTagsKey = "additionalTags"
+
+  val UlimitsKey = "ulimits"
+  private val jobTimeoutKey = "jobTimeout"
+
+  val fuseMountKey = "fuseMount"
+  private val fuseMountValidationInstance = new BooleanRuntimeAttributesValidation(fuseMountKey)
+  private val fuseMountDefaultValue = WomBoolean(false)
+
+  private val UlimitsDefaultValue =
+    WomArray(WomArrayType(WomMapType(WomStringType, WomStringType)), Vector(WomMap(Map.empty[WomValue, WomValue])))
+
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] =
     CpuValidation.instance
       .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
+
+  private def gpuCountValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
+    PosIntValidation(GpuKey).withDefault(
+      PosIntValidation(GpuKey).configDefaultWomValue(runtimeConfig).getOrElse(WomInteger(0))
+    )
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
@@ -120,6 +182,30 @@ object AwsBatchRuntimeAttributes {
     noAddressValidationInstance
       .withDefault(noAddressValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse NoAddressDefaultValue)
 
+  private def logGroupNameValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
+    logGroupNameValidationInstance
+      .withDefault(
+        logGroupNameValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse LogGroupNameDefaultValue
+      )
+
+  private def sharedMemorySizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[MemorySize] =
+    MemoryValidation.withDefaultMemory(
+      RuntimeAttributesKeys.sharedMemoryKey,
+      MemoryValidation.configDefaultString(RuntimeAttributesKeys.sharedMemoryKey,
+                                           runtimeConfig
+      ) getOrElse defaultSharedMemorySize.toString
+    )
+
+  private def fuseMountValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    fuseMountValidationInstance.withDefault(
+      fuseMountValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse fuseMountDefaultValue
+    )
+
+  private def jobTimeoutValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
+    PosIntValidation(jobTimeoutKey, minValue = 60).withDefault(
+      PosIntValidation(jobTimeoutKey, minValue = 60).configDefaultWomValue(runtimeConfig).getOrElse(WomInteger(0))
+    )
+
   private def scriptS3BucketNameValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
     ScriptS3BucketNameValidation(scriptS3BucketKey).withDefault(
       ScriptS3BucketNameValidation(scriptS3BucketKey)
@@ -127,7 +213,9 @@ object AwsBatchRuntimeAttributes {
         .getOrElse(throw new RuntimeException("scriptBucketName is required"))
     )
 
-  private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
+  // As of WDL 1.1 these two are aliases of each other
+  private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
+  private val containerValidation: OptionalRuntimeAttributesValidation[Containers] = ContainerValidation.instance
 
   private def queueArnValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
     QueueArnValidation.withDefault(
@@ -135,30 +223,122 @@ object AwsBatchRuntimeAttributes {
         (throw new RuntimeException("queueArn is required"))
     )
 
+  private def awsBatchRetryAttemptsValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
+    AwsBatchRetryAttemptsValidation(awsBatchRetryAttemptsKey).withDefault(
+      AwsBatchRetryAttemptsValidation(awsBatchRetryAttemptsKey)
+        .configDefaultWomValue(runtimeConfig)
+        .getOrElse(WomInteger(0))
+    )
+
+  def awsBatchEvaluateOnExitValidation(
+    runtimeConfig: Option[Config]
+  ): RuntimeAttributesValidation[Vector[Map[String, String]]] =
+    AwsBatchEvaluateOnExitValidation
+      .withDefault(AwsBatchEvaluateOnExitValidation.fromConfig(runtimeConfig).getOrElse(awsBatchEvaluateOnExitDefault))
+
+  private def awsBatchefsDelocalizeValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    AwsBatchefsDelocalizeValidation(awsBatchefsDelocalizeKey).withDefault(
+      AwsBatchefsDelocalizeValidation(awsBatchefsDelocalizeKey)
+        .configDefaultWomValue(runtimeConfig)
+        .getOrElse(WomBoolean(false))
+    )
+
+  private def awsBatchefsMakeMD5Validation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    AwsBatchefsMakeMD5Validation(awsBatchefsMakeMD5Key).withDefault(
+      AwsBatchefsMakeMD5Validation(awsBatchefsMakeMD5Key)
+        .configDefaultWomValue(runtimeConfig)
+        .getOrElse(WomBoolean(false))
+    )
+
+  private def awsBatchtagResourcesValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    AwsBatchtagResourcesValidation(AwsBatchRuntimeAttributes.tagResourcesKey).withDefault(
+      AwsBatchtagResourcesValidation(AwsBatchRuntimeAttributes.tagResourcesKey)
+        .configDefaultWomValue(runtimeConfig)
+        .getOrElse(WomBoolean(false))
+    )
+
+  private def ulimitsValidation(
+    runtimeConfig: Option[Config]
+  ): RuntimeAttributesValidation[Vector[Map[String, String]]] =
+    UlimitsValidation.withDefault(UlimitsValidation.configDefaultWomValue(runtimeConfig) getOrElse UlimitsDefaultValue)
+
+  // routine that aggregates disks from default-runtime-attributes and efs.
+  def aggregateDisksInRuntimeConfig(configuration: AwsBatchConfiguration): Option[Config] = {
+    // get the runtime attributes out of full config
+    val rtc: Config = configuration.runtimeConfig match {
+      case Some(x) => x
+      case None =>
+        Log.error("aws-batch default runtime attributes not found.")
+        throw new RuntimeException(
+          "Default runtime attributes not found in config. This should always be present for AWS ! "
+        )
+    }
+    // efs disk configs is set (can be None) in configuration
+    val efs_disks = configuration.efsMntPoint.getOrElse("")
+    // additional disks optionally set as runtime attributes
+    val rtc_disks =
+      try
+        rtc
+          .getAnyRef(AwsBatchRuntimeAttributes.DisksKey)
+          .asInstanceOf[String] // just to prevent complaints about var/val
+      catch {
+        case _: ConfigException.Missing =>
+          "local-disk"
+      }
+    // combine and remove empty values and remove empty values
+    val disks = s"${efs_disks},${rtc_disks}".split(",").toSet.filterNot(_.isEmpty).filterNot(_.isEmpty).mkString(",")
+    val runtimeConfig = Some(rtc.withValue(AwsBatchRuntimeAttributes.DisksKey, ConfigValueFactory.fromAnyRef(disks)))
+    return runtimeConfig
+  }
+
   def runtimeAttributesBuilder(configuration: AwsBatchConfiguration): StandardValidatedRuntimeAttributesBuilder = {
-    val runtimeConfig = configuration.runtimeConfig
+    val runtimeConfig = aggregateDisksInRuntimeConfig(configuration)
     def validationsS3backend = StandardValidatedRuntimeAttributesBuilder
       .default(runtimeConfig)
       .withValidation(
         cpuValidation(runtimeConfig),
+        gpuCountValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
+        containerValidation,
         queueArnValidation(runtimeConfig),
-        scriptS3BucketNameValidation(runtimeConfig)
+        scriptS3BucketNameValidation(runtimeConfig),
+        logGroupNameValidation(runtimeConfig),
+        awsBatchRetryAttemptsValidation(runtimeConfig),
+        awsBatchEvaluateOnExitValidation(runtimeConfig),
+        ulimitsValidation(runtimeConfig),
+        awsBatchefsDelocalizeValidation(runtimeConfig),
+        awsBatchefsMakeMD5Validation(runtimeConfig),
+        awsBatchtagResourcesValidation(runtimeConfig),
+        sharedMemorySizeValidation(runtimeConfig),
+        fuseMountValidation(runtimeConfig),
+        jobTimeoutValidation(runtimeConfig)
       )
     def validationsLocalBackend = StandardValidatedRuntimeAttributesBuilder
       .default(runtimeConfig)
       .withValidation(
         cpuValidation(runtimeConfig),
+        gpuCountValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
-        queueArnValidation(runtimeConfig)
+        containerValidation,
+        queueArnValidation(runtimeConfig),
+        logGroupNameValidation(runtimeConfig),
+        awsBatchRetryAttemptsValidation(runtimeConfig),
+        awsBatchEvaluateOnExitValidation(runtimeConfig),
+        ulimitsValidation(runtimeConfig),
+        awsBatchefsDelocalizeValidation(runtimeConfig),
+        awsBatchefsMakeMD5Validation(runtimeConfig),
+        awsBatchtagResourcesValidation(runtimeConfig),
+        sharedMemorySizeValidation(runtimeConfig),
+        fuseMountValidation(runtimeConfig),
+        jobTimeoutValidation(runtimeConfig)
       )
 
     configuration.fileSystem match {
@@ -174,12 +354,14 @@ object AwsBatchRuntimeAttributes {
   ): AwsBatchRuntimeAttributes = {
     val cpu: Int Refined Positive =
       RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val gpuCount: Int =
+      RuntimeAttributesValidation.extract(gpuCountValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val memory: MemorySize =
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[AwsBatchVolume] =
       RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
+    val docker: String = Containers.extractContainer(validatedRuntimeAttributes)
     val queueArn: String =
       RuntimeAttributesValidation.extract(queueArnValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val failOnStderr: Boolean =
@@ -197,9 +379,50 @@ object AwsBatchRuntimeAttributes {
         )
       case _ => ""
     }
+    val logGroupName: String =
+      RuntimeAttributesValidation.extract(logGroupNameValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val additionalTags: Map[String, String] = runtimeAttrsConfig
+      .collect {
+        case config if config.hasPath(additionalTagsKey) =>
+          config
+            .getObject(additionalTagsKey)
+            .entrySet()
+            .asScala
+            .map(e => e.getKey -> e.getValue.unwrapped().toString)
+            .toMap
+      }
+      .getOrElse(Map.empty[String, String])
+
+    val awsBatchRetryAttempts: Int = RuntimeAttributesValidation.extract(
+      awsBatchRetryAttemptsValidation(runtimeAttrsConfig),
+      validatedRuntimeAttributes
+    )
+    val awsBatchEvaluateOnExit: Vector[Map[String, String]] = RuntimeAttributesValidation.extract(
+      awsBatchEvaluateOnExitValidation(runtimeAttrsConfig),
+      validatedRuntimeAttributes
+    )
+
+    val ulimits: Vector[Map[String, String]] =
+      RuntimeAttributesValidation.extract(ulimitsValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val efsDelocalize: Boolean = RuntimeAttributesValidation.extract(
+      awsBatchefsDelocalizeValidation(runtimeAttrsConfig),
+      validatedRuntimeAttributes
+    )
+    val efsMakeMD5: Boolean =
+      RuntimeAttributesValidation.extract(awsBatchefsMakeMD5Validation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val tagResources: Boolean = RuntimeAttributesValidation.extract(awsBatchtagResourcesValidation(runtimeAttrsConfig),
+                                                                    validatedRuntimeAttributes
+    )
+    val sharedMemorySize: MemorySize =
+      RuntimeAttributesValidation.extract(sharedMemorySizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val jobTimeout: Int =
+      RuntimeAttributesValidation.extract(jobTimeoutValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val fuseMount: Boolean =
+      RuntimeAttributesValidation.extract(fuseMountValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
 
     new AwsBatchRuntimeAttributes(
       cpu,
+      gpuCount,
       zones,
       memory,
       disks,
@@ -209,7 +432,18 @@ object AwsBatchRuntimeAttributes {
       continueOnReturnCode,
       noAddress,
       scriptS3BucketName,
-      fileSystem
+      awsBatchRetryAttempts,
+      awsBatchEvaluateOnExit,
+      ulimits,
+      efsDelocalize,
+      efsMakeMD5,
+      sharedMemorySize,
+      jobTimeout,
+      logGroupName,
+      additionalTags,
+      fuseMount,
+      fileSystem,
+      tagResources
     )
   }
 }
@@ -381,4 +615,242 @@ object DisksValidation extends RuntimeAttributesValidation[Seq[AwsBatchVolume]] 
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be a comma separated String or Array[String]"
+}
+
+object PosIntValidation {
+  def apply(key: String, minValue: Int = 0): PosIntValidation = new PosIntValidation(key, minValue)
+}
+
+class PosIntValidation(key: String, minValue: Int = 0) extends IntRuntimeAttributesValidation(key) {
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = {
+    case womValue if WomIntegerType.coerceRawValue(womValue).isSuccess =>
+      WomIntegerType.coerceRawValue(womValue).get match {
+        case WomInteger(value) =>
+          // allow the default value of zero.
+          if (value.toInt < minValue && value.toInt != 0)
+            s"Expecting $key runtime attribute value greater than or equal to $minValue".invalidNel
+          else
+            value.toInt.validNel
+      }
+  }
+}
+
+object AwsBatchRetryAttemptsValidation {
+  def apply(key: String): AwsBatchRetryAttemptsValidation = new AwsBatchRetryAttemptsValidation(key)
+}
+
+class AwsBatchRetryAttemptsValidation(key: String) extends IntRuntimeAttributesValidation(key) {
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Int]] = {
+    case womValue if WomIntegerType.coerceRawValue(womValue).isSuccess =>
+      WomIntegerType.coerceRawValue(womValue).get match {
+        case WomInteger(value) =>
+          if (value.toInt < 0)
+            s"Expecting $key runtime attribute value greater than or equal to 0".invalidNel
+          else if (value.toInt > 10)
+            s"Expecting $key runtime attribute value lower than or equal to 10".invalidNel
+          else
+            value.toInt.validNel
+      }
+  }
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be an Integer"
+}
+
+object AwsBatchEvaluateOnExitValidation extends RuntimeAttributesValidation[Vector[Map[String, String]]] {
+
+  val requiredKey = "action"
+  private val acceptedKeys = Set(requiredKey, "onExitCode", "onReason", "onStatusReason")
+
+  def fromConfig(runtimeConfig: Option[Config]): Option[WomValue] = {
+    val config = runtimeConfig match {
+      case Some(value) =>
+        Try(value.getObjectList(key)) match {
+          case Failure(_) => None
+          case Success(value) =>
+            Some(value.asScala.map {
+              _.unwrapped().asScala.toMap
+            }.toList)
+        }
+      case _ => None
+    }
+
+    config match {
+      case Some(value) =>
+        Some(AwsBatchEvaluateOnExitValidation.coercion collectFirst {
+          case womType if womType.coerceRawValue(value).isSuccess => womType.coerceRawValue(value).get
+        } getOrElse {
+          BadDefaultAttribute(WomString(value.toString))
+        })
+      case None => None
+    }
+  }
+
+  override def coercion: Iterable[WomType] =
+    Set(WomStringType, WomArrayType(WomMapType(WomStringType, WomStringType)))
+
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Vector[Map[String, String]]]] = {
+    case WomArray(womType, value) if womType.memberType == WomMapType(WomStringType, WomStringType) =>
+      check_maps(value.toVector)
+    case WomMap(_, _) => "!!! ERROR1".invalidNel
+  }
+
+  private def check_maps(
+    maps: Vector[WomValue]
+  ): ErrorOr[Vector[Map[String, String]]] = {
+    val entryNels: Vector[ErrorOr[Map[String, String]]] = maps.map {
+      case WomMap(_, value) => check_keys(value)
+      case _ => "!!! ERROR2".invalidNel
+    }
+    val sequenced: ErrorOr[Vector[Map[String, String]]] = sequenceNels(
+      entryNels
+    )
+    sequenced
+  }
+
+  private def validateActionKey(dict: Map[WomValue, WomValue]): ErrorOr[Map[String, String]] = {
+    val validCondition = Set("retry", "exit")
+    val convertedMap = dict
+      .map { case (WomString(k), WomString(v)) =>
+        (k, v)
+      // case _ => "!!! ERROR3".invalidNel
+      }
+    if (
+      convertedMap.exists { case (key, value) =>
+        key.toLowerCase == requiredKey && validCondition.contains(value.toLowerCase)
+      }
+    ) {
+      convertedMap.validNel
+    } else {
+      s"Missing or invalid $requiredKey key/value for runtime attribute: $key. Refer to https://docs.aws.amazon.com/batch/latest/APIReference/API_RetryStrategy.html".invalidNel
+    }
+  }
+
+  private def check_keys(
+    dict: Map[WomValue, WomValue]
+  ): ErrorOr[Map[String, String]] = {
+    val map_keys = dict.keySet.map(_.valueString.toLowerCase)
+    val unrecognizedKeys =
+      map_keys.diff(acceptedKeys.map(x => x.toLowerCase))
+    if (!dict.nonEmpty) {
+      Map.empty[String, String].validNel
+    } else if (unrecognizedKeys.nonEmpty) {
+      s"Invalid keys in $key runtime attribute: $unrecognizedKeys. Only $acceptedKeys are accepted. Refer to https://docs.aws.amazon.com/batch/latest/APIReference/API_RetryStrategy.html".invalidNel
+    } else {
+      validateActionKey(dict)
+    }
+  }
+
+  private def sequenceNels(
+    nels: Vector[ErrorOr[Map[String, String]]]
+  ): ErrorOr[Vector[Map[String, String]]] = {
+    val emptyNel: ErrorOr[Vector[Map[String, String]]] =
+      Vector.empty[Map[String, String]].validNel
+    val seqNel: ErrorOr[Vector[Map[String, String]]] =
+      nels.foldLeft(emptyNel) { (acc, v) =>
+        (acc, v) mapN { (a, v) => a :+ v }
+      }
+    seqNel
+  }
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be defined"
+
+  /**
+   * Returns the key of the runtime attribute.
+   *
+   * @return The key of the runtime attribute.
+   */
+  override def key: String = AwsBatchRuntimeAttributes.awsBatchEvaluateOnExitKey
+}
+
+object AwsBatchefsDelocalizeValidation {
+  def apply(key: String): AwsBatchefsDelocalizeValidation = new AwsBatchefsDelocalizeValidation(key)
+}
+
+class AwsBatchefsDelocalizeValidation(key: String) extends BooleanRuntimeAttributesValidation(key) {
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be an Boolean"
+}
+
+object AwsBatchefsMakeMD5Validation {
+  def apply(key: String): AwsBatchefsMakeMD5Validation = new AwsBatchefsMakeMD5Validation(key)
+}
+
+class AwsBatchefsMakeMD5Validation(key: String) extends BooleanRuntimeAttributesValidation(key) {
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be an Boolean"
+}
+
+object AwsBatchtagResourcesValidation {
+  def apply(key: String): AwsBatchtagResourcesValidation = new AwsBatchtagResourcesValidation(key)
+}
+
+class AwsBatchtagResourcesValidation(key: String) extends BooleanRuntimeAttributesValidation(key) {
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be a Boolean"
+}
+
+object UlimitsValidation extends RuntimeAttributesValidation[Vector[Map[String, String]]] {
+  override def key: String = AwsBatchRuntimeAttributes.UlimitsKey
+
+  override def coercion: Iterable[WomType] =
+    Set(WomStringType, WomArrayType(WomMapType(WomStringType, WomStringType)))
+
+  var accepted_keys = Set("name", "softLimit", "hardLimit")
+
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[Vector[Map[String, String]]]] = {
+    case WomArray(womType, value) if womType.memberType == WomMapType(WomStringType, WomStringType) =>
+      check_maps(value.toVector)
+    case WomMap(_, _) => "!!! ERROR1".invalidNel
+
+  }
+
+  private def check_maps(
+    maps: Vector[WomValue]
+  ): ErrorOr[Vector[Map[String, String]]] = {
+    val entryNels: Vector[ErrorOr[Map[String, String]]] = maps.map {
+      case WomMap(_, value) => check_keys(value)
+      case _ => "!!! ERROR2".invalidNel
+    }
+    val sequenced: ErrorOr[Vector[Map[String, String]]] = sequenceNels(
+      entryNels
+    )
+    sequenced
+  }
+
+  private def check_keys(
+    dict: Map[WomValue, WomValue]
+  ): ErrorOr[Map[String, String]] = {
+    val map_keys = dict.keySet.map(_.valueString).toSet
+    val unrecognizedKeys =
+      accepted_keys.diff(map_keys) union map_keys.diff(accepted_keys)
+
+    if (!dict.nonEmpty) {
+      Map.empty[String, String].validNel
+    } else if (unrecognizedKeys.nonEmpty) {
+      s"Invalid keys in $key runtime attribute. Refer to 'ulimits' section on https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#containerProperties".invalidNel
+    } else {
+      dict
+        .collect { case (WomString(k), WomString(v)) =>
+          (k, v)
+        // case _ => "!!! ERROR3".invalidNel
+        }
+        .toMap
+        .validNel
+    }
+  }
+
+  private def sequenceNels(
+    nels: Vector[ErrorOr[Map[String, String]]]
+  ): ErrorOr[Vector[Map[String, String]]] = {
+    val emptyNel: ErrorOr[Vector[Map[String, String]]] =
+      Vector.empty[Map[String, String]].validNel
+    val seqNel: ErrorOr[Vector[Map[String, String]]] =
+      nels.foldLeft(emptyNel) { (acc, v) =>
+        (acc, v) mapN { (a, v) => a :+ v }
+      }
+    seqNel
+  }
+
+  override protected def missingValueMessage: String =
+    s"Expecting $key runtime attribute to be an Array[Map[String, String]]"
 }

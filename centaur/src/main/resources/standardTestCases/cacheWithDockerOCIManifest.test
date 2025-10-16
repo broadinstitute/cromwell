@@ -1,0 +1,16 @@
+name: cacheWithDockerOCIManifest
+testFormat: runtwiceexpectingcallcaching
+
+files {
+  workflow: cacheBetweenWF/cacheWithDockerOCIManifest.wdl
+  options: common_options/cache_read_off_write_on.options
+  second-options: common_options/cache_read_on_write_on.options
+}
+
+metadata {
+  workflowName: cacheWithDockerOCIManifest
+  status: Succeeded
+  "calls.cacheWithDockerOCIManifest.getAverage.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheWithDockerOCIManifest.getAverage:-1"
+  "calls.cacheWithDockerOCIManifest.heightProduct.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:cacheWithDockerOCIManifest.heightProduct:-1"
+  "outputs.cacheWithDockerOCIManifest.heightProduct.trapezoidalArea": 406.0
+}

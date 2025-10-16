@@ -11,6 +11,6 @@ files {
 metadata {
   workflowName: wf_hello
   status: Succeeded
-  "calls.wf_hello.hello.runtimeAttributes.docker": "mirror.gcr.io/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
-  "calls.wf_hello.hello.dockerImageUsed": "mirror.gcr.io/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+  "calls.wf_hello.hello.runtimeAttributes.docker": "mirror.gcr.io/library/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
+  "calls.wf_hello.hello.dockerImageUsed": "mirror.gcr.io/library/ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950"
 }

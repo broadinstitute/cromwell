@@ -17,6 +17,7 @@ class DockerImageIdentifierSpec
       ("sourceString", "host", "repo", "image", "reference"),
       // Without tags -> latest
       ("ubuntu", None, None, "ubuntu", "latest"),
+      ("docker://ubuntu:latest", None, None, "ubuntu", "latest"),
       ("broad/cromwell", None, Option("broad"), "cromwell", "latest"),
       ("index.docker.io/ubuntu", Option("index.docker.io"), None, "ubuntu", "latest"),
       ("broad/cromwell/submarine", None, Option("broad/cromwell"), "submarine", "latest"),
@@ -49,6 +50,12 @@ class DockerImageIdentifierSpec
        Some("someuser"),
        "someimage",
        "supercalifragilisticexpialidociouseventhoughthesoundofitissomethingquiteatrociousifyousayitloudenoughyoullalwayssoundprecocious"
+      ),
+      ("952500931000.dkr.ecr.us-east-1.amazonaws.com/docker-hub/broadinstitute/cromwell",
+       Option("952500931000.dkr.ecr.us-east-1.amazonaws.com"),
+       Option("docker-hub/broadinstitute"),
+       "cromwell",
+       "latest"
       )
     )
 

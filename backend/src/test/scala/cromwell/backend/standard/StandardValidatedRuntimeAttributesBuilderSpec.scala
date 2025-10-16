@@ -53,13 +53,16 @@ class StandardValidatedRuntimeAttributesBuilderSpec
 
     "validate a valid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option("ubuntu:latest"))
+      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option(Containers("ubuntu:latest")))
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String")
+      assertRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting docker runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
     }
 
     "validate a valid failOnStderr entry" in {
@@ -170,7 +173,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     val builder = if (includeDockerSupport) {
       StandardValidatedRuntimeAttributesBuilder
         .default(mockBackendRuntimeConfig)
-        .withValidation(DockerValidation.optional)
+        .withValidation(DockerValidation.instance)
     } else {
       StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
     }
@@ -185,7 +188,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     val continueOnReturnCode =
       RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
 
-    docker should be(expectedRuntimeAttributes(DockerKey).asInstanceOf[Option[String]])
+    docker should be(expectedRuntimeAttributes(DockerKey).asInstanceOf[Option[Containers]])
     failOnStderr should be(expectedRuntimeAttributes(FailOnStderrKey).asInstanceOf[Boolean])
     continueOnReturnCode should be(
       expectedRuntimeAttributes(ContinueOnReturnCodeKey)
@@ -203,7 +206,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
       val builder = if (supportsDocker) {
         StandardValidatedRuntimeAttributesBuilder
           .default(mockBackendRuntimeConfig)
-          .withValidation(DockerValidation.optional)
+          .withValidation(DockerValidation.instance)
       } else {
         StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
       }

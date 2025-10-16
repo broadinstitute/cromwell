@@ -12,6 +12,8 @@ cromwell::build::setup_centaur_environment
 
 cromwell::build::assemble_jars
 
+export AWS_CONFIG_FILE="${CROMWELL_BUILD_RESOURCES_DIRECTORY}"/aws_config
+
 cromwell::build::run_centaur \
     -p 100 \
     -i restart \

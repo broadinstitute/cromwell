@@ -1,7 +1,7 @@
 name: input_expressions
 testFormat: workflowsuccess
 backendsMode: all
-backends: [Papi, Local, GCPBATCH]
+backends: [Local, GCPBATCH]
 
 files {
   workflow: input_expressions/input_expressions.wdl

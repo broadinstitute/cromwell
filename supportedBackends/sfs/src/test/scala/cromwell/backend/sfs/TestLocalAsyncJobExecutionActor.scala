@@ -47,7 +47,7 @@ object TestLocalAsyncJobExecutionActor {
       workflowPaths,
       StandardValidatedRuntimeAttributesBuilder
         .default(configurationDescriptor.backendRuntimeAttributesConfig)
-        .withValidation(DockerValidation.optional),
+        .withValidation(DockerValidation.instance),
       classOf[SharedFileSystemExpressionFunctions]
     )
     val asyncClass = classOf[TestLocalAsyncJobExecutionActor]

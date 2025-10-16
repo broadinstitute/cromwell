@@ -49,6 +49,9 @@ import cromwell.backend.standard.{
 }
 import cromwell.core.CallOutputs
 import wom.graph.CommandCallNode
+import cromwell.backend.impl.aws.callcaching.{AwsBatchBackendCacheHitCopyingActor, AwsBatchBackendFileHashingActor}
+import cromwell.backend.standard.callcaching.{StandardCacheHitCopyingActor, StandardFileHashingActor}
+import cromwell.docker.DockerMirroring
 
 /**
   * Factory to create `Actor` objects to manage the lifecycle of a backend job on AWS Batch. This factory provides an
@@ -73,6 +76,8 @@ case class AwsBatchBackendLifecycleActorFactory(name: String, configurationDescr
   override lazy val jobIdKey: String = AwsBatchAsyncBackendJobExecutionActor.AwsBatchOperationIdKey
 
   val configuration = new AwsBatchConfiguration(configurationDescriptor)
+
+  override val dockerMirroring: Option[DockerMirroring] = configuration.dockerMirroringOpt
 
   override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor,
                                                  ioActor: ActorRef,
@@ -105,6 +110,13 @@ case class AwsBatchBackendLifecycleActorFactory(name: String, configurationDescr
                                     workflowOutputs,
                                     initializationDataOption
     )
+
+  override lazy val cacheHitCopyingActorClassOption: Option[Class[_ <: StandardCacheHitCopyingActor]] =
+    Option(classOf[AwsBatchBackendCacheHitCopyingActor])
+
+  override lazy val fileHashingActorClassOption: Option[Class[_ <: StandardFileHashingActor]] = Option(
+    classOf[AwsBatchBackendFileHashingActor]
+  )
 
   override def backendSingletonActorProps(serviceRegistryActor: ActorRef): Option[Props] =
     Option(AwsBatchSingletonActor.props(configuration.awsConfig.region, Option(configuration.awsAuth)))

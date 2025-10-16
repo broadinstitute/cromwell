@@ -95,7 +95,7 @@ class StandardInitializationActor(val standardParams: StandardInitializationActo
 
       if (notSupportedAttributes.nonEmpty) {
         val notSupportedAttrString = notSupportedAttributes mkString ", "
-        workflowLogger.warn(
+        workflowLogger.info(
           s"Key/s [$notSupportedAttrString] is/are not supported by backend. " +
             s"Unsupported attributes will not be part of job executions."
         )

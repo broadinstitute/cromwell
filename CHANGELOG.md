@@ -6,6 +6,11 @@
 * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 92, `development-1.1` has been enhanced to include:
     * Support for passthrough syntax for call inputs, e.g. `{ input: foo }` rather than `{ input: foo = foo }`.
 
+### Database Migration
+The index `IX_METADATA_ENTRY_WEU_CFQN_JSI_JRA_MK` is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.
+
+This index supports planned metadata API enhancements that enable querying at granular scopes, namely calls, shards, and attempts.
+
 ## 91 Release Notes
 
 #### Removal of Google LifeSciences backend code
@@ -34,11 +39,6 @@ This will allow for better grouping of jobs in the Batch UI and ensure determini
  * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 91, `development-1.1` has been enhanced to include:
    * Runtime attribute `container`, which may be a single string or an array of strings, is preferred over `docker` for specifying the image a task should run on. If given a list of multiple images, Cromwell will choose the first.
    * `docker://` is permitted as a prefix for image names, ex. `container: docker://ubuntu:latest`.
-
-### Database Migration
-The index `IX_METADATA_ENTRY_WEU_CFQN_JSI_JRA_MK` is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.
-
-This index supports planned metadata API enhancements that enable querying at granular scopes, namely calls, shards, and attempts.
 
 ### Other changes
 * Removed unused code related to Azure cloud services.

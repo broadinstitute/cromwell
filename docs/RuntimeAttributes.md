@@ -320,7 +320,7 @@ Defaults to the configuration setting `genomics.default-zones` in the Google Clo
 
 *Default: none*
 
-**This attribute is in testing with alpha-level support. Please see limitations for details.** 
+**This attribute is in experimental status. Please see limitations for details.** 
 
 Select a specific GCP machine type, such as `n2-standard-2` or `a2-highgpu-1g`.
 

@@ -670,7 +670,7 @@ backend {
 
 ```
 
-Additional, custom tags can be added to jobs, using the "additionalTags" paramter in the "default-runtime-attributes" section of the job definition:
+Additional, custom tags can be added to jobs, using the "additionalTags" parameter in the "default-runtime-attributes" section of the job definition:
 
 ```
 backend {
@@ -691,7 +691,25 @@ backend {
 
 The _logGroupName_ enables you to send the logs to a custom log group name and tag the jobs that Cromwell submits.  The _additionalTags_ allows you to specify tags to be added to the jobs as <key> : <value> pairs. 
 
+Tags can be propagated to the underlying AWS ECS tasks by adding the "propagateRags = true" to the default-runtime-attributes section of your configuration:
 
+```
+backend {
+    providers {
+        AWSBatch {
+            config{
+                
+                default-runtime-attributes {
+                    // enable detailed tagging
+                    tagResources = true
+                    propagateTags = true
+                }
+            }
+        }
+    }
+}
+
+```
 
 AWS Batch
 ---------

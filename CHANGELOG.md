@@ -14,7 +14,7 @@ In GCP Batch, the `nvidiaDriverVersion` attribute is ignored. Now that Life Scie
 
 #### Added `predefinedMachineType` (alpha)
 
-The new `predefinedMachineType` attribute is introduced in experimental status. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#predefinedtachinetype-alpha) for details.  
+The new `predefinedMachineType` attribute is introduced in experimental status. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#predefinedmachinetype-alpha) for details.  
 
 ### Database Migration
 The index `IX_METADATA_ENTRY_WEU_CFQN_JSI_JRA_MK` is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.

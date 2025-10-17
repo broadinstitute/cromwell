@@ -326,7 +326,7 @@ Select a specific GCP machine type, such as `n2-standard-2` or `a2-highgpu-1g`.
 
 Setting `predefinedMachineType` overrides `cpu`, `memory`, `gpuCount`, and `gpuType`.
 
-`predefinedMachineType` _is_ compatible with `cpuPlatform` so long as the platform is a valid option for the specified type.
+`predefinedMachineType` _is_ compatible with `cpuPlatform` so long as the platform is [a valid option](https://cloud.google.com/compute/docs/cpu-platforms) for the specified type.
 
 ```
 runtime {

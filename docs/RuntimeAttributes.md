@@ -60,7 +60,7 @@ There are a number of additional runtime attributes that apply to the Google Clo
 
 - [zones](#zones)
 - [preemptible](#preemptible)
-- [predefinedMachineType](#predefinedMachineType-alpha)
+- [predefinedMachineType](#predefinedmachinetype-alpha)
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
 - [gpuCount and gpuType](#gpucount-and-gputype)

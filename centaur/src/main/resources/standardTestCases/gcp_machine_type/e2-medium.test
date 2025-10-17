@@ -1,0 +1,18 @@
+name: e2-medium
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: gcp_machine_type.wdl
+  inputs: e2-medium.json
+}
+
+# `e2-medium` is the cheapest machine that works decently in Batch, costing 20% less
+# than the next alternative. May be suitable for a variety of "I just need a VM" tasks.
+# https://cloud.google.com/compute/docs/general-purpose-machines#sharedcore
+metadata {
+    "calls.minimal_hello_world.hello_world.runtimeAttributes.predefinedMachineType": "e2-medium"
+    "calls.minimal_hello_world.hello_world.runtimeAttributes.preemptible": "0"
+    "outputs.minimal_hello_world.actual_machine_type": ~~"machineTypes/e2-medium"
+    "outputs.minimal_hello_world.is_preemptible": "FALSE"
+}

@@ -60,9 +60,10 @@ There are a number of additional runtime attributes that apply to the Google Clo
 
 - [zones](#zones)
 - [preemptible](#preemptible)
+- [predefinedMachineType](#predefinedmachinetype-alpha)
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
-- [gpuCount, gpuType, and nvidiaDriverVersion](#gpucount-gputype-and-nvidiadriverversion)
+- [gpuCount and gpuType](#gpucount-and-gputype)
 - [cpuPlatform](#cpuplatform)
 
 
@@ -315,6 +316,38 @@ runtime {
 
 Defaults to the configuration setting `genomics.default-zones` in the Google Cloud configuration block, which in turn defaults to using `us-central1-b`.
 
+### `predefinedMachineType` (alpha)
+
+*Default: none*
+
+**This attribute is in experimental status. Please see limitations for details.** 
+
+Select a specific GCP machine type, such as `n2-standard-2` or `a2-highgpu-1g`.
+
+Setting `predefinedMachineType` overrides `cpu`, `memory`, `gpuCount`, and `gpuType`.
+
+`predefinedMachineType` _is_ compatible with `cpuPlatform` so long as the platform is [a valid option](https://cloud.google.com/compute/docs/cpu-platforms) for the specified type.
+
+```
+runtime {
+  predefinedMachineType: "n2-standard-2"
+}
+```
+
+Possible benefits:
+
+* Access [GPU machine types](https://cloud.google.com/compute/docs/gpus#gpu-models) such as Ampere, Lovelace, and other newer models
+* Avoid [5% surcharge](https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#custom_machine_type_pricing) on custom machine types (Cromwell default)
+* Reduce preemption by using predefined types with [better availability](https://cloud.google.com/compute/docs/instances/create-use-preemptible#best_practices)
+* Run basic tasks at the lowest possible cost with [shared-core machines](https://cloud.google.com/compute/docs/general-purpose-machines#sharedcore) like `e2-medium`
+
+Limitations:
+
+* Cost estimation not yet supported
+* GPU availability may be limited due to resource or quota exhaustion
+* GCP types are non-portable and proprietary to Google Cloud Platform
+* GCP Batch job details display incorrect "Cores", "Memory" values (cosmetic)
+
 ### `preemptible`
 
 *Default: _0_*
@@ -395,10 +428,10 @@ Configure your Google network to use "Private Google Access". This will allow yo
 
 That's it!  You can now run with `noAddress` runtime attribute and it will work as expected.
 
-### `gpuCount`, `gpuType`, and `nvidiaDriverVersion`
+### `gpuCount` and `gpuType`
 
-Attach GPUs to the instance when running on the Pipelines API([GPU documentation](https://cloud.google.com/compute/docs/gpus/)).
-Make sure to choose a zone for which the type of GPU you want to attach is available.
+Attach [GPUs](https://cloud.google.com/compute/docs/gpus/) to the [GCP Batch instance](https://cloud.google.com/batch/docs/create-run-job-gpus).
+Make sure to choose a zone in which the type of GPU you want is available.
 
 The types of compute GPU supported are:
 
@@ -407,18 +440,15 @@ The types of compute GPU supported are:
 * `nvidia-tesla-p4`
 * `nvidia-tesla-t4`
 
-On Life Sciences API, the default driver is `418.87.00`. You may specify your own via the `nvidiaDriverVersion` key.  Make sure that driver exists in the `nvidia-drivers-us-public` beforehand, per the [Google Pipelines API documentation](https://cloud.google.com/genomics/reference/rest/Shared.Types/Metadata#VirtualMachine). 
-
-On GCP Batch, `nvidiaDriverVersion` is currently ignored; Batch selects the correct driver version automatically.
-
 ```
 runtime {
     gpuType: "nvidia-tesla-t4"
     gpuCount: 2
-    nvidiaDriverVersion: "418.87.00"
     zones: ["us-central1-c"]
 }
 ```
+
+`nvidiaDriverVersion` is deprecated and ignored; GCP Batch selects the correct driver version automatically.
 
 ### `cpuPlatform`
 

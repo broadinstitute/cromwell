@@ -16,6 +16,11 @@ In GCP Batch, the `nvidiaDriverVersion` attribute is ignored. Now that Life Scie
 
 The new `predefinedMachineType` attribute is introduced in experimental status. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#predefinedMachineType-alpha) for details.  
 
+### Database Migration
+The index `IX_METADATA_ENTRY_WEU_CFQN_JSI_JRA_MK` is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.
+
+This index supports planned metadata API enhancements that enable querying at granular scopes, namely calls, shards, and attempts.
+
 ## 91 Release Notes
 
 #### Removal of Google LifeSciences backend code

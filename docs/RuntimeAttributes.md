@@ -316,7 +316,7 @@ runtime {
 
 Defaults to the configuration setting `genomics.default-zones` in the Google Cloud configuration block, which in turn defaults to using `us-central1-b`.
 
-### `predefinedMachineType` **(alpha)**
+### `predefinedMachineType` (alpha)
 
 *Default: none*
 

@@ -169,7 +169,6 @@ object Callable {
       RuntimeOverrideInputDefinition(LocalName(name), womType)
   }
 
-  // Add default, populated with value of attribute in WDL?
   final case class RuntimeOverrideInputDefinition(localName: LocalName,
                                                   womType: WomOptionalType,
                                                   valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,

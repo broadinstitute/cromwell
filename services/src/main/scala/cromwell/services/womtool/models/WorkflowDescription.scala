@@ -4,7 +4,12 @@ import cromwell.services.womtool.models.MetaValueElementJsonSupport._
 import io.circe.generic.semiauto.deriveEncoder
 import io.circe.{Decoder, Encoder, HCursor}
 import wom.RuntimeAttributesKeys
-import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OutputDefinition, RuntimeOverrideInputDefinition}
+import wom.callable.Callable.{
+  InputDefinition,
+  InputDefinitionWithDefault,
+  OutputDefinition,
+  RuntimeOverrideInputDefinition
+}
 import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement, WorkflowDefinition}
 import wom.executable.WomBundle
 

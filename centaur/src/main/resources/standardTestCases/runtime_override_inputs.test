@@ -1,0 +1,13 @@
+name: runtime_override_inputs
+testFormat: workflowsuccess
+
+files {
+  workflow: runtime_override_inputs/runtime_override_inputs.wdl
+}
+
+metadata {
+  "calls.wf_hello.hello.outputs.salutation": "Hello World!",
+  "calls.wf_hello.hello.runtimeAttributes.docker": "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950",
+  "calls.wf_hello.hello.runtimeAttributes.maxRetries": "2",
+  "calls.wf_hello.hello.runtimeAttributes.failOnStderr": "true"
+}

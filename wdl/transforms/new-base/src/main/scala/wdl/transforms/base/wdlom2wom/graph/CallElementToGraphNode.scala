@@ -189,7 +189,7 @@ object CallElementToGraphNode {
             fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
           )
           withGraphInputNode(runtimeOverride,
-                             OptionalGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value)
+                             RuntimeOverrideGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value)
           )
 
         // Not an input, use the default expression:

@@ -72,6 +72,13 @@ final case class OptionalGraphInputNodeWithDefault(override val identifier: WomI
                                                      Callable.InputDefinition.IdentityValueMapper
 ) extends ExternalGraphInputNode
 
+final case class RuntimeOverrideGraphInputNode(override val identifier: WomIdentifier,
+                                               womType: WomOptionalType,
+                                               nameInInputSet: String,
+                                               valueMapper: InputValueMapper =
+                                                 Callable.InputDefinition.IdentityValueMapper
+) extends ExternalGraphInputNode
+
 object OuterGraphInputNode {
   def apply(forIdentifier: WomIdentifier,
             linkToOuterGraph: GraphNodePort.OutputPort,

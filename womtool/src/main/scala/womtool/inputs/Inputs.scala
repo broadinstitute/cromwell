@@ -7,7 +7,8 @@ import wom.graph.{
   ExternalGraphInputNode,
   OptionalGraphInputNode,
   OptionalGraphInputNodeWithDefault,
-  RequiredGraphInputNode
+  RequiredGraphInputNode,
+  RuntimeOverrideGraphInputNode
 }
 import spray.json._
 import spray.json.DefaultJsonProtocol._
@@ -17,25 +18,33 @@ import wom.types.{WomCompositeType, WomOptionalType, WomType}
 import scala.util.{Failure, Success, Try}
 
 object Inputs {
-  def inputsJson(main: Path, showOptionals: Boolean): Termination =
+  def inputsJson(main: Path, showOptionals: Boolean, showRuntimeOverrides: Boolean): Termination =
     WomGraphMaker.fromFiles(main, inputs = None) match {
       case Right(graphWithImports) =>
-        Try(graphWithImports.graph.externalInputNodes.toJson(inputNodeWriter(showOptionals)).prettyPrint) match {
+        Try(
+          graphWithImports.graph.externalInputNodes
+            .toJson(inputNodeWriter(showOptionals, showRuntimeOverrides))
+            .prettyPrint
+        ) match {
           case Success(json) => SuccessfulTermination(json + System.lineSeparator)
           case Failure(error) => UnsuccessfulTermination(error.getMessage)
         }
       case Left(errors) => UnsuccessfulTermination(errors.toList.mkString(System.lineSeparator))
     }
 
-  private def inputNodeWriter(showOptionals: Boolean): JsonWriter[Set[ExternalGraphInputNode]] = set => {
-
-    val valueMap: Seq[(String, JsValue)] = set.toList collect {
-      case RequiredGraphInputNode(_, womType, nameInInputSet, _) => nameInInputSet -> womTypeToJson(womType, None)
-      case OptionalGraphInputNode(_, womOptionalType, nameInInputSet, _) if showOptionals =>
-        nameInInputSet -> womTypeToJson(womOptionalType, None)
-      case OptionalGraphInputNodeWithDefault(_, womType, default, nameInInputSet, _) if showOptionals =>
-        nameInInputSet -> womTypeToJson(womType, Option(default))
-    }
+  private def inputNodeWriter(showOptionals: Boolean,
+                              showRuntimeOverrides: Boolean
+  ): JsonWriter[Set[ExternalGraphInputNode]] = set => {
+    val valueMap: Seq[(String, JsValue)] =
+      set.toList collect {
+        case RequiredGraphInputNode(_, womType, nameInInputSet, _) => nameInInputSet -> womTypeToJson(womType, None)
+        case OptionalGraphInputNode(_, womOptionalType, nameInInputSet, _) if showOptionals =>
+          nameInInputSet -> womTypeToJson(womOptionalType, None)
+        case OptionalGraphInputNodeWithDefault(_, womType, default, nameInInputSet, _) if showOptionals =>
+          nameInInputSet -> womTypeToJson(womType, Option(default))
+        case RuntimeOverrideGraphInputNode(_, womType, nameInInputSet, _) if showRuntimeOverrides =>
+          nameInInputSet -> womTypeToJson(womType, None)
+      }
 
     valueMap.toMap.toJson
   }

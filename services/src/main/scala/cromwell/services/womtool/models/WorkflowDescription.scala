@@ -1,13 +1,12 @@
 package cromwell.services.womtool.models
 
-import io.circe.{Decoder, Encoder, HCursor}
+import cromwell.services.womtool.models.MetaValueElementJsonSupport._
 import io.circe.generic.semiauto.deriveEncoder
+import io.circe.{Decoder, Encoder, HCursor}
 import wom.RuntimeAttributesKeys
-import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OutputDefinition}
+import wom.callable.Callable.{InputDefinition, InputDefinitionWithDefault, OutputDefinition, RuntimeOverrideInputDefinition}
 import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement, WorkflowDefinition}
 import wom.executable.WomBundle
-
-import MetaValueElementJsonSupport._
 
 case class WorkflowDescription(valid: Boolean,
                                errors: List[String],
@@ -120,23 +119,29 @@ case object WorkflowDescription {
     images: List[String],
     isRunnableWorkflow: Boolean
   ): WorkflowDescription = {
-    val inputDescriptions = inputs.sortBy(_.name) map { input: InputDefinition =>
+    val inputDescriptions = inputs.sortBy(_.name) flatMap { input: InputDefinition =>
       input match {
+        case _: RuntimeOverrideInputDefinition =>
+          None // Exclude runtime override inputs from the description
         case i: InputDefinitionWithDefault =>
-          InputDescription(
-            input.name,
-            input.womType,
-            input.womType.friendlyName,
-            input.optional,
-            Option(i.default)
+          Option(
+            InputDescription(
+              input.name,
+              input.womType,
+              input.womType.friendlyName,
+              input.optional,
+              Option(i.default)
+            )
           )
         case _ =>
-          InputDescription(
-            input.name,
-            input.womType,
-            input.womType.friendlyName,
-            input.optional,
-            None
+          Option(
+            InputDescription(
+              input.name,
+              input.womType,
+              input.womType.friendlyName,
+              input.optional,
+              None
+            )
           )
       }
 

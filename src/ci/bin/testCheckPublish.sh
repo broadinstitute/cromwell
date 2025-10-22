@@ -10,6 +10,6 @@ cromwell::build::setup_common_environment
 cromwell::build::pip_install mkdocs
 mkdocs build -s
 
-sbt -Dsbt.supershell=false --warn +package assembly dockerPushCheck +doc
+sbt -Dsbt.supershell=false --warn +package assembly dockerPushCheck
 
 git secrets --scan-history

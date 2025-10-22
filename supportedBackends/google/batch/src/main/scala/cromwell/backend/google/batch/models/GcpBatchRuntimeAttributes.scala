@@ -6,7 +6,7 @@ import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.google.batch.io.{GcpBatchAttachedDisk, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models.GcpBatchRuntimeAttributes.BootDiskSizeKey
 import cromwell.backend.google.batch.models.GpuResource.GpuType
-import cromwell.backend.google.batch.util.{GpuTypeValidation, GpuValidation}
+import cromwell.backend.google.batch.util.{GpuTypeValidation, GpuValidation, MachineTypeValidation}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import eu.timepit.refined._
@@ -34,6 +34,10 @@ object GpuResource {
 
 final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive)
 
+final case class MachineType(machineType: String) {
+  override def toString: String = machineType
+}
+
 final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            cpuPlatform: Option[String],
                                            gpuResource: Option[GpuResource],
@@ -41,6 +45,7 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            preemptible: Int,
                                            bootDiskSize: Int,
                                            memory: MemorySize,
+                                           machine: Option[MachineType] = None,
                                            disks: Seq[GcpBatchAttachedDisk],
                                            dockerImage: String,
                                            failOnStderr: Boolean,
@@ -76,6 +81,8 @@ object GcpBatchRuntimeAttributes {
   val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
 
+  val MachineTypeKey = "predefinedMachineType"
+
   val CheckpointFileKey = "checkpointFile"
   private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional
 
@@ -89,6 +96,8 @@ object GcpBatchRuntimeAttributes {
       )
   private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
     cpuPlatformValidationInstance
+  private def machineTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MachineType] =
+    MachineTypeValidation.optional
   private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] =
     GpuTypeValidation.optional
 
@@ -145,6 +154,7 @@ object GcpBatchRuntimeAttributes {
         gpuTypeValidation(runtimeConfig),
         cpuValidation(runtimeConfig),
         cpuPlatformValidation(runtimeConfig),
+        machineTypeValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
@@ -164,6 +174,10 @@ object GcpBatchRuntimeAttributes {
       RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val cpuPlatform: Option[String] = RuntimeAttributesValidation.extractOption(
       cpuPlatformValidation(runtimeAttrsConfig).key,
+      validatedRuntimeAttributes
+    )
+    val machineType: Option[MachineType] = RuntimeAttributesValidation.extractOption(
+      machineTypeValidation(runtimeAttrsConfig).key,
       validatedRuntimeAttributes
     )
     val checkpointFileName: Option[String] =
@@ -213,6 +227,7 @@ object GcpBatchRuntimeAttributes {
       preemptible = preemptible,
       bootDiskSize = bootDiskSize,
       memory = memory,
+      machine = machineType,
       disks = disks,
       dockerImage = docker,
       failOnStderr = failOnStderr,

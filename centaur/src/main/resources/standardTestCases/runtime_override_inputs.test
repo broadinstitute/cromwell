@@ -3,6 +3,7 @@ testFormat: workflowsuccess
 
 files {
   workflow: runtime_override_inputs/runtime_override_inputs.wdl
+  inputs: runtime_override_inputs/runtime_override_inputs.inputs
 }
 
 metadata {

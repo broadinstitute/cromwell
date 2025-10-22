@@ -1,9 +1,10 @@
 # Customize tasks
 
-Runtime attributes can be specified in one of two ways:
+Runtime attributes can be specified in one of three ways:
 
  1. Within a task you can specify runtime attributes to customize the environment for the call.  
  2. [Default runtime attributes](#default-values) for all tasks can be specified in [Workflow Options](wf_options/Overview.md).
+ 3. In WDL 1.1 and later, runtime attributes can be overridden in the workflow input JSON file.
 
 _Task Example_
 
@@ -22,6 +23,14 @@ task jes_task {
 }
 workflow jes_workflow {
   call jes_task
+}
+```
+
+_Workflow Input Override Example_
+
+```
+{
+  "jes_workflow.jes_task.runtime.memory": "12GB"
 }
 ```
 

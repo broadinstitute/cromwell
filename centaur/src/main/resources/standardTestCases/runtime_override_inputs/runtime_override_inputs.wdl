@@ -14,7 +14,7 @@ task hello {
   runtime {
     docker: "ubuntu:latest"
     maxRetries: 3
-    failOnStderr: false
+    preemptible: 1
   }
 }
 

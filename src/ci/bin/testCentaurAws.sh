@@ -26,28 +26,28 @@ export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common
 cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
-    -e abort.scheduled_abort \
-    -e relative_output_paths \
-    -e relative_output_paths_colliding \
-    -e standard_output_paths_colliding_prevented \
-    -e restart \
-    -e space \
-    -e scatter \
-    -e runtwiceexpectingcallcaching \
-    -e papi_v2alpha1_gcsa \
-    -e docker_hash_dockerhub \
-    -e awswdlresultscopying \
-    -e awswdlresultscopyingrelative \
-    -e exit \
-    -e default_runtime_attributes \
-    -e valid_return_codes_and_continue_on_return_code \
-    -e dont_cache_to_failed_jobs \
-    -e continue_on_return_code \
-    -e return_codes \
-    -e globbingbehavior \
-    -e cachewithinwf \
-    -e failures.terminal_status \
-    -e bad_file_string \
+#    -e abort.scheduled_abort \
+#    -e relative_output_paths \
+#    -e relative_output_paths_colliding \
+#    -e standard_output_paths_colliding_prevented \
+#    -e restart \
+#    -e space \
+#    -e scatter \
+#    -e runtwiceexpectingcallcaching \
+#    -e papi_v2alpha1_gcsa \
+#    -e docker_hash_dockerhub \
+#    -e awswdlresultscopying \
+#    -e awswdlresultscopyingrelative \
+#    -e exit \
+#    -e default_runtime_attributes \
+#    -e valid_return_codes_and_continue_on_return_code \
+#    -e dont_cache_to_failed_jobs \
+#    -e continue_on_return_code \
+#    -e return_codes \
+#    -e globbingbehavior \
+#    -e cachewithinwf \
+#    -e failures.terminal_status \
+#    -e bad_file_string \
 
 
 cromwell::build::generate_code_coverage

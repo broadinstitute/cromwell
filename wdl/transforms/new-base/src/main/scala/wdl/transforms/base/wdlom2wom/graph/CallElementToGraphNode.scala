@@ -1,32 +1,31 @@
 package wdl.transforms.base.wdlom2wom.graph
 
+import cats.instances.list._
 import cats.syntax.apply._
 import cats.syntax.foldable._
-import cats.syntax.validated._
 import cats.syntax.traverse._
-import cats.instances.list._
+import cats.syntax.validated._
 import common.validation.ErrorOr.{ErrorOr, _}
 import common.validation.Validation.OptionValidation
 import shapeless.Coproduct
-import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wdl.model.draft3.elements.{CallElement, ExpressionElement}
 import wdl.model.draft3.graph.expression.{FileEvaluator, TypeEvaluator, ValueEvaluator}
 import wdl.model.draft3.graph.{ExpressionValueConsumer, GeneratedValueHandle, UnlinkedConsumedValueHook}
+import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
+import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.{expressionElementWriter, CallElementWriter}
+import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, TaskDefinition, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeAndNewNodes, InputDefinitionFold, InputDefinitionPointer}
 import wom.graph.GraphNodePort.OutputPort
+import wom.graph._
 import wom.graph.expression.{
   AnonymousExpressionNode,
   ExpressionNode,
   PlainAnonymousExpressionNode,
   TaskCallInputExpressionNode
 }
-import wom.graph._
 import wom.types.{WomOptionalType, WomType}
-import wdl.transforms.base.wdlom2wdl.WdlWriter.ops._
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.expressionElementWriter
-import wdl.transforms.base.wdlom2wdl.WdlWriterImpl.CallElementWriter
 
 object CallElementToGraphNode {
   def convert(a: CallNodeMakerInputs)(implicit
@@ -188,9 +187,14 @@ object CallElementToGraphNode {
             localName = s"$callName.${n.value}",
             fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
           )
-          withGraphInputNode(runtimeOverride,
-                             RuntimeOverrideGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value)
-          )
+          if (supplyableInput(runtimeOverride)) {
+            withGraphInputNode(runtimeOverride,
+                               RuntimeOverrideGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value)
+            )
+          } else {
+            // Leave it unsupplied:
+            InputDefinitionFold()
+          }
 
         // Not an input, use the default expression:
         case fixedExpression @ FixedInputDefinitionWithDefault(_, _, expression, _, _) =>

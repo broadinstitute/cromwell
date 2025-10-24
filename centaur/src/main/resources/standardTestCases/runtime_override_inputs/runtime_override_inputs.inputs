@@ -1,5 +1,6 @@
 {
   "wf_hello.hello.addressee": "World",
-  "wf_hello.hello.runtime.docker": "ubuntu@sha256:71cd81252a3563a03ad8daee81047b62ab5d892ebbfbf71cf53415f29c130950",
-  "wf_hello.hello.runtime.maxRetries": "2"
+  "wf_hello.hello.runtime.docker": "rockylinux:9",
+  "wf_hello.hello.runtime.maxRetries": "2",
+  "wf_hello.sub_runtime_call.foo.runtime.docker": "rockylinux:9"
 }

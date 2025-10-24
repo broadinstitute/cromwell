@@ -1,5 +1,7 @@
 version development-1.1
 
+import "sub_runtime_override_inputs.wdl" as sub_runtime
+
 task hello {
   input {
     String addressee
@@ -19,7 +21,14 @@ task hello {
 }
 
 workflow wf_hello {
+
+  meta {
+    allowNestedInputs: true
+  }
+
   call hello
+  call sub_runtime.wf as sub_runtime_call
+
   output {
      String salutation = hello.salutation
   }

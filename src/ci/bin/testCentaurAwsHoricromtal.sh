@@ -29,7 +29,6 @@ cromwell::build::run_centaur \
     -p 500 \
     -e localdockertest \
     -e abort.scheduled_abort \
-    -e aws_label_propagation \
     -e relative_output_paths \
     -e relative_output_paths_colliding \
     -e standard_output_paths_colliding_prevented \

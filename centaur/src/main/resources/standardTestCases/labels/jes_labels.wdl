@@ -10,5 +10,7 @@ task MY_TASK {
   }
   runtime {
     docker: "ubuntu:latest"
+    tagResources = true
+    propagateTags = true
   }
 }

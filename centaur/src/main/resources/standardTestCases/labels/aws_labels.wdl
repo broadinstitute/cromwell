@@ -64,6 +64,6 @@ task CheckLabels {
   }
 
   runtime {
-    docker: "ubuntu:latest"
+    docker: "amazon/aws-cli:latest"
   }
 }

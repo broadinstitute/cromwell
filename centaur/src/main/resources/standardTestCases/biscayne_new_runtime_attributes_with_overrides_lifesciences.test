@@ -1,4 +1,4 @@
-name: biscayne_new_runtime_attributes_lifesciences_with_overrides
+name: biscayne_new_runtime_attributes_with_overrides_lifesciences
 testFormat: workflowsuccess
 tags: ["wdl_biscayne"]
 

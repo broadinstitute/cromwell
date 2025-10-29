@@ -1,19 +1,13 @@
 package womtool.inputs
 
 import cromwell.core.path.Path
+import spray.json.DefaultJsonProtocol._
+import spray.json._
+import wom.expression.WomExpression
+import wom.graph._
+import wom.types.{WomCompositeType, WomOptionalType, WomStringType, WomType}
 import womtool.WomtoolMain.{SuccessfulTermination, Termination, UnsuccessfulTermination}
 import womtool.input.WomGraphMaker
-import wom.graph.{
-  ExternalGraphInputNode,
-  OptionalGraphInputNode,
-  OptionalGraphInputNodeWithDefault,
-  RequiredGraphInputNode,
-  RuntimeOverrideGraphInputNode
-}
-import spray.json._
-import spray.json.DefaultJsonProtocol._
-import wom.expression.WomExpression
-import wom.types.{WomCompositeType, WomOptionalType, WomType}
 
 import scala.util.{Failure, Success, Try}
 
@@ -42,8 +36,11 @@ object Inputs {
           nameInInputSet -> womTypeToJson(womOptionalType, None)
         case OptionalGraphInputNodeWithDefault(_, womType, default, nameInInputSet, _) if showOptionals =>
           nameInInputSet -> womTypeToJson(womType, Option(default))
-        case RuntimeOverrideGraphInputNode(_, womType, nameInInputSet, _) if showRuntimeOverrides =>
-          nameInInputSet -> womTypeToJson(womType, None)
+        // Special handling alert! Runtime override inputs are passed in individually as `$task.runtime.$attribute`
+        // items, but they're combined internally to a single graph input node with a WomObjectType. Display them
+        // in the `inputs` output with key `$task.runtime.*` to indicate that.
+        case RuntimeOverrideGraphInputNode(_, nameInInputSet, _) if showRuntimeOverrides =>
+          s"${nameInInputSet}.*" -> womTypeToJson(WomOptionalType(WomStringType), None)
       }
 
     valueMap.toMap.toJson

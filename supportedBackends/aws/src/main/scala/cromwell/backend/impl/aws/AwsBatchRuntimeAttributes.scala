@@ -154,6 +154,8 @@ object AwsBatchRuntimeAttributes {
     CpuValidation.instance
       .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
 
+  private val gpuRequiredValidation: OptionalRuntimeAttributesValidation[Boolean] = GpuRequiredValidation.optional
+
   private def gpuCountValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
     PosIntValidation(GpuKey).withDefault(
       PosIntValidation(GpuKey).configDefaultWomValue(runtimeConfig).getOrElse(WomInteger(0))
@@ -354,8 +356,17 @@ object AwsBatchRuntimeAttributes {
   ): AwsBatchRuntimeAttributes = {
     val cpu: Int Refined Positive =
       RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    lazy val gpuRequired: Boolean =
+      RuntimeAttributesValidation.extract(gpuRequiredValidation, validatedRuntimeAttributes).getOrElse(false)
     val gpuCount: Int =
       RuntimeAttributesValidation.extract(gpuCountValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+
+    if (gpuRequired && gpuCount == 0) {
+      throw new RuntimeException(
+        s"GPU is required for this task ('gpu' runtime attr is true) but no GPU resource was configured ('gpuCount' is 0)."
+      )
+    }
+
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val memory: MemorySize =
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)

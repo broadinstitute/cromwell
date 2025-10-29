@@ -36,6 +36,13 @@ final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive)
 
 final case class MachineType(machineType: String) {
   override def toString: String = machineType
+
+  // This check is valid as of October 2025
+  // https://docs.cloud.google.com/compute/docs/gpus
+  val supportsGpu: Boolean =
+    machineType.toLowerCase.contains("nvidia") ||
+      machineType.toLowerCase.contains("gpu") ||
+      machineType.toLowerCase.matches("^g[0-9]*-.*")
 }
 
 final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
@@ -104,6 +111,8 @@ object GcpBatchRuntimeAttributes {
   private def gpuCountValidation(
     runtimeConfig: Option[Config]
   ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
+
+  private val gpuRequiredValidation: OptionalRuntimeAttributesValidation[Boolean] = GpuRequiredValidation.optional
 
   // As of WDL 1.1 these two are aliases of each other
   private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
@@ -184,6 +193,9 @@ object GcpBatchRuntimeAttributes {
       RuntimeAttributesValidation.extractOption(checkpointFileValidationInstance.key, validatedRuntimeAttributes)
 
     // GPU
+    lazy val gpuRequired: Boolean = RuntimeAttributesValidation
+      .extractOption(gpuRequiredValidation.key, validatedRuntimeAttributes)
+      .getOrElse(false)
     lazy val gpuType: Option[GpuType] = RuntimeAttributesValidation
       .extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     lazy val gpuCount: Option[Int Refined Positive] = RuntimeAttributesValidation
@@ -198,6 +210,14 @@ object GcpBatchRuntimeAttributes {
       )
     } else {
       None
+    }
+
+    lazy val gpuRequested: Boolean = gpuResource.isDefined || machineType.exists(_.supportsGpu)
+
+    if (gpuRequired && !gpuRequested) {
+      throw new RuntimeException(
+        s"GPU is required for this task ('gpu' runtime attr is true) but no GPU resource was configured."
+      )
     }
 
     val docker: String = Containers.extractContainer(validatedRuntimeAttributes)

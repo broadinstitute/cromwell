@@ -164,7 +164,7 @@ object Callable {
                                            parameterMeta: Option[MetaValueElement] = None
   ) extends InputDefinition
 
-  // A special case of input that sets or overrides the members of a call's runtime section.
+  // A special case of input that sets or overrides the members of a call's runtime section, supported starting in WDL 1.1.
   // This input is represented as a WomObject so we can be flexible about which runtime attributes are set.
   // See WdlSharedInputParsing for the logic that converts from individual runtime attr keys to this single input.
   final case class RuntimeOverrideInputDefinition(localName: LocalName = LocalName("runtime"))

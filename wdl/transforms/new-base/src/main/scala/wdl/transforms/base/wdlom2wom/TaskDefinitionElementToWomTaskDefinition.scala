@@ -45,7 +45,6 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     val inputElements = a.taskDefinitionElement.inputsSection.map(_.inputDeclarations).getOrElse(Seq.empty)
 
     val declarations = a.taskDefinitionElement.declarations
-    val runtimeSection = a.taskDefinitionElement.runtimeSection
     val outputElements = a.taskDefinitionElement.outputsSection.map(_.outputs).getOrElse(Seq.empty)
 
     val conversion = (
@@ -63,7 +62,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
       )
     ) flatMapN { (taskGraph, _) =>
       val validRuntimeAttributes: ErrorOr[RuntimeAttributes] =
-        runtimeAttrTransformer(runtimeSection) match {
+        runtimeAttrTransformer(a.taskDefinitionElement.runtimeSection) match {
           case Some(attributeSection) => createRuntimeAttributes(attributeSection, taskGraph.linkedGraph)
           case None => RuntimeAttributes(Map.empty).validNel
         }

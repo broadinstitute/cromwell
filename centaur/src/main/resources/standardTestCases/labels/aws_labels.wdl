@@ -64,6 +64,6 @@ task CheckLabels {
   }
 
   runtime {
-    docker: "amazon/aws-cli:latest"
+    docker: "public.ecr.aws/aws-cli/aws-cli:latest"
   }
 }

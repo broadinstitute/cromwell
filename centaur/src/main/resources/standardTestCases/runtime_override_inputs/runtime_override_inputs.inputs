@@ -2,7 +2,7 @@
   "wf_hello.hello.addressee": "World",
   "wf_hello.hello.runtime.docker": "rockylinux:9",
   "wf_hello.hello.runtime.maxRetries": "2",
-  "wf_hello.hello.runtime.preemptible": "1",
+  "wf_hello.hello.runtime.memory": "4GB",
   "wf_hello.hello.runtime.bogusAttributesShouldBeIgnored": "yes",
   "wf_hello.sub_runtime_call.foo.runtime.docker": "rockylinux:9"
 }

@@ -23,7 +23,7 @@ object RuntimeAttributesValidation {
 
   def warnUnrecognized(actual: Set[String], expected: Set[String], logger: Logger): Unit = {
     val unrecognized = actual.diff(expected).mkString(", ")
-    if (unrecognized.nonEmpty) logger.warn(s"Unrecognized runtime attribute keys: $unrecognized")
+    if (unrecognized.nonEmpty) logger.info(s"Unrecognized runtime attribute keys: $unrecognized")
   }
 
   def validateDocker(docker: Option[WomValue],

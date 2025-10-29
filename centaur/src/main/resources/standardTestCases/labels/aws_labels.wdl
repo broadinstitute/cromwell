@@ -13,7 +13,7 @@ workflow CheckAwsLabelPropagation {
   output {
     String result = CheckLabels.output_message
     String job_info = CheckLabels.job_info
-    String job_tags = CheckLabels.job_tags
+    Object job_tags = CheckLabels.job_tags
   }
 }
 
@@ -60,7 +60,7 @@ task CheckLabels {
   output {
     String output_message = read_string("output.txt")
     String job_info = stdout()
-    String job_tags = read_json("job_tags.json")
+    Object job_tags = read_json("job_tags.json")
   }
 
   runtime {

@@ -215,7 +215,6 @@ object ScatterElementToGraphNode {
           )
         case i: RuntimeOverrideInputDefinition =>
           i.name -> RuntimeOverrideGraphInputNode(inputNodeIdentifier(i),
-                                                  i.womType,
                                                   a.workflowName + "." + i.name,
                                                   Callable.InputDefinition.IdentityValueMapper
           )

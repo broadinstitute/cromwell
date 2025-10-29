@@ -84,7 +84,7 @@ object Executable {
       case optional: OptionalGraphInputNode =>
         IOChecked.pure(Coproduct[ResolvedExecutableInput](optional.womType.none: WomValue))
       case runtimeOverride: RuntimeOverrideGraphInputNode =>
-        IOChecked.pure(Coproduct[ResolvedExecutableInput](runtimeOverride.womType.none: WomValue))
+        IOChecked.pure(Coproduct[ResolvedExecutableInput](runtimeOverride.default))
     }
 
     val providedInputsValidation: IOChecked[ResolvedExecutableInputs] = graph.inputNodes.toList

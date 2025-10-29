@@ -2,10 +2,11 @@ package wom.graph
 
 import wom.callable.Callable
 import wom.callable.Callable.InputDefinition.InputValueMapper
-import wom.expression.WomExpression
+import wom.expression.{ValueAsAnExpression, WomExpression}
 import wom.graph.GraphNodePort.GraphNodeOutputPort
 import wom.graph.expression.ExpressionNode
-import wom.types.{WomOptionalType, WomType}
+import wom.types.{WomObjectType, WomOptionalType, WomType}
+import wom.values.WomObject
 
 sealed trait GraphInputNode extends GraphNodeWithSingleOutputPort {
   def womType: WomType
@@ -73,11 +74,13 @@ final case class OptionalGraphInputNodeWithDefault(override val identifier: WomI
 ) extends ExternalGraphInputNode
 
 final case class RuntimeOverrideGraphInputNode(override val identifier: WomIdentifier,
-                                               womType: WomOptionalType,
                                                nameInInputSet: String,
                                                valueMapper: InputValueMapper =
                                                  Callable.InputDefinition.IdentityValueMapper
-) extends ExternalGraphInputNode
+) extends ExternalGraphInputNode {
+  val womType: WomType = WomObjectType
+  val default: WomExpression = ValueAsAnExpression(WomObject(Map.empty))
+}
 
 object OuterGraphInputNode {
   def apply(forIdentifier: WomIdentifier,

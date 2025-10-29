@@ -182,14 +182,14 @@ object CallElementToGraphNode {
             InputDefinitionFold(mappings = List(withDefault -> Coproduct[InputDefinitionPointer](expression)))
           }
 
-        case runtimeOverride @ RuntimeOverrideInputDefinition(n, womType, _, _) =>
+        case runtimeOverride @ RuntimeOverrideInputDefinition(n) =>
           val identifier = WomIdentifier(
             localName = s"$callName.${n.value}",
             fullyQualifiedName = s"${a.workflowName}.$callName.${n.value}"
           )
           if (supplyableInput(runtimeOverride)) {
             withGraphInputNode(runtimeOverride,
-                               RuntimeOverrideGraphInputNode(identifier, womType, identifier.fullyQualifiedName.value)
+                               RuntimeOverrideGraphInputNode(identifier, identifier.fullyQualifiedName.value)
             )
           } else {
             // Leave it unsupplied:

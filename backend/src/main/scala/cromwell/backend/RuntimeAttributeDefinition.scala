@@ -7,7 +7,7 @@ import cromwell.util.JsonFormatting.WomValueJsonFormatter
 import wom.RuntimeAttributes
 import wom.callable.Callable.{InputDefinition, RuntimeOverrideInputDefinition}
 import wom.expression.IoFunctionSet
-import wom.values.{WomObject, WomOptionalValue, WomValue}
+import wom.values.{WomObject, WomValue}
 
 import scala.util.Success
 
@@ -82,10 +82,11 @@ object RuntimeAttributeDefinition {
   def applyOverridesFromInputs(attributes: Map[String, WomValue],
                                inputs: Map[InputDefinition, WomValue]
   ): Map[String, WomValue] = {
-    val overrides = inputs.collect {
-      case (overrideDef: RuntimeOverrideInputDefinition, WomOptionalValue(_, Some(value))) =>
-        overrideDef.overriddenAttrName -> value
-    }
+    val overrides = inputs
+      .collectFirst { case (_: RuntimeOverrideInputDefinition, overrideObj: WomObject) =>
+        overrideObj.values
+      }
+      .getOrElse(Map.empty)
     attributes ++ overrides
   }
 

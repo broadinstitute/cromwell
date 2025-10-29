@@ -105,7 +105,7 @@ object GraphNode {
       case optional: OptionalGraphInputNode =>
         OptionalInputDefinition(optional.identifier.localName, optional.womType)
       case runtimeOverride: RuntimeOverrideGraphInputNode =>
-        RuntimeOverrideInputDefinition(runtimeOverride.identifier.localName, runtimeOverride.womType)
+        RuntimeOverrideInputDefinition(runtimeOverride.identifier.localName)
       case withDefault: OptionalGraphInputNodeWithDefault =>
         OverridableInputDefinitionWithDefault(withDefault.identifier.localName,
                                               withDefault.womType,

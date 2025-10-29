@@ -52,8 +52,8 @@ object InputPointerToWomValue extends Poly1 {
           evaluateAndMap(defaultExpression, knownValues, valueMapper, ioFunctions)
         case (_, OptionalInputDefinition(_, optionalType, valueMapper, _)) =>
           valueMapper(ioFunctions)(optionalType.none)
-        case (_, RuntimeOverrideInputDefinition(_, optionalType, valueMapper, _)) =>
-          valueMapper(ioFunctions)(optionalType.none)
+        case (_, d: RuntimeOverrideInputDefinition) =>
+          evaluateAndMap(d.default, knownValues, d.valueMapper, ioFunctions)
         case _ => s"Failed to lookup input value for required input ${port.internalName}".invalidIOChecked
       }
   }

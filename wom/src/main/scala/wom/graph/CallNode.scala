@@ -1,10 +1,10 @@
 package wom.graph
 
 import cats.data.Validated.Valid
+import cats.instances.list._
 import cats.kernel.Monoid
 import cats.syntax.foldable._
 import cats.syntax.validated._
-import cats.instances.list._
 import common.validation.ErrorOr._
 import common.validation.IOChecked._
 import shapeless.{:+:, CNil, Coproduct}
@@ -143,8 +143,8 @@ object TaskCall {
           Some(OptionalGraphInputNodeWithDefault(identifier(name), womType, default, name.value, valueMapper))
         case OptionalInputDefinition(name, womType, valueMapper, _) =>
           Some(OptionalGraphInputNode(identifier(name), womType, name.value, valueMapper))
-        case RuntimeOverrideInputDefinition(name, womType, valueMapper, _) =>
-          Some(OptionalGraphInputNode(identifier(name), womType, name.value, valueMapper))
+        case d @ RuntimeOverrideInputDefinition(name) =>
+          Some(RuntimeOverrideGraphInputNode(identifier(name), name.value, d.valueMapper))
         case _: FixedInputDefinitionWithDefault => None
       }
 

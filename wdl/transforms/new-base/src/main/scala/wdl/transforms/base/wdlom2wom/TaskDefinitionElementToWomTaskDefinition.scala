@@ -23,7 +23,7 @@ import wdl.transforms.base.wdlom2wom.expression.renaming.expressionEvaluator
 import wom.callable.Callable._
 import wom.callable.{Callable, CallableTaskDefinition, MetaValueElement}
 import wom.expression.WomExpression
-import wom.types.{WomOptionalType, WomStringType, WomType}
+import wom.types.{WomOptionalType, WomType}
 import wom.{CommandPart, RuntimeAttributes}
 
 object TaskDefinitionElementToWomTaskDefinition extends Util {
@@ -52,7 +52,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
       createTaskGraph(
         inputElements,
         declarations,
-        if (createRuntimeOverrideInputs) runtimeSection else None,
+        createRuntimeOverrideInputs,
         outputElements,
         a.taskDefinitionElement.parameterMetaSection,
         a.typeAliases
@@ -235,7 +235,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
 
   private def createTaskGraph(inputs: Seq[InputDeclarationElement],
                               declarations: Seq[IntermediateValueDeclarationElement],
-                              runtimeSection: Option[RuntimeAttributesSectionElement],
+                              createRuntimeOverrideInputs: Boolean,
                               outputs: Seq[OutputDeclarationElement],
                               parameterMeta: Option[ParameterMetaSectionElement],
                               typeAliases: Map[String, WomType]
@@ -320,7 +320,8 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
           }
       }
 
-      val runtimeOverrideInputs = createRuntimeOverrideInputs(runtimeSection)
+      val runtimeOverrideInputs =
+        if (createRuntimeOverrideInputs) List(RuntimeOverrideInputDefinition()) else List.empty
 
       val initialState: ErrorOr[TaskGraph] = TaskGraph(runtimeOverrideInputs, List.empty, linked).validNel
       ordered flatMap {
@@ -328,15 +329,6 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
       }
     }
   }
-
-  private def createRuntimeOverrideInputs(
-    runtimeSection: Option[RuntimeAttributesSectionElement]
-  ): List[Callable.InputDefinition] =
-    runtimeSection.toList.flatMap(_.runtimeAttributes).map(_.key).map { key =>
-      val inputName = s"runtime.$key"
-      val inputType = WomOptionalType(WomStringType) // TODO ?
-      RuntimeOverrideInputDefinition(inputName, inputType)
-    }
 
   private def createRuntimeAttributes(attributes: RuntimeAttributesSectionElement, linkedGraph: LinkedGraph)(implicit
     expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],

@@ -26,10 +26,13 @@ task CheckLabels {
     set -euo pipefail
 
     # Install AWS CLI v2
-    apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
+    echo "Installing AWS CLI..."
+    apt-get update -qq
+    apt-get install -y -qq curl unzip
     curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
     unzip -q awscliv2.zip
-    ./aws/install > /dev/null 2>&1
+    ./aws/install
+    echo "AWS CLI installed successfully"
 
     # Print the test message
     echo "~{message}"
@@ -47,20 +50,20 @@ task CheckLabels {
         echo "Checking job tags..."
         aws batch describe-jobs --jobs "$AWS_BATCH_JOB_ID" \
           --query 'jobs[0].tags' \
-          --output json > /cromwell_root/job_tags.json || echo "{}" > /cromwell_root/job_tags.json
+          --output json > job_tags.json || echo "{}" > job_tags.json
 
-        cat /cromwell_root/job_tags.json
+        cat job_tags.json
       else
         echo "No AWS_BATCH_JOB_ID found"
-        echo "{}" > /cromwell_root/job_tags.json
+        echo "{}" > job_tags.json
       fi
     else
       echo "AWS CLI not available"
-      echo "{}" > /cromwell_root/job_tags.json
+      echo "{}" > job_tags.json
     fi
 
     # Output for verification
-    echo "Label propagation check complete" > /cromwell_root/output.txt
+    echo "Label propagation check complete" > output.txt
   >>>
 
   output {

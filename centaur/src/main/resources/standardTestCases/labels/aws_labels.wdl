@@ -25,11 +25,14 @@ task CheckLabels {
   command <<<
     set -euo pipefail
 
-     # Install AWS CLI v2
-     apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
-     curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-     unzip -q awscliv2.zip
-     ./aws/install > /dev/null 2>&1
+    # Install AWS CLI v2
+    apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
+    curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip -q awscliv2.zip
+    ./aws/install > /dev/null 2>&1
+
+    # Ensure we are in the working directory
+    cd /cromwell_root
 
     # Print the test message
     echo "~{message}"

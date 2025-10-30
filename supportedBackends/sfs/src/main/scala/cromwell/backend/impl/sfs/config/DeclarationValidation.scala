@@ -45,8 +45,8 @@ object DeclarationValidation {
       case name
           if MemoryDeclarationValidation.isMemoryDeclaration(name, DiskRuntimeAttribute, DiskRuntimeAttributePrefix) =>
         new MemoryDeclarationValidation(declaration, DiskRuntimeAttribute, DiskRuntimeAttributePrefix)
-      case name if name == GpuRequiredValidation.instance.key =>
-        new DeclarationValidation(declaration, GpuRequiredValidation.instance, usedInCallCachingOverride = None)
+      case name if name == GpuRequiredValidation.key =>
+        new DeclarationValidation(declaration, GpuRequiredValidation, usedInCallCachingOverride = None)
       // All other declarations must be a Boolean, Float, Integer, or String.
       case _ =>
         val validatedRuntimeAttr = validator(declaration.womType, declaration.unqualifiedName)

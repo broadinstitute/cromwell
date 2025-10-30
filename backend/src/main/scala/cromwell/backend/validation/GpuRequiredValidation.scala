@@ -1,6 +1,7 @@
 package cromwell.backend.validation
 
 import wom.RuntimeAttributesKeys
+import wom.values.WomBoolean
 
 /**
  * This runtime attribute indicates whether GPU resources are required for the job. If set to true, the backend
@@ -9,9 +10,6 @@ import wom.RuntimeAttributesKeys
  * https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#gpu
  */
 
-object GpuRequiredValidation {
-  lazy val instance: RuntimeAttributesValidation[Boolean] = new GpuRequiredValidation
-  lazy val optional: OptionalRuntimeAttributesValidation[Boolean] = instance.optional
+object GpuRequiredValidation extends BooleanRuntimeAttributesValidation(RuntimeAttributesKeys.GpuRequiredKey) {
+  val DefaultValue: WomBoolean = WomBoolean(false)
 }
-
-class GpuRequiredValidation extends BooleanRuntimeAttributesValidation(RuntimeAttributesKeys.GpuRequiredKey)

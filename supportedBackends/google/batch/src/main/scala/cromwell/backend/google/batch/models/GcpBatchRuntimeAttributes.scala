@@ -112,7 +112,11 @@ object GcpBatchRuntimeAttributes {
     runtimeConfig: Option[Config]
   ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
 
-  private val gpuRequiredValidation: OptionalRuntimeAttributesValidation[Boolean] = GpuRequiredValidation.optional
+  private def gpuRequiredValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    GpuRequiredValidation
+      .withDefault(
+        GpuRequiredValidation.configDefaultWomValue(runtimeConfig) getOrElse GpuRequiredValidation.DefaultValue
+      )
 
   // As of WDL 1.1 these two are aliases of each other
   private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
@@ -161,6 +165,7 @@ object GcpBatchRuntimeAttributes {
       .withValidation(
         gpuCountValidation(runtimeConfig),
         gpuTypeValidation(runtimeConfig),
+        gpuRequiredValidation(runtimeConfig),
         cpuValidation(runtimeConfig),
         cpuPlatformValidation(runtimeConfig),
         machineTypeValidation(runtimeConfig),
@@ -194,8 +199,7 @@ object GcpBatchRuntimeAttributes {
 
     // GPU
     lazy val gpuRequired: Boolean = RuntimeAttributesValidation
-      .extractOption(gpuRequiredValidation.key, validatedRuntimeAttributes)
-      .getOrElse(false)
+      .extract(gpuRequiredValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     lazy val gpuType: Option[GpuType] = RuntimeAttributesValidation
       .extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     lazy val gpuCount: Option[Int Refined Positive] = RuntimeAttributesValidation

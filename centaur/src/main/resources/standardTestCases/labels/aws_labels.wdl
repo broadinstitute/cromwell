@@ -31,9 +31,6 @@ task CheckLabels {
     unzip -q awscliv2.zip
     ./aws/install > /dev/null 2>&1
 
-    # Ensure we are in the working directory
-    cd /cromwell_root
-
     # Print the test message
     echo "~{message}"
 
@@ -50,20 +47,20 @@ task CheckLabels {
         echo "Checking job tags..."
         aws batch describe-jobs --jobs "$AWS_BATCH_JOB_ID" \
           --query 'jobs[0].tags' \
-          --output json > job_tags.json || echo "{}" > job_tags.json
+          --output json > /cromwell_root/job_tags.json || echo "{}" > /cromwell_root/job_tags.json
 
-        cat job_tags.json
+        cat /cromwell_root/job_tags.json
       else
         echo "No AWS_BATCH_JOB_ID found"
-        echo "{}" > job_tags.json
+        echo "{}" > /cromwell_root/job_tags.json
       fi
     else
       echo "AWS CLI not available"
-      echo "{}" > job_tags.json
+      echo "{}" > /cromwell_root/job_tags.json
     fi
 
     # Output for verification
-    echo "Label propagation check complete" > output.txt
+    echo "Label propagation check complete" > /cromwell_root/output.txt
   >>>
 
   output {

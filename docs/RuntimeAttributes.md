@@ -309,7 +309,8 @@ runtime {
 *Default: "false"*
 
 If `true`, Cromwell will attempt to ensure that the task can run in an environment with GPU support. The task will be
-failed if we can't confirm a GPU is available. 
+failed if we can't confirm a GPU is available. This attribute is NOT required to be `true` to run a task with GPUs, it 
+merely adds a way to fast-fail tasks that are expected to run with GPUs but are not properly configured to do so. 
 
 - Google Cloud: Cromwell will attempt to examine other runtime attributes such as `gpuCount`, `gpuType`, `predefinedMachineType` to determine whether the task is configured to use a GPU, and fail the task if it is not.
 - AWS Batch: Cromwell will attempt to examine other runtime attributes such as `gpuCount` to determine whether the task is configured to use a GPU, and fail the task if it is not.

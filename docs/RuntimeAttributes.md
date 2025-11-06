@@ -9,9 +9,9 @@ Runtime attributes can be specified in one of three ways:
 _Task Example_
 
 ```
-task jes_task {
+task my_task {
   command {
-    echo "Hello JES!"
+    echo "Hello World!"
   }
   runtime {
     docker: "ubuntu:latest"
@@ -21,8 +21,8 @@ task jes_task {
     disks: "/mnt/mnt1 3 SSD, /mnt/mnt2 500 HDD"
   }
 }
-workflow jes_workflow {
-  call jes_task
+workflow my_wf {
+  call my_task
 }
 ```
 
@@ -30,7 +30,7 @@ _Workflow Input Override Example_
 
 ```
 {
-  "jes_workflow.jes_task.runtime.memory": "12GB"
+  "my_wf.my_task.runtime.memory": "12GB"
 }
 ```
 

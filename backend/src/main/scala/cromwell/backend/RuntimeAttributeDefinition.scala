@@ -41,10 +41,12 @@ object RuntimeAttributeDefinition {
     // e.g. `gcp: userDefinedObject` to find out what its runtime value is.
     // The type system informs us of this because a `WomExpression` in `unevaluated`
     // cannot be safely read as a `WomObject` with a `values` map until evaluation
-    evaluated.map(e => applyPlatform(e, platform)).map(e => applyOverridesFromInputs(e, evaluatedInputs))
+    evaluated.map(e => applyOverridesFromPlatform(e, platform)).map(e => applyOverridesFromInputs(e, evaluatedInputs))
   }
 
-  def applyPlatform(attributes: Map[String, WomValue], maybePlatform: Option[Platform]): Map[String, WomValue] = {
+  def applyOverridesFromPlatform(attributes: Map[String, WomValue],
+                                 maybePlatform: Option[Platform]
+  ): Map[String, WomValue] = {
 
     def extractPlatformAttributes(platform: Platform): Map[String, WomValue] =
       attributes.get(platform.runtimeKey) match {

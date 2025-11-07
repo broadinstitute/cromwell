@@ -610,6 +610,32 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
       )
     }
 
+    "require GPU provisioning when GPU is required" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "gpu" -> WomBoolean(true)
+      )
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "GPU is required for this task ('gpu' runtime attr is true) but no GPU resource was configured ('gpuCount' is 0)."
+      )
+    }
+
+    "accept a GPU count when GPU is required" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "scriptBucketName" -> WomString("my-stuff"),
+        "gpu" -> WomBoolean(true),
+        "gpuCount" -> WomInteger(2)
+      )
+      val expectedRuntimeAttributes =
+        expectedDefaults.copy(gpuCount = 2)
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(
+        runtimeAttributes,
+        expectedRuntimeAttributes
+      )
+    }
+
     // add tests for jobTimeout
 
     "missing or invalid action key result in an invalid awsBatchEvaluateOnExit" in {

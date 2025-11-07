@@ -3,6 +3,7 @@ package cromwell.engine.workflow.lifecycle.execution.job.preparation
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, FSM, Props}
 import cats.data.Validated.{Invalid, Valid}
+import cats.implicits.catsSyntaxValidatedId
 import common.exception.MessageAggregation
 import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
@@ -153,8 +154,19 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     for {
       evaluatedInputs <- ErrorOr(resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)).flatten
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
+      _ <- checkGpuRequirement(runtimeAttributes)
     } yield (evaluatedInputs, runtimeAttributes)
   }
+
+  // Do a basic backend capability check for GPU availability. If the backend does support GPUs, it should do its own
+  // checks to confirm that this task is configured appropriately to provision them. This check passes if the task
+  // does not request GPU availability via the `gpu` runtime attr, OR if the backend may be able to provide GPUs.
+  private def checkGpuRequirement(runtimeAttributes: Map[LocallyQualifiedName, WomValue]): ErrorOr[Unit] =
+    runtimeAttributes.get(RuntimeAttributesKeys.GpuRequiredKey) match {
+      case Some(WomBoolean(true)) if !factory.gpuMayBeAvailable =>
+        s"GPU required for job ${jobKey.call.localName} via runtime attribute 'gpu', but GPU availability cannot be guaranteed by the backend.".invalidNel
+      case _ => Valid(())
+    }
 
   private def fetchDockerHashesIfNecessary(inputs: WomEvaluatedCallInputs,
                                            attributes: Map[LocallyQualifiedName, WomValue]

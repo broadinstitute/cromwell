@@ -23,6 +23,8 @@ object RuntimeAttributesKeys {
   // New for WDL 1.1
   // Semantically, this is the same as continueOnReturnCode as the two attributes are combined at the parsing stage
   val ReturnCodesKey = "returnCodes"
+  val GpuRequiredKey = "gpu"
+
   val sharedMemoryKey = "sharedMemorySize"
 }
 

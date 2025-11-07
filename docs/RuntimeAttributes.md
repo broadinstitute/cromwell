@@ -49,6 +49,7 @@ Cromwell recognizes certain runtime attributes and has the ability to format the
 | [`maxRetries`](#maxretries)                     |   ✅   |      ✅       |           |     ✅     |         ℹ️ Note 3         |
 | [`continueOnReturnCode`](#continueonreturncode) |   ✅   |      ✅       |           |     ✅     |         ℹ️ Note 3         |
 | [`failOnStderr`](#failonstderr)                 |   ✅   |      ✅       |           |     ✅     |         ℹ️ Note 3         |
+| [`gpu`](#gpu)                                   |   ✅   |      ✅       |  ✅        |     ✅     |         ℹ️ Note 4         |
 
 
 > **Note 1**
@@ -62,6 +63,10 @@ Cromwell recognizes certain runtime attributes and has the ability to format the
 > **Note 3**
 > 
 > The HPC [Shared Filesystem backend](/backends/HPC#shared-filesystem) (SFS) is fully configurable and any number of attributes can be exposed. Cromwell recognizes some of these attributes (`cpu`, `memory` and `docker`) and parses them into the attribute listed in the table which can be used within the HPC backend configuration.
+> 
+> ** Note 4**
+> 
+> Supported starting in WDL 1.1
 
 
 ### Google Cloud Specific Attributes
@@ -309,7 +314,23 @@ runtime {
 }
 ```
 
+### `gpu`
+*Default: "false"*
 
+If `true`, Cromwell will attempt to ensure that the task can run in an environment with GPU support. The task will be
+failed if we can't confirm a GPU is available. This attribute is NOT required to be `true` to run a task with GPUs, it 
+merely adds a way to fast-fail tasks that are expected to run with GPUs but are not properly configured to do so. 
+
+- Google Cloud: Cromwell will attempt to examine other runtime attributes such as `gpuCount`, `gpuType`, `predefinedMachineType` to determine whether the task is configured to use a GPU, and fail the task if it is not.
+- AWS Batch: Cromwell will attempt to examine other runtime attributes such as `gpuCount` to determine whether the task is configured to use a GPU, and fail the task if it is not.
+- SFS: Cromwell is unable to confirm GPU availability, so tasks with `gpu: true` will always fail.
+- TES: Cromwell is unable to confirm GPU availability, so tasks with `gpu: true` will always fail.
+
+```
+runtime {
+  gpu: true
+}
+```
 
 ### `zones`
 

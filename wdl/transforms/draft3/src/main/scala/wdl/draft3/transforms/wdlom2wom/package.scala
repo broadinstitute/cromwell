@@ -21,7 +21,7 @@ import wom.RuntimeAttributesKeys
 package object wdlom2wom {
   val taskDefinitionElementToWomTaskDefinition: CheckedAtoB[TaskDefinitionElementToWomInputs, CallableTaskDefinition] =
     CheckedAtoB.fromErrorOr(a =>
-      TaskDefinitionElementToWomTaskDefinition.convert(a, createRuntimeOverrideInputs = false, removeContainerAttr)
+      TaskDefinitionElementToWomTaskDefinition.convert(a, createRuntimeOverrideInputs = false, removeFutureAttrs)
     )
   val workflowDefinitionElementToWomWorkflowDefinition
     : CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] =
@@ -30,14 +30,17 @@ package object wdlom2wom {
     CheckedAtoB.fromCheck(FileElementToWomBundle.convert)
 
   /**
-   * Remove the `container` runtime attribute if it exists. This attribute supercedes `docker` starting with WDL 1.1.
-   * In previous versions, it should be ignored.
+   * Remove attributes that are not supported in WDL 1.0
+   *   - `container` supercedes `docker` starting with WDL 1.1.
+   *   - `gpu` controls a GPU requirement check starting in WDL 1.1
    */
-  private def removeContainerAttr(
+  private def removeFutureAttrs(
     attributeSection: Option[RuntimeAttributesSectionElement]
   ): Option[RuntimeAttributesSectionElement] =
     attributeSection.map(_.runtimeAttributes) map { originalAttrs =>
-      val finalAttributes = originalAttrs.filterNot(pair => pair.key.equals(RuntimeAttributesKeys.ContainerKey))
+      val finalAttributes = originalAttrs.filterNot(pair =>
+        List(RuntimeAttributesKeys.ContainerKey, RuntimeAttributesKeys.GpuRequiredKey).contains(pair.key)
+      )
       RuntimeAttributesSectionElement(finalAttributes)
     }
 }

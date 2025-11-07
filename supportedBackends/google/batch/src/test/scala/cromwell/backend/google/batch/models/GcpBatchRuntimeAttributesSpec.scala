@@ -5,7 +5,9 @@ import cromwell.backend.RuntimeAttributeDefinition
 import cromwell.backend.google.batch.models.GcpBatchTestConfig._
 import cromwell.backend.validation.ContinueOnReturnCodeSet
 import cromwell.backend.google.batch.io.{DiskType, GcpBatchAttachedDisk, GcpBatchWorkingDisk}
+import cromwell.backend.google.batch.models.GpuResource.GpuType
 import cromwell.core.WorkflowOptions
+import eu.timepit.refined.numeric.Positive
 import eu.timepit.refined.refineMV
 import org.scalatest.TestSuite
 import org.scalatest.matchers.should.Matchers
@@ -282,6 +284,72 @@ final class GcpBatchRuntimeAttributesSpec
       val workflowOptions = WorkflowOptions.fromJsonObject(workflowOptionsJson).get
       val expectedRuntimeAttributes = expectedDefaults.copy(cpuPlatform = Option("the platform"))
       assertBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes, workflowOptions)
+    }
+
+    "require GPU provisioning when GPU is required" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "gpu" -> WomBoolean(true)
+      )
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "GPU is required for this task ('gpu' runtime attr is true) but no GPU resource was configured."
+      )
+    }
+
+    "accept a GpuResource when GPU is required" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "gpu" -> WomBoolean(true),
+        "gpuCount" -> WomInteger(2),
+        "gpuType" -> WomString(GpuType.NVIDIATeslaT4.toString)
+      )
+      val expectedRuntimeAttributes =
+        expectedDefaults.copy(gpuResource = Option(GpuResource(GpuType.NVIDIATeslaT4, refineMV[Positive](2))))
+      assertBatchRuntimeAttributesSuccessfulCreation(
+        runtimeAttributes,
+        expectedRuntimeAttributes
+      )
+    }
+
+    "accept a G2 machine when GPU is required" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "gpu" -> WomBoolean(true),
+        "predefinedMachineType" -> WomString("g2-standard-4")
+      )
+      val expectedRuntimeAttributes =
+        expectedDefaults.copy(machine = Option(MachineType("g2-standard-4")))
+      assertBatchRuntimeAttributesSuccessfulCreation(
+        runtimeAttributes,
+        expectedRuntimeAttributes
+      )
+    }
+
+    "accept a A2 machine when GPU is required" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "gpu" -> WomBoolean(true),
+        "predefinedMachineType" -> WomString("a2-ultragpu-8g")
+      )
+      val expectedRuntimeAttributes =
+        expectedDefaults.copy(machine = Option(MachineType("a2-ultragpu-8g")))
+      assertBatchRuntimeAttributesSuccessfulCreation(
+        runtimeAttributes,
+        expectedRuntimeAttributes
+      )
+    }
+
+    "not accept an N2 machine when GPU is required" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "gpu" -> WomBoolean(true),
+        "predefinedMachineType" -> WomString("n2-standard-2")
+      )
+      assertBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "GPU is required for this task ('gpu' runtime attr is true) but no GPU resource was configured."
+      )
     }
   }
 }

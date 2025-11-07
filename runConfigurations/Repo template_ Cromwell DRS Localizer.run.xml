@@ -4,7 +4,7 @@
       <env name="DRS_RESOLVER_URL" value="https://drshub.dsde-dev.broadinstitute.org/api/v4/drs/resolve" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="drs.localizer.DrsLocalizerMain" />
-    <module name="cromwell-drs-localizer" />
+    <module name="root.cromwell-drs-localizer.main" />
     <option name="PROGRAM_PARAMETERS" value="--access-token-strategy google drs://drs.anv0:v1_e2151834-13cd-4156-9ea2-168a1b7abf60_0761203d-d2a1-448e-8f71-9f81d80ddd9d $USER_HOME$/Downloads/test/plumbing" />
     <method v="2">
       <option name="Make" enabled="true" />

@@ -1,16 +1,15 @@
 package cromwell.backend
 
 import _root_.wdl.draft2.model._
+import common.validation.ErrorOr.ErrorOr
 import cromwell.core.WorkflowOptions
 import cromwell.util.JsonFormatting.WomValueJsonFormatter
-import common.validation.ErrorOr.ErrorOr
-import wom.callable.Callable.InputDefinition
+import wom.RuntimeAttributes
+import wom.callable.Callable.{InputDefinition, RuntimeOverrideInputDefinition}
 import wom.expression.IoFunctionSet
-import wom.values.WomObject
-import wom.values.WomValue
-import wom.{RuntimeAttributes, WomExpressionException}
+import wom.values.{WomObject, WomValue}
 
-import scala.util.{Success, Try}
+import scala.util.Success
 
 /**
   * @param name Attribute name (LHS of name: "value" in the runtime section).
@@ -42,10 +41,12 @@ object RuntimeAttributeDefinition {
     // e.g. `gcp: userDefinedObject` to find out what its runtime value is.
     // The type system informs us of this because a `WomExpression` in `unevaluated`
     // cannot be safely read as a `WomObject` with a `values` map until evaluation
-    evaluated.map(e => applyPlatform(e, platform))
+    evaluated.map(e => applyOverridesFromPlatform(e, platform)).map(e => applyOverridesFromInputs(e, evaluatedInputs))
   }
 
-  def applyPlatform(attributes: Map[String, WomValue], maybePlatform: Option[Platform]): Map[String, WomValue] = {
+  def applyOverridesFromPlatform(attributes: Map[String, WomValue],
+                                 maybePlatform: Option[Platform]
+  ): Map[String, WomValue] = {
 
     def extractPlatformAttributes(platform: Platform): Map[String, WomValue] =
       attributes.get(platform.runtimeKey) match {
@@ -74,14 +75,21 @@ object RuntimeAttributeDefinition {
     originalAttributesWithoutPlatforms ++ platformAttributes
   }
 
-  def buildMapBasedLookup(evaluatedDeclarations: Map[InputDefinition, Try[WomValue]])(identifier: String): WomValue = {
-    val successfulEvaluations = evaluatedDeclarations collect {
-      case (k, v) if v.isSuccess => k.name -> v.get
-    }
-    successfulEvaluations.getOrElse(
-      identifier,
-      throw new WomExpressionException(s"Could not resolve variable $identifier as a task input")
-    )
+  /**
+   * The inputs may contain runtime overrides in the form of e.g. "${callFQN}.runtime.docker: ubuntu:latest"
+   * @param attributes evaluated WOM expressions from the runtime section of a task
+   * @param inputs The inputs from the workflow, which may contain runtime overrides
+   * @return
+   */
+  def applyOverridesFromInputs(attributes: Map[String, WomValue],
+                               inputs: Map[InputDefinition, WomValue]
+  ): Map[String, WomValue] = {
+    val overrides = inputs
+      .collectFirst { case (_: RuntimeOverrideInputDefinition, overrideObj: WomObject) =>
+        overrideObj.values
+      }
+      .getOrElse(Map.empty)
+    attributes ++ overrides
   }
 
   def addDefaultsToAttributes(runtimeAttributeDefinitions: Set[RuntimeAttributeDefinition],

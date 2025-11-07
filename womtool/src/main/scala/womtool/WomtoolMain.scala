@@ -49,7 +49,7 @@ object WomtoolMain extends App with StrictLogging {
     case v: ValidateCommandLine => Validate.validate(v.workflowSource, v.inputs, v.listDependencies)
     case p: ParseCommandLine => parse(p.workflowSource.pathAsString)
     case h: HighlightCommandLine => highlight(h.workflowSource.pathAsString, h.highlightMode)
-    case i: InputsCommandLine => Inputs.inputsJson(i.workflowSource, i.showOptionals)
+    case i: InputsCommandLine => Inputs.inputsJson(i.workflowSource, i.showOptionals, i.showRuntimeOverrides)
     case o: OutputsCommandLine => Outputs.outputsJson(o.workflowSource)
     case g: WomtoolGraphCommandLine => graph(g.workflowSource)
     case g: WomtoolWomGraphCommandLine => womGraph(g.workflowSource)

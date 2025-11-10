@@ -3,7 +3,8 @@
 ## 92 Release Notes
 
 ### AWS Batch
-* Exposed the option to propagate job tags to the underlying ECS task 
+* Moved the option to tag job resources from runtime attributes to backend config.
+* Appended the custom labels to the list of resource tags to propagate
 
 ### Progress toward WDL 1.1 Support
 * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 92, `development-1.1` has been enhanced to include:

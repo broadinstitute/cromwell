@@ -140,6 +140,8 @@ class GcpBatchBackendLifecycleActorFactory(override val name: String,
     }
 
   override val dockerMirroring: Option[DockerMirroring] = batchAttributes.dockerMirroringOpt
+
+  override val gpuMayBeAvailable: Boolean = true
 }
 
 object GcpBatchBackendLifecycleActorFactory extends StrictLogging {

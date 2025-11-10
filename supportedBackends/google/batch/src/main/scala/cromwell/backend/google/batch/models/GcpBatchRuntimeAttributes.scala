@@ -6,7 +6,7 @@ import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.google.batch.io.{GcpBatchAttachedDisk, GcpBatchWorkingDisk}
 import cromwell.backend.google.batch.models.GcpBatchRuntimeAttributes.BootDiskSizeKey
 import cromwell.backend.google.batch.models.GpuResource.GpuType
-import cromwell.backend.google.batch.util.{GpuTypeValidation, GpuValidation}
+import cromwell.backend.google.batch.util.{GpuTypeValidation, GpuValidation, MachineTypeValidation}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import eu.timepit.refined._
@@ -34,6 +34,17 @@ object GpuResource {
 
 final case class GpuResource(gpuType: GpuType, gpuCount: Int Refined Positive)
 
+final case class MachineType(machineType: String) {
+  override def toString: String = machineType
+
+  // This check is valid as of October 2025
+  // https://docs.cloud.google.com/compute/docs/gpus
+  val supportsGpu: Boolean =
+    machineType.toLowerCase.contains("nvidia") ||
+      machineType.toLowerCase.contains("gpu") ||
+      machineType.toLowerCase.matches("^g[0-9]*-.*")
+}
+
 final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            cpuPlatform: Option[String],
                                            gpuResource: Option[GpuResource],
@@ -41,6 +52,7 @@ final case class GcpBatchRuntimeAttributes(cpu: Int Refined Positive,
                                            preemptible: Int,
                                            bootDiskSize: Int,
                                            memory: MemorySize,
+                                           machine: Option[MachineType] = None,
                                            disks: Seq[GcpBatchAttachedDisk],
                                            dockerImage: String,
                                            failOnStderr: Boolean,
@@ -76,6 +88,8 @@ object GcpBatchRuntimeAttributes {
   val CpuPlatformIntelIceLakeValue = "Intel Ice Lake"
   val CpuPlatformAMDRomeValue = "AMD Rome"
 
+  val MachineTypeKey = "predefinedMachineType"
+
   val CheckpointFileKey = "checkpointFile"
   private val checkpointFileValidationInstance = new StringRuntimeAttributesValidation(CheckpointFileKey).optional
 
@@ -89,12 +103,20 @@ object GcpBatchRuntimeAttributes {
       )
   private def cpuPlatformValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[String] =
     cpuPlatformValidationInstance
+  private def machineTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MachineType] =
+    MachineTypeValidation.optional
   private def gpuTypeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[GpuType] =
     GpuTypeValidation.optional
 
   private def gpuCountValidation(
     runtimeConfig: Option[Config]
   ): OptionalRuntimeAttributesValidation[Int Refined Positive] = GpuValidation.optional
+
+  private def gpuRequiredValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    GpuRequiredValidation
+      .withDefault(
+        GpuRequiredValidation.configDefaultWomValue(runtimeConfig) getOrElse GpuRequiredValidation.DefaultValue
+      )
 
   // As of WDL 1.1 these two are aliases of each other
   private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
@@ -143,8 +165,10 @@ object GcpBatchRuntimeAttributes {
       .withValidation(
         gpuCountValidation(runtimeConfig),
         gpuTypeValidation(runtimeConfig),
+        gpuRequiredValidation(runtimeConfig),
         cpuValidation(runtimeConfig),
         cpuPlatformValidation(runtimeConfig),
+        machineTypeValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
@@ -166,10 +190,16 @@ object GcpBatchRuntimeAttributes {
       cpuPlatformValidation(runtimeAttrsConfig).key,
       validatedRuntimeAttributes
     )
+    val machineType: Option[MachineType] = RuntimeAttributesValidation.extractOption(
+      machineTypeValidation(runtimeAttrsConfig).key,
+      validatedRuntimeAttributes
+    )
     val checkpointFileName: Option[String] =
       RuntimeAttributesValidation.extractOption(checkpointFileValidationInstance.key, validatedRuntimeAttributes)
 
     // GPU
+    lazy val gpuRequired: Boolean = RuntimeAttributesValidation
+      .extract(gpuRequiredValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     lazy val gpuType: Option[GpuType] = RuntimeAttributesValidation
       .extractOption(gpuTypeValidation(runtimeAttrsConfig).key, validatedRuntimeAttributes)
     lazy val gpuCount: Option[Int Refined Positive] = RuntimeAttributesValidation
@@ -184,6 +214,14 @@ object GcpBatchRuntimeAttributes {
       )
     } else {
       None
+    }
+
+    lazy val gpuRequested: Boolean = gpuResource.isDefined || machineType.exists(_.supportsGpu)
+
+    if (gpuRequired && !gpuRequested) {
+      throw new RuntimeException(
+        s"GPU is required for this task ('gpu' runtime attr is true) but no GPU resource was configured."
+      )
     }
 
     val docker: String = Containers.extractContainer(validatedRuntimeAttributes)
@@ -213,6 +251,7 @@ object GcpBatchRuntimeAttributes {
       preemptible = preemptible,
       bootDiskSize = bootDiskSize,
       memory = memory,
+      machine = machineType,
       disks = disks,
       dockerImage = docker,
       failOnStderr = failOnStderr,

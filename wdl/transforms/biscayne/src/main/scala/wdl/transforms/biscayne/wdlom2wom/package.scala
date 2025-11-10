@@ -23,7 +23,10 @@ import wom.values.WomInteger
 package object wdlom2wom {
   val taskDefinitionElementToWomTaskDefinition: CheckedAtoB[TaskDefinitionElementToWomInputs, CallableTaskDefinition] =
     CheckedAtoB.fromErrorOr(a =>
-      TaskDefinitionElementToWomTaskDefinition.convert(a, combineReturnCodeRuntimeAttributes)
+      TaskDefinitionElementToWomTaskDefinition.convert(a,
+                                                       createRuntimeOverrideInputs = true,
+                                                       combineReturnCodeRuntimeAttributes
+      )
     )
   val workflowDefinitionElementToWomWorkflowDefinition
     : CheckedAtoB[WorkflowDefinitionConvertInputs, WorkflowDefinition] =

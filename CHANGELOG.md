@@ -8,6 +8,23 @@
 ### Progress toward WDL 1.1 Support
 * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 92, `development-1.1` has been enhanced to include:
     * Support for passthrough syntax for call inputs, e.g. `{ input: foo }` rather than `{ input: foo = foo }`.
+    * Support for setting or overriding individual task runtime attributes in workflow inputs, e.g. `{ "workflow1.task1.runtime.cpu": "4"}`.
+    * Support for new boolean runtime attribute `gpu`, which tells the engine to require a GPU to be available in order to run the task. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#gpu) for details.
+
+### GPU changes on Google Cloud backend
+
+#### Removed `nvidiaDriverVersion`
+
+In GCP Batch, the `nvidiaDriverVersion` attribute is ignored. Now that Life Sciences has retired, the attribute is now fully deprecated and can be removed from workflows.
+
+#### Added `predefinedMachineType` (alpha)
+
+The new `predefinedMachineType` attribute is introduced in experimental status. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#predefinedmachinetype-alpha) for details.  
+
+### Database Migration
+The index `IX_METADATA_ENTRY_WEU_CFQN_JSI_JRA_MK` is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.
+
+This index supports planned metadata API enhancements that enable querying at granular scopes, namely calls, shards, and attempts.
 
 ## 91 Release Notes
 

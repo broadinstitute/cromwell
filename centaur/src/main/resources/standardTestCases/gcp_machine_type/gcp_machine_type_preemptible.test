@@ -1,0 +1,15 @@
+name: gcp_machine_type_preemptible
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: gcp_machine_type.wdl
+  inputs: preemptible_inputs.json
+}
+
+metadata {
+    "calls.minimal_hello_world.hello_world.runtimeAttributes.predefinedMachineType": "n2-standard-2"
+    "calls.minimal_hello_world.hello_world.runtimeAttributes.preemptible": "5"
+    "outputs.minimal_hello_world.actual_machine_type": ~~"machineTypes/n2-standard-2"
+    "outputs.minimal_hello_world.is_preemptible": "TRUE"
+}

@@ -33,6 +33,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
   )
 
   def convert(b: TaskDefinitionElementToWomInputs,
+              createRuntimeOverrideInputs: Boolean,
               runtimeAttrTransformer: Option[RuntimeAttributesSectionElement] => Option[RuntimeAttributesSectionElement]
   )(implicit
     expressionValueConsumer: ExpressionValueConsumer[ExpressionElement],
@@ -47,11 +48,13 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
     val outputElements = a.taskDefinitionElement.outputsSection.map(_.outputs).getOrElse(Seq.empty)
 
     val conversion = (
-      createTaskGraph(inputElements,
-                      declarations,
-                      outputElements,
-                      a.taskDefinitionElement.parameterMetaSection,
-                      a.typeAliases
+      createTaskGraph(
+        inputElements,
+        declarations,
+        createRuntimeOverrideInputs,
+        outputElements,
+        a.taskDefinitionElement.parameterMetaSection,
+        a.typeAliases
       ),
       validateParameterMetaEntries(a.taskDefinitionElement.parameterMetaSection,
                                    a.taskDefinitionElement.inputsSection,
@@ -231,6 +234,7 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
 
   private def createTaskGraph(inputs: Seq[InputDeclarationElement],
                               declarations: Seq[IntermediateValueDeclarationElement],
+                              createRuntimeOverrideInputs: Boolean,
                               outputs: Seq[OutputDeclarationElement],
                               parameterMeta: Option[ParameterMetaSectionElement],
                               typeAliases: Map[String, WomType]
@@ -315,7 +319,10 @@ object TaskDefinitionElementToWomTaskDefinition extends Util {
           }
       }
 
-      val initialState: ErrorOr[TaskGraph] = TaskGraph(List.empty, List.empty, linked).validNel
+      val runtimeOverrideInputs =
+        if (createRuntimeOverrideInputs) List(RuntimeOverrideInputDefinition()) else List.empty
+
+      val initialState: ErrorOr[TaskGraph] = TaskGraph(runtimeOverrideInputs, List.empty, linked).validNel
       ordered flatMap {
         _.foldLeft(initialState)(foldFunction)
       }

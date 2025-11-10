@@ -95,8 +95,7 @@ final case class AwsBatchJob(
   tagResources: Option[Boolean],
   logGroupName: String,
   additionalTags: Map[String, String],
-  scriptBucketPrefix: Option[String],
-  propagateTags: Option[Boolean]
+  scriptBucketPrefix: Option[String]
 ) {
 
   val Log: Logger = LoggerFactory.getLogger(AwsBatchJob.getClass)
@@ -705,9 +704,7 @@ final case class AwsBatchJob(
 
         // Combine both maps - Tags will override customLabels if there are duplicate keys
         val allTags: Map[String, String] = customLabels ++ Tags
-
-        val doPropagation = propagateTags.getOrElse(false)
-        submitJobRequest = submitJobRequest.tags(allTags.asJava).propagateTags(doPropagation)
+        submitJobRequest = submitJobRequest.tags(allTags.asJava).propagateTags(true)
       }
       // JobTimeout provided (positive value) : add to request
       if (runtimeAttributes.jobTimeout > 0) {

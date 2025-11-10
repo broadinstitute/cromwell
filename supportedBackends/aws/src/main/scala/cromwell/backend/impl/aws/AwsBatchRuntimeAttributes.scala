@@ -77,7 +77,6 @@ import scala.jdk.CollectionConverters._
  * @param tagResources should we tag resources
  * @param logGroupName the CloudWatch log group name to write logs to
  * @param additionalTags a map of tags to add to the AWS Batch job submission
-  * @param propagateTags should we propagate tags to ECS tasks underlying batch jobs
  */
 case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      gpuCount: Int,
@@ -101,8 +100,7 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      additionalTags: Map[String, String],
                                      fuseMount: Boolean,
                                      fileSystem: String = "s3",
-                                     tagResources: Boolean = false,
-                                     propagateTags: Boolean = false
+                                     tagResources: Boolean = false
 )
 
 object AwsBatchRuntimeAttributes {
@@ -123,7 +121,6 @@ object AwsBatchRuntimeAttributes {
   val awsBatchefsDelocalizeKey = "efsDelocalize"
   val awsBatchefsMakeMD5Key = "efsMakeMD5"
   val tagResourcesKey = "tagResources"
-  val propagateResourcesKey = "propagateTags"
   val ZonesKey = "zones"
   private val ZonesDefaultValue = WomString("us-east-1a")
 
@@ -260,13 +257,6 @@ object AwsBatchRuntimeAttributes {
         .getOrElse(WomBoolean(false))
     )
 
-  private def awsBatchPropagateTagsValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
-    AwsBatchtagResourcesValidation(AwsBatchRuntimeAttributes.propagateResourcesKey).withDefault(
-      AwsBatchtagResourcesValidation(AwsBatchRuntimeAttributes.propagateResourcesKey)
-        .configDefaultWomValue(runtimeConfig)
-        .getOrElse(WomBoolean(false))
-    )
-
   private def ulimitsValidation(
     runtimeConfig: Option[Config]
   ): RuntimeAttributesValidation[Vector[Map[String, String]]] =
@@ -323,7 +313,6 @@ object AwsBatchRuntimeAttributes {
         awsBatchefsDelocalizeValidation(runtimeConfig),
         awsBatchefsMakeMD5Validation(runtimeConfig),
         awsBatchtagResourcesValidation(runtimeConfig),
-        awsBatchPropagateTagsValidation(runtimeConfig),
         sharedMemorySizeValidation(runtimeConfig),
         fuseMountValidation(runtimeConfig),
         jobTimeoutValidation(runtimeConfig)
@@ -347,7 +336,6 @@ object AwsBatchRuntimeAttributes {
         awsBatchefsDelocalizeValidation(runtimeConfig),
         awsBatchefsMakeMD5Validation(runtimeConfig),
         awsBatchtagResourcesValidation(runtimeConfig),
-        awsBatchPropagateTagsValidation(runtimeConfig),
         sharedMemorySizeValidation(runtimeConfig),
         fuseMountValidation(runtimeConfig),
         jobTimeoutValidation(runtimeConfig)
@@ -425,10 +413,6 @@ object AwsBatchRuntimeAttributes {
     val tagResources: Boolean = RuntimeAttributesValidation.extract(awsBatchtagResourcesValidation(runtimeAttrsConfig),
                                                                     validatedRuntimeAttributes
     )
-    val propagateTags: Boolean = RuntimeAttributesValidation.extract(
-      awsBatchPropagateTagsValidation(runtimeAttrsConfig),
-      validatedRuntimeAttributes
-    )
     val sharedMemorySize: MemorySize =
       RuntimeAttributesValidation.extract(sharedMemorySizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val jobTimeout: Int =
@@ -459,8 +443,7 @@ object AwsBatchRuntimeAttributes {
       additionalTags,
       fuseMount,
       fileSystem,
-      tagResources,
-      propagateTags
+      tagResources
     )
   }
 }

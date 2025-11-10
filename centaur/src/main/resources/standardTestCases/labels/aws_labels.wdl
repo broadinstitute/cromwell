@@ -25,15 +25,6 @@ task CheckLabels {
   command <<<
     set -euo pipefail
 
-    # Install AWS CLI v2
-    echo "Installing AWS CLI..."
-    apt-get update -qq
-    apt-get install -y -qq curl unzip
-    curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-    unzip -q awscliv2.zip
-    ./aws/install
-    echo "AWS CLI installed successfully"
-
     # Print the test message
     echo "~{message}"
 
@@ -73,6 +64,6 @@ task CheckLabels {
   }
 
   runtime {
-    docker: "ubuntu:latest"
+    docker: "broadinstitute/cloud-cromwell:aws-cli-bash-entrypoint"
   }
 }

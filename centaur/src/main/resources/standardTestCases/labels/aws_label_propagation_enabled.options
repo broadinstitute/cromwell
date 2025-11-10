@@ -1,6 +1,0 @@
-{
-  "default_runtime_attributes": {
-    "tagResources": true,
-    "propagateTags": true
-  }
-}

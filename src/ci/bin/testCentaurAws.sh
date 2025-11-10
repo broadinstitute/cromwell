@@ -48,6 +48,7 @@ cromwell::build::run_centaur \
     -e cachewithinwf \
     -e failures.terminal_status \
     -e bad_file_string \
+    -e awsbatch_labels
 
 
 cromwell::build::generate_code_coverage

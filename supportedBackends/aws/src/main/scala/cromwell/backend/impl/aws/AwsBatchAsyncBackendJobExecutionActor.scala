@@ -260,11 +260,10 @@ class AwsBatchAsyncBackendJobExecutionActor(
       configuration.efsMntPoint,
       Option(runtimeAttributes.efsMakeMD5),
       Option(runtimeAttributes.efsDelocalize),
-      Option(runtimeAttributes.tagResources),
+      configuration.tagResources,
       runtimeAttributes.logGroupName,
       runtimeAttributes.additionalTags,
-      scriptBucketPrefix,
-      Option(runtimeAttributes.propagateTags)
+      scriptBucketPrefix
     )
 
   // setup batch client to query job container info

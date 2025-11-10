@@ -5,7 +5,6 @@ backends: [AWSBATCH]
 
 files {
   workflow: labels/aws_labels.wdl
-  options: labels/aws_label_propagation_enabled.options
   labels: labels/valid.labels
 }
 

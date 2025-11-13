@@ -1,11 +1,7 @@
 package org.lerch.s3fs;
 
-import java.io.IOException;
-import java.nio.file.FileStore;
-import java.nio.file.attribute.FileAttributeView;
-import java.nio.file.attribute.FileStoreAttributeView;
-import java.util.Date;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.Bucket;
 import software.amazon.awssdk.services.s3.model.GetBucketAclRequest;
@@ -13,12 +9,21 @@ import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.ListBucketsRequest;
 import software.amazon.awssdk.services.s3.model.NoSuchBucketException;
 import software.amazon.awssdk.services.s3.model.Owner;
-import com.google.common.collect.ImmutableList;
 
+import java.io.IOException;
+import java.nio.file.FileStore;
+import java.nio.file.attribute.FileAttributeView;
+import java.nio.file.attribute.FileStoreAttributeView;
+import java.util.Date;
+
+/**
+ * In S3 a filestore translates to a bucket
+ */
 public class S3FileStore extends FileStore implements Comparable<S3FileStore> {
 
     private S3FileSystem fileSystem;
     private String name;
+    private final Logger logger = LoggerFactory.getLogger("S3FileStore");
 
     public S3FileStore(S3FileSystem s3FileSystem, String name) {
         this.fileSystem = s3FileSystem;
@@ -90,10 +95,7 @@ public class S3FileStore extends FileStore implements Comparable<S3FileStore> {
     }
 
     private Bucket getBucket(String bucketName) {
-        for (Bucket buck : getClient().listBuckets().buckets())
-            if (buck.name().equals(bucketName))
-                return buck;
-        return null;
+        return Bucket.builder().name(bucketName).build();
     }
 
     private boolean hasBucket(String bucketName) {
@@ -111,8 +113,8 @@ public class S3FileStore extends FileStore implements Comparable<S3FileStore> {
         // model as HeadBucket is now required
         boolean bucket = false;
         try {
-          getClient().headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
-          bucket = true;
+            getClient().headBucket(HeadBucketRequest.builder().bucket(bucketName).build());
+            bucket = true;
         }catch(NoSuchBucketException nsbe) {}
         return bucket;
     }
@@ -121,7 +123,7 @@ public class S3FileStore extends FileStore implements Comparable<S3FileStore> {
         return new S3Path(fileSystem, "/" + this.name());
     }
 
-    private S3Client getClient() {
+    public S3Client getClient() {
         return fileSystem.getClient();
     }
 

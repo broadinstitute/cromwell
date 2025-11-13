@@ -41,22 +41,30 @@ case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths,
   val jesMonitoringLogFilename: String = s"${GcpBatchJobPaths.BatchMonitoringKey}.log"
   lazy val jesMonitoringLogPath: Path = callExecutionRoot.resolve(jesMonitoringLogFilename)
 
-  override lazy val customMetadataPaths = Map(
-    CallMetadataKeys.BackendLogsPrefix + ":log" -> batchLogPath
-  ) ++ (
-    workflowPaths.monitoringScriptPath map { p =>
+  // Return the path to the batch log file, if we are configured to create the log file.
+  private lazy val maybeBatchLogPath: Option[Path] =
+    workflowPaths.gcpBatchConfiguration.batchAttributes.logsPolicy match {
+      case GcpBatchLogsPolicy.Path => Some(batchLogPath)
+      case _ => None
+    }
+
+  override lazy val customMetadataPaths = {
+    val backendLogsMetadata = maybeBatchLogPath map { p: Path =>
+      Map(CallMetadataKeys.BackendLogsPrefix + ":log" -> p)
+    } getOrElse Map.empty
+
+    val monitoringScriptMetadata = workflowPaths.monitoringScriptPath map { p =>
       Map(GcpBatchMetadataKeys.MonitoringScript -> p, GcpBatchMetadataKeys.MonitoringLog -> jesMonitoringLogPath)
     } getOrElse Map.empty
-  )
+
+    backendLogsMetadata ++ monitoringScriptMetadata
+  }
 
   // This is required to include this log file in the collection of those copied with cache hits.
   // Only include it here if we're configured to
-  override lazy val customDetritusPaths: Map[String, Path] =
-    workflowPaths.gcpBatchConfiguration.batchAttributes.logsPolicy match {
-      case GcpBatchLogsPolicy.Path =>
-        Map(GcpBatchJobPaths.BatchLogPathKey -> batchLogPath)
-      case _ => Map.empty
-    }
+  override lazy val customDetritusPaths: Map[String, Path] = maybeBatchLogPath map { p: Path =>
+    Map(GcpBatchJobPaths.BatchLogPathKey -> p)
+  } getOrElse Map.empty
 
   override lazy val customLogPaths: Map[String, Path] = Map(
     GcpBatchJobPaths.BatchLogPathKey -> batchLogPath

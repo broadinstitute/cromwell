@@ -2,7 +2,7 @@ name: localization_sanity_papi_v2
 testFormat: workflowsuccess
 workflowType: WDL
 workflowTypeVersion: 1.0
-backends: [Papiv2, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: localization_sanity_papi_v2/localization_sanity_papi_v2.wdl

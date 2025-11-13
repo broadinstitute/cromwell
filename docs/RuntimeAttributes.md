@@ -1,16 +1,17 @@
 # Customize tasks
 
-Runtime attributes can be specified in one of two ways:
+Runtime attributes can be specified in one of three ways:
 
  1. Within a task you can specify runtime attributes to customize the environment for the call.  
  2. [Default runtime attributes](#default-values) for all tasks can be specified in [Workflow Options](wf_options/Overview.md).
+ 3. In WDL 1.1 and later, runtime attributes can be overridden in the workflow input JSON file.
 
 _Task Example_
 
 ```
-task jes_task {
+task my_task {
   command {
-    echo "Hello JES!"
+    echo "Hello World!"
   }
   runtime {
     docker: "ubuntu:latest"
@@ -20,8 +21,16 @@ task jes_task {
     disks: "/mnt/mnt1 3 SSD, /mnt/mnt2 500 HDD"
   }
 }
-workflow jes_workflow {
-  call jes_task
+workflow my_wf {
+  call my_task
+}
+```
+
+_Workflow Input Override Example_
+
+```
+{
+  "my_wf.my_task.runtime.memory": "12GB"
 }
 ```
 
@@ -40,6 +49,7 @@ Cromwell recognizes certain runtime attributes and has the ability to format the
 | [`maxRetries`](#maxretries)                     |   ✅   |      ✅       |           |     ✅     |         ℹ️ Note 3         |
 | [`continueOnReturnCode`](#continueonreturncode) |   ✅   |      ✅       |           |     ✅     |         ℹ️ Note 3         |
 | [`failOnStderr`](#failonstderr)                 |   ✅   |      ✅       |           |     ✅     |         ℹ️ Note 3         |
+| [`gpu`](#gpu)                                   |   ✅   |      ✅       |  ✅        |     ✅     |         ℹ️ Note 4         |
 
 
 > **Note 1**
@@ -53,6 +63,10 @@ Cromwell recognizes certain runtime attributes and has the ability to format the
 > **Note 3**
 > 
 > The HPC [Shared Filesystem backend](/backends/HPC#shared-filesystem) (SFS) is fully configurable and any number of attributes can be exposed. Cromwell recognizes some of these attributes (`cpu`, `memory` and `docker`) and parses them into the attribute listed in the table which can be used within the HPC backend configuration.
+> 
+> ** Note 4**
+> 
+> Supported starting in WDL 1.1
 
 
 ### Google Cloud Specific Attributes
@@ -60,13 +74,16 @@ There are a number of additional runtime attributes that apply to the Google Clo
 
 - [zones](#zones)
 - [preemptible](#preemptible)
+- [predefinedMachineType](#predefinedmachinetype-alpha)
 - [bootDiskSizeGb](#bootdisksizegb)
 - [noAddress](#noaddress)
-- [gpuCount, gpuType, and nvidiaDriverVersion](#gpucount-gputype-and-nvidiadriverversion)
+- [gpuCount and gpuType](#gpucount-and-gputype)
 - [cpuPlatform](#cpuplatform)
-- [useDockerImageCache](#usedockerimagecache)
 
 
+### AWS Specific Attributes
+- [awsBatchRetryAttempts](#awsBatchRetryAttempts)
+- [ulimits](#ulimits)
 
 ## Expression support
 
@@ -297,7 +314,23 @@ runtime {
 }
 ```
 
+### `gpu`
+*Default: "false"*
 
+If `true`, Cromwell will attempt to ensure that the task can run in an environment with GPU support. The task will be
+failed if we can't confirm a GPU is available. This attribute is NOT required to be `true` to run a task with GPUs, it 
+merely adds a way to fast-fail tasks that are expected to run with GPUs but are not properly configured to do so. 
+
+- Google Cloud: Cromwell will attempt to examine other runtime attributes such as `gpuCount`, `gpuType`, `predefinedMachineType` to determine whether the task is configured to use a GPU, and fail the task if it is not.
+- AWS Batch: Cromwell will attempt to examine other runtime attributes such as `gpuCount` to determine whether the task is configured to use a GPU, and fail the task if it is not.
+- SFS: Cromwell is unable to confirm GPU availability, so tasks with `gpu: true` will always fail.
+- TES: Cromwell is unable to confirm GPU availability, so tasks with `gpu: true` will always fail.
+
+```
+runtime {
+  gpu: true
+}
+```
 
 ### `zones`
 
@@ -312,6 +345,38 @@ runtime {
 ```
 
 Defaults to the configuration setting `genomics.default-zones` in the Google Cloud configuration block, which in turn defaults to using `us-central1-b`.
+
+### `predefinedMachineType` (alpha)
+
+*Default: none*
+
+**This attribute is in experimental status. Please see limitations for details.** 
+
+Select a specific GCP machine type, such as `n2-standard-2` or `a2-highgpu-1g`.
+
+Setting `predefinedMachineType` overrides `cpu`, `memory`, `gpuCount`, and `gpuType`.
+
+`predefinedMachineType` _is_ compatible with `cpuPlatform` so long as the platform is [a valid option](https://cloud.google.com/compute/docs/cpu-platforms) for the specified type.
+
+```
+runtime {
+  predefinedMachineType: "n2-standard-2"
+}
+```
+
+Possible benefits:
+
+* Access [GPU machine types](https://cloud.google.com/compute/docs/gpus#gpu-models) such as Ampere, Lovelace, and other newer models
+* Avoid [5% surcharge](https://cloud.google.com/compute/docs/instances/creating-instance-with-custom-machine-type#custom_machine_type_pricing) on custom machine types (Cromwell default)
+* Reduce preemption by using predefined types with [better availability](https://cloud.google.com/compute/docs/instances/create-use-preemptible#best_practices)
+* Run basic tasks at the lowest possible cost with [shared-core machines](https://cloud.google.com/compute/docs/general-purpose-machines#sharedcore) like `e2-medium`
+
+Limitations:
+
+* Cost estimation not yet supported
+* GPU availability may be limited due to resource or quota exhaustion
+* GCP types are non-portable and proprietary to Google Cloud Platform
+* GCP Batch job details display incorrect "Cores", "Memory" values (cosmetic)
 
 ### `preemptible`
 
@@ -335,7 +400,6 @@ failed due to task failure. Specifically, task with index 0 failed due to the
 following task event: "Task state is updated from RUNNING to FAILED on zones/us-central1-b/instances/8675309
 due to Spot VM preemption with exit code 50001."
 ```
-
 
 ### `bootDiskSizeGb`
 
@@ -394,10 +458,10 @@ Configure your Google network to use "Private Google Access". This will allow yo
 
 That's it!  You can now run with `noAddress` runtime attribute and it will work as expected.
 
-### `gpuCount`, `gpuType`, and `nvidiaDriverVersion`
+### `gpuCount` and `gpuType`
 
-Attach GPUs to the instance when running on the Pipelines API([GPU documentation](https://cloud.google.com/compute/docs/gpus/)).
-Make sure to choose a zone for which the type of GPU you want to attach is available.
+Attach [GPUs](https://cloud.google.com/compute/docs/gpus/) to the [GCP Batch instance](https://cloud.google.com/batch/docs/create-run-job-gpus).
+Make sure to choose a zone in which the type of GPU you want is available.
 
 The types of compute GPU supported are:
 
@@ -406,18 +470,15 @@ The types of compute GPU supported are:
 * `nvidia-tesla-p4`
 * `nvidia-tesla-t4`
 
-On Life Sciences API, the default driver is `418.87.00`. You may specify your own via the `nvidiaDriverVersion` key.  Make sure that driver exists in the `nvidia-drivers-us-public` beforehand, per the [Google Pipelines API documentation](https://cloud.google.com/genomics/reference/rest/Shared.Types/Metadata#VirtualMachine). 
-
-On GCP Batch, `nvidiaDriverVersion` is currently ignored; Batch selects the correct driver version automatically.
-
 ```
 runtime {
     gpuType: "nvidia-tesla-t4"
     gpuCount: 2
-    nvidiaDriverVersion: "418.87.00"
     zones: ["us-central1-c"]
 }
 ```
+
+`nvidiaDriverVersion` is deprecated and ignored; GCP Batch selects the correct driver version automatically.
 
 ### `cpuPlatform`
 
@@ -443,8 +504,50 @@ The following CPU platforms are currently supported by the Google Cloud backend:
 - `Intel Sandy Bridge`
 - `AMD Rome`
 
-### 'useDockerImageCache'
+### `awsBatchRetryAttempts`
 
-This option is specific to the Google Cloud backend, moreover it is only supported by Google Life Sciences API starting from version v2 beta.
-In order to use this feature Cromwell has to have PAPI v2 backend configured with this feature enabled.  
-More information about this feature and it's configuration can be found [in the Google backend section of documentation](backends/Google.md).
+*Default: _0_*
+
+This runtime attribute adds support to [*AWS Batch Automated Job Retries*](https://docs.aws.amazon.com/batch/latest/userguide/job_retries.html) which makes it possible to tackle transient job failures. For example, if a task fails due to a timeout from accessing an external service, then this option helps re-run the failed the task without having to re-run the entire workflow. This option is also very useful when using SPOT instances.
+
+It takes an Int, between 1 and 10, as a value that indicates the maximum number of times AWS Batch should retry a failed task. If the value 0 is passed, the [*Retry Strategy*](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#retryStrategy) will not be added to the job definiton and the task will run just once.
+
+```
+runtime {
+  awsBatchRetryAttempts: integer
+}
+```
+
+
+### `ulimits`
+
+*Default: _empty_*
+
+This attribute is only supported for AWS. A list of [`ulimits`](https://docs.aws.amazon.com/batch/latest/userguide/job_definition_parameters.html#containerProperties) values to set in the container. This parameter maps to `Ulimits` in the [Create a container](https://docs.docker.com/engine/api/v1.38/) section of the [Docker Remote API](https://docs.docker.com/engine/api/v1.38/) and the `--ulimit` option to [docker run](https://docs.docker.com/engine/reference/commandline/run/).
+
+```
+"ulimits": [
+  {
+    "name": string,
+    "softLimit": integer,
+    "hardLimit": integer
+  }
+  ...
+]
+```
+Parameter description:
+
+- `name`
+  - The `type` of the `ulimit`.
+  - Type: String
+  - Required: Yes, when `ulimits` is used.
+
+- `softLimit`
+  - The soft limit for the `ulimit` type.
+  - Type: Integer
+  - Required: Yes, when `ulimits` is used.
+
+- `hardLimit`
+  - The hard limit for the `ulimit` type.
+  - Type: Integer
+  - Required: Yes, when `ulimits` is used.

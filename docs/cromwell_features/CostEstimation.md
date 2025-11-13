@@ -7,7 +7,7 @@ This feature is currently available for **GCP only**. To enable it, add this lin
 services.GcpCostCatalogService.config.enabled = true
 ```
 
-Ensure that your Google credentials are available in your environment via the `GOOGLE_APPLICATION_CREDENTIALS` env var or [another method](https://cloud.google.com/docs/authentication/provide-credentials-adc).
+Ensure that you have [enabled the Cloud Billing API](https://cloud.google.com/billing/v1/how-tos/catalog-api) for your project and that your Google credentials are available in your environment via the `GOOGLE_APPLICATION_CREDENTIALS` env var or [another method](https://cloud.google.com/docs/authentication/provide-credentials-adc).
 
 Workflows run with this functionality enabled will produce non-zero cost when the `/api/workflows/{version}/{workflowId}/cost` endpoint is called. For example:
 ```

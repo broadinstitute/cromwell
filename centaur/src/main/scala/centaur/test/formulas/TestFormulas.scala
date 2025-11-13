@@ -277,7 +277,6 @@ object TestFormulas extends StrictLogging {
         timeout = CentaurConfig.workflowProgressTimeout
       )
       _ <- pollUntilStatus(submittedWorkflow, workflowDefinition, Aborted)
-      _ <- validatePAPIAborted(workflowDefinition, submittedWorkflow, jobId)
       // Wait a little to make sure that if the abort didn't work and calls start running we see them in the metadata
       _ <- waitFor(30.seconds)
       metadata <- fetchAndValidateNonSubworkflowMetadata(submittedWorkflow, workflowDefinition)

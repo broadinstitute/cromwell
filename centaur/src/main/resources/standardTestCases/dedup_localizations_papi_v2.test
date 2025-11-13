@@ -7,7 +7,7 @@ testFormat: workflowsuccess
 # PR #7529 would provide this file-based logging, but is not a replacement for Papi v2-style streaming logs. The logs
 # it produces have some other issues (not streaming within runnables, tons of logs formatting, includes Batch agent
 # logs) such that it's not clear we would want to merge it as is.
-backends: [Papiv2, GCPBATCH_NEEDS_FILE_BASED_LOCALIZATION_LOGGING]
+backends: [GCPBATCH_NEEDS_FILE_BASED_LOCALIZATION_LOGGING]
 
 files {
   workflow: dedup_localizations_papi_v2/dedup_localizations_papi_v2.wdl

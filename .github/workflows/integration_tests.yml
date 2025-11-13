@@ -32,21 +32,9 @@ jobs:
       matrix:
         # Batch test fixes to land later
         include:
-          - build_type: centaurPapiV2beta
-            build_mysql: 8.0
-            friendly_name: Life Sciences, MySQL 8.0
-          - build_type: centaurPapiV2beta
-            build_mysql: 8.4
-            friendly_name: Life Sciences, MySQL 8.4 (current Terra production)
-          - build_type: centaurGcpBatch
-            build_mysql: 8.0
-            friendly_name: GCP Batch, MySQL 8.0
           - build_type: centaurGcpBatch
             build_mysql: 8.4
-            friendly_name: GCP Batch, MySQL 8.4
-          - build_type: centaurPapiV2betaRestart
-            build_mysql: 8.4
-            friendly_name: Centaur Papi V2 Beta (restart)
+            friendly_name: GCP Batch, MySQL 8.4 (Terra production)
           - build_type: centaurGcpBatchRestart
             build_mysql: 8.4
             friendly_name: Centaur GCP Batch (restart)
@@ -63,12 +51,15 @@ jobs:
           - build_type: centaurAws
             build_mysql: 8.4
             friendly_name: Centaur AWS with MySQL 8.4
+          - build_type: centaurAwsRestart
+            build_mysql: 8.4
+            friendly_name: Centaur AWS (restart)
+          - build_type: centaurAwsHoricromtal
+            build_mysql: 8.4
+            friendly_name: Centaur Horicromtal AWS
           - build_type: centaurDummy
             build_mysql: 8.4
             friendly_name: Centaur Dummy with MySQL 8.4
-          - build_type: centaurHoricromtalPapiV2beta
-            build_mysql: 8.4
-            friendly_name: Centaur Horicromtal PapiV2 Beta with MySQL 8.4
           - build_type: centaurHoricromtalGcpBatch
             build_mysql: 8.4
             friendly_name: Centaur Horicromtal GCP Batch with MySQL 8.4
@@ -109,7 +100,7 @@ jobs:
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-    # Activate SSH and idle for 30 minutes
+    # Activate SSH and idle for 30 minutes, see https://www.notion.so/SSH-into-Github-Action-287ab699a6f580609d01d3c88692df14 for details
 #    - name: Setup tmate session
 #      uses: mxschmitt/action-tmate@v3
 #      timeout-minutes: 30

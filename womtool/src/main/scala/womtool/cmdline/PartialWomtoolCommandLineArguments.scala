@@ -6,6 +6,7 @@ final case class PartialWomtoolCommandLineArguments(command: Option[WomtoolComma
                                                     workflowSource: Option[Path] = None,
                                                     workflowInputs: Option[Path] = None,
                                                     displayOptionalInputs: Option[Boolean] = None,
+                                                    displayRuntimeOverrides: Option[Boolean] = None,
                                                     highlightMode: Option[HighlightMode] = None,
                                                     listDependencies: Option[Boolean] = None
 )
@@ -16,7 +17,8 @@ final case class ValidateCommandLine(workflowSource: Path, inputs: Option[Path],
     extends ValidatedWomtoolCommandLine
 final case class HighlightCommandLine(workflowSource: Path, highlightMode: HighlightMode)
     extends ValidatedWomtoolCommandLine
-final case class InputsCommandLine(workflowSource: Path, showOptionals: Boolean) extends ValidatedWomtoolCommandLine
+final case class InputsCommandLine(workflowSource: Path, showOptionals: Boolean, showRuntimeOverrides: Boolean)
+    extends ValidatedWomtoolCommandLine
 final case class OutputsCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 final case class WomtoolGraphCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine
 final case class WomtoolWomGraphCommandLine(workflowSource: Path) extends ValidatedWomtoolCommandLine

@@ -1,6 +1,6 @@
 package cromwell.docker
 
-import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry
+import cromwell.docker.DockerImageIdentifier.DefaultRepository
 
 import scala.util.{Failure, Success, Try}
 
@@ -12,18 +12,13 @@ sealed trait DockerImageIdentifier {
 
   def swapReference(newReference: String): DockerImageIdentifier
   def swapHost(newHost: String): DockerImageIdentifier
+  def withDefaultRepository: DockerImageIdentifier
 
   // The name of the image with a repository prefix iff a repository was explicitly specified.
   lazy val name = repository map { r => s"$r/$image" } getOrElse image
   // The name of the image with a repository prefix if a repository was specified, or with a default repository prefix of
   // "library" if no repository was specified.
-  lazy val nameWithDefaultRepository =
-    // In ACR, the repository is part of the registry domain instead of the path
-    // e.g. `terrabatchdev.azurecr.io`
-    if (host.exists(_.contains(AzureContainerRegistry.domain)))
-      image
-    else
-      repository.getOrElse("library") + s"/$image"
+  lazy val nameWithDefaultRepository = repository.getOrElse(DefaultRepository) + s"/$image"
   lazy val hostAsString = host map { h => s"$h/" } getOrElse ""
   // The full name of this image, including a repository prefix only if a repository was explicitly specified.
   lazy val fullName = s"$hostAsString$name:$reference"
@@ -37,6 +32,12 @@ case class DockerImageIdentifierWithoutHash(host: Option[String],
   def withHash(hash: DockerHashResult) = DockerImageIdentifierWithHash(host, repository, image, reference, hash)
   override def swapReference(newReference: String) = this.copy(reference = newReference)
   override def swapHost(newHost: String) = this.copy(host = Option(newHost))
+  override def withDefaultRepository: DockerImageIdentifier =
+    repository match {
+      case Some(_) => this
+      case None =>
+        this.copy(repository = Option(DefaultRepository))
+    }
 }
 
 case class DockerImageIdentifierWithHash(host: Option[String],
@@ -48,15 +49,23 @@ case class DockerImageIdentifierWithHash(host: Option[String],
   override lazy val fullName: String = s"$hostAsString$name@${hash.algorithmAndHash}"
   override def swapReference(newReference: String) = this.copy(reference = newReference)
   override def swapHost(newHost: String) = this.copy(host = Option(newHost))
+  override def withDefaultRepository: DockerImageIdentifier =
+    repository match {
+      case Some(_) => this
+      case None =>
+        this.copy(repository = Option(DefaultRepository))
+    }
 }
 
 object DockerImageIdentifier {
   private val DefaultDockerTag = "latest"
+  val DefaultRepository = "library"
 
   private val DockerStringRegex =
     s"""
        (?x)                                     # Turn on comments and whitespace insensitivity
 
+       (?:docker://)?                           # Optional docker:// prefix
        (                                        # Begin capturing group for name
           [a-z0-9]+(?:[._-][a-z0-9]+)*          # API v2 name component regex - see https://docs.docker.com/registry/spec/api/#/overview
           (?::[0-9]{4,5}|:443)?                 # Optional port (expect 4 or 5 digits OR :443)

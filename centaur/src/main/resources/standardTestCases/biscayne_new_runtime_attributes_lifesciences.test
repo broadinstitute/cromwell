@@ -4,7 +4,7 @@ tags: ["wdl_biscayne"]
 
 # Will run on a Cromwell that supports any one of these backends
 backendsMode: any
-backends: [Papi, Papiv2, GCPBatch]
+backends: [GCPBatch]
 
 files {
   workflow: wdl_biscayne/biscayne_new_runtime_attributes/biscayne_new_runtime_attributes.wdl

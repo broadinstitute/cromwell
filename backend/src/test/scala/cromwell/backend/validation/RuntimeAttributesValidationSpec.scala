@@ -28,7 +28,7 @@ class RuntimeAttributesValidationSpec
         "Failed to get Docker mandatory key from runtime attributes".invalidNel
       )
       result match {
-        case Valid(x) => assert(x.get == "someImage")
+        case Valid(x) => assert(x.get.values.head == "someImage")
         case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }
@@ -62,7 +62,35 @@ class RuntimeAttributesValidationSpec
       )
       result match {
         case Valid(_) => fail("A failure was expected.")
-        case Invalid(e) => assert(e.head == "Expecting docker runtime attribute to be a String")
+        case Invalid(e) =>
+          assert(
+            e.head == "Expecting docker runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+          )
+      }
+    }
+
+    "return success when tries to validate a valid container entry" in {
+      val imageValue = Some(WomString("someImage"))
+      val result = RuntimeAttributesValidation.validateContainer(
+        imageValue,
+        "Failed to get container key from runtime attributes".invalidNel
+      )
+      result match {
+        case Valid(x) => assert(x.get.values == List("someImage"))
+        case Invalid(e) => fail(e.toList.mkString(" "))
+      }
+    }
+
+    "return success when tries to validate a valid container entry containing a list" in {
+      val imageValue =
+        Some(WomArray(WomArrayType(WomStringType), Seq(WomString("someImage"), WomString("someOtherImage"))))
+      val result = RuntimeAttributesValidation.validateContainer(
+        imageValue,
+        "Failed to get container key from runtime attributes".invalidNel
+      )
+      result match {
+        case Valid(x) => assert(x.get.values == Seq("someImage", "someOtherImage"))
+        case Invalid(e) => fail(e.toList.mkString(" "))
       }
     }
 

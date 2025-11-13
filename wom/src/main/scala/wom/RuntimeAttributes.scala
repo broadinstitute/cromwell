@@ -4,6 +4,7 @@ import wom.expression.WomExpression
 
 object RuntimeAttributesKeys {
   val DockerKey = "docker"
+  val ContainerKey = "container" // New for WDL 1.1, preferred over "docker"
   val MaxRetriesKey = "maxRetries"
 
   val CpuKey = "cpu"
@@ -12,6 +13,9 @@ object RuntimeAttributesKeys {
   val GpuKey = "gpuCount"
   val GpuTypeKey = "gpuType"
 
+  val fuseMountKey = "fuseMount"
+  val jobTimeoutKey = "jobTimeout"
+
   val MemoryKey = "memory"
   val FailOnStderrKey = "failOnStderr"
   val ContinueOnReturnCodeKey = "continueOnReturnCode"
@@ -19,6 +23,9 @@ object RuntimeAttributesKeys {
   // New for WDL 1.1
   // Semantically, this is the same as continueOnReturnCode as the two attributes are combined at the parsing stage
   val ReturnCodesKey = "returnCodes"
+  val GpuRequiredKey = "gpu"
+
+  val sharedMemoryKey = "sharedMemorySize"
 }
 
 case class RuntimeAttributes(attributes: Map[String, WomExpression])

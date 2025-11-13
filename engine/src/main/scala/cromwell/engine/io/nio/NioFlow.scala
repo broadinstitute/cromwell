@@ -16,6 +16,7 @@ import net.ceedubs.ficus.readers.ValueReader
 
 import java.io._
 import java.nio.charset.StandardCharsets
+import java.nio.file.NoSuchFileException
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
@@ -74,6 +75,9 @@ class NioFlow(parallelism: Int,
       case hashCommand: IoHashCommand => hash(hashCommand) map hashCommand.success
       case touchCommand: IoTouchCommand => touch(touchCommand) map touchCommand.success
       case existsCommand: IoExistsCommand => exists(existsCommand) map existsCommand.success
+      case existsOrThrowCommand: IoExistsOrThrowCommand =>
+        existsOrThrow(existsOrThrowCommand) map existsOrThrowCommand.success
+      case noopCommand: IoNoopCommand => noop(noopCommand) map noopCommand.success
       case readLinesCommand: IoReadLinesCommand => readLines(readLinesCommand) map readLinesCommand.success
       case isDirectoryCommand: IoIsDirectoryCommand => isDirectory(isDirectoryCommand) map isDirectoryCommand.success
       case _ => IO.raiseError(new UnsupportedOperationException("Method not implemented"))
@@ -126,6 +130,16 @@ class NioFlow(parallelism: Int,
 
   private def exists(exists: IoExistsCommand) = IO {
     exists.file.exists
+  }
+
+  private def existsOrThrow(exists: IoExistsOrThrowCommand) = IO {
+    exists.file.exists match {
+      case false => throw new NoSuchFileException(exists.file.toString)
+      case true => true
+    }
+  }
+  private def noop(noop: IoNoopCommand) = IO {
+    ()
   }
 
   private def readLines(exists: IoReadLinesCommand) = IO {

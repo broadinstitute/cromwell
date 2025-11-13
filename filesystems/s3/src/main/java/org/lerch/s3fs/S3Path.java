@@ -4,19 +4,19 @@ import com.google.common.base.*;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import org.lerch.s3fs.attribute.S3BasicFileAttributes;
+import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.file.*;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 import static com.google.common.collect.Iterables.*;
+import static com.google.common.collect.Iterables.concat;
 import static java.lang.String.format;
 
 public class S3Path implements Path {

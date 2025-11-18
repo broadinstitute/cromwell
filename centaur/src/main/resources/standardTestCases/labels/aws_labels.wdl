@@ -64,6 +64,6 @@ task CheckLabels {
   }
 
   runtime {
-    docker: "broadinstitute/cloud-cromwell:aws-cli-bash-entrypoint"
+    docker: "broadinstitute/cromwell-docker-test:ubuntu-with-aws-cli"
   }
 }

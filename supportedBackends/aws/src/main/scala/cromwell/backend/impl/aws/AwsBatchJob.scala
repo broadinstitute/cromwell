@@ -684,6 +684,7 @@ final case class AwsBatchJob(
         .jobQueue(runtimeAttributes.queueArn)
         .jobDefinition(definitionArn)
       // tagging activated: add metadata (custom labels) and engine tags to request
+      Log.info("TESTING TAG RESOURCES FLAG IS " + tagResources)
       if (tagResources.getOrElse(false)) {
         // replace invalid characters in the tags
         val invalidCharsPattern = "[^a-zA-Z0-9_.:/=+-@]+".r
@@ -704,6 +705,7 @@ final case class AwsBatchJob(
 
         // Combine both maps - Tags will override customLabels if there are duplicate keys
         val allTags: Map[String, String] = customLabels ++ Tags
+        Log.info("TESTING")
         submitJobRequest = submitJobRequest.tags(allTags.asJava).propagateTags(true)
       }
       // JobTimeout provided (positive value) : add to request

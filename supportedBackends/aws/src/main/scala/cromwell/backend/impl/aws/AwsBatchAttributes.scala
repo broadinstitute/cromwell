@@ -65,8 +65,8 @@ case class AwsBatchAttributes(fileSystem: String,
                               fsxMntPoint: Option[List[String]],
                               efsMntPoint: Option[String],
                               efsMakeMD5: Option[Boolean],
-                              tagResources: Option[Boolean],
                               efsDelocalize: Option[Boolean],
+                              tagResources: Option[Boolean],
                               globLinkCommand: Option[String],
                               checkSiblingMd5: Option[Boolean]
 )

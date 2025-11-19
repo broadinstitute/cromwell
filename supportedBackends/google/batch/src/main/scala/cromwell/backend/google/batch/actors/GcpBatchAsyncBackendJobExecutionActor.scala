@@ -272,24 +272,23 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
 
   // TODO: There is an AWS version of this that looks functionally identical. Consider unifying.
-  override def inputsToNotLocalize: Set[WomFile] = {
+  override def inputsToNotLocalize: Set[WomFile] =
     if (noLocalizationForTask)
       jobDescriptor.allInputFiles
     else {
       val localizeOptional = jobDescriptor.findInputFilesByParameterMeta {
-        case MetaValueElementObject(values) => values.get("localization_optional").contains(MetaValueElementBoolean(true))
+        case MetaValueElementObject(values) =>
+          values.get("localization_optional").contains(MetaValueElementBoolean(true))
         case _ => false
       }
       val localizeSkipped = localizeOptional.filter(canSkipLocalize)
       val localizeMapped = localizeSkipped.map(cloudResolveWomFile)
       localizeSkipped ++ localizeMapped
     }
-  }
 
-  private def noLocalizationForTask: Boolean = {
+  private def noLocalizationForTask: Boolean =
     // WDL 1.1: `runtime.localizationOptional` indicates all files for task are optional
     jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
-  }
 
   private def canSkipLocalize(womFile: WomFile): Boolean = {
     var canSkipLocalize = true

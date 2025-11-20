@@ -4,12 +4,9 @@ object Dependencies {
   private val akkaHttpCirceIntegrationV = "1.39.2"
   private val akkaHttpV = "10.1.15" // (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
-  private val ammoniteOpsV = "2.4.1"
-  private val apacheHttpClientV = "4.5.13"
   private val apacheHttpClient5V = "5.3.1"
   private val awsSdkV = "2.29.20"
   private val betterFilesV = "3.9.1"
-  private val jsonSmartV = "2.5.2"
   private val bardClientV = "1.0.8"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
@@ -18,7 +15,6 @@ object Dependencies {
   private val catsV = "2.7.0"
   private val circeConfigV = "0.8.0"
   private val circeGenericExtrasV = "0.14.1"
-  private val circeOpticsV = "0.14.1"
   private val circeV = "0.14.1"
   private val circeYamlV = "0.15.1"
   private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
@@ -29,7 +25,6 @@ object Dependencies {
   private val commonNetV = "3.8.0" // via: https://commons.apache.org/proper/commons-net/
   private val commonsTextV = "1.10.0"
   private val configsV = "0.6.1"
-  private val delightRhinoSandboxV = "0.0.15"
   private val diffsonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
@@ -48,7 +43,6 @@ object Dependencies {
   private val googleCloudResourceManagerV = "1.17.0"
   private val grpcV = "1.65.1"
   private val guavaV = "33.2.1-jre"
-  private val heterodonV = "1.0.0-beta3"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
   private val jacksonV = "2.15.0"
@@ -88,7 +82,6 @@ object Dependencies {
   private val rdf4jV = "3.7.1"
   private val re2jV = "1.6"
   private val refinedV = "0.10.1"
-  private val rhinoV = "1.7.14"
 
   private val scalaCollectionCompatV = "2.5.0"
   private val scalaGraphV = "1.13.1"

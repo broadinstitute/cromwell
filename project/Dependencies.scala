@@ -84,7 +84,6 @@ object Dependencies {
    */
   private val mysqlV = "8.0.28"
   private val nettyV = "4.1.119.Final"
-  private val pact4sV = "0.16.2"
   private val postgresV = "42.4.4"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
@@ -742,22 +741,7 @@ object Dependencies {
   val http4sEmberClient = "org.http4s" %% "http4s-ember-client" % http4sV
   val http4sEmberServer = "org.http4s" %% "http4s-ember-server" % http4sV
   val http4sCirce = "org.http4s" %% "http4s-circe" % http4sV
-  val pact4sScalaTest = "io.github.jbwheatley" %% "pact4s-scalatest" % pact4sV % Test
-  val pact4sCirce = "io.github.jbwheatley" %% "pact4s-circe" % pact4sV
-  val pact4sSpray = "io.github.jbwheatley" %% "pact4s-spray-json" % pact4sV
 
   // Pact4s pulls in an older version of beanutils, need newer one for security patch.
   val apacheBeanUtils =  "commons-beanutils" % "commons-beanutils" % commonsBeanUtilsV
-
-  val pact4sDependencies = Seq(
-    pact4sScalaTest,
-    pact4sCirce,
-    pact4sSpray,
-    http4sEmberClient,
-    http4sDsl,
-    http4sEmberServer,
-    http4sCirce,
-    scalaTest,
-    apacheBeanUtils,
-  ) ++ akkaDependencies
 }

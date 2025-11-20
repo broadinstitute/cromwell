@@ -1,4 +1,4 @@
-Per the spec,
+Per the 1.1 spec,
 
 "Provides input-specific hints in the form of an object. Each key within this
 hint should refer to an actual input defined for the current task. A key may

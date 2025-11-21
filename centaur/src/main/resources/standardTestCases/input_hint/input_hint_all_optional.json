@@ -1,0 +1,4 @@
+{
+  "input_hint_wf.foo": "gs://centaur-ci/textfile_1.txt",
+  "input_hint_wf.bar": ["gs://centaur-ci/textfile_2.txt", "gs://centaur-ci/textfile_3.txt"]
+}

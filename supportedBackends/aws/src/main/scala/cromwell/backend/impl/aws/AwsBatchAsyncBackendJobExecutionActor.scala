@@ -157,6 +157,7 @@ class AwsBatchAsyncBackendJobExecutionActor(
   override lazy val dockerImageUsed: Option[String] = Option(jobDockerImage)
 
   // overriden function : used in StandardAsyncExecutionActor
+  // AWS localization optional came in with the fork and is untested as of 2025-11 (no Centaur cases)
   override def inputsToNotLocalize: Set[WomFile] =
     jobDescriptor.fullyQualifiedInputs.collect {
       case (_, womFile: WomFile)

@@ -51,7 +51,7 @@ cromwell::build::run_centaur \
     -e cachewithinwf \
     -e failures.terminal_status \
     -e bad_file_string \
-    -e awsbatch_labels
+    -e awsbatch_labels \
     -e gpu_required_and_requested
 
 cromwell::build::generate_code_coverage

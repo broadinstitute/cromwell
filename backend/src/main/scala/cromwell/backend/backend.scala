@@ -56,6 +56,8 @@ final case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescrip
     .flatten
     .toSet
 
+  def allInputFiles: Set[WomFile] = evaluatedTaskInputs.values.flatMap(findFiles).toSet
+
   def findFiles(v: WomValue): Set[WomFile] = v match {
     case value: WomFile => Set(value)
     case WomOptionalValue(_, Some(value)) => findFiles(value)

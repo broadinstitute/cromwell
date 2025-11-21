@@ -52,8 +52,6 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     val backendConfig = ConfigFactory.parseString(configString())
 
     val attributes = AwsBatchAttributes.fromConfigs(config, backendConfig)
-    println(attributes)
-    println(attributes.tagResources)
     attributes.executionBucket should be("s3://myBucket")
     attributes.tagResources should be(Some(true))
   }

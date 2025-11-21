@@ -214,6 +214,10 @@ trait StandardAsyncExecutionActor
     */
   def inputsToNotLocalize: Set[WomFile] = Set.empty
 
+  protected def noLocalizationForTask: Boolean =
+    // WDL 1.1: `runtime.localizationOptional` indicates all files for task are optional
+    jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
+
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = { womValue =>
     mapOrNoResolve(mapCommandLineWomFile)(womValue).get

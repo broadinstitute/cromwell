@@ -286,10 +286,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       localizeSkipped ++ localizeMapped
     }
 
-  private def noLocalizationForTask: Boolean =
-    // WDL 1.1: `runtime.localizationOptional` indicates all files for task are optional
-    jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
-
   private def canSkipLocalize(womFile: WomFile): Boolean = {
     var canSkipLocalize = true
     womFile.mapFile { value =>

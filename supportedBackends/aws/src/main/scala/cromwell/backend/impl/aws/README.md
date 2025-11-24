@@ -651,18 +651,14 @@ In case the same instance is reused for multiple tasks, unique tag values are co
 - cromwell-workflow-id : 2443daac-c232-4e0a-920d-fbf53273e9c5;df19029e-cc02-41d5-a26d-8d30c0ab05cb
 - cromwell-task-id : myWorkflow.myTask-None-1
 
-To enable default tagging, add "tagResources = true" to the default-runtime-attributes section of your configuration: 
+To enable default tagging, add "tagResources = true" to your configuration. All tags (including the custom ones described below) will be propagated to the underlying ECS job 
 
 ```
 backend {
     providers {
         AWSBatch {
             config{
-                
-                default-runtime-attributes {
-                    // enable detailed tagging
-                    tagResources = true
-                }
+                tagResources = true
             }
         }
     }
@@ -670,7 +666,7 @@ backend {
 
 ```
 
-Additional, custom tags can be added to jobs, using the "additionalTags" paramter in the "default-runtime-attributes" section of the job definition:
+Additional, custom tags can be added to jobs, using the "additionalTags" parameter in the "default-runtime-attributes" section of the job definition:
 
 ```
 backend {
@@ -689,9 +685,9 @@ backend {
 }
 ```
 
-The _logGroupName_ enables you to send the logs to a custom log group name and tag the jobs that Cromwell submits.  The _additionalTags_ allows you to specify tags to be added to the jobs as <key> : <value> pairs. 
+The _logGroupName_ enables you to send the logs to a custom log group name and tag the jobs that Cromwell submits.  The _additionalTags_ allows you to specify tags to be added to the jobs as <key> : <value> pairs.
 
-
+```
 
 AWS Batch
 ---------

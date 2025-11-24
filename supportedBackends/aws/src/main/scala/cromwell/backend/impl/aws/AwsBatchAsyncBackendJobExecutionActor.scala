@@ -261,7 +261,7 @@ class AwsBatchAsyncBackendJobExecutionActor(
       configuration.efsMntPoint,
       Option(runtimeAttributes.efsMakeMD5),
       Option(runtimeAttributes.efsDelocalize),
-      Option(runtimeAttributes.tagResources),
+      configuration.tagResources,
       runtimeAttributes.logGroupName,
       runtimeAttributes.additionalTags,
       scriptBucketPrefix

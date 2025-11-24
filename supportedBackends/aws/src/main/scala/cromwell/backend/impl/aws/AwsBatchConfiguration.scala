@@ -62,9 +62,9 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
   val efsMntPoint = batchAttributes.efsMntPoint
   val efsMakeMD5 = batchAttributes.efsMakeMD5
   val efsDelocalize = batchAttributes.efsDelocalize
-  val tagResources = batchAttributes.tagResources
   val globLinkCommand = batchAttributes.globLinkCommand
   val checkSiblingMd5 = batchAttributes.checkSiblingMd5
+  val tagResources = batchAttributes.tagResources
 
 }
 

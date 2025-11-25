@@ -577,7 +577,6 @@ final case class AwsBatchJob(
     replaced.patch(insertionPoint, preamble, 0) +
       s"""
          |{
-         |set -e
          |# (re-)add tags to include added volumes:
          |if [[ "${doTagging}" == "true" ]]; then
          |  echo "*** TAGGING RESOURCES ***"
@@ -588,15 +587,20 @@ final case class AwsBatchJob(
          |DELOCALIZATION_FAILED=0
          |$outputCopyCommand
          |echo "DELOCALIZATION RESULT: $$DELOCALIZATION_FAILED"
+         |rc=$$(head -n 1 $workDir/${jobPaths.returnCodeFilename} 2>/dev/null) || rc=1
          |if [[ $$DELOCALIZATION_FAILED -eq 1 ]]; then
          |  echo '*** DELOCALIZATION FAILED ***'
-         |  echo '*** EXITING WITH RETURN CODE 1***'
-         |  exit 1
+         |  if [[ "$$rc" -eq 0 ]]; then
+         |    echo '*** EXITING WITH RETURN CODE 1 ***'
+         |    exit 1
+         |  else
+         |    echo "*** EXITING WITH ORIGINAL RETURN CODE $$rc ***"
+         |    exit $$rc
+         |  fi
          |else
          |  echo '*** COMPLETED DELOCALIZATION ***'
          |fi
          |echo '*** EXITING WITH RETURN CODE ***'
-         |rc=$$(head -n 1 $workDir/${jobPaths.returnCodeFilename})
          |echo $$rc
          |exit $$rc
          |}

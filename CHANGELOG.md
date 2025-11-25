@@ -2,6 +2,9 @@
 
 ## 92 Release Notes
 
+### Migration of PK to BIGINT
+The PK of the JOB_KEY_VALUE_ENTRY table will be migrated from INT to BIGINT.
+
 ### AWS Batch
 * Moved the option to tag job resources from runtime attributes to backend config.
 * Appended the custom labels to the list of resource tags to propagate

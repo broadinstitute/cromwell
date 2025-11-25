@@ -23,6 +23,9 @@ The index `IX_METADATA_ENTRY_WEU_CFQN_JSI_JRA_MK` is added to `METADATA_ENTRY`. 
 
 This index supports planned metadata API enhancements that enable querying at granular scopes, namely calls, shards, and attempts.
 
+### AWS Batch
+* Fixed an issue where job failures before all outputs were written would cause delocalization to fail, preventing the upload of return code, stdout, and stderr files needed for debugging.
+
 ## 91 Release Notes
 
 #### Removal of Google LifeSciences backend code

@@ -193,6 +193,14 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
   protected def serviceName: Option[String] = None
 
   /**
+    * Returns the repository path to use in manifest and token URIs.
+    * Default behavior adds "library" repository for images without an explicit repository.
+    * Registries can override this for custom behavior (e.g., ECR doesn't need "library").
+    */
+  protected def getRepositoryPath(dockerImageID: DockerImageIdentifier): String =
+    dockerImageID.nameWithDefaultRepository
+
+  /**
     * Builds the token URI to be queried based on a DockerImageID
     */
   protected def buildTokenRequestUri(dockerImageID: DockerImageIdentifier): Uri = {
@@ -201,7 +209,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
       scheme = Option(Scheme.https),
       authority = Option(Authority(host = Uri.RegName(authorizationServerHostName(dockerImageID)))),
       path = "/token",
-      query = Query.fromString(s"${service}scope=repository:${dockerImageID.nameWithDefaultRepository}:pull")
+      query = Query.fromString(s"${service}scope=repository:${getRepositoryPath(dockerImageID)}:pull")
     )
   }
 
@@ -233,7 +241,7 @@ abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfi
     Uri.apply(
       scheme = Option(Scheme.https),
       authority = Option(Authority(host = Uri.RegName(registryHostName(dockerImageID)))),
-      path = s"/v2/${dockerImageID.nameWithDefaultRepository}/manifests/${dockerImageID.reference}"
+      path = s"/v2/${getRepositoryPath(dockerImageID)}/manifests/${dockerImageID.reference}"
     )
 
   /**

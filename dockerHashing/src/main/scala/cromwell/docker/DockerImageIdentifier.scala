@@ -18,7 +18,7 @@ sealed trait DockerImageIdentifier {
   lazy val name = repository map { r => s"$r/$image" } getOrElse image
   // The name of the image with a repository prefix if a repository was specified, or with a default repository prefix of
   // "library" if no repository was specified.
-  lazy val nameWithDefaultRepository = repository.getOrElse(DefaultRepository) + s"/$image"
+  lazy val nameWithDefaultRepository = repository.getOrElse(DefaultRepository) + s"$image"
   lazy val hostAsString = host map { h => s"$h/" } getOrElse ""
   // The full name of this image, including a repository prefix only if a repository was explicitly specified.
   lazy val fullName = s"$hostAsString$name:$reference"
@@ -59,7 +59,7 @@ case class DockerImageIdentifierWithHash(host: Option[String],
 
 object DockerImageIdentifier {
   private val DefaultDockerTag = "latest"
-  val DefaultRepository = "library"
+  val DefaultRepository = ""
 
   private val DockerStringRegex =
     s"""

@@ -23,6 +23,10 @@ The index `IX_METADATA_ENTRY_WEU_CFQN_JSI_JRA_MK` is added to `METADATA_ENTRY`. 
 
 This index supports planned metadata API enhancements that enable querying at granular scopes, namely calls, shards, and attempts.
 
+### AWS ECR Docker Remote Hashing
+
+Fixed an issue where ECR images without an explicit repository prefix (e.g., `123456789012.dkr.ecr.us-east-1.amazonaws.com/example-tool`) would fail during remote hash computation due to incorrect manifest URI construction. The Docker registry implementation now correctly handles ECR's support for repository-less image paths.
+
 ## 91 Release Notes
 
 #### Removal of Google LifeSciences backend code

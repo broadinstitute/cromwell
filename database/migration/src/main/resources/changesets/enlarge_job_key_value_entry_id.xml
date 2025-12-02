@@ -5,8 +5,8 @@
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
 
     <!-- BEGIN JOB_KEY_VALUE_ENTRY PK widening -->
-    <!-- For HSQLDB and Postgres database there are 2 changesets: one for modifying the table column type, and another one for altering the autoincrementing sequence.
-         The other DBs can be refactored similarly with a single addAutoIncrement changeset. The start of autoincrement is set at 20,000,000,000. -->
+    <!-- For Postgresql there are 2 changesets: one for modifying the table column type, and another one for altering the autoincrementing sequence.
+              The other DBs can be refactored similarly with a single addAutoIncrement changeset. -->
     <changeSet author="lbaldo" id="enlarge_job_key_value_entry_id" dbms="mysql,hsqldb,mariadb">
         <addAutoIncrement
                 columnName="JOB_KEY_VALUE_ENTRY_ID"

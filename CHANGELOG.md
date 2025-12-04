@@ -2,6 +2,11 @@
 
 ## 92 Release Notes
 
+### AWS ECR Docker Remote Hashing
+* Fixed an issue where ECR images without an explicit repository prefix
+(e.g., `123456789012.dkr.ecr.us-east-1.amazonaws.com/example-tool`) would fail during remote hash computation due to incorrect manifest URI construction. 
+The Docker registry implementation now correctly handles ECR's support for repository-less image paths.
+
 ### AWS Batch
 * Moved the option to tag job resources from runtime attributes to backend config.
 * Appended the custom labels to the list of resource tags to propagate

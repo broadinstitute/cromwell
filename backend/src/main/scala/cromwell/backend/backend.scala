@@ -56,6 +56,8 @@ final case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescrip
     .flatten
     .toSet
 
+  def allInputFiles: Set[WomFile] = evaluatedTaskInputs.values.flatMap(findFiles).toSet
+
   def findFiles(v: WomValue): Set[WomFile] = v match {
     case value: WomFile => Set(value)
     case WomOptionalValue(_, Some(value)) => findFiles(value)
@@ -151,8 +153,8 @@ object CommonBackendConfigurationAttributes {
     "default-runtime-attributes.ulimits",
     "default-runtime-attributes.efsDelocalize",
     "default-runtime-attributes.efsMakeMD5",
-    "default-runtime-attributes.tagResources",
     "default-runtime-attributes.failOnStderr",
+    "tagResources",
     "slow-job-warning-time",
     "dockerhub",
     "dockerhub.account",

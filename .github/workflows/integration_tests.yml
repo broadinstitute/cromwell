@@ -31,6 +31,8 @@ jobs:
       #Friendly names are displayed on the Github UI and aren't used anywhere else.
       matrix:
         # Batch test fixes to land later
+        # Note that build_type match to the corresponding backend configuration following some
+        # annoying string matching magic defined here https://github.com/broadinstitute/cromwell/blob/bd88152d0e5dc6f41552c663b38012033a43c2b4/src/ci/bin/test.inc.sh#L194
         include:
           - build_type: centaurGcpBatch
             build_mysql: 8.4
@@ -54,6 +56,9 @@ jobs:
           - build_type: centaurAwsRestart
             build_mysql: 8.4
             friendly_name: Centaur AWS (restart)
+          - build_type: centaurAwsTagResources
+            build_mysql: 8.4
+            friendly_name: Centaur AWS (Tag Resources)
           - build_type: centaurAwsHoricromtal
             build_mysql: 8.4
             friendly_name: Centaur Horicromtal AWS

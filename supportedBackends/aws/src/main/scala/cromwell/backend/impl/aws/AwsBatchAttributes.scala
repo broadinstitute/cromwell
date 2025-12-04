@@ -65,8 +65,8 @@ case class AwsBatchAttributes(fileSystem: String,
                               fsxMntPoint: Option[List[String]],
                               efsMntPoint: Option[String],
                               efsMakeMD5: Option[Boolean],
-                              tagResources: Option[Boolean],
                               efsDelocalize: Option[Boolean],
+                              tagResources: Option[Boolean],
                               globLinkCommand: Option[String],
                               checkSiblingMd5: Option[Boolean]
 )
@@ -200,8 +200,8 @@ object AwsBatchAttributes {
     }
     // from config if set:
     val tagResources: ErrorOr[Option[Boolean]] = validate {
-      backendConfig.hasPath("default-runtime-attributes.tagResources") match {
-        case true => Some(backendConfig.getBoolean("default-runtime-attributes.tagResources"))
+      backendConfig.hasPath("tagResources") match {
+        case true => Some(backendConfig.getBoolean("tagResources"))
         case false => None
       }
     }

@@ -683,11 +683,14 @@ final case class AwsBatchJob(
         .tags(runtimeAttributes.additionalTags.asJava)
         .jobQueue(runtimeAttributes.queueArn)
         .jobDefinition(definitionArn)
-      // tagging activated : add to request
+      // tagging activated: add metadata (custom labels) and engine tags to request
       if (tagResources.getOrElse(false)) {
         // replace invalid characters in the tags
         val invalidCharsPattern = "[^a-zA-Z0-9_.:/=+-@]+".r
-        val tags: Map[String, String] = Map(
+        val customLabels: Map[String, String] = jobDescriptor.workflowDescriptor.customLabels.asMap.map { case (k, v) =>
+          invalidCharsPattern.replaceAllIn(k, "_") -> invalidCharsPattern.replaceAllIn(v, "_")
+        }
+        val Tags: Map[String, String] = Map(
           "cromwell-workflow-name" -> invalidCharsPattern.replaceAllIn(workflowName, "_"),
           "cromwell-workflow-id" -> invalidCharsPattern.replaceAllIn(workflowId, "_"),
           "cromwell-task-id" -> invalidCharsPattern.replaceAllIn(taskId, "_"),
@@ -698,7 +701,10 @@ final case class AwsBatchJob(
             "_"
           )
         )
-        submitJobRequest = submitJobRequest.tags(tags.asJava).propagateTags(true)
+
+        // Combine both maps - Tags will override customLabels if there are duplicate keys
+        val allTags: Map[String, String] = customLabels ++ Tags
+        submitJobRequest = submitJobRequest.tags(allTags.asJava).propagateTags(true)
       }
       // JobTimeout provided (positive value) : add to request
       if (runtimeAttributes.jobTimeout > 0) {

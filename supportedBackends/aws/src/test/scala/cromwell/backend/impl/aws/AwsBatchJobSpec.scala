@@ -471,7 +471,6 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     val job = generateJobWithS3InOut
     val postscript =
       s"""
-         |set -e
          |# (re-)add tags to include added volumes:
          |if [[ "false" == "true" ]]; then
          |  echo "*** TAGGING RESOURCES ***"
@@ -487,10 +486,16 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |if [ -f "/tmp/scratch/hello-stdout.log" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-stdout.log" "${job.jobPaths.standardPaths.output}"; fi
          |
          |echo "DELOCALIZATION RESULT: $$DELOCALIZATION_FAILED"
+         |rc=$$(head -n 1 /tmp/scratch/hello-rc.txt 2>/dev/null) || rc=1
          |if [[ $$DELOCALIZATION_FAILED -eq 1 ]]; then
          |  echo '*** DELOCALIZATION FAILED ***'
-         |  echo '*** EXITING WITH RETURN CODE 1***'
-         |  exit 1
+         |  if [[ "$$rc" -eq 0 ]]; then
+         |    echo '*** EXITING WITH RETURN CODE 1 ***'
+         |    exit 1
+         |  else
+         |    echo "*** EXITING WITH ORIGINAL RETURN CODE $$rc ***"
+         |    exit $$rc
+         |  fi
          |else
          |  echo '*** COMPLETED DELOCALIZATION ***'
          |fi

@@ -65,6 +65,7 @@ class AwsBatchConfiguration(val configurationDescriptor: BackendConfigurationDes
   val globLinkCommand = batchAttributes.globLinkCommand
   val checkSiblingMd5 = batchAttributes.checkSiblingMd5
   val tagResources = batchAttributes.tagResources
+  val tagHardware = batchAttributes.tagHardware
 
 }
 

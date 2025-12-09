@@ -545,15 +545,15 @@ final case class AwsBatchJob(
 
           // files on /cromwell/ working dir must be delocalized
           case output: AwsBatchFileOutput
-            if output.s3key.startsWith(
-              "s3://"
-            ) && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
+              if output.s3key.startsWith(
+                "s3://"
+              ) && output.mount.mountPoint.pathAsString == AwsBatchWorkingDisk.MountPoint.pathAsString =>
             // output is on working disk mount
             s"""_s3_delocalize_with_retry "$workDir/${output.local.pathAsString}" "${output.s3key}" "${output.optional}" """.stripMargin
 
           // files on EFS mounts are optionally delocalized.
           case output: AwsBatchFileOutput
-            if efsMntPoint.isDefined && output.mount.mountPoint.pathAsString == efsMntPoint.get =>
+              if efsMntPoint.isDefined && output.mount.mountPoint.pathAsString == efsMntPoint.get =>
             Log.debug(
               "EFS output file detected: " + output.s3key + s" / ${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}"
             )
@@ -563,10 +563,8 @@ final case class AwsBatchJob(
               s"""_s3_delocalize_with_retry "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" "${output.s3key}" "${output.optional}" """.stripMargin
             } else {
               Log.debug("efs-delocalization disabled")
-              s"""_check_efs_outfile "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" "${
-                efsMakeMD5
-                  .getOrElse(false)
-              }" "${output.optional}" """.stripMargin
+              s"""_check_efs_outfile "${output.mount.mountPoint.pathAsString}/${output.local.pathAsString}" "${efsMakeMD5
+                  .getOrElse(false)}" "${output.optional}" """.stripMargin
             }
 
           case output: AwsBatchFileOutput =>
@@ -592,6 +590,7 @@ final case class AwsBatchJob(
          |  echo "*** TAGGING RESOURCES ***"
          |  _add_tags
          |fi
+         |
          |echo '*** DELOCALIZING OUTPUTS ***'
          |DELOCALIZATION_FAILED=0
          |$outputCopyCommand

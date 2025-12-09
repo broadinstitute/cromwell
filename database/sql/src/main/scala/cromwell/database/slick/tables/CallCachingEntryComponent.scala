@@ -2,6 +2,8 @@ package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.CallCachingEntry
 
+import java.sql.Timestamp
+
 trait CallCachingEntryComponent {
 
   this: DriverComponent =>
@@ -23,13 +25,16 @@ trait CallCachingEntryComponent {
 
     def allowResultReuse = column[Boolean]("ALLOW_RESULT_REUSE", O.Default(true))
 
+    def createdAt = column[Timestamp]("CREATED_AT", O.Default(new Timestamp(System.currentTimeMillis())))
+
     override def * = (workflowExecutionUuid,
                       callFullyQualifiedName,
                       jobIndex,
                       jobAttempt,
                       returnCode,
                       allowResultReuse,
-                      callCachingEntryId.?
+                      callCachingEntryId.?,
+                      createdAt.?
     ) <> (CallCachingEntry.tupled, CallCachingEntry.unapply)
 
     def ucCallCachingEntryWeuCfqnJi =

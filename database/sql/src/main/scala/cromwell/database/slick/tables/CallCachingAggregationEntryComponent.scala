@@ -88,7 +88,8 @@ trait CallCachingAggregationEntryComponent {
       if callCachingAggregationEntry.baseAggregation === baseAggregation
       if (callCachingAggregationEntry.inputFilesAggregation.isEmpty && inputFilesAggregation.isEmpty) ||
         (callCachingAggregationEntry.inputFilesAggregation === inputFilesAggregation)
-    } yield callCachingAggregationEntry.callCachingEntryId).take(1)
+      // reverses the order to get the most recent entry first
+    } yield callCachingAggregationEntry.callCachingEntryId).sortBy(_.desc).take(1)
 
   def callCachingEntriesForAggregatedHashesWithPrefixes(baseAggregation: Rep[String],
                                                         inputFilesAggregation: Rep[Option[String]],
@@ -117,5 +118,6 @@ trait CallCachingAggregationEntryComponent {
       if (detritusPath.substring(0, prefix1Length) === prefix1) ||
         (detritusPath.substring(0, prefix2Length) === prefix2) ||
         (detritusPath.substring(0, prefix3Length) === prefix3)
-    } yield callCachingAggregationEntry.callCachingEntryId).take(1)
+      // reverses the order to get the most recent entry first
+    } yield callCachingAggregationEntry.callCachingEntryId).sortBy(_.desc).take(1)
 }

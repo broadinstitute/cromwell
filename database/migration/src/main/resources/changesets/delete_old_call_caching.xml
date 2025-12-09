@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.3.xsd">
+
+    <changeSet id="delete_old_call_caching" author="lmcnatt" dbms="mysql,hsqldb,mariadb,postgresql">
+                <sql>
+                    <![CDATA[
+                        CREATE EVENT IF NOT EXISTS delete_old_call_cache_entries
+                            ON SCHEDULE EVERY 1 DAY
+                            DO
+                                DELETE FROM CALL_CACHING_ENTRY WHERE CREATED_AT < (NOW() - INTERVAL 90 DAY);
+                    ]]>
+                </sql>
+    </changeSet>
+</databaseChangeLog>

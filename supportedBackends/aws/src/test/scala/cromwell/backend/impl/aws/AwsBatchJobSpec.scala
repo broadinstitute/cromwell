@@ -159,6 +159,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     None,
     None,
     None,
+    None,
     None
   )
 
@@ -178,6 +179,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       Seq.empty[AwsBatchFileOutput].toSet,
       jobPaths,
       Seq.empty[AwsBatchParameter],
+      None,
       None,
       None,
       None,
@@ -214,6 +216,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
       "",
       Map.empty,
       None
@@ -234,6 +237,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       s3Outputs,
       jobPaths,
       Seq.empty[AwsBatchParameter],
+      None,
       None,
       None,
       None,
@@ -650,6 +654,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
       "",
       Map.empty,
       Some("my-project/workflow-123")
@@ -673,6 +678,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       Seq.empty[AwsBatchFileOutput].toSet,
       jobPaths,
       Seq.empty[AwsBatchParameter],
+      None,
       None,
       None,
       None,
@@ -706,6 +712,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       Seq.empty[AwsBatchFileOutput].toSet,
       jobPaths,
       Seq.empty[AwsBatchParameter],
+      None,
       None,
       None,
       None,

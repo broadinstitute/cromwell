@@ -3,6 +3,7 @@
 ## 92 Release Notes
 
 ### AWS Batch
+* Fixed an issue where job failures before all outputs were written would cause delocalization to fail, preventing the upload of return code, stdout, and stderr files needed for debugging.
 * Split the option to tag resources between AWS Batch jobs vs. EC2 and EBS volumes hardware
 * Moved the option to tag job resources from runtime attributes to backend config.
 * Appended the custom labels to the list of resource tags to propagate

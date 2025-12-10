@@ -155,6 +155,7 @@ object CommonBackendConfigurationAttributes {
     "default-runtime-attributes.efsMakeMD5",
     "default-runtime-attributes.failOnStderr",
     "tagResources",
+    "tagHardware",
     "slow-job-warning-time",
     "dockerhub",
     "dockerhub.account",

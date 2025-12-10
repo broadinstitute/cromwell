@@ -3,6 +3,7 @@
 ## 92 Release Notes
 
 ### AWS Batch
+* Split the option to tag resources between AWS Batch jobs vs. EC2 and EBS volumes hardware
 * Moved the option to tag job resources from runtime attributes to backend config.
 * Appended the custom labels to the list of resource tags to propagate
 

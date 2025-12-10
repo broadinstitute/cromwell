@@ -25,7 +25,7 @@ trait CallCachingEntryComponent {
 
     def allowResultReuse = column[Boolean]("ALLOW_RESULT_REUSE", O.Default(true))
 
-    def createdAt = column[Timestamp]("CREATED_AT", O.Default(new Timestamp(System.currentTimeMillis())))
+    def createdAt = column[Timestamp]("CREATED_AT")
 
     override def * = (workflowExecutionUuid,
                       callFullyQualifiedName,

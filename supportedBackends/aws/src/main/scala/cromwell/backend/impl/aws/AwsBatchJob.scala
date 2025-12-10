@@ -93,6 +93,7 @@ final case class AwsBatchJob(
   efsMakeMD5: Option[Boolean],
   efsDelocalize: Option[Boolean],
   tagResources: Option[Boolean],
+  tagHardware: Option[Boolean],
   logGroupName: String,
   additionalTags: Map[String, String],
   scriptBucketPrefix: Option[String]
@@ -193,7 +194,7 @@ final case class AwsBatchJob(
       jobDescriptor.key.call.fullyQualifiedName + "-" + jobDescriptor.key.index + "-" + jobDescriptor.key.attempt,
       "_"
     )
-    val doTagging = tagResources.getOrElse(false)
+    val doTagging = tagHardware.getOrElse(false)
     // this goes at the start of the script after the #!
     val preamble =
       s"""
@@ -832,6 +833,7 @@ final case class AwsBatchJob(
           efsMakeMD5 = efsMakeMD5,
           efsDelocalize = efsDelocalize,
           tagResources = tagResources,
+          tagHardware = tagHardware,
           jobRoleArn = jobRoleArn
         )
 

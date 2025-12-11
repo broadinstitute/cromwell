@@ -100,7 +100,8 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef,
 object CallCacheReadingJobActor {
 
   def props(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes], maxResultAgeDays: Option[Long]) =
-    Props(new CallCacheReadingJobActor(callCacheReadActor, prefixesHint, maxResultAgeDays)).withDispatcher(EngineDispatcher)
+    Props(new CallCacheReadingJobActor(callCacheReadActor, prefixesHint, maxResultAgeDays))
+      .withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheReadingJobActorState
   case object WaitingForInitialHash extends CallCacheReadingJobActorState

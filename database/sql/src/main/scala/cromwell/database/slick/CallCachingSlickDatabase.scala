@@ -106,7 +106,11 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     val action = callCachePathPrefixes match {
       case None =>
         dataAccess
-          .callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, excludedIds, maxResultAgeDays)
+          .callCachingEntriesForAggregatedHashes(baseAggregationHash,
+                                                 inputFilesAggregationHash,
+                                                 excludedIds,
+                                                 maxResultAgeDays
+          )
           .result
           .headOption
       case Some(ps) =>

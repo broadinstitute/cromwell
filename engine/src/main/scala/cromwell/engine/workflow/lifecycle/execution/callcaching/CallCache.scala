@@ -33,7 +33,8 @@ class CallCache(database: CallCachingSqlDatabase) {
         jobIndex = b.jobIndex.fromIndex,
         jobAttempt = b.jobAttempt,
         returnCode = b.returnCode,
-        allowResultReuse = b.allowResultReuse)
+        allowResultReuse = b.allowResultReuse
+      )
       val result = b.callOutputs.outputs.simplify
       val jobDetritus = b.jobDetritusFiles.getOrElse(Map.empty)
       buildCallCachingJoin(metaInfo, b.callCacheHashes, result, jobDetritus)

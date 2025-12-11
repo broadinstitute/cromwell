@@ -31,10 +31,17 @@ import cromwell.engine.workflow.lifecycle.OutputsLocationHelper.FileRelocationMa
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData.DataStoreUpdate
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
-import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{ExpressionEvaluationFailedResponse, ExpressionEvaluationSucceededResponse}
+import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{
+  ExpressionEvaluationFailedResponse,
+  ExpressionEvaluationSucceededResponse
+}
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.{ActiveExecutionStore, ExecutionStore}
-import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse, OutputsLocationHelper}
+import cromwell.engine.workflow.lifecycle.{
+  EngineLifecycleActorAbortCommand,
+  EngineLifecycleActorAbortedResponse,
+  OutputsLocationHelper
+}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -787,7 +794,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       maxFailedCopyAttempts = params.rootConfig.getInt("call-caching.max-failed-copy-attempts"),
       blacklistCache = params.blacklistCache,
       fileHashBatchSize = FileHashBatchSize,
-      maxResultAgeDays = params.rootConfig.as[Option[Long]]("call-caching.max-result-age-days")  //getInt("call-caching.max-result-age-days")
+      maxResultAgeDays = params.rootConfig.as[Option[Long]](
+        "call-caching.max-result-age-days"
+      ) // getInt("call-caching.max-result-age-days")
     )
 
     val ejeaProps = EngineJobExecutionActor.props(

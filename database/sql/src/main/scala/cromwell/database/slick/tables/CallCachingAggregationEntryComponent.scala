@@ -2,6 +2,10 @@ package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.CallCachingAggregationEntry
 
+import java.sql.Timestamp
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+
 trait CallCachingAggregationEntryComponent {
 
   this: DriverComponent with CallCachingEntryComponent with CallCachingDetritusEntryComponent =>
@@ -78,11 +82,18 @@ trait CallCachingAggregationEntryComponent {
 
   def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String],
                                             inputFilesAggregation: Rep[Option[String]],
-                                            excludedIds: Set[Long]
+                                            excludedIds: Set[Long],
+                                            maxResultAgeDays: Option[Long]
   ) =
     (for {
       callCachingEntry <- callCachingEntries
-      if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
+      if callCachingEntry.allowResultReuse &&
+        !(callCachingEntry.callCachingEntryId inSet excludedIds) &&
+        // Filter entries from last 90 days
+        maxResultAgeDays.fold(LiteralColumn(true): Rep[Boolean])(days =>
+          callCachingEntry.createdAt >= Timestamp.from(Instant.now().minus(days, ChronoUnit.DAYS))
+        )
+
       callCachingAggregationEntry <- callCachingAggregationEntries
       if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
       if callCachingAggregationEntry.baseAggregation === baseAggregation
@@ -99,11 +110,18 @@ trait CallCachingAggregationEntryComponent {
                                                         prefix2Length: Rep[Int],
                                                         prefix3: Rep[String],
                                                         prefix3Length: Rep[Int],
-                                                        excludedIds: Set[Long]
+                                                        excludedIds: Set[Long],
+                                                        maxResultAgeDays: Option[Long]
   ) =
     (for {
       callCachingEntry <- callCachingEntries
-      if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
+      if callCachingEntry.allowResultReuse &&
+        !(callCachingEntry.callCachingEntryId inSet excludedIds) &&
+        // Filter entries from last 90 days
+        maxResultAgeDays.fold(LiteralColumn(true): Rep[Boolean])(days =>
+          callCachingEntry.createdAt >= Timestamp.from(Instant.now().minus(days, ChronoUnit.DAYS))
+        )
+
       callCachingAggregationEntry <- callCachingAggregationEntries
       if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
       if callCachingAggregationEntry.baseAggregation === baseAggregation

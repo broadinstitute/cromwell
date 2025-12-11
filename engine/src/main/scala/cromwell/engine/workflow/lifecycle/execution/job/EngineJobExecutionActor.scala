@@ -730,7 +730,7 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           jobDescriptor,
           initializationData,
           fileHashingActorProps,
-          CallCacheReadingJobActor.props(callCachingParameters.readActor, callCachePathPrefixes),
+          CallCacheReadingJobActor.props(callCachingParameters.readActor, callCachePathPrefixes, callCachingParameters.maxResultAgeDays),
           backendLifecycleActorFactory.runtimeAttributeDefinitions(initializationData),
           backendLifecycleActorFactory.nameForCallCachingPurposes,
           activity,
@@ -1076,7 +1076,8 @@ object EngineJobExecutionActor {
     fileHashCacheActor: Option[ActorRef],
     maxFailedCopyAttempts: Int,
     blacklistCache: Option[BlacklistCache],
-    fileHashBatchSize: Int
+    fileHashBatchSize: Int,
+    maxResultAgeDays: Option[Long]
   )
 
   /** Commands */

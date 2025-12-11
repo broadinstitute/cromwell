@@ -34,7 +34,7 @@ trait CallCachingEntryComponent {
                       returnCode,
                       allowResultReuse,
                       callCachingEntryId.?,
-                      createdAt.?
+                      createdAt
     ) <> (CallCachingEntry.tupled, CallCachingEntry.unapply)
 
     def ucCallCachingEntryWeuCfqnJi =

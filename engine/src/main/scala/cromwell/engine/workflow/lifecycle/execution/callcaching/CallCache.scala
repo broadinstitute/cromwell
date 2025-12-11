@@ -33,8 +33,7 @@ class CallCache(database: CallCachingSqlDatabase) {
         jobIndex = b.jobIndex.fromIndex,
         jobAttempt = b.jobAttempt,
         returnCode = b.returnCode,
-        allowResultReuse = b.allowResultReuse
-      )
+        allowResultReuse = b.allowResultReuse)
       val result = b.callOutputs.outputs.simplify
       val jobDetritus = b.jobDetritusFiles.getOrElse(Map.empty)
       buildCallCachingJoin(metaInfo, b.callCacheHashes, result, jobDetritus)
@@ -87,14 +86,16 @@ class CallCache(database: CallCachingSqlDatabase) {
 
   def callCachingHitForAggregatedHashes(aggregatedCallHashes: AggregatedCallHashes,
                                         prefixesHint: Option[CallCachePathPrefixes],
-                                        excludedIds: Set[CallCachingEntryId]
+                                        excludedIds: Set[CallCachingEntryId],
+                                        maxResultAgeDays: Option[Long]
   )(implicit ec: ExecutionContext): Future[Option[CallCachingEntryId]] =
     database
       .findCacheHitForAggregation(
         baseAggregationHash = aggregatedCallHashes.baseAggregatedHash,
         inputFilesAggregationHash = aggregatedCallHashes.inputFilesAggregatedHash,
         callCachePathPrefixes = prefixesHint.map(_.prefixes),
-        excludedIds.map(_.id)
+        excludedIds.map(_.id),
+        maxResultAgeDays = maxResultAgeDays
       )
       .map(_ map CallCachingEntryId.apply)
 

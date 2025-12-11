@@ -108,7 +108,8 @@ class CallCachingSlickDatabaseSpec
             "BASE_AGGREGATION",
             Option("FILE_AGGREGATION"),
             callCachePathPrefixes = prefixOption,
-            Set.empty
+            Set.empty,
+            None
           )
           _ = hit shouldBe empty
         } yield ()).futureValue

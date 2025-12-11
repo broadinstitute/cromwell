@@ -12,6 +12,7 @@ The Docker registry implementation now correctly handles ECR's support for repos
 * Split the option to tag resources between AWS Batch jobs vs. EC2 and EBS volumes hardware
 * Moved the option to tag job resources from runtime attributes to backend config.
 * Appended the custom labels to the list of resource tags to propagate
+* Added support for submitting jobs to AWS Batch queues in different regions. The region is now automatically derived from the `queueArn` runtime attribute, allowing multi-region workflows without additional configuration.
 
 ### Progress toward WDL 1.1 Support
 * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 92, `development-1.1` has been enhanced to include:

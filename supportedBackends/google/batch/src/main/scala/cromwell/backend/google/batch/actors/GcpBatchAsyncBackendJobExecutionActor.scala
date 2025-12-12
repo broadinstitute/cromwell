@@ -276,29 +276,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     if (noLocalizationForTask)
       jobDescriptor.allInputFiles
     else {
-      val nonlocalizedFiles: Set[WomFile] = jobDescriptor.findInputFilesByParameterMeta {
+      jobDescriptor.findInputFilesByParameterMeta {
         case MetaValueElementObject(values) =>
           values.get("localization_optional").contains(MetaValueElementBoolean(true))
         case _ => false
       }
-      val localizeSkipped = nonlocalizedFiles.filter(canSkipLocalize)
-      val localizeMapped = localizeSkipped.map(cloudResolveWomFile)
-      localizeSkipped ++ localizeMapped
     }
-
-  private def canSkipLocalize(womFile: WomFile): Boolean = {
-    var canSkipLocalize = true
-    womFile.mapFile { value =>
-      getPath(value) match {
-        case Success(_: DrsPath) =>
-          // Simplify logic: DRS never has GCS paths anymore
-          canSkipLocalize = false
-        case _ => /* ignore */
-      }
-      value
-    }
-    canSkipLocalize
-  }
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
   protected lazy val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] =
@@ -1312,7 +1295,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   override def cloudResolveWomFile(womFile: WomFile): WomFile =
     womFile.mapFile { value =>
       getPath(value) match {
-        case Success(drsPath: DrsPath) => DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync().getOrElse(value)
+        case Success(drsPath: DrsPath) =>
+          // Notice! DRS paths NEVER resolve to GCS URIs any longer, so this code is fruitless
+          DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync().getOrElse(value)
         case Success(path) => path.pathAsString
         case _ => value
       }

@@ -290,11 +290,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     var canSkipLocalize = true
     womFile.mapFile { value =>
       getPath(value) match {
-        case Success(drsPath: DrsPath) =>
-          val gsUriOption = DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync()
-          if (gsUriOption.isEmpty) {
-            canSkipLocalize = false
-          }
+        case Success(_: DrsPath) =>
+          // Simplify logic: DRS never has GCS paths anymore
+          canSkipLocalize = false
         case _ => /* ignore */
       }
       value

@@ -6,7 +6,7 @@
 
     <changeSet id="add_timestamp_in_call_caching" author="lmcnatt" dbms="mysql,hsqldb,mariadb,postgresql">
         <addColumn tableName="CALL_CACHING_ENTRY">
-            <column name="CREATED_AT" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+            <column name="CREATED_AT" type="TIMESTAMP">
                 <constraints nullable="false" />
             </column>
         </addColumn>

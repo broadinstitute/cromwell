@@ -15,6 +15,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
 import org.scalatest.time.{Millis, Seconds, Span}
 
+import java.sql.Timestamp
+import java.time.Instant
 import scala.concurrent.ExecutionContext
 
 class CallCachingSlickDatabaseSpec
@@ -58,7 +60,8 @@ class CallCachingSlickDatabaseSpec
         1,
         None,
         None,
-        allowResultReuse = false
+        allowResultReuse = false,
+        createdAt = Timestamp.from(Instant.now())
       )
 
       val callCachingHashEntriesA = Seq(

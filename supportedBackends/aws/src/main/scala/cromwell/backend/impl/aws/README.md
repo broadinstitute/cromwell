@@ -651,7 +651,8 @@ In case the same instance is reused for multiple tasks, unique tag values are co
 - cromwell-workflow-id : 2443daac-c232-4e0a-920d-fbf53273e9c5;df19029e-cc02-41d5-a26d-8d30c0ab05cb
 - cromwell-task-id : myWorkflow.myTask-None-1
 
-To enable default tagging, add "tagResources = true" to your configuration. All tags (including the custom ones described below) will be propagated to the underlying ECS job 
+To enable tagging, add "tagResources = true" to your configuration. All tags (including the custom ones described below) will be propagated to the underlying ECS job.
+If you would also like to tag the EC2 instances and EBS volumes created by the compute environment, add "tagHardware = true" to your configuration
 
 ```
 backend {
@@ -659,6 +660,7 @@ backend {
         AWSBatch {
             config{
                 tagResources = true
+                tagHardware = true
             }
         }
     }

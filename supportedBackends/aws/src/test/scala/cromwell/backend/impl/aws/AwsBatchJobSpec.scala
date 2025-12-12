@@ -159,6 +159,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     None,
     None,
     None,
+    None,
     None
   )
 
@@ -178,6 +179,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       Seq.empty[AwsBatchFileOutput].toSet,
       jobPaths,
       Seq.empty[AwsBatchParameter],
+      None,
       None,
       None,
       None,
@@ -214,6 +216,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
       "",
       Map.empty,
       None
@@ -234,6 +237,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       s3Outputs,
       jobPaths,
       Seq.empty[AwsBatchParameter],
+      None,
       None,
       None,
       None,
@@ -471,6 +475,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     val job = generateJobWithS3InOut
     val postscript =
       s"""
+         |{
          |set -e
          |# (re-)add tags to include added volumes:
          |if [[ "false" == "true" ]]; then
@@ -480,11 +485,12 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |
          |echo '*** DELOCALIZING OUTPUTS ***'
          |DELOCALIZATION_FAILED=0
-         |_s3_delocalize_with_retry "/tmp/scratch/baa" "s3://bucket/somewhere/baa" "false" 
          |
          |if [ -f "/tmp/scratch/hello-rc.txt" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-rc.txt" "${job.jobPaths.returnCode}" ; fi
          |if [ -f "/tmp/scratch/hello-stderr.log" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-stderr.log" "${job.jobPaths.standardPaths.error}"; fi
          |if [ -f "/tmp/scratch/hello-stdout.log" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-stdout.log" "${job.jobPaths.standardPaths.output}"; fi
+         |
+         |_s3_delocalize_with_retry "/tmp/scratch/baa" "s3://bucket/somewhere/baa" "false"
          |
          |echo "DELOCALIZATION RESULT: $$DELOCALIZATION_FAILED"
          |if [[ $$DELOCALIZATION_FAILED -eq 1 ]]; then
@@ -500,7 +506,9 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |exit $$rc
          |}
          |""".stripMargin
-    job.reconfiguredScript should include(postscript)
+
+    val normalize: String => String = s => s.replaceAll("\\s+", " ").trim
+    normalize(job.reconfiguredScript) should include(normalize(postscript))
   }
 
   it should "generate preamble with input copy command in reconfigured script" in {
@@ -650,6 +658,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
       "",
       Map.empty,
       Some("my-project/workflow-123")
@@ -673,6 +682,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       Seq.empty[AwsBatchFileOutput].toSet,
       jobPaths,
       Seq.empty[AwsBatchParameter],
+      None,
       None,
       None,
       None,
@@ -706,6 +716,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       Seq.empty[AwsBatchFileOutput].toSet,
       jobPaths,
       Seq.empty[AwsBatchParameter],
+      None,
       None,
       None,
       None,

@@ -2,6 +2,9 @@
 
 ## 92 Release Notes
 
+### Migration of PK to BIGINT
+The PK of the JOB_KEY_VALUE_ENTRY table will be migrated from INT to BIGINT.
+
 ### AWS ECR Docker Remote Hashing
 * Fixed an issue where ECR images without an explicit repository prefix
 (e.g., `123456789012.dkr.ecr.us-east-1.amazonaws.com/example-tool`) would fail during remote hash computation due to incorrect manifest URI construction. 

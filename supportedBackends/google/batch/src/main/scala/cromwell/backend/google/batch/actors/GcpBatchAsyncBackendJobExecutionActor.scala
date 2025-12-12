@@ -276,12 +276,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     if (noLocalizationForTask)
       jobDescriptor.allInputFiles
     else {
-      val localizeOptional = jobDescriptor.findInputFilesByParameterMeta {
+      val nonlocalizedFiles: Set[WomFile] = jobDescriptor.findInputFilesByParameterMeta {
         case MetaValueElementObject(values) =>
           values.get("localization_optional").contains(MetaValueElementBoolean(true))
         case _ => false
       }
-      val localizeSkipped = localizeOptional.filter(canSkipLocalize)
+      val localizeSkipped = nonlocalizedFiles.filter(canSkipLocalize)
       val localizeMapped = localizeSkipped.map(cloudResolveWomFile)
       localizeSkipped ++ localizeMapped
     }

@@ -110,15 +110,20 @@ final case class AwsBatchJob(
     case prefix => if (prefix.endsWith("/")) prefix else s"$prefix/"
   }
 
+  // Region derived from queueArn, with configRegion as fallback
+  // This allows jobs to be submitted to queues in different regions
+  lazy val batchRegion: Option[Region] = regionFromArn(runtimeAttributes.queueArn).orElse(configRegion)
+
   lazy val batchClient: BatchClient = {
     val builder = BatchClient.builder()
-    configureClient(builder, optAwsAuthMode, configRegion)
+    configureClient(builder, optAwsAuthMode, batchRegion)
   }
+  // CloudWatch logs are in the same region as the Batch job
   lazy val cloudWatchLogsClient: CloudWatchLogsClient = {
     val builder = CloudWatchLogsClient.builder()
-    configureClient(builder, optAwsAuthMode, configRegion)
+    configureClient(builder, optAwsAuthMode, batchRegion)
   }
-
+  // S3 client uses the config region (S3 is region-agnostic for access)
   lazy val s3Client: S3Client = {
     val builder = S3Client.builder()
     configureClient(builder, optAwsAuthMode, configRegion)

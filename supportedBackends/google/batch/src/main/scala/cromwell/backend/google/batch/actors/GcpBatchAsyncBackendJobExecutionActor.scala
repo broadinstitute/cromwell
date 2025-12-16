@@ -273,7 +273,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // TODO: There is an AWS version of this that looks functionally identical. Consider unifying.
   override def inputsToNotLocalize: Set[WomFile] =
-    if (noLocalizationForTask)
+    (if (noLocalizationForTask)
       jobDescriptor.allInputFiles
     else {
       jobDescriptor.findInputFilesByParameterMeta {
@@ -281,7 +281,8 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           values.get("localization_optional").contains(MetaValueElementBoolean(true))
         case _ => false
       }
-    }
+    // L.O. requires `gs://` paths; DRS only provides signed URLs [CTM-292]
+  }).filterNot(f => f.valueString.startsWith("drs://"))
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
   protected lazy val callInputFiles: Map[FullyQualifiedName, Seq[WomFile]] =

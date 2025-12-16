@@ -15,7 +15,7 @@ The Docker registry implementation now correctly handles ECR's support for repos
 
 ### DRS files no longer support `localization_optional` on GCP Batch
 
-The DRS community has transitioned from GCS paths to signed URLs. Without GCS, it is no longer possible for the engine to provide a `gs://` URI directly to a task.
+The DRS community has transitioned from GCS paths to signed HTTPS URLs. The engine can no longer resolve DRS paths to GCS paths.
 
 Therefore, `localization_optional` is no longer supported for DRS files on the GCP backend. The attribute will be ignored and the file localized.
 

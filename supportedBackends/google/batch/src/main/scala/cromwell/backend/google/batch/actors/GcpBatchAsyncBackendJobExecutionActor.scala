@@ -1297,7 +1297,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     womFile.mapFile { value =>
       getPath(value) match {
         case Success(drsPath: DrsPath) =>
-          // Notice! DRS paths NEVER resolve to GCS URIs any longer, so this code is fruitless
+          // Notice! DRS paths NEVER resolve to GCS URIs any longer, so this code is fruitless [CTM-292]
           DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync().getOrElse(value)
         case Success(path) => path.pathAsString
         case _ => value

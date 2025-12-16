@@ -31,7 +31,7 @@ metadata {
   # This JDR file has a gsUri that doesn't end in /fileName so it must be downloaded with the DRS localizer
   "outputs.drs_usa_jdr.cloud1" =
     "/mnt/disks/cromwell_root/drs_localization_paths/CromwellSimpleWithFilerefs/hello_jade.json"
-  # DRS moved from `gs://` paths to signed URLs, so we now just localize all DRS files
+  # DRS moved from `gs://` paths to signed URLs, so we now just localize all DRS files [CTM-292]
   # Formerly: "This JDR file has a gsUri that can skip localization"
   "outputs.drs_usa_jdr.cloud2" =
     "/mnt/disks/cromwell_root/drs_localization_paths/CromwellSimpleWithFilerefs2/hello_jade_2.json"

@@ -46,6 +46,7 @@ import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.model._
 import spray.json.{JsObject, JsString}
 import wdl4s.parser.MemoryUnit
@@ -274,6 +275,25 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
     kvPairs should contain(buildKVPair("BATCH_FILE_TYPE", "script"))
     kvPairs should contain(buildKVPair("BATCH_FILE_S3_URL", ""))
+  }
+
+  it should "return the region for a valid ARN" in {
+    val arn = "arn:aws:service:us-west-2:123456789012:resource"
+    regionFromArn(arn) shouldBe Some(Region.of("us-west-2"))
+  }
+
+  it should "return None when the region component is empty" in {
+    val arnWithEmptyRegion = "arn:aws:service::123456789012:resource"
+    regionFromArn(arnWithEmptyRegion) shouldBe None
+  }
+
+  it should "return None when the ARN has fewer than 4 parts" in {
+    val shortArn = "arn:aws:service"
+    regionFromArn(shortArn) shouldBe None
+  }
+
+  it should "return None when provided null" in {
+    regionFromArn(null) shouldBe None
   }
 
   it should "contain expected command script in reconfigured script" in {

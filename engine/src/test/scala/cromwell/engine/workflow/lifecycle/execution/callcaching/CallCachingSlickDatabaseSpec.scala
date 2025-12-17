@@ -93,15 +93,15 @@ class CallCachingSlickDatabaseSpec
       it should s"honor allowResultReuse $description" taggedAs DbmsTest in {
         (for {
           _ <- dataAccess.addCallCaching(Seq(
-            CallCachingJoin(
-              callCachingEntryA,
-              callCachingHashEntriesA,
-              aggregation,
-              callCachingSimpletonsA,
-              callCachingDetritusesA
-            )
-          ),
-            100
+                                           CallCachingJoin(
+                                             callCachingEntryA,
+                                             callCachingHashEntriesA,
+                                             aggregation,
+                                             callCachingSimpletonsA,
+                                             callCachingDetritusesA
+                                           )
+                                         ),
+                                         100
           )
           hasBaseAggregation <- dataAccess.hasMatchingCallCachingEntriesForBaseAggregation(
             "BASE_AGGREGATION",
@@ -139,147 +139,147 @@ class CallCachingSlickDatabaseSpec
             callCachingDetritusesA.map(e => (e.detritusKey, e.detritusValue.map(_.toRawString)))
         } yield ()).futureValue
       }
-    it should s"not find cache hit when entry is older than maxResultAgeDays $description" taggedAs DbmsTest in {
-      val idOld = WorkflowId.randomId().toString
-      val callOld = "OldWorkflow.OldJob"
+      it should s"not find cache hit when entry is older than maxResultAgeDays $description" taggedAs DbmsTest in {
+        val idOld = WorkflowId.randomId().toString
+        val callOld = "OldWorkflow.OldJob"
 
-      // Create an entry that is 91 days old
-      val oldTimestamp = Timestamp.from(Instant.now().minus(2, ChronoUnit.DAYS))
-      val oldCallCachingEntry = CallCachingEntry(
-        idOld,
-        callOld,
-        1,
-        None,
-        None,
-        allowResultReuse = true,
-        createdAt = oldTimestamp
-      )
-
-      val callCachingHashEntries = Seq(
-        CallCachingHashEntry(
-          hashKey = "input: String s1",
-          hashValue = "HASH_OLD"
+        // Create an entry that is 91 days old
+        val oldTimestamp = Timestamp.from(Instant.now().minus(2, ChronoUnit.DAYS))
+        val oldCallCachingEntry = CallCachingEntry(
+          idOld,
+          callOld,
+          1,
+          None,
+          None,
+          allowResultReuse = true,
+          createdAt = oldTimestamp
         )
-      )
 
-      val aggregationOld = Option(CallCachingAggregationEntry("BASE_AGG_OLD", Option("FILE_AGG_OLD")))
-
-      (for {
-        _ <- dataAccess.addCallCaching(
-          Seq(
-            CallCachingJoin(
-              oldCallCachingEntry,
-              callCachingHashEntries,
-              aggregationOld,
-              Seq.empty,
-              Seq.empty
-            )
-          ),
-          1
+        val callCachingHashEntries = Seq(
+          CallCachingHashEntry(
+            hashKey = "input: String s1",
+            hashValue = "HASH_OLD"
+          )
         )
-        // Should find hit when maxResultAgeDays is None (no age filtering)
-        hitWithoutAgeLimit <- dataAccess.findCacheHitForAggregation(
-          "BASE_AGG_OLD",
-          Option("FILE_AGG_OLD"),
-          callCachePathPrefixes = prefixOption,
-          Set.empty,
-          maxResultAgeDays = None
-        )
-        _ = hitWithoutAgeLimit shouldBe defined
 
-        // Should NOT find hit when maxResultAgeDays is 1 (entry is from 2 days ago)
-        hitWithAgeLimit <- dataAccess.findCacheHitForAggregation(
-          "BASE_AGG_OLD",
-          Option("FILE_AGG_OLD"),
-          callCachePathPrefixes = prefixOption,
-          Set.empty,
-          maxResultAgeDays = Some(1)
-        )
-        _ = hitWithAgeLimit shouldBe empty
+        val aggregationOld = Option(CallCachingAggregationEntry("BASE_AGG_OLD", Option("FILE_AGG_OLD")))
 
-        // Should find hit when maxResultAgeDays is 7 (entry is from 2 days ago)
-        hitWithAgeLimit <- dataAccess.findCacheHitForAggregation(
-          "BASE_AGG_OLD",
-          Option("FILE_AGG_OLD"),
-          callCachePathPrefixes = prefixOption,
-          Set.empty,
-          maxResultAgeDays = Some(7)
-        )
-        _ = hitWithAgeLimit shouldBe defined
+        (for {
+          _ <- dataAccess.addCallCaching(
+            Seq(
+              CallCachingJoin(
+                oldCallCachingEntry,
+                callCachingHashEntries,
+                aggregationOld,
+                Seq.empty,
+                Seq.empty
+              )
+            ),
+            1
+          )
+          // Should find hit when maxResultAgeDays is None (no age filtering)
+          hitWithoutAgeLimit <- dataAccess.findCacheHitForAggregation(
+            "BASE_AGG_OLD",
+            Option("FILE_AGG_OLD"),
+            callCachePathPrefixes = prefixOption,
+            Set.empty,
+            maxResultAgeDays = None
+          )
+          _ = hitWithoutAgeLimit shouldBe defined
 
-      } yield ()).futureValue
+          // Should NOT find hit when maxResultAgeDays is 1 (entry is from 2 days ago)
+          hitWithAgeLimit <- dataAccess.findCacheHitForAggregation(
+            "BASE_AGG_OLD",
+            Option("FILE_AGG_OLD"),
+            callCachePathPrefixes = prefixOption,
+            Set.empty,
+            maxResultAgeDays = Some(1)
+          )
+          _ = hitWithAgeLimit shouldBe empty
+
+          // Should find hit when maxResultAgeDays is 7 (entry is from 2 days ago)
+          hitWithAgeLimit <- dataAccess.findCacheHitForAggregation(
+            "BASE_AGG_OLD",
+            Option("FILE_AGG_OLD"),
+            callCachePathPrefixes = prefixOption,
+            Set.empty,
+            maxResultAgeDays = Some(7)
+          )
+          _ = hitWithAgeLimit shouldBe defined
+
+        } yield ()).futureValue
+      }
+
+      it should s"return most recent cache entry first when multiple hits exist $description" taggedAs DbmsTest in {
+        val baseAgg = "BASE_AGG_MULTIPLE"
+        val fileAgg = Option("FILE_AGG_MULTIPLE")
+
+        // Create three entries with different timestamps
+        val now = Instant.now()
+        val oldestEntry = CallCachingEntry(
+          WorkflowId.randomId().toString,
+          "Workflow.Job",
+          1,
+          None,
+          None,
+          allowResultReuse = true,
+          createdAt = Timestamp.from(now.minus(3, ChronoUnit.DAYS))
+        )
+
+        val middleEntry = CallCachingEntry(
+          WorkflowId.randomId().toString,
+          "Workflow.Job",
+          2,
+          None,
+          None,
+          allowResultReuse = true,
+          createdAt = Timestamp.from(now.minus(2, ChronoUnit.DAYS))
+        )
+
+        val newestEntry = CallCachingEntry(
+          WorkflowId.randomId().toString,
+          "Workflow.Job",
+          3,
+          None,
+          None,
+          allowResultReuse = true,
+          createdAt = Timestamp.from(now.minus(1, ChronoUnit.DAYS))
+        )
+
+        val aggregation = Option(CallCachingAggregationEntry(baseAgg, fileAgg))
+
+        (for {
+          // Add entries in non-chronological order to verify sorting
+          _ <- dataAccess.addCallCaching(
+            Seq(
+              CallCachingJoin(middleEntry, Seq.empty, aggregation, Seq.empty, Seq.empty),
+              CallCachingJoin(oldestEntry, Seq.empty, aggregation, Seq.empty, Seq.empty),
+              CallCachingJoin(newestEntry, Seq.empty, aggregation, Seq.empty, Seq.empty)
+            ),
+            3
+          )
+
+          // Should return the newest entry
+          hit <- dataAccess.findCacheHitForAggregation(
+            baseAgg,
+            fileAgg,
+            callCachePathPrefixes = prefixOption,
+            Set.empty,
+            maxResultAgeDays = None
+          )
+          _ = hit shouldBe defined
+
+          // Verify it's the newest entry by checking the call cache entry ID
+          newestJoin <- dataAccess.callCacheJoinForCall(
+            newestEntry.workflowExecutionUuid,
+            newestEntry.callFullyQualifiedName,
+            newestEntry.jobIndex
+          )
+          _ = newestJoin shouldBe defined
+          _ = hit.get shouldBe newestJoin.get.callCachingEntry.callCachingEntryId.get
+        } yield ()).futureValue
+      }
     }
-
-    it should s"return most recent cache entry first when multiple hits exist $description" taggedAs DbmsTest in {
-      val baseAgg = "BASE_AGG_MULTIPLE"
-      val fileAgg = Option("FILE_AGG_MULTIPLE")
-
-      // Create three entries with different timestamps
-      val now = Instant.now()
-      val oldestEntry = CallCachingEntry(
-        WorkflowId.randomId().toString,
-        "Workflow.Job",
-        1,
-        None,
-        None,
-        allowResultReuse = true,
-        createdAt = Timestamp.from(now.minus(3, ChronoUnit.DAYS))
-      )
-
-      val middleEntry = CallCachingEntry(
-        WorkflowId.randomId().toString,
-        "Workflow.Job",
-        2,
-        None,
-        None,
-        allowResultReuse = true,
-        createdAt = Timestamp.from(now.minus(2, ChronoUnit.DAYS))
-      )
-
-      val newestEntry = CallCachingEntry(
-        WorkflowId.randomId().toString,
-        "Workflow.Job",
-        3,
-        None,
-        None,
-        allowResultReuse = true,
-        createdAt = Timestamp.from(now.minus(1, ChronoUnit.DAYS))
-      )
-
-      val aggregation = Option(CallCachingAggregationEntry(baseAgg, fileAgg))
-
-      (for {
-        // Add entries in non-chronological order to verify sorting
-        _ <- dataAccess.addCallCaching(
-          Seq(
-            CallCachingJoin(middleEntry, Seq.empty, aggregation, Seq.empty, Seq.empty),
-            CallCachingJoin(oldestEntry, Seq.empty, aggregation, Seq.empty, Seq.empty),
-            CallCachingJoin(newestEntry, Seq.empty, aggregation, Seq.empty, Seq.empty)
-          ),
-          3
-        )
-
-        // Should return the newest entry
-        hit <- dataAccess.findCacheHitForAggregation(
-          baseAgg,
-          fileAgg,
-          callCachePathPrefixes = prefixOption,
-          Set.empty,
-          maxResultAgeDays = None
-        )
-        _ = hit shouldBe defined
-
-        // Verify it's the newest entry by checking the call cache entry ID
-        newestJoin <- dataAccess.callCacheJoinForCall(
-          newestEntry.workflowExecutionUuid,
-          newestEntry.callFullyQualifiedName,
-          newestEntry.jobIndex
-        )
-        _ = newestJoin shouldBe defined
-        _ = hit.get shouldBe newestJoin.get.callCachingEntry.callCachingEntryId.get
-      } yield ()).futureValue
-    }
-  }
 
     it should "close the database" taggedAs DbmsTest in {
       dataAccess.close()

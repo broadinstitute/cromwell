@@ -17,7 +17,7 @@ object DatabaseSystem {
 //    MariadbEarliestDatabaseSystem,
 //    MariadbLatestDatabaseSystem,
 //    MysqlEarliestDatabaseSystem,
-    MysqlLatestDatabaseSystem,
+    MysqlLatestDatabaseSystem
 //    PostgresqlEarliestDatabaseSystem,
 //    PostgresqlLatestDatabaseSystem
   )

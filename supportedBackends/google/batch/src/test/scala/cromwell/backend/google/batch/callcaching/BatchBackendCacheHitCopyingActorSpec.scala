@@ -54,8 +54,6 @@ class BatchBackendCacheHitCopyingActorSpec
 
   it should "do all the right things with blacklisting hits and buckets with groupings enabled" in {
 
-    // LM TODO add testing for max-result-age-days
-
     val configString =
       """
         |call-caching {

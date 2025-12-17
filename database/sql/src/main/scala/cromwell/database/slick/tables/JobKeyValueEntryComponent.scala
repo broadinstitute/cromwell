@@ -9,7 +9,7 @@ trait JobKeyValueEntryComponent {
   import driver.api._
 
   class JobKeyValueEntries(tag: Tag) extends Table[JobKeyValueEntry](tag, "JOB_KEY_VALUE_ENTRY") {
-    def jobKeyValueEntryId = column[Int]("JOB_KEY_VALUE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
+    def jobKeyValueEntryId = column[Long]("JOB_KEY_VALUE_ENTRY_ID", O.PrimaryKey, O.AutoInc)
 
     def workflowExecutionUuid = column[String]("WORKFLOW_EXECUTION_UUID", O.Length(255))
 

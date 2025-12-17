@@ -17,7 +17,7 @@ The Docker registry implementation now correctly handles ECR's support for repos
 * Moved the option to tag job resources from runtime attributes to backend config.
 * Appended the custom labels to the list of resource tags to propagate
 
-### DRS files no longer support `localization_optional` on GCP Batch
+### `localization_optional` attribute ignored for DRS files on GCP Batch
 
 The DRS community has transitioned from GCS paths to signed HTTPS URLs. The engine can no longer resolve DRS paths to GCS paths.
 

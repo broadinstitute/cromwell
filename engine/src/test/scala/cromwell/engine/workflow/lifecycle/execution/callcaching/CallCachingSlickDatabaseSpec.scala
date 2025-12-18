@@ -181,8 +181,8 @@ class CallCachingSlickDatabaseSpec
           _ <- dataAccess.addCallCaching(
             Seq(
               CallCachingJoin(
-                oldCallCachingEntry,
-                callCachingHashEntries,
+                oldCallCachingEntry1,
+                callCachingHashEntriesOld,
                 aggregationOld,
                 Seq.empty,
                 Seq.empty

@@ -17,14 +17,6 @@ The Docker registry implementation now correctly handles ECR's support for repos
 * Moved the option to tag job resources from runtime attributes to backend config.
 * Appended the custom labels to the list of resource tags to propagate
 
-### `localization_optional` attribute ignored for DRS files on GCP Batch
-
-The DRS community has transitioned from GCS paths to signed HTTPS URLs. The engine can no longer resolve DRS paths to GCS paths.
-
-Therefore, `localization_optional` is no longer supported for DRS files on the GCP backend. The attribute will be ignored and the file localized.
-
-For standard `gs://` paths, `localization_optional` remains supported without changes.
-
 ### Progress toward WDL 1.1 Support
 * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 92, `development-1.1` has been enhanced to include:
     * Support for passthrough syntax for call inputs, e.g. `{ input: foo }` rather than `{ input: foo = foo }`.

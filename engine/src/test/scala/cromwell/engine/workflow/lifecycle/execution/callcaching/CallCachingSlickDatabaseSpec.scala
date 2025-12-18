@@ -111,7 +111,7 @@ class CallCachingSlickDatabaseSpec
       val oldCallCachingEntry2 = CallCachingEntry(
         WorkflowId.randomId().toString,
         callOld,
-        1,
+        2,
         None,
         None,
         allowResultReuse = true,
@@ -153,6 +153,35 @@ class CallCachingSlickDatabaseSpec
             None
           )
           _ = hit shouldBe empty
+        } yield ()).futureValue
+      }
+
+      it should s"find a callCaching entry if allowResultReuse is false $description" taggedAs DbmsTest in {
+        (for {
+          _ <- dataAccess.addCallCaching(Seq(
+            CallCachingJoin(
+              oldCallCachingEntry1,
+              callCachingHashEntriesOld,
+              aggregation,
+              callCachingSimpletonsA,
+              callCachingDetritusesA
+            )
+          ),
+            100
+          )
+          hasBaseAggregation <- dataAccess.hasMatchingCallCachingEntriesForBaseAggregation(
+            "AGG_OLD",
+            prefixOption
+          )
+          _ = hasBaseAggregation shouldBe true
+          hit <- dataAccess.findCacheHitForAggregation(
+            "AGG_OLD",
+            Option("FILE_AGG_OLD"),
+            callCachePathPrefixes = prefixOption,
+            Set.empty,
+            None
+          )
+          _ = hit shouldBe defined
         } yield ()).futureValue
       }
 
@@ -230,7 +259,7 @@ class CallCachingSlickDatabaseSpec
           _ <- dataAccess.addCallCaching(
             Seq(
               CallCachingJoin(oldCallCachingEntry1, callCachingHashEntriesOld, aggregationOld, Seq.empty, Seq.empty),
-              CallCachingJoin(oldCallCachingEntry2, callCachingHashEntriesOld, aggregationOld, Seq.empty, Seq.empty),
+              CallCachingJoin(oldCallCachingEntry2, callCachingHashEntriesOld, aggregationOld, Seq.empty, Seq.empty)
             ),
             100
           )

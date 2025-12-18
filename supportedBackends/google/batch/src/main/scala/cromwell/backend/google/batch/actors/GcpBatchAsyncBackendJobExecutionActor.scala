@@ -284,7 +284,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         }
       }
 
-    // Try to resolve each DRS path to a GCS path. This typically works with TDR files, and not otherwise.
+    // Try to resolve each DRS path to a GCS path. This typically works with TDR files, and not otherwise. [CTM-292]
     // If GCS is found, add both the DRS file [0] and its GCS equivalent [1] to the no-localize list.
     // If no GCS found, exclude the file from the no-localize list. The DRS localizer will download it.
     //

@@ -272,7 +272,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
 
   // TODO: There is an AWS version of this that looks functionally identical. Consider unifying.
-  override def inputsToNotLocalize: Set[WomFile] = {
+  override lazy val inputsToNotLocalize: Set[WomFile] = {
     val loFiles: Set[WomFile] =
       if (noLocalizationForTask)
         jobDescriptor.allInputFiles

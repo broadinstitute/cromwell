@@ -10,11 +10,7 @@ import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked._
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{
-  BackendJobExecutionResponse,
-  JobAbortedResponse,
-  JobReconnectionNotSupportedException
-}
+import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._
@@ -217,6 +213,42 @@ trait StandardAsyncExecutionActor
   protected def noLocalizationForTask: Boolean =
     // WDL 1.1: `runtime.localizationOptional` indicates all files for task are optional
     jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
+
+  protected def runtimeInputsToNotLocalize: Set[WomFile] = {
+    val nonlocalizedInputNames = jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.Inputs) match {
+      // Iterate through `foo: object {...}` tuples and return `foo`s with `localizationOptional` as true
+      case Some(inputsAttribute: WomObject) => inputsAttribute.values.filter {
+        case (_: String, value: WomObject) =>
+          value.values.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
+      }.keySet
+      case _ => Set.empty
+    }
+    println(nonlocalizedInputNames)
+//    jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.Inputs) match {
+//      case Some(inputsObject: WomObject) => jobDescriptor.evaluatedTaskInputs.filter {
+//        case (name: InputDefinition, value: WomFile) =>
+//          keyForInput(inputsObject, name.localName.value, "localizationOptional").contains(true)
+//      }.values
+//      case _ => Set.empty
+//    }
+    ???
+  }
+
+  /**
+   * Given a `WomObject`, retrieve a key (e.g. `localizationOptional`) based on an input name (e.g. `foo`)
+   * Returns "true" for the following:
+   * object {
+   *     foo: object {
+   *         localizationOptional: true
+   *     }
+   * }
+   */
+//  private def keyForInput(inputsObject: WomObject, input: String, key: String): Option[WomValue] = {
+//    inputsObject.values.get(input) match {
+//      case inputOptions: WomObject => inputOptions.values.get(key)
+//      case _ => None
+//    }
+//  }
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = { womValue =>
@@ -780,6 +812,9 @@ trait StandardAsyncExecutionActor
       case _ => 0
     }
 
+//  lazy val inputOverrides: WomObject =
+//    RuntimeAttributesValidation.extract(InputsValidation.instance, validatedRuntimeAttributes)
+  
   /**
    * Returns the memory multiplier for previous attempt if available
    */

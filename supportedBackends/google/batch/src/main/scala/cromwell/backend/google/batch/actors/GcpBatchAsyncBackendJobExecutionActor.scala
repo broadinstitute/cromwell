@@ -11,13 +11,7 @@ import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
-import cromwell.backend.async.{
-  AbortedExecutionHandle,
-  ExecutionHandle,
-  FailedNonRetryableExecutionHandle,
-  FailedRetryableExecutionHandle,
-  PendingExecutionHandle
-}
+import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
 import cromwell.backend.google.batch.io._
@@ -283,7 +277,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
       val localizeSkipped = localizeOptional.filter(canSkipLocalize)
       val localizeMapped = localizeSkipped.map(cloudResolveWomFile)
-      localizeSkipped ++ localizeMapped
+      localizeSkipped ++ localizeMapped ++ runtimeInputsToNotLocalize
     }
 
   private def canSkipLocalize(womFile: WomFile): Boolean = {

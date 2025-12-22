@@ -11,7 +11,13 @@ import com.google.cloud.storage.contrib.nio.CloudStorageOptions
 import common.util.StringUtil._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend._
-import cromwell.backend.async.{AbortedExecutionHandle, ExecutionHandle, FailedNonRetryableExecutionHandle, FailedRetryableExecutionHandle, PendingExecutionHandle}
+import cromwell.backend.async.{
+  AbortedExecutionHandle,
+  ExecutionHandle,
+  FailedNonRetryableExecutionHandle,
+  FailedRetryableExecutionHandle,
+  PendingExecutionHandle
+}
 import cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory
 import cromwell.backend.google.batch.api.GcpBatchRequestFactory._
 import cromwell.backend.google.batch.io._
@@ -266,34 +272,30 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     )
 
   // TODO: There is an AWS version of this that looks functionally identical. Consider unifying.
-  override def inputsToNotLocalize: Set[WomFile] =
-    if (noLocalizationForTask)
-      jobDescriptor.allInputFiles
-    else {
-      val localizeOptional = jobDescriptor.findInputFilesByParameterMeta {
-        case MetaValueElementObject(values) =>
-          values.get("localization_optional").contains(MetaValueElementBoolean(true))
-        case _ => false
-      }
-      val localizeSkipped = localizeOptional.filter(canSkipLocalize)
-      val localizeMapped = localizeSkipped.map(cloudResolveWomFile)
-      localizeSkipped ++ localizeMapped ++ runtimeInputsToNotLocalize
-    }
+  override lazy val inputsToNotLocalize: Set[WomFile] = {
+    val loFiles: Set[WomFile] =
+      if (noLocalizationForTask)
+        jobDescriptor.allInputFiles
+      else {
+        jobDescriptor.findInputFilesByParameterMeta {
+          case MetaValueElementObject(values) =>
+            values.get("localization_optional").contains(MetaValueElementBoolean(true))
+          case _ => false
+        }
+      } ++ runtimeInputsToNotLocalize
 
-  private def canSkipLocalize(womFile: WomFile): Boolean = {
-    var canSkipLocalize = true
-    womFile.mapFile { value =>
-      getPath(value) match {
-        case Success(drsPath: DrsPath) =>
-          val gsUriOption = DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync()
-          if (gsUriOption.isEmpty) {
-            canSkipLocalize = false
-          }
-        case _ => /* ignore */
+    // Try to resolve each DRS path to a GCS path. This typically works with TDR files, and not otherwise. [CTM-292]
+    // If GCS is found, add both the DRS file [0] and its GCS equivalent [1] to the no-localize list.
+    // If no GCS found, exclude the file from the no-localize list. The DRS localizer will download it.
+    //
+    // [0] so the DRS localizer doesn't download it
+    // [1] so regular GCS localization doesn't download it once resolved
+    val (loDrs, loGcs) = loFiles.partition(_.valueString.startsWith("drs://"))
+    loGcs ++
+      loDrs.flatMap { drsPath =>
+        val resolvedPath = cloudResolveWomFile(drsPath)
+        if (resolvedPath.valueString.startsWith("gs://")) Seq(drsPath, resolvedPath) else Seq.empty
       }
-      value
-    }
-    canSkipLocalize
   }
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is

@@ -65,8 +65,9 @@ case class AwsBatchAttributes(fileSystem: String,
                               fsxMntPoint: Option[List[String]],
                               efsMntPoint: Option[String],
                               efsMakeMD5: Option[Boolean],
-                              tagResources: Option[Boolean],
                               efsDelocalize: Option[Boolean],
+                              tagResources: Option[Boolean],
+                              tagHardware: Option[Boolean],
                               globLinkCommand: Option[String],
                               checkSiblingMd5: Option[Boolean]
 )
@@ -100,6 +101,7 @@ object AwsBatchAttributes {
     "efsDelocalize",
     "efsMakeMD5",
     "tagResources",
+    "tagHardware",
     "maxRetries",
     "glob-link-command"
   )
@@ -200,8 +202,15 @@ object AwsBatchAttributes {
     }
     // from config if set:
     val tagResources: ErrorOr[Option[Boolean]] = validate {
-      backendConfig.hasPath("default-runtime-attributes.tagResources") match {
-        case true => Some(backendConfig.getBoolean("default-runtime-attributes.tagResources"))
+      backendConfig.hasPath("tagResources") match {
+        case true => Some(backendConfig.getBoolean("tagResources"))
+        case false => None
+      }
+    }
+    // from config if set:
+    val tagHardware: ErrorOr[Option[Boolean]] = validate {
+      backendConfig.hasPath("tagHardware") match {
+        case true => Some(backendConfig.getBoolean("tagHardware"))
         case false => None
       }
     }
@@ -232,6 +241,7 @@ object AwsBatchAttributes {
       efsMakeMD5,
       efsDelocalize,
       tagResources,
+      tagHardware,
       globLinkCommand,
       checkSiblingMd5
     ).tupled.map((AwsBatchAttributes.apply _).tupled) match {

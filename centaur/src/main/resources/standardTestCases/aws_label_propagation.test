@@ -1,0 +1,19 @@
+name: awsbatch_labels
+testFormat: workflowsuccess
+tags: [ labels ]
+backends: [AWSBATCH]
+
+files {
+  workflow: labels/aws_labels.wdl
+  labels: labels/valid.labels
+}
+
+metadata {
+  status: Succeeded
+
+  # Verify the job_tags output contains the expected labels
+  "outputs.CheckAwsLabelPropagation.job_tags.label-key-1": "label-value-1"
+  "outputs.CheckAwsLabelPropagation.job_tags.label-key-2": "label-value-2"
+  "outputs.CheckAwsLabelPropagation.job_tags.only-key": ""
+  "outputs.CheckAwsLabelPropagation.job_tags.fc-id": "0123-abcd-4567-efgh"
+}

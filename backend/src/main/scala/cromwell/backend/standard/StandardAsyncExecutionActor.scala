@@ -34,6 +34,7 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
+import wom.callable.Callable.InputDefinition
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
@@ -214,24 +215,27 @@ trait StandardAsyncExecutionActor
     // WDL 1.1: `runtime.localizationOptional` indicates all files for task are optional
     jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
 
+  /**
+   * Identify input files designated as localization optional in the `runtime` section – new for WDL 1.1
+   *
+   * @return a set of files to not localize, to be appended to the other sources of such files
+   */
   protected def runtimeInputsToNotLocalize: Set[WomFile] = {
-    val nonlocalizedInputNames = jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.Inputs) match {
-      // Iterate through `foo: object {...}` tuples and return `foo`s with `localizationOptional` as true
+    val nonlocalizedInputNames: Set[String] = jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.Inputs) match {
+      // Iterate through `foo: object {...}` tuples and return `foo`s where `localizationOptional` is true
       case Some(inputsAttribute: WomObject) => inputsAttribute.values.filter {
         case (_: String, value: WomObject) =>
           value.values.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
       }.keySet
       case _ => Set.empty
     }
-    println(nonlocalizedInputNames)
-//    jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.Inputs) match {
-//      case Some(inputsObject: WomObject) => jobDescriptor.evaluatedTaskInputs.filter {
-//        case (name: InputDefinition, value: WomFile) =>
-//          keyForInput(inputsObject, name.localName.value, "localizationOptional").contains(true)
-//      }.values
-//      case _ => Set.empty
-//    }
-    ???
+
+    BackendJobDescriptor.findFiles(
+      jobDescriptor.evaluatedTaskInputs.filter { 
+        // Go through the input map and pull the Womfiles whose names are in the list
+        case (name: InputDefinition, _: WomValue) => nonlocalizedInputNames.contains(name.localName.value)
+      }
+    )
   }
 
   /**

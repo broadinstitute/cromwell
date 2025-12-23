@@ -32,6 +32,7 @@ task test_hints {
   }
 
   runtime {
+    predefinedMachineType: "e2-medium"
     container: "ubuntu:latest"
     maxMemory: "36 GB"
     maxCpu: 24

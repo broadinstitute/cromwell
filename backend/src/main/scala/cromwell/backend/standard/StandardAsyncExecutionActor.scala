@@ -218,6 +218,14 @@ trait StandardAsyncExecutionActor
   /**
    * Identify input files designated as localization optional in the `runtime` section – new for WDL 1.1
    *
+   * runtime {
+   *   inputs: object {
+   *     foo: object {
+   *       localizationOptional: true
+   *     }
+   *   }
+   * }  
+   * 
    * @return a set of files to not localize, to be appended to the other sources of such files
    */
   protected def runtimeInputsToNotLocalize: Set[WomFile] = {
@@ -237,22 +245,6 @@ trait StandardAsyncExecutionActor
       }
     )
   }
-
-  /**
-   * Given a `WomObject`, retrieve a key (e.g. `localizationOptional`) based on an input name (e.g. `foo`)
-   * Returns "true" for the following:
-   * object {
-   *     foo: object {
-   *         localizationOptional: true
-   *     }
-   * }
-   */
-//  private def keyForInput(inputsObject: WomObject, input: String, key: String): Option[WomValue] = {
-//    inputsObject.values.get(input) match {
-//      case inputOptions: WomObject => inputOptions.values.get(key)
-//      case _ => None
-//    }
-//  }
 
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = { womValue =>
@@ -816,9 +808,6 @@ trait StandardAsyncExecutionActor
       case _ => 0
     }
 
-//  lazy val inputOverrides: WomObject =
-//    RuntimeAttributesValidation.extract(InputsValidation.instance, validatedRuntimeAttributes)
-  
   /**
    * Returns the memory multiplier for previous attempt if available
    */

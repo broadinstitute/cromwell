@@ -10,7 +10,11 @@ import common.util.TryUtil
 import common.validation.ErrorOr.{ErrorOr, ShortCircuitingFlatMap}
 import common.validation.IOChecked._
 import common.validation.Validation._
-import cromwell.backend.BackendJobExecutionActor.{BackendJobExecutionResponse, JobAbortedResponse, JobReconnectionNotSupportedException}
+import cromwell.backend.BackendJobExecutionActor.{
+  BackendJobExecutionResponse,
+  JobAbortedResponse,
+  JobReconnectionNotSupportedException
+}
 import cromwell.backend.BackendLifecycleActor.AbortJobCommand
 import cromwell.backend.BackendLifecycleActorFactory.{FailedRetryCountKey, MemoryMultiplierKey}
 import cromwell.backend.OutputEvaluator._
@@ -229,17 +233,18 @@ trait StandardAsyncExecutionActor
    * @return a set of files to not localize, to be appended to the other sources of such files
    */
   protected def runtimeInputsToNotLocalize: Set[WomFile] = {
-    val nonlocalizedInputNames: Set[String] = jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.Inputs) match {
-      // Iterate through `foo: object {...}` tuples and return `foo`s where `localizationOptional` is true
-      case Some(inputsAttribute: WomObject) => inputsAttribute.values.filter {
-        case (_: String, value: WomObject) =>
-          value.values.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
-      }.keySet
-      case _ => Set.empty
-    }
+    val nonlocalizedInputNames: Set[String] =
+      jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.Inputs) match {
+        // Iterate through `foo: object {...}` tuples and return `foo`s where `localizationOptional` is true
+        case Some(inputsAttribute: WomObject) =>
+          inputsAttribute.values.filter { case (_: String, value: WomObject) =>
+            value.values.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
+          }.keySet
+        case _ => Set.empty
+      }
 
     BackendJobDescriptor.findFiles(
-      jobDescriptor.evaluatedTaskInputs.filter { 
+      jobDescriptor.evaluatedTaskInputs.filter {
         // Go through the input map and pull the Womfiles whose names are in the list
         case (name: InputDefinition, _: WomValue) => nonlocalizedInputNames.contains(name.localName.value)
       }

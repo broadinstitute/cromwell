@@ -276,13 +276,14 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     val loFiles: Set[WomFile] =
       if (noLocalizationForTask)
         jobDescriptor.allInputFiles
-      else {
-        jobDescriptor.findInputFilesByParameterMeta {
-          case MetaValueElementObject(values) =>
-            values.get("localization_optional").contains(MetaValueElementBoolean(true))
-          case _ => false
-        }
-      } ++ runtimeInputsToNotLocalize
+      else
+        {
+          jobDescriptor.findInputFilesByParameterMeta {
+            case MetaValueElementObject(values) =>
+              values.get("localization_optional").contains(MetaValueElementBoolean(true))
+            case _ => false
+          }
+        } ++ runtimeInputsToNotLocalize
 
     // Try to resolve each DRS path to a GCS path. This typically works with TDR files, and not otherwise. [CTM-292]
     // If GCS is found, add both the DRS file [0] and its GCS equivalent [1] to the no-localize list.

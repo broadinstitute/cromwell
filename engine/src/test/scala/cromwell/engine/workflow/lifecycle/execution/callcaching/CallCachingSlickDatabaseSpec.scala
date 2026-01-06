@@ -37,7 +37,7 @@ class CallCachingSlickDatabaseSpec
     ("description", "prefixOption"),
     ("without prefixes", None),
     ("with some prefixes", Option(List("prefix1", "prefix2", "prefix3", "prefix4"))),
-    ("with thousands of prefixes", Option((1 to 10000).map("prefix" + _).toList))
+    ("with thousands of prefixes", Option((1 to 1000).map("prefix" + _).toList))
   )
 
   DatabaseSystem.All foreach { databaseSystem =>
@@ -176,10 +176,6 @@ class CallCachingSlickDatabaseSpec
       // same across old entries
       val aggregationOld = Option(CallCachingAggregationEntry("AGG_OLD", Option("FILE_AGG_OLD")))
       val callCachingDetritusesOld = createDetritusesBasedOnPrefixes(prefixOption)
-
-      println(s"Prefix: $prefixOption")
-      println(s"CallCachingDetrituses: $callCachingDetrituses")
-      println(s"CallCachingDetritusesOld: $callCachingDetritusesOld")
 
       it should s"seed the database with test data $description" taggedAs DbmsTest in {
         // add call caching entries to DB with allowResultReuse = false

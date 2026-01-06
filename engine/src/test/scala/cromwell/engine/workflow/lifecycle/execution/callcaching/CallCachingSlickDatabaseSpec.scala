@@ -48,6 +48,7 @@ class CallCachingSlickDatabaseSpec
     lazy val dataAccess =
       DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
 
+    // these helpers create detritus entries with prefixes based on what mode the test is running
     def createDetritusWithPrefix(prefix: Option[String], key: String, value: String): CallCachingDetritusEntry = {
       val fullValue = prefix match {
         case Some(p) => s"$p/$value"
@@ -177,6 +178,7 @@ class CallCachingSlickDatabaseSpec
       val aggregationOld = Option(CallCachingAggregationEntry("AGG_OLD", Option("FILE_AGG_OLD")))
       val callCachingDetritusesOld = createDetritusesBasedOnPrefixes(prefixOption)
 
+      // These tests run sequentially so the data seeded here is available for all tests below
       it should s"seed the database with test data $description" taggedAs DbmsTest in {
         // add call caching entries to DB with allowResultReuse = false
         dataAccess
@@ -351,10 +353,6 @@ class CallCachingSlickDatabaseSpec
           )
           .futureValue
       }
-    }
-
-    it should "close the database" taggedAs DbmsTest in {
-      dataAccess.close()
     }
 
     it should "stop container if required" taggedAs DbmsTest in {

@@ -17,7 +17,7 @@ object DatabaseSystem {
     MariadbEarliestDatabaseSystem,
     MariadbLatestDatabaseSystem,
     MysqlEarliestDatabaseSystem,
-    MysqlLatestDatabaseSystem,
+    MysqlLatestDatabaseSystem
     // Not testing Postgresql for now, not supported in production
     // PostgresqlEarliestDatabaseSystem,
     // PostgresqlLatestDatabaseSystem
@@ -67,4 +67,4 @@ case object MysqlLatestDatabaseSystem extends NetworkDatabaseSystem {
 //  override val name: String = "PostgreSQL (latest)"
 //  override val platform: PostgresqlDatabasePlatform.type = PostgresqlDatabasePlatform
 //  override val dockerImageVersion: String = "latest"
-}
+//}

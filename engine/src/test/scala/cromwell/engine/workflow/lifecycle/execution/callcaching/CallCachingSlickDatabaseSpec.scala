@@ -48,16 +48,41 @@ class CallCachingSlickDatabaseSpec
     lazy val dataAccess =
       DatabaseTestKit.initializeDatabaseByContainerOptTypeAndSystem(containerOpt, EngineDatabaseType, databaseSystem)
 
+    def createDetritusWithPrefix(prefix: Option[String], key: String, value: String): CallCachingDetritusEntry = {
+      val fullValue = prefix match {
+        case Some(p) => s"$p/$value"
+        case None => value
+      }
+      val fullKey = prefix match {
+        case Some(p) => s"$p/$key"
+        case None => key
+      }
+      CallCachingDetritusEntry(
+        detritusKey = fullKey,
+        detritusValue = fullValue.toClobOption
+      )
+    }
+
+    def createDetritusesBasedOnPrefixes(prefixOption: Option[List[String]]): Seq[CallCachingDetritusEntry] =
+      prefixOption match {
+        case Some(prefixes) =>
+          prefixes.map { prefix =>
+            createDetritusWithPrefix(Some(prefix), "simpleKey", "simpleValue")
+          }
+        case None =>
+          Seq(createDetritusWithPrefix(None, "simpleKey", "simpleValue"))
+      }
+
     it should "start container if required" taggedAs DbmsTest in {
       containerOpt.foreach(_.start)
     }
 
     forAll(allowResultReuseTests) { (description, prefixOption) =>
-      // Create example call-caching entries
+      // Create test data - the same test data is utilized for all tests below, but is unique to each (databaseSystem, prefixOption)
 
-      // Create an entry without allowResultReuse and multiple inputs
+      // Entry A - allowResultReuse = false
       val idA = WorkflowId.randomId().toString
-      val callA = "AwesomeWorkflow.GoodJob"
+      val callA = "AwesomeWorkflow.GoodJobA"
       val callCachingEntryA = CallCachingEntry(
         idA,
         callA,
@@ -82,22 +107,40 @@ class CallCachingSlickDatabaseSpec
           hashValue = "HASH_S4"
         )
       )
+      val aggregationA = Option(CallCachingAggregationEntry("BASE_AGGREGATION_A", Option("FILE_AGGREGATION_A")))
 
-      val callCachingSimpletonsA = Seq(
+      // Entry B - allowResultReuse = true
+      val idB = WorkflowId.randomId().toString
+      val callB = "AwesomeWorkflow.GoodJobB"
+      val callCachingEntryB = CallCachingEntry(
+        idB,
+        callB,
+        1,
+        None,
+        None,
+        allowResultReuse = true,
+        createdAt = Timestamp.from(Instant.now())
+      )
+
+      val callCachingHashEntriesB = Seq(
+        CallCachingHashEntry(
+          hashKey = "input: String s5",
+          hashValue = "HASH_S5"
+        )
+      )
+      val aggregationB = Option(CallCachingAggregationEntry("BASE_AGGREGATION_B", Option("FILE_AGGREGATION_B")))
+
+      // same across A and B
+      val callCachingSimpletons = Seq(
         CallCachingSimpletonEntry("simpleKey", "simpleValue".toClobOption, "string")
       )
-
-      val callCachingDetritusesA = Seq(
-        CallCachingDetritusEntry("detritusKey", "detritusValue".toClobOption)
-      )
-
-      val aggregation = Option(CallCachingAggregationEntry("BASE_AGGREGATION", Option("FILE_AGGREGATION")))
+      val callCachingDetrituses = createDetritusesBasedOnPrefixes(prefixOption)
 
       // Create older entries
       val callOld = "OldWorkflow.OldJob"
 
-      // an entry that is 1 day old
-      val oldCallCachingEntry1 = CallCachingEntry(
+      // Entry C - 1 day old
+      val callCachingEntryC = CallCachingEntry(
         WorkflowId.randomId().toString,
         callOld,
         1,
@@ -106,9 +149,15 @@ class CallCachingSlickDatabaseSpec
         allowResultReuse = true,
         createdAt = Timestamp.from(Instant.now().minus(1, ChronoUnit.DAYS))
       )
+      val callCachingHashEntriesC = Seq(
+        CallCachingHashEntry(
+          hashKey = "input: String s6",
+          hashValue = "HASH_S6"
+        )
+      )
 
-      // an entry that is 2 days old
-      val oldCallCachingEntry2 = CallCachingEntry(
+      // Entry D - 2 days old
+      val callCachingEntryD = CallCachingEntry(
         WorkflowId.randomId().toString,
         callOld,
         2,
@@ -117,37 +166,70 @@ class CallCachingSlickDatabaseSpec
         allowResultReuse = true,
         createdAt = Timestamp.from(Instant.now().minus(2, ChronoUnit.DAYS))
       )
-
-      val aggregationOld = Option(CallCachingAggregationEntry("AGG_OLD", Option("FILE_AGG_OLD")))
-
-      val callCachingHashEntriesOld = Seq(
+      val callCachingHashEntriesD = Seq(
         CallCachingHashEntry(
-          hashKey = "input: String s1",
-          hashValue = "HASH_OLD"
+          hashKey = "input: String s7",
+          hashValue = "HASH_S7"
         )
       )
 
+      // same across old entries
+      val aggregationOld = Option(CallCachingAggregationEntry("AGG_OLD", Option("FILE_AGG_OLD")))
+      val callCachingDetritusesOld = createDetritusesBasedOnPrefixes(prefixOption)
+
+      println(s"Prefix: $prefixOption")
+      println(s"CallCachingDetrituses: $callCachingDetrituses")
+      println(s"CallCachingDetritusesOld: $callCachingDetritusesOld")
+
+      it should s"seed the database with test data $description" taggedAs DbmsTest in {
+        // add call caching entries to DB with allowResultReuse = false
+        dataAccess
+          .addCallCaching(
+            Seq(
+              // with allowResultReuse = false
+              CallCachingJoin(callCachingEntryA,
+                              callCachingHashEntriesA,
+                              aggregationA,
+                              callCachingSimpletons,
+                              callCachingDetrituses
+              ),
+              // with allowResultReuse = true
+              CallCachingJoin(callCachingEntryB,
+                              callCachingHashEntriesB,
+                              aggregationB,
+                              callCachingSimpletons,
+                              callCachingDetrituses
+              ),
+              // one day old
+              CallCachingJoin(callCachingEntryC,
+                              callCachingHashEntriesC,
+                              aggregationOld,
+                              Seq.empty,
+                              callCachingDetritusesOld
+              ),
+              // two days old
+              CallCachingJoin(callCachingEntryD,
+                              callCachingHashEntriesD,
+                              aggregationOld,
+                              Seq.empty,
+                              callCachingDetritusesOld
+              )
+            ),
+            100
+          )
+          .futureValue
+      }
+
       it should s"honor allowResultReuse $description" taggedAs DbmsTest in {
         (for {
-          _ <- dataAccess.addCallCaching(Seq(
-                                           CallCachingJoin(
-                                             callCachingEntryA,
-                                             callCachingHashEntriesA,
-                                             aggregation,
-                                             callCachingSimpletonsA,
-                                             callCachingDetritusesA
-                                           )
-                                         ),
-                                         100
-          )
           hasBaseAggregation <- dataAccess.hasMatchingCallCachingEntriesForBaseAggregation(
-            "BASE_AGGREGATION",
+            "BASE_AGGREGATION_A",
             prefixOption
           )
           _ = hasBaseAggregation shouldBe false
           hit <- dataAccess.findCacheHitForAggregation(
-            "BASE_AGGREGATION",
-            Option("FILE_AGGREGATION"),
+            "BASE_AGGREGATION_A",
+            Option("FILE_AGGREGATION_A"),
             callCachePathPrefixes = prefixOption,
             Set.empty,
             None
@@ -156,28 +238,17 @@ class CallCachingSlickDatabaseSpec
         } yield ()).futureValue
       }
 
-      it should s"find a callCaching entry if allowResultReuse is false $description" taggedAs DbmsTest in {
+      it should s"find a callCaching entry if allowResultReuse is true $description" taggedAs DbmsTest in {
         (for {
-          _ <- dataAccess.addCallCaching(Seq(
-            CallCachingJoin(
-              oldCallCachingEntry1,
-              callCachingHashEntriesOld,
-              aggregation,
-              callCachingSimpletonsA,
-              callCachingDetritusesA
-            )
-          ),
-            100
-          )
           hasBaseAggregation <- dataAccess.hasMatchingCallCachingEntriesForBaseAggregation(
-            "AGG_OLD",
+            "BASE_AGGREGATION_B",
             prefixOption
           )
           _ = hasBaseAggregation shouldBe true
           hit <- dataAccess.findCacheHitForAggregation(
-            "AGG_OLD",
-            Option("FILE_AGG_OLD"),
-            callCachePathPrefixes = prefixOption,
+            "BASE_AGGREGATION_B",
+            Option("FILE_AGGREGATION_B"),
+            None,
             Set.empty,
             None
           )
@@ -196,34 +267,23 @@ class CallCachingSlickDatabaseSpec
             callCachingHashEntriesA.map(e => (e.hashKey, e.hashValue))
           _ = getJoin.callCachingSimpletonEntries
             .map(e => (e.simpletonKey, e.simpletonValue.map(_.toRawString))) should contain theSameElementsAs
-            callCachingSimpletonsA.map(e => (e.simpletonKey, e.simpletonValue.map(_.toRawString)))
+            callCachingSimpletons.map(e => (e.simpletonKey, e.simpletonValue.map(_.toRawString)))
           _ = getJoin.callCachingAggregationEntry
             .map(e => (e.baseAggregation, e.inputFilesAggregation)) shouldBe
-            aggregation.map(e => (e.baseAggregation, e.inputFilesAggregation))
+            aggregationA.map(e => (e.baseAggregation, e.inputFilesAggregation))
           _ = getJoin.callCachingDetritusEntries
             .map(e => (e.detritusKey, e.detritusValue.map(_.toRawString))) should contain theSameElementsAs
-            callCachingDetritusesA.map(e => (e.detritusKey, e.detritusValue.map(_.toRawString)))
+            callCachingDetrituses.map(e => (e.detritusKey, e.detritusValue.map(_.toRawString)))
         } yield ()).futureValue
       }
-      it should s"not find cache hit when entry is older than maxResultAgeDays $description" taggedAs DbmsTest in {
+
+      it should s"filter cache cache entry results based on maxResultAgeDays $description" taggedAs DbmsTest in {
         (for {
-          _ <- dataAccess.addCallCaching(
-            Seq(
-              CallCachingJoin(
-                oldCallCachingEntry1,
-                callCachingHashEntriesOld,
-                aggregationOld,
-                Seq.empty,
-                Seq.empty
-              )
-            ),
-            100
-          )
           // Should find hit when maxResultAgeDays is None (no age filtering)
           hitWithoutAgeLimit <- dataAccess.findCacheHitForAggregation(
-            "BASE_AGG_OLD",
+            "AGG_OLD",
             Option("FILE_AGG_OLD"),
-            callCachePathPrefixes = prefixOption,
+            None,
             Set.empty,
             maxResultAgeDays = None
           )
@@ -231,9 +291,9 @@ class CallCachingSlickDatabaseSpec
 
           // Should NOT find hit when maxResultAgeDays is 1 (entry is from 2 days ago)
           hitWithAgeLimit <- dataAccess.findCacheHitForAggregation(
-            "BASE_AGG_OLD",
+            "AGG_OLD",
             Option("FILE_AGG_OLD"),
-            callCachePathPrefixes = prefixOption,
+            None,
             Set.empty,
             maxResultAgeDays = Some(1)
           )
@@ -241,9 +301,9 @@ class CallCachingSlickDatabaseSpec
 
           // Should find hit when maxResultAgeDays is 7 (entry is from 2 days ago)
           hitWithAgeLimit <- dataAccess.findCacheHitForAggregation(
-            "BASE_AGG_OLD",
+            "AGG_OLD",
             Option("FILE_AGG_OLD"),
-            callCachePathPrefixes = prefixOption,
+            None,
             Set.empty,
             maxResultAgeDays = Some(7)
           )
@@ -255,34 +315,45 @@ class CallCachingSlickDatabaseSpec
       it should s"return most recent cache entry first when multiple hits exist $description" taggedAs DbmsTest in {
 
         (for {
-          // Add entries in non-chronological order to verify sorting
-          _ <- dataAccess.addCallCaching(
-            Seq(
-              CallCachingJoin(oldCallCachingEntry1, callCachingHashEntriesOld, aggregationOld, Seq.empty, Seq.empty),
-              CallCachingJoin(oldCallCachingEntry2, callCachingHashEntriesOld, aggregationOld, Seq.empty, Seq.empty)
-            ),
-            100
-          )
-
           // Should return the newest entry
           hit <- dataAccess.findCacheHitForAggregation(
             "AGG_OLD",
             Option("FILE_AGG_OLD"),
-            callCachePathPrefixes = prefixOption,
+            None,
             Set.empty,
             maxResultAgeDays = None
           )
+
+          _ = info(s"hit: ${hit.toString}")
+
           _ = hit shouldBe defined
 
           // Verify it's the newest entry by checking the call cache entry ID
           newestJoin <- dataAccess.callCacheJoinForCall(
-            oldCallCachingEntry2.workflowExecutionUuid,
-            oldCallCachingEntry2.callFullyQualifiedName,
-            oldCallCachingEntry2.jobIndex
+            callCachingEntryD.workflowExecutionUuid,
+            callCachingEntryD.callFullyQualifiedName,
+            callCachingEntryD.jobIndex
           )
           _ = newestJoin shouldBe defined
           _ = hit.get shouldBe newestJoin.get.callCachingEntry.callCachingEntryId.get
         } yield ()).futureValue
+      }
+
+      it should s"clear entries from the database $description" taggedAs DbmsTest in {
+        import dataAccess.dataAccess.driver.api._
+
+        dataAccess.database
+          .run(
+            DBIO
+              .seq(
+                dataAccess.dataAccess.callCachingDetritusEntries.delete,
+                dataAccess.dataAccess.callCachingSimpletonEntries.delete,
+                dataAccess.dataAccess.callCachingHashEntries.delete,
+                dataAccess.dataAccess.callCachingAggregationEntries.delete
+              )
+              .transactionally
+          )
+          .futureValue
       }
     }
 

@@ -41,7 +41,7 @@ workflow call_cache_cha_cha {
             b = make_files.alardoso
     }
 
-    # Give the last call a chance to be writen to the call caching DB
+    # Give the last call a chance to be written to the call caching DB
     call sleep as sleep_before_restart { input: duration = 5, ready = read_files_after_modify.done }
 
     call sleep as sleep_during_restart { input: duration = 60, ready = sleep_before_restart.done }

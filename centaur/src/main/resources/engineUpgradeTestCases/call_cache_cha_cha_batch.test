@@ -1,13 +1,13 @@
-name: call_cache_cha_cha_local
+name: call_cache_cha_cha_batch
 testFormat: CromwellRestartWithRecover
 callMark: call_cache_cha_cha.sleep_during_restart
-backends: [Local]
-tags: [engine_upgrade, localdockertest]
+backends: [GCPBATCH]
+tags: [restart]
 retryTestFailures: false
 
 files {
   workflow: call_cache_cha_cha/call_cache_cha_cha.wdl
-  inputs: call_cache_cha_cha/call_cache_cha_cha_local.inputs.json
+  inputs: call_cache_cha_cha/call_cache_cha_cha_batch.inputs.json
 }
 
 metadata {
@@ -17,7 +17,7 @@ metadata {
   "calls.call_cache_cha_cha.make_files_cached.callCaching.result": "Cache Hit: <<UUID>>:call_cache_cha_cha.make_files:-1"
 
   "calls.call_cache_cha_cha.read_files.callCaching.hit": false
-  "calls.call_cache_cha_cha.modify_file_local.callCaching.hit": false
+  "calls.call_cache_cha_cha.modify_file_cloud.callCaching.hit": false
   "calls.call_cache_cha_cha.read_files_after_modify.callCaching.hit": false
   "calls.call_cache_cha_cha.read_copied_files.callCaching.result": "Cache Hit: <<UUID>>:call_cache_cha_cha.read_files:-1"
   "calls.call_cache_cha_cha.read_files_swapped.callCaching.hit": false
@@ -48,7 +48,7 @@ metadata {
   "calls.call_cache_cha_cha.read_array_files.callCaching.hashes.input count": "ECCBC87E4B5CE2FE28308FD9F2A7BAF3"
   "calls.call_cache_cha_cha.read_array_files.callCaching.hashes.command template": "854640FC8C6DFD8DA6DA3898FC160D02"
   "calls.call_cache_cha_cha.read_array_files.callCaching.hashes.input.Boolean ready": "B326B5062B2F0E69046810717534CB09"
-  "calls.call_cache_cha_cha.read_array_files.callCaching.hashes.input.File b.0": "5bbc090a49179c69c72354bce371e152"
-  "calls.call_cache_cha_cha.read_array_files.callCaching.hashes.input.File a.0": "0e4a079e970c7802de92f5151e0dc2b9"
-  "calls.call_cache_cha_cha.read_array_files.callCaching.hashes.backend name": "509820290D57F333403F490DDE7316F4"
+  "calls.call_cache_cha_cha.read_array_files.callCaching.hashes.input.File b.0": "UGbNrg=="
+  "calls.call_cache_cha_cha.read_array_files.callCaching.hashes.input.File a.0": "T53tZg=="
+  "calls.call_cache_cha_cha.read_array_files.callCaching.hashes.backend name": "36EF4A8AB268D1A1C74D8108C93D48ED"
 }

@@ -94,6 +94,7 @@
     <include file="changesets/add_group_metrics_table.xml" relativeToChangelogFile="true" />
     <include file="changesets/add_group_metrics_unique_constraint.xml" relativeToChangelogFile="true" />
     <include file="changesets/enlarge_job_key_value_entry_id.xml" relativeToChangelogFile="true" />
+    <include file="changesets/add_timestamp_in_call_caching.xml" relativeToChangelogFile="true" />
     <!-- WARNING!
       This changeset should always be last.
       It is always run (and should always run last) to set table ownership correctly.

@@ -108,7 +108,7 @@ jobs:
     # Activate SSH and idle for 30 minutes, see https://www.notion.so/SSH-into-Github-Action-287ab699a6f580609d01d3c88692df14 for details
 #    - name: Setup tmate session
 #      uses: mxschmitt/action-tmate@v3
-#      timeout-minutes: 30
+#      timeout-minutes: 120
 #      with:
 #        limit-access-to-actor: true
 #        detached: true

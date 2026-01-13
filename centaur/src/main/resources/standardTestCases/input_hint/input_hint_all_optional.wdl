@@ -1,4 +1,4 @@
-version development-1.1
+version 1.1
 
 # Adapted from https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md#reserved-runtime-hints
 

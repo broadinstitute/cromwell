@@ -1,6 +1,8 @@
 # Cromwell Change Log
 
 ## 92 Release Notes
+### WDL 1.1 Support
+* Cromwell now fully supports WDL 1.1. Users can specify `Version: "1.1"` in their workflow options to use WDL 1.1 features. See the [WDL 1.1 Spec](https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md)
 
 ### Migration of PK to BIGINT
 The PK of the JOB_KEY_VALUE_ENTRY table will be migrated from INT to BIGINT.

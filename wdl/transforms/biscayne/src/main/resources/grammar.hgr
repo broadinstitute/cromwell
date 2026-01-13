@@ -149,7 +149,7 @@ grammar {
 
     mode<awaiting_version_name> {
       r'\s+' -> null
-      r'development-1.1' -> :version_name @main
+      r'1.1' -> :version_name @main
     }
     mode<task_fqn> {
       r'\s+' -> null

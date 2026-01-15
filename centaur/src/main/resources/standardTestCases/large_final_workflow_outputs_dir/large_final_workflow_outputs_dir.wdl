@@ -20,7 +20,7 @@ workflow large_final_workflow_outputs_dir {
         #
         # Also if/when we switch to multi-cloud, this file should be publicly available on other clouds, such as
         # https://registry.opendata.aws/broad-references/
-        File out = "gs://genomics-public-data/resources/broad/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf"
+        File out = "gs://gcp-public-data--broad-references/hg38/v0/Homo_sapiens_assembly38.dbsnp138.vcf"
         String patience = "It will take a few minutes while cromwell monitors the GCS copy of the workflow outputs"
     }
 

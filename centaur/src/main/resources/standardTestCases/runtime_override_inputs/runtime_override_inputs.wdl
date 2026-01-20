@@ -1,4 +1,4 @@
-version development-1.1
+version 1.1
 
 import "sub_runtime_override_inputs.wdl" as sub_runtime
 

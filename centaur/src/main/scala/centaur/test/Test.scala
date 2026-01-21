@@ -220,8 +220,7 @@ object Operations extends StrictLogging {
       }
 
       override def run: IO[Unit] =
-        // We can't describe workflows based on zipped imports, so don't try:
-        if (workflow.skipDescribeEndpointValidation || workflow.data.zippedImports.nonEmpty) {
+        if (workflow.skipDescribeEndpointValidation) {
           IO.pure(())
         } else {
           checkDescriptionInner(0)

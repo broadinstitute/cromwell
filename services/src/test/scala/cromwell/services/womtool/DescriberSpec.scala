@@ -2,7 +2,7 @@ package cromwell.services.womtool
 
 import common.assertion.CromwellTimeoutSpec
 import cromwell.core.path._
-import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithoutImports}
+import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.womtool.DescriberSpec._
 import cromwell.services.womtool.WomtoolServiceMessages.DescribeSuccess
@@ -37,26 +37,37 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
         val workflowType = Try(caseDirectory.resolve("workflowType").contentAsString.stripLineEnd).toOption
         val workflowTypeVersion =
           Try(caseDirectory.resolve("workflowTypeVersion").contentAsString.stripLineEnd).toOption
+        val importsFile =
+          Try(caseDirectory.resolve("workflowDependencies")).filter(_.exists).map(_.zip()).toOption
 
-        val interimWsfc = WorkflowSourceFilesWithoutImports(
-          workflowSource = None,
-          workflowUrl = None,
+        val workflowSource = testCase match {
+          case FileAndDescription(file, _) => Option(file)
+          case _ => None
+        }
+
+        val workflowUrl = testCase match {
+          case UrlAndDescription(url, _) => Option(url)
+          case _ => None
+        }
+
+        val wsfc = WorkflowSourceFilesCollection(
+          workflowSource = workflowSource,
+          workflowUrl = workflowUrl,
           workflowRoot = None,
           workflowType = workflowType,
           workflowTypeVersion = workflowTypeVersion,
           inputsJson = "",
           workflowOptions = WorkflowOptions.empty,
+          importsFile = importsFile.map(_.byteArray),
+          workflowOnHold = false,
           labelsJson = "",
           warnings = Seq.empty,
           requestedWorkflowId = None
         )
 
-        val wsfc = testCase match {
-          case FileAndDescription(file, _) => interimWsfc.copy(workflowSource = Option(file))
-          case UrlAndDescription(url, _) => interimWsfc.copy(workflowUrl = Option(url))
-        }
-
         check(wsfc, parse(testCase.expectedDescription).toOption.get)
+
+        importsFile.map(_.delete(swallowIOExceptions = true))
       }
     }
   }

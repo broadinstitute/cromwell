@@ -30,7 +30,7 @@ import wom.transforms.WomExecutableMaker.ops._
 class WdlBiscayneLanguageFactory(override val config: Config) extends LanguageFactory with ParserCache[WomBundle] {
 
   override val languageName: String = "WDL"
-  override val languageVersionName: String = "Biscayne"
+  override val languageVersionName: String = "1.1"
 
   override def validateNamespace(source: WorkflowSourceFilesCollection,
                                  workflowSource: WorkflowSource,

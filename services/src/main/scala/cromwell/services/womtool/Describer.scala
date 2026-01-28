@@ -1,8 +1,20 @@
 package cromwell.services.womtool
 
+import cats.data.EitherT.fromEither
 import cats.data.Validated.{Invalid, Valid}
+import cats.syntax.validated._
+import cats.effect.IO
+import common.validation.Checked.ValidCheck
+import common.validation.IOChecked.IOChecked
 import cromwell.core.WorkflowSourceFilesCollection
-import cromwell.languages.util.ImportResolver.{HttpResolver, ImportAuthProvider, ImportResolver}
+import cromwell.languages.util.ImportResolver.{
+  zippedImportResolver,
+  DirectoryResolver,
+  HttpResolver,
+  ImportAuthProvider,
+  ImportResolver
+}
+import common.validation.ErrorOr.ErrorOr
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeResult, DescribeSuccess}
@@ -15,27 +27,37 @@ object Describer {
 
   def describeWorkflow(wsfc: WorkflowSourceFilesCollection, authProviders: List[ImportAuthProvider]): DescribeResult = {
 
-    val initialResolvers: List[ImportResolver] = List(HttpResolver(None, Map.empty, authProviders))
+    val zippedImportResolverEither: ErrorOr[Option[DirectoryResolver]] =
+      wsfc.importsZipFileOption match {
+        case None => None.validNel
+        case Some(zipContent) => zippedImportResolver(zipContent).map(Option.apply)
+      }
 
-    // The HTTP resolver is used to pull down workflows submitted by URL
-    LanguageFactoryUtil.findWorkflowSource(wsfc.workflowSource, wsfc.workflowUrl, initialResolvers) match {
-      case Right((workflowSource: WorkflowSource, importResolvers: List[ImportResolver.ImportResolver])) =>
-        LanguageFactoryUtil.chooseFactory(workflowSource, wsfc) match {
-          case Valid(factory: LanguageFactory) =>
-            DescribeSuccess(
-              description = describeWorkflowInner(factory, workflowSource, importResolvers, wsfc)
-            )
-          case Invalid(e) =>
-            // `chooseFactory` generally should not fail, because we still choose the default factory even if `looksParsable`
-            // returns uniformly `false`. (If the user submits gibberish, we will use the default factory and fail elsewhere.)
-            // We could get here if there's a problem loading the factories' classes or the language configuration, however.
-            // It is a BadRequest because ultimately the user submitted something we could not understand.
+    zippedImportResolverEither match {
+      case Valid(zippedImportResolverOpt) =>
+        val importResolvers = zippedImportResolverOpt.toList :+ HttpResolver(
+          None,
+          Map.empty,
+          authProviders
+        )
+        LanguageFactoryUtil.findWorkflowSource(wsfc.workflowSource, wsfc.workflowUrl, importResolvers) match {
+          case Right((workflowSource: WorkflowSource, importResolvers: List[ImportResolver.ImportResolver])) =>
+            LanguageFactoryUtil.chooseFactory(workflowSource, wsfc) match {
+              case Valid(factory: LanguageFactory) =>
+                DescribeSuccess(
+                  description = describeWorkflowInner(factory, workflowSource, importResolvers, wsfc)
+                )
+              case Invalid(e) =>
+                DescribeFailure(
+                  reason = e.toList.mkString(", ")
+                )
+            }
+          case Left(errors) =>
             DescribeFailure(
-              reason = e.toList.mkString(", ")
+              reason = errors.toList.mkString(", ")
             )
         }
-      case Left(errors) =>
-        // Likely reasons: no workflow provided, workflow URL could not be read
+      case Invalid(errors) =>
         DescribeFailure(
           reason = errors.toList.mkString(", ")
         )

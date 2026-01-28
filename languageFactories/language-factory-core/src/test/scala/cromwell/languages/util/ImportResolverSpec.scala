@@ -5,7 +5,6 @@ import com.softwaremill.sttp._
 import java.nio.file.{Files, Paths}
 import common.assertion.CromwellTimeoutSpec
 import common.assertion.ErrorOrAssertions._
-import cromwell.core.WorkflowId
 import cromwell.core.path.DefaultPath
 import cromwell.languages.util.ImportResolver.{
   DirectoryResolver,
@@ -386,7 +385,7 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
   it should "resolve paths in zips" in {
     val zipResource = getClass.getResource("/QC.zip").toURI
     val zipBytes = Files.readAllBytes(Paths.get(zipResource))
-    val resolvers = ImportResolver.zippedImportResolver(zipBytes, WorkflowId.randomId())
+    val resolvers = ImportResolver.zippedImportResolver(zipBytes)
 
     // Not the most elegant way to get the paths, but gets the job done.
     val resolver = resolvers.toList.head

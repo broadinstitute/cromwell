@@ -1,18 +1,13 @@
 package cromwell.services.womtool
 
-import cats.data.EitherT.fromEither
 import cats.data.Validated.{Invalid, Valid}
 import cats.syntax.validated._
-import cats.effect.IO
-import common.validation.Checked.ValidCheck
-import common.validation.IOChecked.IOChecked
 import cromwell.core.WorkflowSourceFilesCollection
 import cromwell.languages.util.ImportResolver.{
   zippedImportResolver,
   DirectoryResolver,
   HttpResolver,
   ImportAuthProvider,
-  ImportResolver
 }
 import common.validation.ErrorOr.ErrorOr
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}

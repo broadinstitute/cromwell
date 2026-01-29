@@ -2,7 +2,12 @@ package cromwell.services.womtool
 
 import common.assertion.CromwellTimeoutSpec
 import cromwell.core.path._
-import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithDependenciesZip, WorkflowSourceFilesWithoutImports}
+import cromwell.core.{
+  WorkflowOptions,
+  WorkflowSourceFilesCollection,
+  WorkflowSourceFilesWithDependenciesZip,
+  WorkflowSourceFilesWithoutImports
+}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.womtool.DescriberSpec._
 import cromwell.services.womtool.WomtoolServiceMessages.DescribeSuccess

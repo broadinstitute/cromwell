@@ -7,7 +7,7 @@ import cromwell.languages.util.ImportResolver.{
   zippedImportResolver,
   DirectoryResolver,
   HttpResolver,
-  ImportAuthProvider,
+  ImportAuthProvider
 }
 import common.validation.ErrorOr.ErrorOr
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}

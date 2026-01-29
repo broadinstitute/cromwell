@@ -42,11 +42,16 @@ object Describer {
                 DescribeSuccess(
                   description = describeWorkflowInner(factory, workflowSource, importResolvers, wsfc)
                 )
+              // `chooseFactory` generally should not fail, because we still choose the default factory even if `looksParsable`
+              // returns uniformly `false`. (If the user submits gibberish, we will use the default factory and fail elsewhere.)
+              // We could get here if there's a problem loading the factories' classes or the language configuration, however.
+              // It is a BadRequest because ultimately the user submitted something we could not understand.
               case Invalid(e) =>
                 DescribeFailure(
                   reason = e.toList.mkString(", ")
                 )
             }
+          // Likely reasons: no workflow provided, workflow URL could not be read
           case Left(errors) =>
             DescribeFailure(
               reason = errors.toList.mkString(", ")

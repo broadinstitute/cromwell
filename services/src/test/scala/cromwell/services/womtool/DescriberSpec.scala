@@ -67,13 +67,43 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "describe a workflow when imports are zipped" in {
-    val testCaseDir = DefaultPathBuilder.get("services/src/test/resources/describe/zipped")
+    val testCaseDir = DefaultPathBuilder.get("services/src/test/resources/describe/zipped/simple")
 
     // Read the main workflow
     val workflowSource = testCaseDir.resolve("workflow.wdl").contentAsString
 
     // Read the imported file
-    val importedWdl = testCaseDir.resolve("imports.zip").byteArray
+    val importedWdl = testCaseDir.resolve("imports.zip").loadBytes
+
+    // Read expected description
+    val expectedDescription = parse(testCaseDir.resolve("description.json").contentAsString).toOption.get
+
+    // Build the source files collection with dependencies zip
+    val wsfc = WorkflowSourceFilesWithDependenciesZip(
+      workflowSource = Option(workflowSource),
+      workflowUrl = None,
+      workflowRoot = None,
+      workflowType = Option("WDL"),
+      workflowTypeVersion = Option("1.0"),
+      inputsJson = "",
+      workflowOptions = WorkflowOptions.empty,
+      labelsJson = "",
+      importsZip = importedWdl,
+      warnings = Seq.empty,
+      requestedWorkflowId = None
+    )
+
+    check(wsfc, expectedDescription)
+  }
+
+  it should "describe a workflow when imports are zipped with relative imports" in {
+    val testCaseDir = DefaultPathBuilder.get("services/src/test/resources/describe/zipped/relative_imports")
+
+    // Read the main workflow
+    val workflowSource = testCaseDir.resolve("workflow.wdl").contentAsString
+
+    // Read the imported file
+    val importedWdl = testCaseDir.resolve("imports.zip").loadBytes
 
     // Read expected description
     val expectedDescription = parse(testCaseDir.resolve("description.json").contentAsString).toOption.get
@@ -85,11 +115,11 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
       workflowRoot = None,
       workflowType = Option("WDL"),
       workflowTypeVersion = Option("1.1"),
-      inputsJson = "{}",
+      inputsJson = "",
       workflowOptions = WorkflowOptions.empty,
-      labelsJson = "{}",
+      labelsJson = "",
       importsZip = importedWdl,
-      warnings = Vector.empty,
+      warnings = Seq.empty,
       requestedWorkflowId = None
     )
 

@@ -8,6 +8,6 @@ workflow use_simple {
   }
   call simple_pkg.simple { input: i = i }
   output {
-    Int result = simple_pkg.simple.result
+    Int result = simple.result
   }
 }

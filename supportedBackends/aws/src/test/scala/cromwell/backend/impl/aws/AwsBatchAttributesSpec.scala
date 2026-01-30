@@ -53,6 +53,8 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
     val attributes = AwsBatchAttributes.fromConfigs(config, backendConfig)
     attributes.executionBucket should be("s3://myBucket")
+    attributes.tagResources should be(Some(true))
+    attributes.tagHardware should be(Some(true))
   }
 
   it should "not parse invalid config" taggedAs IntegrationTest in {
@@ -76,6 +78,8 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
        |   maximum-polling-interval = 600
        |   numSubmitAttempts = 6
        |   numCreateDefinitionAttempts = 6
+       |   tagResources = true
+       |   tagHardware = true
        |
        |
        |   filesystems = {

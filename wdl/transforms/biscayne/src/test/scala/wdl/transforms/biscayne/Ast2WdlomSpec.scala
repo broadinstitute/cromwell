@@ -30,7 +30,7 @@ object Ast2WdlomSpec {
   )(implicit converter: CheckedAtoB[GenericAstNode, A]): Checked[A] = {
 
     // Add the "version development" to force the lexer into "main" mode.
-    val versionedExpression = "version development-1.1\n" + expression
+    val versionedExpression = "version 1.1\n" + expression
     // That "version development" means we'll have 2 unwanted tokens at the start of the list, so drop 'em:
     val tokens = parser.lex(versionedExpression, "string").asScala.drop(2).asJava
     val terminalMap = (tokens.asScala.toVector map { (_, versionedExpression) }).toMap

@@ -99,13 +99,18 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   override def findCacheHitForAggregation(baseAggregationHash: String,
                                           inputFilesAggregationHash: Option[String],
                                           callCachePathPrefixes: Option[List[String]],
-                                          excludedIds: Set[Long]
+                                          excludedIds: Set[Long],
+                                          maxResultAgeDays: Option[Long]
   )(implicit ec: ExecutionContext): Future[Option[Long]] = {
 
     val action = callCachePathPrefixes match {
       case None =>
         dataAccess
-          .callCachingEntriesForAggregatedHashes(baseAggregationHash, inputFilesAggregationHash, excludedIds)
+          .callCachingEntriesForAggregatedHashes(baseAggregationHash,
+                                                 inputFilesAggregationHash,
+                                                 excludedIds,
+                                                 maxResultAgeDays
+          )
           .result
           .headOption
       case Some(ps) =>
@@ -119,7 +124,8 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
                                                              two.length,
                                                              three.prefix,
                                                              three.length,
-                                                             excludedIds
+                                                             excludedIds,
+                                                             maxResultAgeDays
           )
           .result
           .headOption

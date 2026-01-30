@@ -53,13 +53,16 @@ class StandardValidatedRuntimeAttributesBuilderSpec
 
     "validate a valid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
-      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option("ubuntu:latest"))
+      val expectedRuntimeAttributes = defaultRuntimeAttributes + (DockerKey -> Option(Containers("ubuntu:latest")))
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "fail to validate an invalid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertRuntimeAttributesFailedCreation(runtimeAttributes, "Expecting docker runtime attribute to be a String")
+      assertRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting docker runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
     }
 
     "validate a valid failOnStderr entry" in {
@@ -68,21 +71,21 @@ class StandardValidatedRuntimeAttributesBuilderSpec
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
-    "log a warning and validate a valid Docker entry" in {
+    "log a message and validate a valid Docker entry" in {
       val expectedRuntimeAttributes = defaultRuntimeAttributes
       val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
-      var warnings = List.empty[Any]
+      var logs = List.empty[Any]
       val mockLogger = mock[Logger]
-      mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
+      mockLogger.info(anyString).answers((logs :+= _): Any => Unit)
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes,
                                                 expectedRuntimeAttributes,
                                                 includeDockerSupport = false,
                                                 logger = mockLogger
       )
-      warnings should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")
+      logs should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")
     }
 
-    "log a warning and validate an invalid Docker entry" in {
+    "log a message and validate an invalid Docker entry" in {
       /*
       NOTE: The behavior used to be: when present, a "docker" runtime attribute would always be validated to ensure that
       the value of the runtime attribute was a String-- even if the actual runtime attribute was unsupported by the
@@ -96,15 +99,15 @@ class StandardValidatedRuntimeAttributesBuilderSpec
        */
       val expectedRuntimeAttributes = defaultRuntimeAttributes
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      var warnings = List.empty[Any]
+      var logs = List.empty[Any]
       val mockLogger = mock[Logger]
-      mockLogger.warn(anyString).answers((warnings :+= _): Any => Unit)
+      mockLogger.info(anyString).answers((logs :+= _): Any => Unit)
       assertRuntimeAttributesSuccessfulCreation(runtimeAttributes,
                                                 expectedRuntimeAttributes,
                                                 includeDockerSupport = false,
                                                 logger = mockLogger
       )
-      warnings should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")
+      logs should contain theSameElementsAs List("Unrecognized runtime attribute keys: docker")
     }
 
     "fail to validate an invalid failOnStderr entry" in {
@@ -170,7 +173,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     val builder = if (includeDockerSupport) {
       StandardValidatedRuntimeAttributesBuilder
         .default(mockBackendRuntimeConfig)
-        .withValidation(DockerValidation.optional)
+        .withValidation(DockerValidation.instance)
     } else {
       StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
     }
@@ -185,7 +188,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
     val continueOnReturnCode =
       RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
 
-    docker should be(expectedRuntimeAttributes(DockerKey).asInstanceOf[Option[String]])
+    docker should be(expectedRuntimeAttributes(DockerKey).asInstanceOf[Option[Containers]])
     failOnStderr should be(expectedRuntimeAttributes(FailOnStderrKey).asInstanceOf[Boolean])
     continueOnReturnCode should be(
       expectedRuntimeAttributes(ContinueOnReturnCodeKey)
@@ -203,7 +206,7 @@ class StandardValidatedRuntimeAttributesBuilderSpec
       val builder = if (supportsDocker) {
         StandardValidatedRuntimeAttributesBuilder
           .default(mockBackendRuntimeConfig)
-          .withValidation(DockerValidation.optional)
+          .withValidation(DockerValidation.instance)
       } else {
         StandardValidatedRuntimeAttributesBuilder.default(mockBackendRuntimeConfig)
       }

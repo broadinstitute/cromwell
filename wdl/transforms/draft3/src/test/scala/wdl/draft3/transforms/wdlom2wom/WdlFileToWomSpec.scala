@@ -14,6 +14,7 @@ import wdl.model.draft3.elements.CommandPartElement.StringCommandPartElement
 import wdl.model.draft3.elements.ExpressionElement.StringLiteral
 import wdl.transforms.base.wdlom2wom._
 import wdl.transforms.base.wdlom2wom.expression.WdlomWomExpression
+import wom.RuntimeAttributesKeys
 import wom.callable.Callable.{FixedInputDefinitionWithDefault, OptionalInputDefinition}
 import wom.callable.MetaValueElement._
 import wom.callable.{CallableTaskDefinition, WorkflowDefinition}
@@ -186,7 +187,8 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
     "cmd_whitespace_tabs" -> anyWomWillDo,
     "cmd_strip_common_tabs" -> anyWomWillDo,
     "cmd_whitespace_spaces" -> anyWomWillDo,
-    "string_escaping" -> anyWomWillDo
+    "string_escaping" -> anyWomWillDo,
+    "container_attribute" -> validateContainerAttribute
   )
 
   private def anyWomWillDo(b: WomBundle): Assertion = Succeeded
@@ -303,4 +305,12 @@ class WdlFileToWomSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
       )
     )
   }
+
+  private def validateContainerAttribute(b: WomBundle): Assertion = {
+    val taskDef: CallableTaskDefinition =
+      (b.allCallables.values.toSet.filterByType[CallableTaskDefinition]: Set[CallableTaskDefinition]).head
+    taskDef.runtimeAttributes.attributes.get(RuntimeAttributesKeys.DockerKey) should not be empty
+    taskDef.runtimeAttributes.attributes.get(RuntimeAttributesKeys.ContainerKey) shouldBe empty
+  }
+
 }

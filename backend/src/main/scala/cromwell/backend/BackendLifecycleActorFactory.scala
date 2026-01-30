@@ -171,6 +171,16 @@ trait BackendLifecycleActorFactory extends PlatformSpecific {
   val dockerMirroring: Option[DockerMirroring] = None
 
   /**
+   * Indicates whether this backend may be able to run jobs on GPU-enabled hardware. This assists us in the check we
+   * need to do for the WDL 1.1+ `gpu` runtime attributes, which requires failing a task if we can't confirm that a
+   * GPU is available in its execution environment.
+   *
+   * Backends should override this value to `true` and do their own checking if they are able to run jobs on
+   * GPU-enabled hardware.
+   */
+  val gpuMayBeAvailable: Boolean = false
+
+  /**
     * Allows Cromwell to self-identify which cloud it's running on for runtime attribute purposes
     */
   override def platform: Option[Platform] = None

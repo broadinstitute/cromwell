@@ -2,6 +2,10 @@ package cromwell.database.slick.tables
 
 import cromwell.database.sql.tables.CallCachingAggregationEntry
 
+import java.sql.Timestamp
+import java.time.Instant
+import java.time.temporal.ChronoUnit
+
 trait CallCachingAggregationEntryComponent {
 
   this: DriverComponent with CallCachingEntryComponent with CallCachingDetritusEntryComponent =>
@@ -78,17 +82,25 @@ trait CallCachingAggregationEntryComponent {
 
   def callCachingEntriesForAggregatedHashes(baseAggregation: Rep[String],
                                             inputFilesAggregation: Rep[Option[String]],
-                                            excludedIds: Set[Long]
+                                            excludedIds: Set[Long],
+                                            maxResultAgeDays: Option[Long]
   ) =
     (for {
       callCachingEntry <- callCachingEntries
-      if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
+      if callCachingEntry.allowResultReuse &&
+        !(callCachingEntry.callCachingEntryId inSet excludedIds) &&
+        // Filter entries from last 90 days
+        maxResultAgeDays.fold(LiteralColumn(true): Rep[Boolean])(days =>
+          callCachingEntry.createdAt >= Timestamp.from(Instant.now().minus(days, ChronoUnit.DAYS))
+        )
+
       callCachingAggregationEntry <- callCachingAggregationEntries
       if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
       if callCachingAggregationEntry.baseAggregation === baseAggregation
       if (callCachingAggregationEntry.inputFilesAggregation.isEmpty && inputFilesAggregation.isEmpty) ||
         (callCachingAggregationEntry.inputFilesAggregation === inputFilesAggregation)
-    } yield callCachingAggregationEntry.callCachingEntryId).take(1)
+      // reverses the order to get the most recent entry first
+    } yield callCachingAggregationEntry.callCachingEntryId).sortBy(_.desc).take(1)
 
   def callCachingEntriesForAggregatedHashesWithPrefixes(baseAggregation: Rep[String],
                                                         inputFilesAggregation: Rep[Option[String]],
@@ -98,11 +110,18 @@ trait CallCachingAggregationEntryComponent {
                                                         prefix2Length: Rep[Int],
                                                         prefix3: Rep[String],
                                                         prefix3Length: Rep[Int],
-                                                        excludedIds: Set[Long]
+                                                        excludedIds: Set[Long],
+                                                        maxResultAgeDays: Option[Long]
   ) =
     (for {
       callCachingEntry <- callCachingEntries
-      if callCachingEntry.allowResultReuse && !(callCachingEntry.callCachingEntryId inSet excludedIds)
+      if callCachingEntry.allowResultReuse &&
+        !(callCachingEntry.callCachingEntryId inSet excludedIds) &&
+        // Filter entries from last 90 days
+        maxResultAgeDays.fold(LiteralColumn(true): Rep[Boolean])(days =>
+          callCachingEntry.createdAt >= Timestamp.from(Instant.now().minus(days, ChronoUnit.DAYS))
+        )
+
       callCachingAggregationEntry <- callCachingAggregationEntries
       if callCachingEntry.callCachingEntryId === callCachingAggregationEntry.callCachingEntryId
       if callCachingAggregationEntry.baseAggregation === baseAggregation
@@ -117,5 +136,6 @@ trait CallCachingAggregationEntryComponent {
       if (detritusPath.substring(0, prefix1Length) === prefix1) ||
         (detritusPath.substring(0, prefix2Length) === prefix2) ||
         (detritusPath.substring(0, prefix3Length) === prefix3)
-    } yield callCachingAggregationEntry.callCachingEntryId).take(1)
+      // reverses the order to get the most recent entry first
+    } yield callCachingAggregationEntry.callCachingEntryId).sortBy(_.desc).take(1)
 }

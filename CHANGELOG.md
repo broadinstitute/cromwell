@@ -1,5 +1,45 @@
 # Cromwell Change Log
 
+## 92 Release Notes
+### WDL 1.1 Support
+* Cromwell now fully supports WDL 1.1. Users can specify `Version: "1.1"` in their workflow options to use WDL 1.1 features. See the [WDL 1.1 Spec](https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md)
+
+### Migration of PK to BIGINT
+The PK of the JOB_KEY_VALUE_ENTRY table will be migrated from INT to BIGINT.
+
+### AWS ECR Docker Remote Hashing
+* Fixed an issue where ECR images without an explicit repository prefix
+(e.g., `123456789012.dkr.ecr.us-east-1.amazonaws.com/example-tool`) would fail during remote hash computation due to incorrect manifest URI construction. 
+The Docker registry implementation now correctly handles ECR's support for repository-less image paths.
+
+### AWS Batch
+* Added support for submitting jobs to AWS Batch queues in different regions. The region is now automatically derived from the `queueArn` runtime attribute, allowing multi-region workflows without additional configuration.
+* Fixed an issue where job failures before all outputs were written would cause delocalization to fail, preventing the upload of return code, stdout, and stderr files needed for debugging.
+* Split the option to tag resources between AWS Batch jobs vs. EC2 and EBS volumes hardware
+* Moved the option to tag job resources from runtime attributes to backend config.
+* Appended the custom labels to the list of resource tags to propagate
+
+### Progress toward WDL 1.1 Support
+* WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 92, `development-1.1` has been enhanced to include:
+    * Support for passthrough syntax for call inputs, e.g. `{ input: foo }` rather than `{ input: foo = foo }`.
+    * Support for setting or overriding individual task runtime attributes in workflow inputs, e.g. `{ "workflow1.task1.runtime.cpu": "4"}`.
+    * Support for new boolean runtime attribute `gpu`, which tells the engine to require a GPU to be available in order to run the task. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#gpu) for details.
+
+### GPU changes on Google Cloud backend
+
+#### Removed `nvidiaDriverVersion`
+
+In GCP Batch, the `nvidiaDriverVersion` attribute is ignored. Now that Life Sciences has retired, the attribute is now fully deprecated and can be removed from workflows.
+
+#### Added `predefinedMachineType` (alpha)
+
+The new `predefinedMachineType` attribute is introduced in experimental status. See [the attribute's docs](https://cromwell.readthedocs.io/en/develop/RuntimeAttributes/#predefinedmachinetype-alpha) for details.  
+
+### Database Migration
+The index `IX_METADATA_ENTRY_WEU_CFQN_JSI_JRA_MK` is added to `METADATA_ENTRY`. In pre-release testing, the migration proceeded at about 3 million rows per minute. Please plan downtime accordingly.
+
+This index supports planned metadata API enhancements that enable querying at granular scopes, namely calls, shards, and attempts.
+
 ## 91 Release Notes
 
 #### Removal of Google LifeSciences backend code
@@ -24,8 +64,14 @@ This will allow for better grouping of jobs in the Batch UI and ensure determini
 * Added support for specifying an IAM role for AWS Batch job containers via the `aws_batch_job_role_arn` workflow option. This allows containers to access AWS resources based on the permissions granted to the specified role.
 * ECR [pull-through caches](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html) can now be used to access Docker images. See [ReadTheDocs](https://cromwell.readthedocs.io/en/develop/backends/AWSBatch/) for details.
 
+### Progress toward WDL 1.1 Support
+ * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 91, `development-1.1` has been enhanced to include:
+   * Runtime attribute `container`, which may be a single string or an array of strings, is preferred over `docker` for specifying the image a task should run on. If given a list of multiple images, Cromwell will choose the first.
+   * `docker://` is permitted as a prefix for image names, ex. `container: docker://ubuntu:latest`.
+
 ### Other changes
 * Removed unused code related to Azure cloud services.
+* Changed log level from WARN to INFO for messages about unsupported runtime attributes.
 
 ## 90 Release Notes
 

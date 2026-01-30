@@ -33,26 +33,24 @@ package cromwell.backend.impl.aws
 
 import cats.syntax.apply._
 import cats.syntax.validated._
-import com.typesafe.config.Config
+import com.typesafe.config.{Config, ConfigException, ConfigValueFactory}
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.validation._
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
-import wom.RuntimeAttributesKeys
-import wom.format.MemorySize
+import org.slf4j.{Logger, LoggerFactory}
 import wdl4s.parser.MemoryUnit
+import wom.RuntimeAttributesKeys
+import wom.RuntimeAttributesKeys.GpuKey
+import wom.format.MemorySize
 import wom.types._
 import wom.values._
-import com.typesafe.config.{ConfigException, ConfigValueFactory}
 
-import scala.util.matching.Regex
-import org.slf4j.{Logger, LoggerFactory}
-import wom.RuntimeAttributesKeys.GpuKey
-
-import scala.util.{Failure, Success, Try}
 import scala.jdk.CollectionConverters._
+import scala.util.matching.Regex
+import scala.util.{Failure, Success, Try}
 
 /**
  * Attributes that are provided to the job at runtime
@@ -100,7 +98,8 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      additionalTags: Map[String, String],
                                      fuseMount: Boolean,
                                      fileSystem: String = "s3",
-                                     tagResources: Boolean = false
+                                     tagResources: Boolean = false,
+                                     tagHardware: Boolean = false
 )
 
 object AwsBatchRuntimeAttributes {
@@ -121,6 +120,7 @@ object AwsBatchRuntimeAttributes {
   val awsBatchefsDelocalizeKey = "efsDelocalize"
   val awsBatchefsMakeMD5Key = "efsMakeMD5"
   val tagResourcesKey = "tagResources"
+  val tagHardwareKey = "tagHardware"
   val ZonesKey = "zones"
   private val ZonesDefaultValue = WomString("us-east-1a")
 
@@ -153,6 +153,12 @@ object AwsBatchRuntimeAttributes {
   private def cpuValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int Refined Positive] =
     CpuValidation.instance
       .withDefault(CpuValidation.configDefaultWomValue(runtimeConfig) getOrElse CpuValidation.defaultMin)
+
+  private def gpuRequiredValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    GpuRequiredValidation
+      .withDefault(
+        GpuRequiredValidation.configDefaultWomValue(runtimeConfig) getOrElse GpuRequiredValidation.DefaultValue
+      )
 
   private def gpuCountValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
     PosIntValidation(GpuKey).withDefault(
@@ -213,7 +219,9 @@ object AwsBatchRuntimeAttributes {
         .getOrElse(throw new RuntimeException("scriptBucketName is required"))
     )
 
-  private val dockerValidation: RuntimeAttributesValidation[String] = DockerValidation.instance
+  // As of WDL 1.1 these two are aliases of each other
+  private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
+  private val containerValidation: OptionalRuntimeAttributesValidation[Containers] = ContainerValidation.instance
 
   private def queueArnValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
     QueueArnValidation.withDefault(
@@ -251,6 +259,13 @@ object AwsBatchRuntimeAttributes {
   private def awsBatchtagResourcesValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
     AwsBatchtagResourcesValidation(AwsBatchRuntimeAttributes.tagResourcesKey).withDefault(
       AwsBatchtagResourcesValidation(AwsBatchRuntimeAttributes.tagResourcesKey)
+        .configDefaultWomValue(runtimeConfig)
+        .getOrElse(WomBoolean(false))
+    )
+
+  private def awsBatchtagHardwareValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    AwsBatchtagHardwareValidation(AwsBatchRuntimeAttributes.tagHardwareKey).withDefault(
+      AwsBatchtagHardwareValidation(AwsBatchRuntimeAttributes.tagHardwareKey)
         .configDefaultWomValue(runtimeConfig)
         .getOrElse(WomBoolean(false))
     )
@@ -296,11 +311,13 @@ object AwsBatchRuntimeAttributes {
       .withValidation(
         cpuValidation(runtimeConfig),
         gpuCountValidation(runtimeConfig),
+        gpuRequiredValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
+        containerValidation,
         queueArnValidation(runtimeConfig),
         scriptS3BucketNameValidation(runtimeConfig),
         logGroupNameValidation(runtimeConfig),
@@ -310,6 +327,7 @@ object AwsBatchRuntimeAttributes {
         awsBatchefsDelocalizeValidation(runtimeConfig),
         awsBatchefsMakeMD5Validation(runtimeConfig),
         awsBatchtagResourcesValidation(runtimeConfig),
+        awsBatchtagHardwareValidation(runtimeConfig),
         sharedMemorySizeValidation(runtimeConfig),
         fuseMountValidation(runtimeConfig),
         jobTimeoutValidation(runtimeConfig)
@@ -319,11 +337,13 @@ object AwsBatchRuntimeAttributes {
       .withValidation(
         cpuValidation(runtimeConfig),
         gpuCountValidation(runtimeConfig),
+        gpuRequiredValidation(runtimeConfig),
         disksValidation(runtimeConfig),
         zonesValidation(runtimeConfig),
         memoryValidation(runtimeConfig),
         noAddressValidation(runtimeConfig),
         dockerValidation,
+        containerValidation,
         queueArnValidation(runtimeConfig),
         logGroupNameValidation(runtimeConfig),
         awsBatchRetryAttemptsValidation(runtimeConfig),
@@ -332,6 +352,7 @@ object AwsBatchRuntimeAttributes {
         awsBatchefsDelocalizeValidation(runtimeConfig),
         awsBatchefsMakeMD5Validation(runtimeConfig),
         awsBatchtagResourcesValidation(runtimeConfig),
+        awsBatchtagHardwareValidation(runtimeConfig),
         sharedMemorySizeValidation(runtimeConfig),
         fuseMountValidation(runtimeConfig),
         jobTimeoutValidation(runtimeConfig)
@@ -350,14 +371,23 @@ object AwsBatchRuntimeAttributes {
   ): AwsBatchRuntimeAttributes = {
     val cpu: Int Refined Positive =
       RuntimeAttributesValidation.extract(cpuValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    lazy val gpuRequired: Boolean =
+      RuntimeAttributesValidation.extract(gpuRequiredValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val gpuCount: Int =
       RuntimeAttributesValidation.extract(gpuCountValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+
+    if (gpuRequired && gpuCount == 0) {
+      throw new RuntimeException(
+        s"GPU is required for this task ('gpu' runtime attr is true) but no GPU resource was configured ('gpuCount' is 0)."
+      )
+    }
+
     val zones: Vector[String] = RuntimeAttributesValidation.extract(ZonesValidation, validatedRuntimeAttributes)
     val memory: MemorySize =
       RuntimeAttributesValidation.extract(memoryValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val disks: Seq[AwsBatchVolume] =
       RuntimeAttributesValidation.extract(disksValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
-    val docker: String = RuntimeAttributesValidation.extract(dockerValidation, validatedRuntimeAttributes)
+    val docker: String = Containers.extractContainer(validatedRuntimeAttributes)
     val queueArn: String =
       RuntimeAttributesValidation.extract(queueArnValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val failOnStderr: Boolean =
@@ -409,6 +439,8 @@ object AwsBatchRuntimeAttributes {
     val tagResources: Boolean = RuntimeAttributesValidation.extract(awsBatchtagResourcesValidation(runtimeAttrsConfig),
                                                                     validatedRuntimeAttributes
     )
+    val tagHardware: Boolean =
+      RuntimeAttributesValidation.extract(awsBatchtagHardwareValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val sharedMemorySize: MemorySize =
       RuntimeAttributesValidation.extract(sharedMemorySizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val jobTimeout: Int =
@@ -439,7 +471,8 @@ object AwsBatchRuntimeAttributes {
       additionalTags,
       fuseMount,
       fileSystem,
-      tagResources
+      tagResources,
+      tagHardware
     )
   }
 }
@@ -781,6 +814,15 @@ object AwsBatchtagResourcesValidation {
 }
 
 class AwsBatchtagResourcesValidation(key: String) extends BooleanRuntimeAttributesValidation(key) {
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be a Boolean"
+}
+
+object AwsBatchtagHardwareValidation {
+  def apply(key: String): AwsBatchtagHardwareValidation = new AwsBatchtagHardwareValidation(key)
+}
+
+class AwsBatchtagHardwareValidation(key: String) extends BooleanRuntimeAttributesValidation(key) {
 
   override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be a Boolean"
 }

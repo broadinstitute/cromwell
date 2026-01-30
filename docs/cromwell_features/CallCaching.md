@@ -73,6 +73,8 @@ call-caching {
        size: 20000
      }
   }
+  # (Optional) The age after which cached results will filtered out during lookup
+  max-result-age-days = 90
 }
 ```
 

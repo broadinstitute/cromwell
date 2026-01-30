@@ -3,12 +3,13 @@ package cromwell.engine.workflow.lifecycle.execution.job.preparation
 import _root_.wdl.draft2.model._
 import akka.actor.{ActorRef, FSM, Props}
 import cats.data.Validated.{Invalid, Valid}
+import cats.implicits.catsSyntaxValidatedId
 import common.exception.MessageAggregation
 import common.validation.ErrorOr
 import common.validation.ErrorOr.ErrorOr
 import cromwell.backend.BackendLifecycleActorFactory.MemoryMultiplierKey
 import cromwell.backend._
-import cromwell.backend.validation.DockerValidation
+import cromwell.backend.validation.Containers
 import cromwell.core.Dispatcher.EngineDispatcher
 import cromwell.core.callcaching._
 import cromwell.core.logging.WorkflowLogging
@@ -28,6 +29,7 @@ import wom.RuntimeAttributesKeys
 import wom.callable.Callable.InputDefinition
 import wom.expression.IoFunctionSet
 import wom.format.MemorySize
+import wom.types.{WomArrayType, WomStringType}
 import wom.values._
 
 import scala.concurrent.duration._
@@ -78,7 +80,7 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     factory.dockerHashCredentials(workflowDescriptor.backendDescriptor, initializationData)
   private[preparation] lazy val runtimeAttributeDefinitions = factory.runtimeAttributeDefinitions(initializationData)
   private[preparation] lazy val hasDockerDefinition =
-    runtimeAttributeDefinitions.exists(_.name == DockerValidation.instance.key)
+    runtimeAttributeDefinitions.map(_.name).exists(Containers.runtimeAttrKeys.contains)
   private[preparation] lazy val dockerMirroring = factory.dockerMirroring
   private[preparation] lazy val platform = factory.platform
 
@@ -152,8 +154,19 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     for {
       evaluatedInputs <- ErrorOr(resolveAndEvaluateInputs(jobKey, expressionLanguageFunctions, valueStore)).flatten
       runtimeAttributes <- prepareRuntimeAttributes(evaluatedInputs)
+      _ <- checkGpuRequirement(runtimeAttributes)
     } yield (evaluatedInputs, runtimeAttributes)
   }
+
+  // Do a basic backend capability check for GPU availability. If the backend does support GPUs, it should do its own
+  // checks to confirm that this task is configured appropriately to provision them. This check passes if the task
+  // does not request GPU availability via the `gpu` runtime attr, OR if the backend may be able to provide GPUs.
+  private def checkGpuRequirement(runtimeAttributes: Map[LocallyQualifiedName, WomValue]): ErrorOr[Unit] =
+    runtimeAttributes.get(RuntimeAttributesKeys.GpuRequiredKey) match {
+      case Some(WomBoolean(true)) if !factory.gpuMayBeAvailable =>
+        s"GPU required for job ${jobKey.call.localName} via runtime attribute 'gpu', but GPU availability cannot be guaranteed by the backend.".invalidNel
+      case _ => Valid(())
+    }
 
   private def fetchDockerHashesIfNecessary(inputs: WomEvaluatedCallInputs,
                                            attributes: Map[LocallyQualifiedName, WomValue]
@@ -191,8 +204,8 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
       case oh => throw new Exception(s"Programmer Error! Unexpected case match: $oh")
     }
 
-    attributes.get(RuntimeAttributesKeys.DockerKey) match {
-      case Some(dockerValue) => handleDockerValue(dockerValue.valueString)
+    Containers.extractContainerFromPreValidationAttrs(attributes) match {
+      case Some(dockerValue) => handleDockerValue(dockerValue)
       case None =>
         // If there is no docker attribute at all - we're ok for call caching
         lookupKvsOrBuildDescriptorAndStop(inputs, attributes, NoDocker, None)
@@ -327,29 +340,44 @@ class JobPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     )
   }
 
+  // Apply the configured Docker mirroring to the docker and container runtime attributes. Depending on the
+  // WDL version in use, either attribute may be present. If both are present, both will be mirrored.
+  // This method does not have an opinion about WHICH container should be used, see getPreferredContainerName for that.
+  private[preparation] def applyDockerMirroring(
+    attributes: Map[LocallyQualifiedName, WomValue]
+  ): Map[LocallyQualifiedName, WomValue] = {
+
+    def mirrorContainerName(original: String): String =
+      DockerImageIdentifier.fromString(original) match {
+        case Success(origDockerImg) =>
+          dockerMirroring.flatMap(_.mirrorImage(origDockerImg)).map(_.fullName).getOrElse(original)
+        case Failure(e) =>
+          workflowLogger.warn(s"Failed to attempt mirroring image ${original} due to ${e.toString}")
+          original
+      }
+
+    val mirroredContainersAttributes = Containers.runtimeAttrKeys flatMap { key =>
+      attributes.get(key) map {
+        case WomArray(_, values) =>
+          val mirroredValues = values.map(v => WomString(mirrorContainerName(v.valueString)))
+          key -> WomArray(WomArrayType(WomStringType), mirroredValues)
+        case WomString(value) =>
+          key -> WomString(mirrorContainerName(value))
+        case containerValue =>
+          // If it's not an array, we leave it unchanged
+          key -> containerValue
+      }
+    }
+
+    attributes ++ mirroredContainersAttributes.toList
+  }
+
   private[preparation] def prepareRuntimeAttributes(
     inputEvaluation: Map[InputDefinition, WomValue]
   ): ErrorOr[Map[LocallyQualifiedName, WomValue]] = {
     import RuntimeAttributeDefinition.{addDefaultsToAttributes, evaluateRuntimeAttributes}
     val curriedAddDefaultsToAttributes =
       addDefaultsToAttributes(runtimeAttributeDefinitions, workflowDescriptor.backendDescriptor.workflowOptions) _
-
-    def applyDockerMirroring(attributes: Map[LocallyQualifiedName, WomValue]): Map[LocallyQualifiedName, WomValue] = {
-      val mirroredImageAttribute = for {
-        mirror <- dockerMirroring
-        origDockerStr <- attributes.get(RuntimeAttributesKeys.DockerKey).map(_.valueString)
-        origDockerImg <- DockerImageIdentifier.fromString(origDockerStr) match {
-          case Success(i) => Some(i)
-          case Failure(e) =>
-            workflowLogger.warn(s"Failed to attempt mirroring image ${origDockerStr} due to ${e.toString}")
-            None
-        }
-        mirroredImage <- mirror.mirrorImage(origDockerImg)
-        newDockerImageAttribute = (RuntimeAttributesKeys.DockerKey, WomString(mirroredImage.fullName))
-      } yield newDockerImageAttribute
-
-      attributes ++ mirroredImageAttribute.toList
-    }
 
     val unevaluatedRuntimeAttributes = jobKey.call.callable.runtimeAttributes
     evaluateRuntimeAttributes(unevaluatedRuntimeAttributes,

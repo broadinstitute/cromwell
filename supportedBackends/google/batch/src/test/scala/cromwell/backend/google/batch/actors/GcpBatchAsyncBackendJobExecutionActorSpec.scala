@@ -1579,6 +1579,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
         "runtimeAttributes:preemptible" -> "0",
         "runtimeAttributes:zones" -> "us-central1-b,us-central1-a",
         "runtimeAttributes:maxRetries" -> "0",
+        "runtimeAttributes:gpu" -> "false",
         "stderr" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye/stderr",
         "stdout" -> s"$batchGcsRoot/wf_hello/$workflowId/call-goodbye/stdout"
       )

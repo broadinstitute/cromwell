@@ -51,24 +51,30 @@ final case class BackendJobDescriptor(workflowDescriptor: BackendWorkflowDescrip
 
   def findInputFilesByParameterMeta(filter: MetaValueElement => Boolean): Set[WomFile] = evaluatedTaskInputs
     .collect {
-      case (declaration, value) if declaration.parameterMeta.exists(filter) => findFiles(value)
+      case (declaration, value) if declaration.parameterMeta.exists(filter) => BackendJobDescriptor.findFilesRec(value)
     }
     .flatten
     .toSet
 
-  def findFiles(v: WomValue): Set[WomFile] = v match {
-    case value: WomFile => Set(value)
-    case WomOptionalValue(_, Some(value)) => findFiles(value)
-    case value: WomObjectLike => value.values.values.toSet flatMap findFiles
-    case WomArrayLike(value) => value.value.toSet flatMap findFiles
-    case WomPair(left, right) => findFiles(left) ++ findFiles(right)
-    case WomMap(_, innerMap) => (innerMap.keySet flatMap findFiles) ++ (innerMap.values.toSet flatMap findFiles)
-    case _ => Set.empty
-  }
+  def allInputFiles: Set[WomFile] = BackendJobDescriptor.findFiles(evaluatedTaskInputs)
 
   lazy val localInputs = evaluatedTaskInputs map { case (declaration, value) => declaration.name -> value }
   lazy val taskCall = key.call
   override lazy val toString = key.mkTag(workflowDescriptor.id)
+}
+
+object BackendJobDescriptor {
+  def findFiles(inputs: WomEvaluatedCallInputs): Set[WomFile] = inputs.values.flatMap(findFilesRec).toSet
+
+  private def findFilesRec(v: WomValue): Set[WomFile] = v match {
+    case value: WomFile => Set(value)
+    case WomOptionalValue(_, Some(value)) => findFilesRec(value)
+    case value: WomObjectLike => value.values.values.toSet flatMap findFilesRec
+    case WomArrayLike(value) => value.value.toSet flatMap findFilesRec
+    case WomPair(left, right) => findFilesRec(left) ++ findFilesRec(right)
+    case WomMap(_, innerMap) => (innerMap.keySet flatMap findFilesRec) ++ (innerMap.values.toSet flatMap findFilesRec)
+    case _ => Set.empty
+  }
 }
 
 /**
@@ -151,8 +157,9 @@ object CommonBackendConfigurationAttributes {
     "default-runtime-attributes.ulimits",
     "default-runtime-attributes.efsDelocalize",
     "default-runtime-attributes.efsMakeMD5",
-    "default-runtime-attributes.tagResources",
     "default-runtime-attributes.failOnStderr",
+    "tagResources",
+    "tagHardware",
     "slow-job-warning-time",
     "dockerhub",
     "dockerhub.account",

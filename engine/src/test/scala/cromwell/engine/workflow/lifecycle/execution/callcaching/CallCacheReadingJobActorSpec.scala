@@ -27,7 +27,8 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
   it should "try to match initial hashes against DB" in {
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
-    val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None))
+    val actorUnderTest =
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None))
     actorUnderTest.stateName shouldBe WaitingForInitialHash
 
     // The actual hashes don't matter here, we only care about the aggregated hash
@@ -43,7 +44,8 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
   it should "ask for file hashes if it found matching entries for initial aggregated hash" in {
     val callCacheReadProbe = TestProbe()
     val callCacheHashingActor = TestProbe()
-    val actorUnderTest = TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None))
+    val actorUnderTest =
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None))
     actorUnderTest.setState(WaitingForHashCheck,
                             CCRJAWithData(callCacheHashingActor.ref, "AggregatedInitialHash", None, Set.empty)
     )
@@ -61,7 +63,9 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     val parent = TestProbe()
 
     val actorUnderTest =
-      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None), parent.ref)
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None),
+                 parent.ref
+      )
     parent.watch(actorUnderTest)
 
     actorUnderTest.setState(WaitingForHashCheck,
@@ -78,7 +82,9 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     val callCacheHashingActor = TestProbe()
 
     val actorUnderTest =
-      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None), TestProbe().ref)
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None),
+                 TestProbe().ref
+      )
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
     val aggregatedFileHash: String = "AggregatedFileHash"
@@ -91,7 +97,8 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     callCacheReadProbe.expectMsg(
       CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, aggregatedFileHash),
                          Set.empty,
-                         prefixesHint = None
+                         prefixesHint = None,
+                         maxResultAgeDays = None
       )
     )
 
@@ -110,7 +117,9 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     val callCacheHashingActor = TestProbe()
 
     val actorUnderTest =
-      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None), TestProbe().ref)
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None),
+                 TestProbe().ref
+      )
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
     actorUnderTest.setState(WaitingForFileHashes,
@@ -119,7 +128,11 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
 
     callCacheHashingActor.send(actorUnderTest, NoFileHashesResult)
     callCacheReadProbe.expectMsg(
-      CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, None), Set.empty, prefixesHint = None)
+      CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, None),
+                         Set.empty,
+                         prefixesHint = None,
+                         maxResultAgeDays = None
+      )
     )
 
     eventually {
@@ -134,7 +147,9 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     val parent = TestProbe()
 
     val actorUnderTest =
-      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None), parent.ref)
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None),
+                 parent.ref
+      )
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
     actorUnderTest.setState(WaitingForCacheHitOrMiss,
@@ -157,7 +172,9 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     val parent = TestProbe()
 
     val actorUnderTest =
-      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None), parent.ref)
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None),
+                 parent.ref
+      )
     parent.watch(actorUnderTest)
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
@@ -176,7 +193,9 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     val callCacheHashingActor = TestProbe()
 
     val actorUnderTest =
-      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None), TestProbe().ref)
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None),
+                 TestProbe().ref
+      )
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
     val seenCaches: Set[CallCachingEntryId] = Set(CallCachingEntryId(0))
@@ -186,7 +205,11 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
 
     actorUnderTest ! NextHit
     callCacheReadProbe.expectMsg(
-      CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, None), seenCaches, prefixesHint = None)
+      CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, None),
+                         seenCaches,
+                         prefixesHint = None,
+                         maxResultAgeDays = None
+      )
     )
 
     actorUnderTest.stateName shouldBe WaitingForCacheHitOrMiss
@@ -197,7 +220,9 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     val callCacheHashingActor = TestProbe()
 
     val actorUnderTest =
-      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None), TestProbe().ref)
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None),
+                 TestProbe().ref
+      )
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
     val aggregatedFileHash: String = "AggregatedFileHash"
@@ -211,7 +236,8 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     callCacheReadProbe.expectMsg(
       CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, Option(aggregatedFileHash)),
                          seenCaches,
-                         prefixesHint = None
+                         prefixesHint = None,
+                         maxResultAgeDays = None
       )
     )
 
@@ -224,7 +250,9 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     val parent = TestProbe()
 
     val actorUnderTest =
-      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None), parent.ref)
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None),
+                 parent.ref
+      )
     parent.watch(actorUnderTest)
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"
@@ -244,7 +272,9 @@ class CallCacheReadingJobActorSpec extends TestKitSuite with AnyFlatSpecLike wit
     val parent = TestProbe()
 
     val actorUnderTest =
-      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None), parent.ref)
+      TestFSMRef(new CallCacheReadingJobActor(callCacheReadProbe.ref, prefixesHint = None, maxResultAgeDays = None),
+                 parent.ref
+      )
     parent.watch(actorUnderTest)
 
     val aggregatedInitialHash: String = "AggregatedInitialHash"

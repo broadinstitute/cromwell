@@ -14,8 +14,8 @@ metadata {
 
 fileSystemCheck: "aws"
 outputExpectations: {
-    "s3://cromwell-centaur-execution-new/wf_results/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
-    "s3://cromwell-centaur-execution-new/wf_logs/workflow.<<UUID>>.log": 1
-    "s3://cromwell-centaur-execution-new/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask-stderr.log": 1
-    "s3://cromwell-centaur-execution-new/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask-stdout.log": 1
+    "s3://cromwell-centaur-execution-9-25/wf_results/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/output.txt": 1
+    "s3://cromwell-centaur-execution-9-25/wf_logs/workflow.<<UUID>>.log": 1
+    "s3://cromwell-centaur-execution-9-25/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask-stderr.log": 1
+    "s3://cromwell-centaur-execution-9-25/cl_logs/simpleWorkflow/<<UUID>>/call-simpleStdoutTask/simpleStdoutTask-stdout.log": 1
 }

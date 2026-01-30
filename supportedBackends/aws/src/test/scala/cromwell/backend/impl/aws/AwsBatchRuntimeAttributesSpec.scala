@@ -113,7 +113,10 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
 
     "throw an exception when there are no runtime attributes defined." in {
       val runtimeAttributes = Map.empty[String, WomValue]
-      assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes, "Can't find an attribute value for key docker")
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "No container image found in either 'container' or 'docker' runtime attributes."
+      )
     }
 
     // TODO: Fix this test. The functionality works fine - the idea is that
@@ -158,9 +161,35 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
 
     "fail to validate an invalid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertAwsBatchRuntimeAttributesFailedCreation(runtimeAttributes,
-                                                    "Expecting docker runtime attribute to be a String"
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting docker runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
       )
+    }
+
+    "validate a valid container entry" in {
+      val runtimeAttributes = Map("container" -> WomArray(WomArrayType(WomStringType), Seq(WomString("ubuntu:latest"))),
+                                  "scriptBucketName" -> WomString("my-stuff")
+      )
+      val expectedRuntimeAttributes = expectedDefaults
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid container entry" in {
+      val runtimeAttributes = Map("container" -> WomInteger(1))
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "Expecting container runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
+    }
+
+    "validate presence of both Docker and container attributes and prefer container" in {
+      val runtimeAttributes = Map("container" -> WomString("ubuntu:latest"),
+                                  "docker" -> WomString("debian:latest"),
+                                  "scriptBucketName" -> WomString("my-stuff")
+      )
+      val expectedRuntimeAttributes = expectedDefaults.copy(dockerImage = "ubuntu:latest")
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid failOnStderr entry" in {
@@ -578,6 +607,32 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
                                                           sharedMemorySize =
                                                             MemorySize(10, MemoryUnit.MB).to(MemoryUnit.GB)
                                                         )
+      )
+    }
+
+    "require GPU provisioning when GPU is required" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "gpu" -> WomBoolean(true)
+      )
+      assertAwsBatchRuntimeAttributesFailedCreation(
+        runtimeAttributes,
+        "GPU is required for this task ('gpu' runtime attr is true) but no GPU resource was configured ('gpuCount' is 0)."
+      )
+    }
+
+    "accept a GPU count when GPU is required" in {
+      val runtimeAttributes = Map(
+        "docker" -> WomString("ubuntu:latest"),
+        "scriptBucketName" -> WomString("my-stuff"),
+        "gpu" -> WomBoolean(true),
+        "gpuCount" -> WomInteger(2)
+      )
+      val expectedRuntimeAttributes =
+        expectedDefaults.copy(gpuCount = 2)
+      assertAwsBatchRuntimeAttributesSuccessfulCreation(
+        runtimeAttributes,
+        expectedRuntimeAttributes
       )
     }
 

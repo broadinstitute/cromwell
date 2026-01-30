@@ -79,6 +79,8 @@ case class AwsBatchBackendLifecycleActorFactory(name: String, configurationDescr
 
   override val dockerMirroring: Option[DockerMirroring] = configuration.dockerMirroringOpt
 
+  override val gpuMayBeAvailable: Boolean = true
+
   override def workflowInitializationActorParams(workflowDescriptor: BackendWorkflowDescriptor,
                                                  ioActor: ActorRef,
                                                  calls: Set[CommandCallNode],

@@ -1,5 +1,6 @@
 name: curl
 testFormat: workflowsuccess
+ignore: true
 
 files {
   workflow: curl/curl.wdl

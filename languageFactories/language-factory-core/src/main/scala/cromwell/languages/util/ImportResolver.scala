@@ -21,7 +21,6 @@ import net.ceedubs.ficus.Ficus._
 
 import java.nio.file.{Path => NioPath}
 import java.security.MessageDigest
-import cromwell.core.WorkflowId
 import wom.ResolvedImportRecord
 import wom.core.{WorkflowSource, WorkflowUrl}
 import wom.values._
@@ -176,10 +175,10 @@ object ImportResolver {
       directoryHash.map(_.validNel).getOrElse("No hashKey available for directory importer".invalidNel)
   }
 
-  def zippedImportResolver(zippedImports: Array[Byte], workflowId: WorkflowId): ErrorOr[DirectoryResolver] = {
+  def zippedImportResolver(zippedImports: Array[Byte]): ErrorOr[DirectoryResolver] = {
 
     val zipHash = new String(MessageDigest.getInstance("MD5").digest(zippedImports))
-    LanguageFactoryUtil.createImportsDirectory(zippedImports, workflowId) map { dir =>
+    LanguageFactoryUtil.createImportsDirectory(zippedImports) map { dir =>
       DirectoryResolver(dir,
                         Option(dir.toJava.getCanonicalPath),
                         None,

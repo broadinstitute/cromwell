@@ -2,7 +2,12 @@ package cromwell.services.womtool
 
 import common.assertion.CromwellTimeoutSpec
 import cromwell.core.path._
-import cromwell.core.{WorkflowOptions, WorkflowSourceFilesCollection, WorkflowSourceFilesWithoutImports}
+import cromwell.core.{
+  WorkflowOptions,
+  WorkflowSourceFilesCollection,
+  WorkflowSourceFilesWithDependenciesZip,
+  WorkflowSourceFilesWithoutImports
+}
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.womtool.DescriberSpec._
 import cromwell.services.womtool.WomtoolServiceMessages.DescribeSuccess
@@ -16,7 +21,7 @@ import scala.util.Try
 
 class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
-  private val validationTestCases = DefaultPathBuilder.get("services/src/test/resources/describe")
+  private val validationTestCases = DefaultPathBuilder.get("services/src/test/resources/describe/normal")
   private val languageVersions = Option(validationTestCases.list).toList.flatten
 
   CromwellLanguages.initLanguages(LanguageConfiguration.AllLanguageEntries)
@@ -59,6 +64,36 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
         check(wsfc, parse(testCase.expectedDescription).toOption.get)
       }
     }
+  }
+
+  it should "describe a workflow when imports are zipped" in {
+    val testCaseDir = DefaultPathBuilder.get("services/src/test/resources/describe/zipped")
+
+    // Read the main workflow
+    val workflowSource = testCaseDir.resolve("workflow.wdl").contentAsString
+
+    // Read the imported file
+    val importedWdl = testCaseDir.resolve("imports.zip").byteArray
+
+    // Read expected description
+    val expectedDescription = parse(testCaseDir.resolve("description.json").contentAsString).toOption.get
+
+    // Build the source files collection with dependencies zip
+    val wsfc = WorkflowSourceFilesWithDependenciesZip(
+      workflowSource = Option(workflowSource),
+      workflowUrl = None,
+      workflowRoot = None,
+      workflowType = Option("WDL"),
+      workflowTypeVersion = Option("1.1"),
+      inputsJson = "{}",
+      workflowOptions = WorkflowOptions.empty,
+      labelsJson = "{}",
+      importsZip = importedWdl,
+      warnings = Vector.empty,
+      requestedWorkflowId = None
+    )
+
+    check(wsfc, expectedDescription)
   }
 
   private def check(wsfc: WorkflowSourceFilesCollection, expectedJson: Json): Assertion = {

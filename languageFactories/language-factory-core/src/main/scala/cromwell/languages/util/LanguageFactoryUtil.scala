@@ -32,6 +32,8 @@ object LanguageFactoryUtil {
   def createImportsDirectory(zipContents: Array[Byte]): ErrorOr[Path] = {
 
     def makeZipFile: Try[Path] = Try {
+      // need the unique suffix to avoid collisions in concurrent scenarios
+      // cant use workflowId because this method is used in validation phase before workflowId is assigned
       val uniqueSuffix = java.util.UUID.randomUUID().toString
       DefaultPathBuilder
         .createTempFile(s"imports_workflow_${uniqueSuffix}_", ".zip")

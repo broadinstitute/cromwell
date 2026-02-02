@@ -21,8 +21,10 @@ import scala.util.Try
 
 class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
-  private val validationTestCases = DefaultPathBuilder.get("services/src/test/resources/describe/normal")
-  private val languageVersions = Option(validationTestCases.list).toList.flatten
+  private val normalValidationTestCases = DefaultPathBuilder.get("services/src/test/resources/describe/normal")
+  private val zippedValidationTestCases = DefaultPathBuilder.get("services/src/test/resources/describe/zipped")
+
+  private val languageVersions = Option(normalValidationTestCases.list).toList.flatten
 
   CromwellLanguages.initLanguages(LanguageConfiguration.AllLanguageEntries)
 
@@ -67,16 +69,14 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
   }
 
   it should "describe a workflow when imports are zipped" in {
-    val testCaseDir = DefaultPathBuilder.get("services/src/test/resources/describe/zipped")
-
     // Read the main workflow
-    val workflowSource = testCaseDir.resolve("workflow.wdl").contentAsString
+    val workflowSource = zippedValidationTestCases.resolve("workflow.wdl").contentAsString
 
     // Read the imported file
-    val importedWdl = testCaseDir.resolve("imports.zip").byteArray
+    val importedWdl = zippedValidationTestCases.resolve("imports.zip").byteArray
 
     // Read expected description
-    val expectedDescription = parse(testCaseDir.resolve("description.json").contentAsString).toOption.get
+    val expectedDescription = parse(zippedValidationTestCases.resolve("description.json").contentAsString).toOption.get
 
     // Build the source files collection with dependencies zip
     val wsfc = WorkflowSourceFilesWithDependenciesZip(

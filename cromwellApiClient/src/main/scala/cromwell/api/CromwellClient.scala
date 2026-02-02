@@ -271,13 +271,7 @@ object CromwellClient {
       Multipart.FormData.BodyPart(name, HttpEntity(MediaTypes.`application/json`, ByteString(source)))
     }
 
-    val zipBodyParts = Map(
-      "workflowDependencies" -> describeRequest.zippedImports
-    ) collect { case (name, Some(file)) =>
-      Multipart.FormData.BodyPart.fromPath(name, MediaTypes.`application/zip`, file.path)
-    }
-
-    val multipartFormData = Multipart.FormData((sourceBodyParts ++ zipBodyParts).toSeq: _*)
+    val multipartFormData = Multipart.FormData(sourceBodyParts.toSeq: _*)
     multipartFormData.toEntity()
   }
 

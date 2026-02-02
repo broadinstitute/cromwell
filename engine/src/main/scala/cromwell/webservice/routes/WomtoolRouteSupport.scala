@@ -60,7 +60,6 @@ trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport 
     val workflowInputs = data.get("workflowInputs").map(_.utf8String)
     val workflowType = data.get("workflowType").map(_.utf8String)
     val workflowVersion = data.get("workflowTypeVersion").map(_.utf8String)
-    val workflowDependencies = data.get("workflowDependencies").map(_.toArray)
 
     val wsfc = WorkflowSourceFilesCollection(
       workflowSource,
@@ -71,7 +70,7 @@ trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport 
       workflowInputs.getOrElse(""),
       workflowOptions = WorkflowOptions.empty,
       labelsJson = "",
-      importsFile = workflowDependencies,
+      importsFile = None,
       workflowOnHold = false,
       warnings = Seq.empty,
       requestedWorkflowId = None

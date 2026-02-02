@@ -867,11 +867,6 @@ paths:
           required: false
           type: file
           in: formData
-        - name: workflowDependencies
-          description: ZIP file containing workflow source files that are used to resolve local imports. This zip bundle will be unpacked in a sandbox accessible to this workflow.
-          required: false
-          type: file
-          in: formData
         - $ref: '#/parameters/workflowTypeParam'
         - $ref: '#/parameters/workflowTypeVersionParam'
       responses:

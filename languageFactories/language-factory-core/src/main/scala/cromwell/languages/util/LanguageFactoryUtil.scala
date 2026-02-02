@@ -7,7 +7,7 @@ import common.transforms.CheckedAtoB
 import common.validation.Checked._
 import common.validation.ErrorOr.ErrorOr
 import cromwell.core.CromwellGraphNode.CromwellEnhancedOutputPort
-import cromwell.core.WorkflowSourceFilesCollection
+import cromwell.core.{WorkflowId, WorkflowSourceFilesCollection}
 import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.{DefaultPathBuilder, Path}
 import cromwell.languages.config.CromwellLanguages
@@ -29,14 +29,11 @@ object LanguageFactoryUtil {
     * @param zipContents the zip contents
     * @return where the imports were unzipped to
     */
-  def createImportsDirectory(zipContents: Array[Byte]): ErrorOr[Path] = {
+  def createImportsDirectory(zipContents: Array[Byte], workflowId: WorkflowId): ErrorOr[Path] = {
 
     def makeZipFile: Try[Path] = Try {
-      // need the unique suffix to avoid collisions in concurrent scenarios
-      // cant use workflowId because this method is used in validation phase before workflowId is assigned
-      val uniqueSuffix = java.util.UUID.randomUUID().toString
       DefaultPathBuilder
-        .createTempFile(s"imports_workflow_${uniqueSuffix}_", ".zip")
+        .createTempFile(s"imports_workflow_${workflowId}_", ".zip")
         .writeByteArray(zipContents)(OpenOptions.default)
     }
 

@@ -21,7 +21,7 @@ Talk to us:
 
 ### Capabilities and roadmap
 
-Many users today run their WDL workflows in [Terra](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows) or [Manifold](https://www.manifold.ai/contact). Both are managed bioinformatics platforms with built-in Cromwell support.
+Many users today run their WDL workflows in [Terra](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows), a managed bioinformatics platform with built-in Cromwell support.
 
 Users with specialized needs who wish to install and maintain their own Cromwell instances can [download](https://github.com/broadinstitute/cromwell/releases) a JAR or Docker image. The development team accepts reproducible bug reports from self-managed instances, but cannot provide direct support.
 

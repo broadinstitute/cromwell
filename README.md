@@ -8,12 +8,6 @@ The [Cromwell documentation has a dedicated site](https://cromwell.readthedocs.i
 
 First time to Cromwell? Get started with [Tutorials](https://cromwell.readthedocs.io/en/stable/tutorials/FiveMinuteIntro/).
 
-### Google LifeSciences is shutting down in July - migrate to GCP Batch
-
-Google is replacing Cloud Life Sciences (sometimes referred to as PAPI) with a next-generation API named GCP Batch [https://cloud.google.com/batch/docs/migrate-to-batch-from-cloud-life-sciences](learn more).
-
-[See documentation on how to migrate to GCP Batch](https://cromwell.readthedocs.io/en/develop/backends/GCPBatch/#migration-from-google-cloud-life-sciences-v2beta-to-google-cloud-batch)
-
 ### Community
 
 Thinking about contributing to Cromwell? Get started by reading our [Contributor Guide](CONTRIBUTING.md).
@@ -27,15 +21,13 @@ Talk to us:
 
 ### Capabilities and roadmap
 
-Many users today run their WDL workflows in [Terra](https://app.terra.bio/), a managed cloud bioinformatics platform with built-in WDL support provided by Cromwell. See [here](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows) for a quick-start guide.
+Many users today run their WDL workflows in [Terra](https://support.terra.bio/hc/en-us/articles/360036379771-Get-started-running-workflows) or [Manifold](https://www.manifold.ai/contact). Both are managed bioinformatics platforms with built-in Cromwell support.
 
-Users with specialized needs who wish to install and maintain their own Cromwell instances can [download](https://github.com/broadinstitute/cromwell/releases) a JAR or Docker image. The development team accepts reproducible bug reports from self-managed instances, but cannot feasibly provide direct support.
+Users with specialized needs who wish to install and maintain their own Cromwell instances can [download](https://github.com/broadinstitute/cromwell/releases) a JAR or Docker image. The development team accepts reproducible bug reports from self-managed instances, but cannot provide direct support.
 
-[Cromwell's backends](https://cromwell.readthedocs.io/en/stable/backends/Backends/) receive development resources proportional to user demand. The team is actively developing for Google Cloud and Microsoft Azure (see [Cromwell on Azure](https://github.com/microsoft/CromwellOnAzure)). Maintenance of other backends is primarily community-based.
+Cromwell uses [modular backends](https://cromwell.readthedocs.io/en/stable/backends/Backends/) to support different cloud vendors. The team is currently developing for AWS Batch and GCP Batch. Maintenance of other backends is community-based.
 
 Cromwell [supports](https://cromwell.readthedocs.io/en/stable/LanguageSupport/) the WDL workflow language. Cromwell version 80 and above no longer support CWL.
-
-CWL will be re-introduced at a later date in the [Terra platform](https://terra.bio/), using a solution other than Cromwell. See the blog post ["Terra’s roadmap to supporting more workflow languages"](https://terra.bio/terras-roadmap-to-supporting-more-workflow-languages/) for details.
 
 ### Security reports
 
@@ -44,7 +36,5 @@ If you believe you have found a security issue please contact `infosec@broadinst
 ### Issue tracking
 
 Need to file an issue? Head over to [Github Issues](https://github.com/broadinstitute/cromwell/issues).
-
-If you previously filed an issue in JIRA, the link is [here](https://broadworkbench.atlassian.net/jira/software/c/projects/CROM/issues). New signups are no longer accepted.
 
 ![Jamie, the Cromwell pig](docs/jamie_the_cromwell_pig.png)

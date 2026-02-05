@@ -104,7 +104,7 @@ object Dependencies {
   private val swaggerParserV = "1.0.71"
   private val swaggerUiV = "4.5.2"
   private val testContainersScalaV = "0.40.10"
-  private val tikaV = "2.3.0"
+  private val tikaV = "3.2.3"
   private val typesafeConfigV = "1.4.2"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
   private val workbenchModelV = "0.15-f9f0d4c" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md

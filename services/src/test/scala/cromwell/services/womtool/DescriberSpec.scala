@@ -68,15 +68,47 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     }
   }
 
-  it should "describe a workflow when imports are zipped" in {
+  it should "describe a simple workflow when imports are zipped" in {
+    val directory = zippedValidationTestCases.resolve("simple")
+
     // Read the main workflow
-    val workflowSource = zippedValidationTestCases.resolve("workflow.wdl").contentAsString
+    val workflowSource = directory.resolve("workflow.wdl").contentAsString
 
     // Read the imported file
-    val importedWdl = zippedValidationTestCases.resolve("imports.zip").byteArray
+    val importedWdl = directory.resolve("imports.zip").byteArray
 
     // Read expected description
-    val expectedDescription = parse(zippedValidationTestCases.resolve("description.json").contentAsString).toOption.get
+    val expectedDescription = parse(directory.resolve("description.json").contentAsString).toOption.get
+
+    // Build the source files collection with dependencies zip
+    val wsfc = WorkflowSourceFilesWithDependenciesZip(
+      workflowSource = Option(workflowSource),
+      workflowUrl = None,
+      workflowRoot = None,
+      workflowType = Option("WDL"),
+      workflowTypeVersion = Option("1.0"),
+      inputsJson = "{}",
+      workflowOptions = WorkflowOptions.empty,
+      labelsJson = "{}",
+      importsZip = importedWdl,
+      warnings = Vector.empty,
+      requestedWorkflowId = None
+    )
+
+    check(wsfc, expectedDescription)
+  }
+
+  it should "describe a workflow with relative imports when imports are zipped" in {
+    val directory = zippedValidationTestCases.resolve("relative_imports")
+
+    // Read the main workflow
+    val workflowSource = directory.resolve("workflow.wdl").contentAsString
+
+    // Read the imported file
+    val importedWdl = directory.resolve("imports.zip").byteArray
+
+    // Read expected description
+    val expectedDescription = parse(directory.resolve("description.json").contentAsString).toOption.get
 
     // Build the source files collection with dependencies zip
     val wsfc = WorkflowSourceFilesWithDependenciesZip(

@@ -2,27 +2,21 @@
   "valid": true,
   "errors": [],
   "validWorkflow": true,
-  "name": "use_simple",
-  "inputs": [
-    {
-      "name": "i",
-      "valueType": { "typeName": "Int" },
-      "typeDisplayName": "Int",
-      "optional": false,
-      "default": null
-    }
-  ],
+  "name": "relative_imports",
+  "inputs": [],
   "outputs": [
     {
       "name": "result",
-      "valueType": { "typeName": "Int" },
+      "valueType": {
+        "typeName": "Int"
+      },
       "typeDisplayName": "Int"
     }
   ],
   "images": [],
   "submittedDescriptorType": {
     "descriptorType": "WDL",
-    "descriptorTypeVersion": "1.0"
+    "descriptorTypeVersion": "1.1"
   },
   "importedDescriptorTypes": [],
   "meta": {},

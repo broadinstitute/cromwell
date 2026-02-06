@@ -2,7 +2,7 @@ package cromwell.services.womtool
 
 import cats.data.Validated.{Invalid, Valid}
 import cromwell.core.WorkflowSourceFilesCollection
-import cromwell.languages.util.ImportResolver.{HttpResolver, ImportAuthProvider, ImportResolver}
+import cromwell.languages.util.ImportResolver.{DirectoryResolver, HttpResolver, ImportAuthProvider, ImportResolver}
 import cromwell.languages.util.{ImportResolver, LanguageFactoryUtil}
 import cromwell.languages.{LanguageFactory, ValidatedWomNamespace}
 import cromwell.services.womtool.WomtoolServiceMessages.{DescribeFailure, DescribeResult, DescribeSuccess}
@@ -10,12 +10,39 @@ import cromwell.services.womtool.models.WorkflowDescription
 import wom.core.WorkflowSource
 import wom.executable.WomBundle
 import wom.expression.NoIoFunctionSet
+import java.nio.file.{Files, Path}
+import java.util.zip.ZipInputStream
 
 object Describer {
 
   def describeWorkflow(wsfc: WorkflowSourceFilesCollection, authProviders: List[ImportAuthProvider]): DescribeResult = {
 
-    val initialResolvers: List[ImportResolver] = List(HttpResolver(None, Map.empty, authProviders))
+    val zipResolvers: List[ImportResolver] = wsfc.importsZipFileOption.toList.map { zipBytes =>
+      val tmpDir: Path = Files.createTempDirectory("cromwell_zip")
+      val zis = new ZipInputStream(new java.io.ByteArrayInputStream(zipBytes))
+
+      LazyList.continually(zis.getNextEntry)
+        .takeWhile(_ != null)
+        .filter(!_.isDirectory)
+        .foreach { entry =>
+          val outFile = tmpDir.resolve(entry.getName)
+          Files.createDirectories(outFile.getParent)
+          Files.write(outFile, zis.readAllBytes())
+        }
+      zis.close()
+
+      val cromwellTmpDir = cromwell.core.path.DefaultPathBuilder.get(tmpDir.toString)
+
+      DirectoryResolver(
+        directory = cromwellTmpDir,
+        dontEscapeFrom = None,
+        customName = None,
+        deleteOnClose = true,
+        directoryHash = None
+      )
+    }
+
+    val initialResolvers: List[ImportResolver] = HttpResolver(None, Map.empty, authProviders) :: zipResolvers
 
     // The HTTP resolver is used to pull down workflows submitted by URL
     LanguageFactoryUtil.findWorkflowSource(wsfc.workflowSource, wsfc.workflowUrl, initialResolvers) match {

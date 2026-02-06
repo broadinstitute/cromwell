@@ -31,9 +31,9 @@ object DeclarationValidation {
     declaration.unqualifiedName match {
       // Docker, Container, and CPU are special keys understood by cromwell (docker and container are aliases).
       case name if name == DockerValidation.instance.key =>
-        new DeclarationValidation(declaration, DockerValidation.instance, usedInCallCachingOverride = None)
+        new ContainerDeclarationValidation(declaration, DockerValidation.instance)
       case name if name == ContainerValidation.instance.key =>
-        new DeclarationValidation(declaration, ContainerValidation.instance, usedInCallCachingOverride = None)
+        new ContainerDeclarationValidation(declaration, ContainerValidation.instance)
       case RuntimeAttributesKeys.CpuKey => new CpuDeclarationValidation(declaration, CpuValidation.instance)
       // See MemoryDeclarationValidation for more info
       case name

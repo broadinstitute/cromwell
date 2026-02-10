@@ -98,7 +98,7 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     check(wsfc, expectedDescription)
   }
 
-  it should "describe a workflow with relative and zipped imports" in {
+  it should "describe a workflow with relative zipped imports" in {
     val directory = zippedValidationTestCases.resolve("relative_imports")
 
     // Read the main workflow

@@ -24,6 +24,7 @@ export AWS_SECRET_KEY=$(vault read -field=secret_key secret/dsde/cromwell/common
 # TODO (AN-710) tests that depend on continueOnReturnCode tests are failing:
 # (exit, valid_return_codes_and_continue_on_return_code, return_codes, globbingBehavior, failures.terminal_status)
 # TODO (AN-794) support GPU tests in AWS job queue (enables test gpu_required_and_requested)
+# `lots_of_inputs` excluded after becoming super slow (CTM-325)
 cromwell::build::run_centaur \
     -p 100 \
     -e localdockertest \
@@ -50,7 +51,8 @@ cromwell::build::run_centaur \
     -e failures.terminal_status \
     -e bad_file_string \
     -e awsbatch_labels \
-    -e gpu_required_and_requested
+    -e gpu_required_and_requested \
+    -e lots_of_inputs
 
 
 cromwell::build::generate_code_coverage

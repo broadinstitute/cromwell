@@ -1,3 +1,4 @@
+You can find the latest version of Cromwell on our [Releases](https://github.com/broadinstitute/cromwell/releases/latest) page.
 
 For built-in documentation of Cromwell command line usage, run the Cromwell JAR file with no arguments:
 
@@ -29,8 +30,6 @@ Run the workflow and print out the outputs in JSON format.
 ```
 
 Cromwell's Server and Run modes can be invoked with the `server` and `run` arguments respectively. More information on these Cromwell modes can be found in [Modes](Modes).
-
-The Cromwell jar file can be built as described in [Building](Building). 
 
 ## `server`
 

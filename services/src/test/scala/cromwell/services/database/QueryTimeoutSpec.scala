@@ -106,7 +106,7 @@ class QueryTimeoutSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matcher
                  */
                 case (major, minor) if (major >= 10 && minor >= 3) || major >= 11 =>
                   RegexErrorMessage(
-                    """(\(conn=\d+\) )?Query execution was interrupted \(max_statement_time exceeded\)""".r
+                    """(\(conn=\d+\) )?Query (execution )?was interrupted(: execution time limit \d+(\.\d+)? sec exceeded| \(max_statement_time exceeded\))""".r
                   )
                 case _ => IntErrorMessage(1)
               }

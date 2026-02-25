@@ -263,6 +263,7 @@ class AwsBatchAsyncBackendJobExecutionActor(
       Option(runtimeAttributes.efsDelocalize),
       configuration.tagResources,
       configuration.tagHardware,
+      configuration.tagAliases,
       runtimeAttributes.logGroupName,
       runtimeAttributes.additionalTags,
       scriptBucketPrefix

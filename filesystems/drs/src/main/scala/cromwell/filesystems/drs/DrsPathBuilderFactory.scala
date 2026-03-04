@@ -71,7 +71,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
         new DrsCloudNioFileSystemProvider(
           singletonConfig.config,
           drsCredentials,
-          DrsReader.readInterpreter(googleAuthMode, options, requesterPaysProjectIdOption)
+          DrsReader.readInterpreter(googleAuthMode, options, requesterPaysProjectIdOption),
+          requesterPaysProjectIdOption
         ),
         requesterPaysProjectIdOption,
         preResolve

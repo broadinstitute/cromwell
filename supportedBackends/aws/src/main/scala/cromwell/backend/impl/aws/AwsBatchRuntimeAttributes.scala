@@ -99,12 +99,14 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      fuseMount: Boolean,
                                      fileSystem: String = "s3",
                                      tagResources: Boolean = false,
-                                     tagHardware: Boolean = false
+                                     tagHardware: Boolean = false,
+                                     batchJobRoleArn: Option[String] = None
 )
 
 object AwsBatchRuntimeAttributes {
   val Log: Logger = LoggerFactory.getLogger(this.getClass)
   val QueueArnKey = "queueArn"
+  val BatchJobRoleArnKey = "batchJobRoleArn"
 
   val scriptS3BucketKey = "scriptBucketName"
 
@@ -229,6 +231,11 @@ object AwsBatchRuntimeAttributes {
         (throw new RuntimeException("queueArn is required"))
     )
 
+  private val batchJobRoleArnValidationInstance = new StringRuntimeAttributesValidation(BatchJobRoleArnKey)
+  private def batchJobRoleArnValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[String] =
+    batchJobRoleArnValidationInstance
+      .withDefault(batchJobRoleArnValidationInstance.configDefaultWomValue(runtimeConfig) getOrElse WomString(""))
+
   private def awsBatchRetryAttemptsValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Int] =
     AwsBatchRetryAttemptsValidation(awsBatchRetryAttemptsKey).withDefault(
       AwsBatchRetryAttemptsValidation(awsBatchRetryAttemptsKey)
@@ -319,6 +326,7 @@ object AwsBatchRuntimeAttributes {
         dockerValidation,
         containerValidation,
         queueArnValidation(runtimeConfig),
+        batchJobRoleArnValidation(runtimeConfig),
         scriptS3BucketNameValidation(runtimeConfig),
         logGroupNameValidation(runtimeConfig),
         awsBatchRetryAttemptsValidation(runtimeConfig),
@@ -345,6 +353,7 @@ object AwsBatchRuntimeAttributes {
         dockerValidation,
         containerValidation,
         queueArnValidation(runtimeConfig),
+        batchJobRoleArnValidation(runtimeConfig),
         logGroupNameValidation(runtimeConfig),
         awsBatchRetryAttemptsValidation(runtimeConfig),
         awsBatchEvaluateOnExitValidation(runtimeConfig),
@@ -447,6 +456,11 @@ object AwsBatchRuntimeAttributes {
       RuntimeAttributesValidation.extract(jobTimeoutValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val fuseMount: Boolean =
       RuntimeAttributesValidation.extract(fuseMountValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+    val batchJobRoleArn: Option[String] = {
+      val raw =
+        RuntimeAttributesValidation.extract(batchJobRoleArnValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
+      if (raw.nonEmpty) Some(raw) else None
+    }
 
     new AwsBatchRuntimeAttributes(
       cpu,
@@ -472,7 +486,8 @@ object AwsBatchRuntimeAttributes {
       fuseMount,
       fileSystem,
       tagResources,
-      tagHardware
+      tagHardware,
+      batchJobRoleArn
     )
   }
 }

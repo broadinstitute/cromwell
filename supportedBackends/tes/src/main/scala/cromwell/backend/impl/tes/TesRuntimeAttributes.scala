@@ -43,7 +43,10 @@ object TesRuntimeAttributes {
   val BackoffLimitKey = "backoff_limit"
 
   private def cpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] =
-    CpuValidation.optional
+    CpuValidation.configDefaultWomValue(runtimeConfig) match {
+      case Some(default) => CpuValidation.instance.withDefault(default).optional
+      case None          => CpuValidation.optional
+    }
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
@@ -51,7 +54,10 @@ object TesRuntimeAttributes {
     ContinueOnReturnCodeValidation.default(runtimeConfig)
 
   private def diskSizeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] =
-    MemoryValidation.optional(DiskSizeKey)
+    MemoryValidation.configDefaultString(DiskSizeKey, runtimeConfig) match {
+      case Some(default) => MemoryValidation.withDefaultMemory(DiskSizeKey, default).optional
+      case None          => MemoryValidation.optional(DiskSizeKey)
+    }
 
   private def diskSizeCompatValidation(
     runtimeConfig: Option[Config]
@@ -59,7 +65,10 @@ object TesRuntimeAttributes {
     DisksValidation.optional
 
   private def memoryValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] =
-    MemoryValidation.optional(RuntimeAttributesKeys.MemoryKey)
+    MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) match {
+      case Some(default) => MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, default).optional
+      case None          => MemoryValidation.optional(RuntimeAttributesKeys.MemoryKey)
+    }
 
   // As of WDL 1.1 these two are aliases of each other
   private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance

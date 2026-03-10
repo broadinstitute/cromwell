@@ -235,8 +235,10 @@ class AwsBatchAsyncBackendJobExecutionActor(
     case _ => execScript
   }
 
-  lazy val jobRoleArn =
-    jobDescriptor.workflowDescriptor.workflowOptions.get(AwsBatchWorkflowOptionKeys.JobRoleArn).toOption
+  lazy val jobRoleArn: Option[String] =
+    runtimeAttributes.batchJobRoleArn.orElse {
+      jobDescriptor.workflowDescriptor.workflowOptions.get(AwsBatchWorkflowOptionKeys.JobRoleArn).toOption
+    }
 
   lazy val scriptBucketPrefix =
     jobDescriptor.workflowDescriptor.workflowOptions.get(AwsBatchWorkflowOptionKeys.ScriptBucketPrefix).toOption

@@ -12,6 +12,13 @@ abstract class AmazonEcrAbstract(override val config: DockerRegistryConfig) exte
   private val logger: Logger = LoggerFactory.getLogger(this.getClass)
 
   /**
+   * ECR supports images with no repository (e.g., 123456789012.dkr.ecr.us-east-1.amazonaws.com/example-tool)
+   * so we don't add the default "library" repository prefix
+   */
+  override protected def getRepositoryPath(dockerImageID: DockerImageIdentifier): String =
+    dockerImageID.name
+
+  /**
     * Not used as getToken is overridden
     */
   override protected def authorizationServerHostName(dockerImageIdentifier: DockerImageIdentifier): String = {

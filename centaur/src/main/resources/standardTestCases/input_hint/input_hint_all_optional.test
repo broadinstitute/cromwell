@@ -1,0 +1,13 @@
+name: input_hint_all_optional
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: input_hint_all_optional.wdl
+  inputs: input_hint_all_optional.json
+}
+
+metadata {
+  status: Succeeded
+  "outputs.input_hint_wf.errors": ""
+}

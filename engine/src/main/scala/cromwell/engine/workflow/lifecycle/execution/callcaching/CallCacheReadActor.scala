@@ -31,8 +31,8 @@ class CallCacheReadActor(cache: CallCache, override val serviceRegistryActor: Ac
           case true => HasMatchingEntries
           case false => NoMatchingEntries
         }
-      case CacheLookupRequest(aggregatedCallHashes, excludedIds, prefixesHint) =>
-        cache.callCachingHitForAggregatedHashes(aggregatedCallHashes, prefixesHint, excludedIds) map {
+      case CacheLookupRequest(aggregatedCallHashes, excludedIds, prefixesHint, maxResultAgeDays) =>
+        cache.callCachingHitForAggregatedHashes(aggregatedCallHashes, prefixesHint, excludedIds, maxResultAgeDays) map {
           case Some(nextHit) => CacheLookupNextHit(nextHit)
           case None => CacheLookupNoHit
         }
@@ -77,7 +77,8 @@ object CallCacheReadActor {
   sealed trait CallCacheReadActorRequest
   final case class CacheLookupRequest(aggregatedCallHashes: AggregatedCallHashes,
                                       excludedIds: Set[CallCachingEntryId],
-                                      prefixesHint: Option[CallCachePathPrefixes]
+                                      prefixesHint: Option[CallCachePathPrefixes],
+                                      maxResultAgeDays: Option[Long]
   ) extends CallCacheReadActorRequest
   final case class HasMatchingInitialHashLookup(aggregatedTaskHash: String,
                                                 cacheHitHints: List[CacheHitHint] = List.empty

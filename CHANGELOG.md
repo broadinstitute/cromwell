@@ -1,6 +1,26 @@
 # Cromwell Change Log
 
+### AWS Batch
+* Added `tagAliases` backend config option, which duplicates engine-generated tags (e.g. `cromwell-workflow-id`) under alternative key names for external systems like cost-tracking tools. See the [Tag Aliases](supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/README.md#tag-aliases) section for configuration details.
+
 ## 92 Release Notes
+### WDL 1.1 Support
+* Cromwell now fully supports WDL 1.1. Users can specify `Version: "1.1"` in their workflow options to use WDL 1.1 features. See the [WDL 1.1 Spec](https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md)
+
+### Migration of PK to BIGINT
+The PK of the JOB_KEY_VALUE_ENTRY table will be migrated from INT to BIGINT.
+
+### AWS ECR Docker Remote Hashing
+* Fixed an issue where ECR images without an explicit repository prefix
+(e.g., `123456789012.dkr.ecr.us-east-1.amazonaws.com/example-tool`) would fail during remote hash computation due to incorrect manifest URI construction. 
+The Docker registry implementation now correctly handles ECR's support for repository-less image paths.
+
+### AWS Batch
+* Added support for submitting jobs to AWS Batch queues in different regions. The region is now automatically derived from the `queueArn` runtime attribute, allowing multi-region workflows without additional configuration.
+* Fixed an issue where job failures before all outputs were written would cause delocalization to fail, preventing the upload of return code, stdout, and stderr files needed for debugging.
+* Split the option to tag resources between AWS Batch jobs vs. EC2 and EBS volumes hardware
+* Moved the option to tag job resources from runtime attributes to backend config.
+* Appended the custom labels to the list of resource tags to propagate
 
 ### Progress toward WDL 1.1 Support
 * WDL 1.1 support is in progress. Users that would like to try out the current partial support can do so by using WDL version `development-1.1`. In Cromwell 92, `development-1.1` has been enhanced to include:

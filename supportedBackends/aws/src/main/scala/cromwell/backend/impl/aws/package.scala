@@ -14,6 +14,24 @@ package object aws {
 
   type Aws[F[_], A] = ReaderT[F, AwsBatchAttributes, A]
 
+  /**
+   * Extracts the AWS region from an ARN string.
+   * ARN format: arn:partition:service:region:account-id:resource
+   * For example: arn:aws:batch:eu-west-2:123456789012:job-queue/my-queue
+   *
+   * @param arn The ARN string to extract the region from
+   * @return Some(Region) if a valid region is found, None otherwise
+   */
+  def regionFromArn(arn: String): Option[Region] =
+    Option(arn).flatMap { a =>
+      val parts = a.split(":")
+      if (parts.length >= 4 && parts(3).nonEmpty) {
+        Some(Region.of(parts(3)))
+      } else {
+        None
+      }
+    }
+
   def sanitize(name: String): String =
     // Up to 128 letters (uppercase and lowercase), numbers, hyphens, and underscores are allowed.
     // We'll replace all invalid characters with an underscore

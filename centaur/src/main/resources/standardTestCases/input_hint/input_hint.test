@@ -1,0 +1,16 @@
+name: input_hint
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: input_hint.wdl
+}
+
+metadata {
+  status: Succeeded
+  "outputs.input_hint_wf.errors": ""
+  "outputs.input_hint_wf.filename1": "gs://centaur-ci/textfile_1.txt"
+  "outputs.input_hint_wf.filename2": "/mnt/disks/cromwell_root/centaur-ci/textfile_2.txt"
+  "outputs.input_hint_wf.filename3": "/mnt/disks/cromwell_root/centaur-ci/textfile_3.txt"
+  "outputs.input_hint_wf.filename4": "/mnt/disks/cromwell_root/centaur-ci/textfile_4.txt"
+}

@@ -58,11 +58,16 @@ jobs:
         password: ${{ secrets.DSDEJENKINS_PASSWORD }}
     # Build & push `cromwell`, `womtool`, `cromiam`, and `cromwell-drs-localizer`
     # This step is validated in the GHA 'docker_build_test.yml' without the accompanying docker push
-    - name: Build Cromwell Docker
+    - name: Build & push all images
       run: |
         set -e
         cd cromwell
         sbt -Dproject.isSnapshot=false dockerBuildAndPush
+    - name: Build & push server debug image
+      run: |
+        set -e
+        cd cromwell
+        sbt -Dproject.isDebug=true server/dockerBuildAndPush
     - name: Deploy to dev and board release train (Cromwell)
       uses: broadinstitute/repository-dispatch@master
       with:

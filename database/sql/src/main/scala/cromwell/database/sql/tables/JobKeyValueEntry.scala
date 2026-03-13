@@ -7,5 +7,5 @@ case class JobKeyValueEntry(
   jobAttempt: Int,
   storeKey: String,
   storeValue: String,
-  jobKeyValueEntryId: Option[Int] = None
+  jobKeyValueEntryId: Option[Long] = None
 )

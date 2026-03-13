@@ -39,6 +39,7 @@ import software.amazon.awssdk.services.sts.StsClient
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider
 import software.amazon.awssdk.services.sts.model.{AssumeRoleRequest, GetCallerIdentityRequest}
 
+import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
 
 object AwsAuthMode {
@@ -92,7 +93,7 @@ sealed trait AwsAuthMode {
       case Failure(ex) =>
         throw new RuntimeException(s"Credentials produced by the AWS provider ${name} are invalid: ${ex.getMessage}",
                                    ex
-        )
+        ) with NoStackTrace
       case Success(_) => provider
     }
 }

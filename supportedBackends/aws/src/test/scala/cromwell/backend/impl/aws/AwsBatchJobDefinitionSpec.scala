@@ -87,6 +87,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
         None,
         None,
         None,
+        None,
         None
       )
 
@@ -119,6 +120,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
         None,
         None,
         None,
+        None,
         Some(roleArn)
       )
 
@@ -142,6 +144,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
         inputs = Set.empty,
         outputs = Set.empty,
         fsxMntPoint = None,
+        None,
         None,
         None,
         None,
@@ -173,6 +176,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
         None,
         None,
         None,
+        None,
         Some(roleArn)
       )
 
@@ -195,6 +199,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
         inputs = Set.empty,
         outputs = Set.empty,
         fsxMntPoint = None,
+        None,
         None,
         None,
         None,

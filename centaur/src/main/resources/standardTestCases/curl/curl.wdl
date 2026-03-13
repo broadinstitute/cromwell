@@ -24,6 +24,6 @@ task news_reader {
 }
 
 workflow curl_wf {
-    call url_grab as newsgrab { input: url = "http://www.bbc.com/news" }
+    call url_grab as newsgrab { input: url = "https://www.bbc.com/news" }
     call news_reader { input: news = newsgrab.news }
 }

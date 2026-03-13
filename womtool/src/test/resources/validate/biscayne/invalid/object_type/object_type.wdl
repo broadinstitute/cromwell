@@ -1,4 +1,4 @@
-version development-1.1
+version 1.1
 
 workflow object_type {
   input {

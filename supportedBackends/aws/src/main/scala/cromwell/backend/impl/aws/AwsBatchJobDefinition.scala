@@ -168,6 +168,7 @@ trait AwsBatchJobDefinitionBuilder {
                   efsDelocalize: Boolean,
                   efsMakeMD5: Boolean,
                   tagResources: Boolean,
+                  tagHardware: Boolean,
                   logGroupName: String,
                   sharedMemorySize: MemorySize,
                   fuseMount: Boolean,
@@ -177,7 +178,7 @@ trait AwsBatchJobDefinitionBuilder {
       val roleArnStr = jobRoleArn.getOrElse("")
       s"$imageName:$packedCommand:${volumes.map(_.toString).mkString(",")}:${mountPoints.map(_.toString).mkString(",")}:${env
           .map(_.toString)
-          .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}:${tagResources.toString}:$logGroupName:${sharedMemorySize
+          .mkString(",")}:${ulimits.map(_.toString).mkString(",")}:${efsDelocalize.toString}:${efsMakeMD5.toString}:${tagResources.toString}:${tagHardware.toString}:$logGroupName:${sharedMemorySize
           .to(MemoryUnit.MB)
           .amount
           .toInt}:${fuseMount.toString}:${jobTimeout}:$roleArnStr"
@@ -205,6 +206,7 @@ trait AwsBatchJobDefinitionBuilder {
     val efsDelocalize = context.runtimeAttributes.efsDelocalize
     val efsMakeMD5 = context.runtimeAttributes.efsMakeMD5
     val tagResources = context.runtimeAttributes.tagResources
+    val tagHardware = context.runtimeAttributes.tagHardware
 
     val containerPropsName = buildName(
       context.runtimeAttributes.dockerImage,
@@ -216,6 +218,7 @@ trait AwsBatchJobDefinitionBuilder {
       efsDelocalize,
       efsMakeMD5,
       tagResources,
+      tagHardware,
       logGroupName,
       context.runtimeAttributes.sharedMemorySize,
       context.runtimeAttributes.fuseMount,
@@ -371,6 +374,7 @@ case class AwsBatchJobDefinitionContext(
   efsMakeMD5: Option[Boolean],
   efsDelocalize: Option[Boolean],
   tagResources: Option[Boolean],
+  tagHardware: Option[Boolean],
   jobRoleArn: Option[String]
 ) {
 
@@ -390,6 +394,7 @@ case class AwsBatchJobDefinitionContext(
       .append("efsMakeMD5", efsMakeMD5)
       .append("efsDelocalize", efsDelocalize)
       .append("tagResources", tagResources)
+      .append("tagHardware", tagHardware)
       .append("jobRoleArn", jobRoleArn)
       .build
 }

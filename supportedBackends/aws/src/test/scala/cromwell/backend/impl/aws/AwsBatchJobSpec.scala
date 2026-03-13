@@ -46,6 +46,7 @@ import org.scalatest.PrivateMethodTester
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.batch.model._
 import spray.json.{JsObject, JsString}
 import wdl4s.parser.MemoryUnit
@@ -159,6 +160,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     None,
     None,
     None,
+    None,
     None
   )
 
@@ -186,6 +188,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
+      Map.empty,
       "",
       Map.empty,
       None
@@ -214,6 +218,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
+      Map.empty,
       "",
       Map.empty,
       None
@@ -242,6 +248,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
+      Map.empty,
       "",
       Map.empty,
       None
@@ -270,6 +278,25 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     val kvPairs = job invokePrivate generateEnvironmentKVPairs("script-bucket", "prefix-", "key")
     kvPairs should contain(buildKVPair("BATCH_FILE_TYPE", "script"))
     kvPairs should contain(buildKVPair("BATCH_FILE_S3_URL", ""))
+  }
+
+  it should "return the region for a valid ARN" in {
+    val arn = "arn:aws:service:us-west-2:123456789012:resource"
+    regionFromArn(arn) shouldBe Some(Region.of("us-west-2"))
+  }
+
+  it should "return None when the region component is empty" in {
+    val arnWithEmptyRegion = "arn:aws:service::123456789012:resource"
+    regionFromArn(arnWithEmptyRegion) shouldBe None
+  }
+
+  it should "return None when the ARN has fewer than 4 parts" in {
+    val shortArn = "arn:aws:service"
+    regionFromArn(shortArn) shouldBe None
+  }
+
+  it should "return None when provided null" in {
+    regionFromArn(null) shouldBe None
   }
 
   it should "contain expected command script in reconfigured script" in {
@@ -471,6 +498,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     val job = generateJobWithS3InOut
     val postscript =
       s"""
+         |{
          |set -e
          |# (re-)add tags to include added volumes:
          |if [[ "false" == "true" ]]; then
@@ -480,11 +508,12 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |
          |echo '*** DELOCALIZING OUTPUTS ***'
          |DELOCALIZATION_FAILED=0
-         |_s3_delocalize_with_retry "/tmp/scratch/baa" "s3://bucket/somewhere/baa" "false" 
          |
          |if [ -f "/tmp/scratch/hello-rc.txt" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-rc.txt" "${job.jobPaths.returnCode}" ; fi
          |if [ -f "/tmp/scratch/hello-stderr.log" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-stderr.log" "${job.jobPaths.standardPaths.error}"; fi
          |if [ -f "/tmp/scratch/hello-stdout.log" ]; then _s3_delocalize_with_retry "/tmp/scratch/hello-stdout.log" "${job.jobPaths.standardPaths.output}"; fi
+         |
+         |_s3_delocalize_with_retry "/tmp/scratch/baa" "s3://bucket/somewhere/baa" "false"
          |
          |echo "DELOCALIZATION RESULT: $$DELOCALIZATION_FAILED"
          |if [[ $$DELOCALIZATION_FAILED -eq 1 ]]; then
@@ -500,7 +529,9 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |exit $$rc
          |}
          |""".stripMargin
-    job.reconfiguredScript should include(postscript)
+
+    val normalize: String => String = s => s.replaceAll("\\s+", " ").trim
+    normalize(job.reconfiguredScript) should include(normalize(postscript))
   }
 
   it should "generate preamble with input copy command in reconfigured script" in {
@@ -650,6 +681,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
+      Map.empty,
       "",
       Map.empty,
       Some("my-project/workflow-123")
@@ -681,6 +714,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
+      Map.empty,
       "",
       Map.empty,
       Some("")
@@ -714,6 +749,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      None,
+      Map.empty,
       "",
       Map.empty,
       Some("my-project/scripts/")

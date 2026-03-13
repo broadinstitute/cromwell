@@ -98,17 +98,6 @@ object Settings {
     )
   )
 
-  val pact4sSettings = sharedSettings ++ List(
-    libraryDependencies ++= pact4sDependencies,
-    /**
-      * Invoking pact tests from root project (sbt "project pact" test)
-      * will launch tests in a separate JVM context that ensures contracts
-      * are written to the pact/target/pacts folder. Otherwise, contracts
-      * will be written to the root folder.
-      */
-    Test / fork := true
-  ) ++ assemblySettings
-
   /*
       Docker instructions to install Google Cloud SDK image in docker image. It also installs `crcmod` which
       is needed while downloading large files using `gsutil`.

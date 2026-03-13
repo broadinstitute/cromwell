@@ -29,8 +29,10 @@ import cromwell.services.CallCaching.CallCachingEntryId
   * Sends the response to its parent.
   * In case of a CacheHit, stays alive in case using the hit fails and it needs to fetch the next one. Otherwise just dies.
   */
-class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes])
-    extends LoggingFSM[CallCacheReadingJobActorState, CCRJAData] {
+class CallCacheReadingJobActor(callCacheReadActor: ActorRef,
+                               prefixesHint: Option[CallCachePathPrefixes],
+                               maxResultAgeDays: Option[Long]
+) extends LoggingFSM[CallCacheReadingJobActorState, CCRJAData] {
 
   startWith(WaitingForInitialHash, CCRJANoData)
 
@@ -51,13 +53,15 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Optio
     case Event(CompleteFileHashingResult(_, aggregatedFileHash), data: CCRJAWithData) =>
       callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, aggregatedFileHash),
                                               data.seenCaches,
-                                              prefixesHint
+                                              prefixesHint,
+                                              maxResultAgeDays
       )
       goto(WaitingForCacheHitOrMiss) using data.withFileHash(aggregatedFileHash)
     case Event(NoFileHashesResult, data: CCRJAWithData) =>
       callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(data.initialHash, None),
                                               data.seenCaches,
-                                              prefixesHint
+                                              prefixesHint,
+                                              maxResultAgeDays
       )
       goto(WaitingForCacheHitOrMiss)
   }
@@ -71,7 +75,8 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Optio
     case Event(NextHit, CCRJAWithData(_, aggregatedInitialHash, aggregatedFileHash, seenCaches)) =>
       callCacheReadActor ! CacheLookupRequest(AggregatedCallHashes(aggregatedInitialHash, aggregatedFileHash),
                                               seenCaches,
-                                              prefixesHint
+                                              prefixesHint,
+                                              maxResultAgeDays
       )
       stay()
   }
@@ -94,8 +99,9 @@ class CallCacheReadingJobActor(callCacheReadActor: ActorRef, prefixesHint: Optio
 
 object CallCacheReadingJobActor {
 
-  def props(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes]) =
-    Props(new CallCacheReadingJobActor(callCacheReadActor, prefixesHint)).withDispatcher(EngineDispatcher)
+  def props(callCacheReadActor: ActorRef, prefixesHint: Option[CallCachePathPrefixes], maxResultAgeDays: Option[Long]) =
+    Props(new CallCacheReadingJobActor(callCacheReadActor, prefixesHint, maxResultAgeDays))
+      .withDispatcher(EngineDispatcher)
 
   sealed trait CallCacheReadingJobActorState
   case object WaitingForInitialHash extends CallCacheReadingJobActorState

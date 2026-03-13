@@ -65,8 +65,10 @@ case class AwsBatchAttributes(fileSystem: String,
                               fsxMntPoint: Option[List[String]],
                               efsMntPoint: Option[String],
                               efsMakeMD5: Option[Boolean],
-                              tagResources: Option[Boolean],
                               efsDelocalize: Option[Boolean],
+                              tagResources: Option[Boolean],
+                              tagHardware: Option[Boolean],
+                              tagAliases: Map[String, String],
                               globLinkCommand: Option[String],
                               checkSiblingMd5: Option[Boolean]
 )
@@ -100,6 +102,8 @@ object AwsBatchAttributes {
     "efsDelocalize",
     "efsMakeMD5",
     "tagResources",
+    "tagHardware",
+    "tagAliases",
     "maxRetries",
     "glob-link-command"
   )
@@ -200,11 +204,23 @@ object AwsBatchAttributes {
     }
     // from config if set:
     val tagResources: ErrorOr[Option[Boolean]] = validate {
-      backendConfig.hasPath("default-runtime-attributes.tagResources") match {
-        case true => Some(backendConfig.getBoolean("default-runtime-attributes.tagResources"))
+      backendConfig.hasPath("tagResources") match {
+        case true => Some(backendConfig.getBoolean("tagResources"))
         case false => None
       }
     }
+    // from config if set:
+    val tagHardware: ErrorOr[Option[Boolean]] = validate {
+      backendConfig.hasPath("tagHardware") match {
+        case true => Some(backendConfig.getBoolean("tagHardware"))
+        case false => None
+      }
+    }
+    val tagAliases: ErrorOr[Map[String, String]] = validate(
+      backendConfig
+        .as[Option[Map[String, String]]]("tagAliases")
+        .getOrElse(Map.empty)
+    )
     // from config if set.
     val globLinkCommand: ErrorOr[Option[String]] = validate {
       backendConfig.hasPath("glob-link-command") match {
@@ -232,6 +248,8 @@ object AwsBatchAttributes {
       efsMakeMD5,
       efsDelocalize,
       tagResources,
+      tagHardware,
+      tagAliases,
       globLinkCommand,
       checkSiblingMd5
     ).tupled.map((AwsBatchAttributes.apply _).tupled) match {

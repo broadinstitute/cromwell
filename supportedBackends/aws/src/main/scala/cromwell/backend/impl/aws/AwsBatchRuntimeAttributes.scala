@@ -98,7 +98,8 @@ case class AwsBatchRuntimeAttributes(cpu: Int Refined Positive,
                                      additionalTags: Map[String, String],
                                      fuseMount: Boolean,
                                      fileSystem: String = "s3",
-                                     tagResources: Boolean = false
+                                     tagResources: Boolean = false,
+                                     tagHardware: Boolean = false
 )
 
 object AwsBatchRuntimeAttributes {
@@ -119,6 +120,7 @@ object AwsBatchRuntimeAttributes {
   val awsBatchefsDelocalizeKey = "efsDelocalize"
   val awsBatchefsMakeMD5Key = "efsMakeMD5"
   val tagResourcesKey = "tagResources"
+  val tagHardwareKey = "tagHardware"
   val ZonesKey = "zones"
   private val ZonesDefaultValue = WomString("us-east-1a")
 
@@ -261,6 +263,13 @@ object AwsBatchRuntimeAttributes {
         .getOrElse(WomBoolean(false))
     )
 
+  private def awsBatchtagHardwareValidation(runtimeConfig: Option[Config]): RuntimeAttributesValidation[Boolean] =
+    AwsBatchtagHardwareValidation(AwsBatchRuntimeAttributes.tagHardwareKey).withDefault(
+      AwsBatchtagHardwareValidation(AwsBatchRuntimeAttributes.tagHardwareKey)
+        .configDefaultWomValue(runtimeConfig)
+        .getOrElse(WomBoolean(false))
+    )
+
   private def ulimitsValidation(
     runtimeConfig: Option[Config]
   ): RuntimeAttributesValidation[Vector[Map[String, String]]] =
@@ -318,6 +327,7 @@ object AwsBatchRuntimeAttributes {
         awsBatchefsDelocalizeValidation(runtimeConfig),
         awsBatchefsMakeMD5Validation(runtimeConfig),
         awsBatchtagResourcesValidation(runtimeConfig),
+        awsBatchtagHardwareValidation(runtimeConfig),
         sharedMemorySizeValidation(runtimeConfig),
         fuseMountValidation(runtimeConfig),
         jobTimeoutValidation(runtimeConfig)
@@ -342,6 +352,7 @@ object AwsBatchRuntimeAttributes {
         awsBatchefsDelocalizeValidation(runtimeConfig),
         awsBatchefsMakeMD5Validation(runtimeConfig),
         awsBatchtagResourcesValidation(runtimeConfig),
+        awsBatchtagHardwareValidation(runtimeConfig),
         sharedMemorySizeValidation(runtimeConfig),
         fuseMountValidation(runtimeConfig),
         jobTimeoutValidation(runtimeConfig)
@@ -428,6 +439,8 @@ object AwsBatchRuntimeAttributes {
     val tagResources: Boolean = RuntimeAttributesValidation.extract(awsBatchtagResourcesValidation(runtimeAttrsConfig),
                                                                     validatedRuntimeAttributes
     )
+    val tagHardware: Boolean =
+      RuntimeAttributesValidation.extract(awsBatchtagHardwareValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val sharedMemorySize: MemorySize =
       RuntimeAttributesValidation.extract(sharedMemorySizeValidation(runtimeAttrsConfig), validatedRuntimeAttributes)
     val jobTimeout: Int =
@@ -458,7 +471,8 @@ object AwsBatchRuntimeAttributes {
       additionalTags,
       fuseMount,
       fileSystem,
-      tagResources
+      tagResources,
+      tagHardware
     )
   }
 }
@@ -800,6 +814,15 @@ object AwsBatchtagResourcesValidation {
 }
 
 class AwsBatchtagResourcesValidation(key: String) extends BooleanRuntimeAttributesValidation(key) {
+
+  override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be a Boolean"
+}
+
+object AwsBatchtagHardwareValidation {
+  def apply(key: String): AwsBatchtagHardwareValidation = new AwsBatchtagHardwareValidation(key)
+}
+
+class AwsBatchtagHardwareValidation(key: String) extends BooleanRuntimeAttributesValidation(key) {
 
   override protected def missingValueMessage: String = s"Expecting $key runtime attribute to be a Boolean"
 }

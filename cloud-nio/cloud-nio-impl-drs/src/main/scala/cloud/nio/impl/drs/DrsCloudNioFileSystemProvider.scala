@@ -15,7 +15,8 @@ class DrsCloudNioFileSystemProvider(rootConfig: Config,
   lazy val drsResolverConfig = rootConfig.getConfig("resolver")
   lazy val drsConfig: DrsConfig = DrsConfig.fromConfig(drsResolverConfig)
 
-  lazy val drsPathResolver: DrsPathResolver = new DrsPathResolver(drsConfig, drsCredentials, requesterPaysProjectIdOption)
+  lazy val drsPathResolver: DrsPathResolver =
+    new DrsPathResolver(drsConfig, drsCredentials, requesterPaysProjectIdOption)
 
   override def config: Config = rootConfig
 

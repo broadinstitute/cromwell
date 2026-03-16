@@ -51,7 +51,7 @@ class DrsPathResolver(drsConfig: DrsConfig,
   }
 
   def makeDrsResolverRequest(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): DrsResolverRequest =
-    DrsResolverRequest(drsPath, currentCloudPlatform, fields, requesterPaysProjectIdOption)
+    DrsResolverRequest(drsPath, currentCloudPlatform, fields, userProject = requesterPaysProjectIdOption)
 
   private def makeHttpRequestToDrsResolver(drsPath: String,
                                            fields: NonEmptyList[DrsResolverField.Value]
@@ -218,7 +218,7 @@ object DrsCloudPlatform extends Enumeration {
 final case class DrsResolverRequest(url: String,
                                     cloudPlatform: Option[DrsCloudPlatform.Value],
                                     fields: NonEmptyList[DrsResolverField.Value],
-                                    googleProject: Option[String] = None
+                                    userProject: Option[String] = None
 )
 
 final case class SADataObject(data: Json)

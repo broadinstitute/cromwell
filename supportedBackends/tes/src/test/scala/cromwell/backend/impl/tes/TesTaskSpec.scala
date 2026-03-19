@@ -27,7 +27,8 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     None,
     false,
     None,
-    Map.empty
+    Map.empty,
+    None // memoryRetryMultiplier
   )
   val internalPathPrefix = Option("mock/path/to/tes/task")
   val expectedTuple = "internal_path_prefix" -> internalPathPrefix
@@ -246,5 +247,34 @@ class TesTaskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers wit
     )
 
     input.toString shouldBe "cromwell.backend.impl.tes.Input(Some(asdf),Some(asdf),None,asdf,Some(asdf),Some(asdf))"
+  }
+
+  // isLocalStyleUrl: identifies paths on the shared filesystem that must not be localised by the TES executor.
+
+  it should "treat an absolute path without a URI scheme as local when no localRoot is configured" in {
+    TesTask.isLocalStyleUrl("/mnt/shared/data/file.bam") shouldBe true
+    TesTask.isLocalStyleUrl("/cromwell-executions/task/inputs/file.txt") shouldBe true
+  }
+
+  it should "not treat cloud or HTTP paths as local" in {
+    TesTask.isLocalStyleUrl("gs://bucket/file.bam") shouldBe false
+    TesTask.isLocalStyleUrl("s3://bucket/file.bam") shouldBe false
+    TesTask.isLocalStyleUrl("http://host/file.bam") shouldBe false
+    TesTask.isLocalStyleUrl("https://host/file.bam") shouldBe false
+    TesTask.isLocalStyleUrl("drs://host/id") shouldBe false
+  }
+
+  it should "treat a path under the configured localRoot as local" in {
+    TesTask.isLocalStyleUrl("/mnt/shared/file.bam", Some("/mnt/shared")) shouldBe true
+    TesTask.isLocalStyleUrl("/mnt/shared/sub/dir/file.bam", Some("/mnt/shared")) shouldBe true
+  }
+
+  it should "not treat an absolute path outside the configured localRoot as local" in {
+    TesTask.isLocalStyleUrl("/cromwell-executions/task/file.txt", Some("/mnt/shared")) shouldBe false
+    TesTask.isLocalStyleUrl("/etc/hostname", Some("/mnt/shared")) shouldBe false
+  }
+
+  it should "not treat a UNC path (starting with //) as local" in {
+    TesTask.isLocalStyleUrl("//server/share/file.bam") shouldBe false
   }
 }

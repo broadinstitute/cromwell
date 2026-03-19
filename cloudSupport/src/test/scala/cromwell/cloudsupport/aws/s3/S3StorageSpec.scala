@@ -61,6 +61,17 @@ class S3StorageSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     )
   }
 
+  // s3Client overload with custom endpoint: used for non-AWS S3-compatible object stores (OVH, MinIO, etc.).
+  it should "build s3 client with a custom endpoint override" taggedAs S3StorageSpecUtils.AwsTest in {
+    val endpointUri = new java.net.URI("https://s3.gra.io.cloud.ovh.net")
+    S3Storage.s3Client(
+      S3Storage.s3Configuration(),
+      AnonymousCredentialsProvider.create,
+      Option(Region.US_EAST_1),
+      Option(endpointUri)
+    )
+  }
+
 }
 
 object S3StorageSpecUtils {

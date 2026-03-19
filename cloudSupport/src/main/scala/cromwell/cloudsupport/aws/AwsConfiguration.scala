@@ -48,7 +48,6 @@ import software.amazon.awssdk.regions.Region
  * @param endpointUrl optional custom S3-compatible endpoint URL (e.g. "https://s3.gra.io.cloud.ovh.net").
  *                    When set, all S3 filesystem operations are directed to this endpoint instead
  *                    of the default AWS S3 endpoint. Corresponds to the `aws.endpoint-url` config key.
- *                    PR note: added to support non-AWS S3-compatible object stores.
  */
 final case class AwsConfiguration private (applicationName: String,
                                            authsByName: Map[String, AwsAuthMode],
@@ -91,7 +90,6 @@ object AwsConfiguration {
 
     // Optional custom S3-compatible endpoint URL (e.g. OVH Object Storage, MinIO, Ceph).
     // When set, S3 filesystem operations target this endpoint instead of AWS.
-    // PR note: mirrors the aws.endpoint-url field added to AwsConfiguration.
     val endpointUrl: Option[String] =
       awsConfig.getAs[String]("endpoint-url")
 

@@ -8,8 +8,8 @@ final case class CancelTaskResponse()
 
 object TesResponseJsonFormatter extends DefaultJsonProtocol {
 
-  /** FIX (: Spray-json serializes Scala `None` as JSON `null`.
-   * Protobuf3's JSON parser rejects null for string/message fields:
+  /**Spray-json serializes Scala `None` as JSON `null`.
+   * Protobuf3's JSON parser (eg in Funnel/TES) rejects null for string/message fields:
    *   "invalid value for string field value: null"
    * Omitting the key entirely is the correct proto3-compliant behaviour — missing
    * fields are treated as their default value (empty string / zero / etc.).

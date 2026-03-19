@@ -116,8 +116,6 @@ object CustomKeyMode
  * When `endpointUrl` is provided the target is NOT AWS: STS-based credential validation is
  * intentionally skipped because AWS STS does not exist on third-party S3-compatible APIs.
  *
- * PR note: endpointUrl + STS-skip added to support non-AWS S3-compatible object stores.
- *
  * @param name        auth entry name from config
  * @param accessKey   static S3 access key
  * @param secretKey   static S3 secret key

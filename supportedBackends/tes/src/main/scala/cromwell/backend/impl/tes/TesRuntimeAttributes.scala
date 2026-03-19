@@ -123,7 +123,7 @@ object TesRuntimeAttributes {
                             keysToExclude: Set[String],
                             config: TesConfiguration
   ): Map[String, Option[String]] = {
-    // PR note: unknownKeys was declared but never used (compiler error with -Wunused).
+    // unknownKeys was declared but never used (compiler error with -Wunused).
     // Log at debug so callers can see which runtime attributes are being forwarded as
     // TES backend_parameters (useful for diagnosing Funnel/TES 1.1 passthrough issues).
     val unknownKeys = runtimeAttributes.keySet -- keysToExclude

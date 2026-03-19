@@ -79,7 +79,6 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
   // Shared filesystem mount point. Reads `filesystems.local.local-root` with legacy fallback
   // to `filesystems.local.efs`. Passed to isLocalPath() to restrict shared-FS detection to
   // paths under this root rather than accepting any absolute path.
-  // PR note: replaces the implicit /mnt/efs convention.
   private val localRoot: Option[String] =
     configurationDescriptor.backendConfig
       .as[Option[String]]("filesystems.local.local-root")
@@ -90,7 +89,8 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       TesTask.buildTaskInputs(callInputFiles ++ writeFunctionFiles, workflowName, mapCommandLineWomFile)
 
     // Paths under the shared filesystem mount point are already present inside the worker
-    // container. Passing them to TES as Input entries would cause Funnel (or another TES
+    // container (if workers are properly configured...). 
+    // Passing them to TES as Input entries would cause Funnel (or another TES
     // executor) to attempt a redundant local-file copy. Filter them out so only cloud / HTTP
     // / DRS inputs are localised. The mount point is configured via
     // `filesystems.local.local-root` (falls back to any absolute path when unset).

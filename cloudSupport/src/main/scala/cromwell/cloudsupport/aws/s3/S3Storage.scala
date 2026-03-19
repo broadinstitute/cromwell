@@ -60,7 +60,6 @@ object S3Storage {
    *                    When set, path-style access is forced automatically because:
    *                    (a) non-AWS services do not support virtual-hosted-style bucket addressing,
    *                    (b) AWS SDK v2 would otherwise prepend the bucket name to the custom hostname.
-   *                    PR note: endpointUri + path-style-force added for non-AWS S3-compatible support.
    */
   def s3Client(
     configuration: S3Configuration,

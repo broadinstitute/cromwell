@@ -111,7 +111,6 @@ object S3PathBuilder {
 
   /**
    * @param endpointUri optional custom S3-compatible endpoint URI (non-AWS, e.g. OVH, MinIO).
-   *                    PR note: added to support non-AWS S3-compatible object stores.
    */
   def fromAuthMode(authMode: AwsAuthMode,
                    configuration: S3Configuration,
@@ -138,7 +137,7 @@ object S3PathBuilder {
  * Builds S3Path instances for a given credentials provider, region and (optionally) a
  * custom S3-compatible endpoint.
  *
- * PR note: previously this class held only `S3Configuration` and `build()` always fell back
+ * Previously this class held only `S3Configuration` and `build()` always fell back
  * to `System.getenv` / `System.getProperties` for credentials and endpoint, making it
  * impossible to use configured credentials or a non-AWS endpoint. The class now stores the
  * full auth context and injects it into both the s3fs-nio filesystem (for NIO path resolution)
@@ -161,13 +160,13 @@ class S3PathBuilder(
    * Lazily-initialised S3FileSystem backed by our own AWS SDK v2 S3Client.
    * Shared across all build() calls on this builder instance (one builder per workflow).
    *
-   * PR note: s3fs-nio's AmazonS3Factory.getS3Client(URI, Properties) extracts the host from
+   * s3fs-nio's AmazonS3Factory.getS3Client(URI, Properties) extracts the host from
    * the filesystem URI and then calls AWS SDK v2 builder.endpointOverride(uri) passing the
    * full URI — including the s3:// scheme — which the SDK rejects:
    *   "Custom endpoint 's3://...' was not a valid URI"
    * The SDK requires http:// or https:// for endpointOverride.
    *
-   * The fix: S3FileSystemProvider also exposes a 3-arg overload
+   * S3FileSystemProvider also exposes a 3-arg overload
    *   createFileSystem(URI, Properties, S3Client)
    * that constructs S3FileSystem directly from a caller-supplied S3Client, completely
    * bypassing AmazonS3Factory. We pre-build the S3Client via S3Storage.s3Client() which
@@ -219,7 +218,7 @@ case class S3Path private[s3] (nioPath: NioPath, bucket: String, client: S3Clien
 
   override def pathAsString: String = s"s3://$pathWithoutScheme"
 
-  // PR note: was `stripPrefix("s3://s3.amazonaws.com/")` which broke for custom S3-compatible
+  // Previously, this was `stripPrefix("s3://s3.amazonaws.com/")` which broke for custom S3-compatible
   // endpoints (OVH, MinIO, etc.) where s3fs-nio encodes a different host in the path string.
   // Now strips s3://[any-host]/ generically so pathAsString always returns s3://bucket/key.
   override def pathWithoutScheme: String = safeAbsolutePath.replaceFirst("^s3://[^/]*/", "")

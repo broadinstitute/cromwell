@@ -6,7 +6,7 @@ import cromwell.backend.standard.StandardExpressionFunctionsParams
 class TesExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
     extends SharedFileSystemExpressionFunctions(standardParams) {
 
-  // FIX : The original check only passed through local absolute paths ("/...")
+  // The original check only passed through local absolute paths ("/...")
   // and FTP URIs, sending everything else through callContext.root.resolve(str). For cloud-backed TES
   // deployments (S3, GCS, Azure, …) the output paths returned by the TES server are already fully-
   // qualified URIs (e.g. "s3://bucket/key"). Resolving a URI-scheme string against an S3Path doubles

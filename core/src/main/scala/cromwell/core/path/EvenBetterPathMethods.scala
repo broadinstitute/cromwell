@@ -77,7 +77,6 @@ trait EvenBetterPathMethods {
         // code to run against a GCS Path. Fortunately creating directories in GCS is also unnecessary, so this
         // exception type is just ignored.
         case _: UnsupportedOperationException =>
-        // FIX (upstream PR candidate, companion to S3FileSystemProvider.exists empty-key fix):
         // The S3 filesystem (via better-files) does not support POSIX permissions. Unlike GCS which throws
         // UnsupportedOperationException, better-files' File.permissions() returns null for S3 paths because
         // the underlying NIO attribute view returns null. The subsequent .toSet() call on null produces a

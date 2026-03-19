@@ -27,9 +27,6 @@ class TesConfiguration(val configurationDescriptor: BackendConfigurationDescript
    * When set, only paths under this root are treated as "already present on the shared
    * filesystem" and excluded from TES input localisation. When absent, any absolute path
    * without a URI scheme is treated as local (previous behaviour).
-   *
-   * PR note: makes the shared-FS mount point an explicit config value instead of
-   * an implicit /mnt/efs convention inherited from AWS deployments.
    */
   val localRoot: Option[String] =
     configurationDescriptor.backendConfig

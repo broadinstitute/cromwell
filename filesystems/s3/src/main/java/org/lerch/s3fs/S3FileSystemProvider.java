@@ -853,7 +853,6 @@ public class S3FileSystemProvider extends FileSystemProvider {
     boolean exists(S3Path path) {
         S3Path s3Path = toS3Path(path);
 
-        // FIX : When the S3 key is empty we are at the virtual bucket root.
         // Calling headObject with an empty key throws SdkClientException("Key cannot be empty") rather
         // than a catchable S3Exception/NoSuchFileException, so the exception escapes the try-block below
         // and propagates as an unhandled initialization error.
@@ -863,7 +862,7 @@ public class S3FileSystemProvider extends FileSystemProvider {
         // does not yet exist (e.g. first run, or a bare-bucket `root` config like "s3://my-bucket").
         //
         // Fix: detect the empty-key case early and probe the bucket itself via headBucket instead.
-        // The bucket root is a virtual directory that "exists" iff the bucket is accessible.
+        // The bucket root is a virtual directory that "exists" if the bucket is accessible.
         if (s3Path.getKey().isEmpty()) {
             try {
                 s3Path.getFileStore().getClient().headBucket(

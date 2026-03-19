@@ -28,7 +28,7 @@ object RetryableRequestSupport {
     case ioE: IOException
         if Option(ioE.getMessage).exists(_.contains("Error getting access token for service account")) =>
       true
-    case ioE: IOException => isGcs500(ioE) || isGcs503(ioE) || isGcs504(ioE) || isAws504(ioE)
+    case ioE: IOException => isGcs500(ioE) || isGcs503(ioE) || isGcs504(ioE) || isAws504(ioE) || isNioTransient(ioE)
     case other =>
       // Infinitely retryable is a subset of retryable
       isInfinitelyRetryable(other)
@@ -110,4 +110,31 @@ object RetryableRequestSupport {
       msg.contains("Could not read from s3") &&
         !msg.contains("-rc.txt")
     )
+
+  /**
+    * Transient errors from the local NIO filesystem layer (java.nio / POSIX)
+    * arise when Cromwell reads local or NFS-mounted files (e.g. via sshfs or a Manila PVC)
+    * and the underlying filesystem has a momentary hiccup:
+    *
+    *   - EIO   (Input/output error)  — sshfs/NFS reconnect window, disk glitch
+    *   - ESTALE (Stale file handle)  — NFS server restarted or path re-exported
+    *
+    * All such errors were caught as:
+    *   IOException("Could not read from <path>: <kernel message>", cause)
+    *
+    * They resolve on their own within seconds and are safe to retry up to
+    * `system.io.number-of-attempts` times (default 5, configurable).
+    *
+    * Non-transient errors (file not found, permission denied, etc.) are excluded
+    *
+    * cloud-scheme paths (gs://, s3://, http) are handled by the dedicated
+    * isGcs/isAws matchers above and must NOT match here.
+    */
+  def isNioTransient(failure: Throwable): Boolean =
+    Option(failure.getMessage).exists { msg =>
+      (msg.contains("Input/output error") || msg.contains("Stale file handle")) &&
+      !msg.contains("gs://") &&
+      !msg.contains("s3://") &&
+      !msg.startsWith("http")
+    }
 }

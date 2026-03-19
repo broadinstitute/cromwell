@@ -549,22 +549,23 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
    */
   private def checkStderrForOOM: Future[Boolean] = {
     val stderr = jobPaths.standardPaths.error
-    jobLogger.info(s"[OOM-check] memoryRetryRequested=$memoryRetryRequested memoryRetryFactor=$memoryRetryFactor keys=$memoryRetryErrorKeys stderr=$stderr")
+    jobLogger.debug(s"[OOM-check] memoryRetryRequested=$memoryRetryRequested memoryRetryFactor=$memoryRetryFactor keys=$memoryRetryErrorKeys stderr=$stderr")
     memoryRetryErrorKeys match {
       case None | Some(Nil) =>
-        jobLogger.info(s"[OOM-check] no keys configured, skipping OOM check")
+        jobLogger.debug(s"[OOM-check] no keys configured, skipping OOM check")
         Future.successful(false)
       case Some(keys) =>
         for {
           exists <- asyncIo.existsAsync(stderr)
-          _ = jobLogger.info(s"[OOM-check] stderr exists=$exists at $stderr")
+          _ = jobLogger.debug(s"[OOM-check] stderr exists=$exists at $stderr")
           contentOpt <-
             if (exists)
               asyncIo.contentAsStringAsync(stderr, None, failOnOverflow = false).map(Option(_))
             else
               Future.successful(None)
           result = contentOpt.exists(content => keys.exists(content.contains))
-          _ = jobLogger.info(s"[OOM-check] result=$result contentLen=${contentOpt.map(_.length)} keys=$keys")
+          _ = if (result) jobLogger.warn(s"[OOM-check] OOM kill detected — contentLen=${contentOpt.map(_.length)} matchedKeys=$keys")
+              else jobLogger.debug(s"[OOM-check] result=$result contentLen=${contentOpt.map(_.length)} keys=$keys")
         } yield result
     }
   }

@@ -25,9 +25,6 @@ object TesBackendFileHashingActor {
     * When `localRoot` is None (default), falls back to the previous generic behaviour:
     * any path starting with "/" that has no URI scheme is considered local.
     * This preserves backward compatibility with deployments that do not set local-root.
-    *
-    * PR note: `localRoot` parameter added so the shared-FS mount point is driven by
-    * `filesystems.local.local-root` config rather than being an implicit convention.
     */
   def isLocalPath(value: String, localRoot: Option[String] = None): Boolean = {
     val isAbsoluteLocal = value.startsWith("/") && !value.startsWith("//") && !value.contains("://")

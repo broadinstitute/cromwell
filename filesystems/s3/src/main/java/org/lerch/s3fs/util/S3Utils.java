@@ -36,7 +36,7 @@ public class S3Utils {
         S3Client client = s3Path.getFileStore().getClient();
 
         // Guard: empty key means the bucket root virtual directory.
-        // headObject with an empty key causes the AWS SDK marshaller to throw
+        // headObject with an empty key causes 
         // SdkClientException("Key cannot be empty") before any HTTP call is made.
         // The bucket root is never a real S3 object, so just signal not-found.
         if (key.isEmpty()) {

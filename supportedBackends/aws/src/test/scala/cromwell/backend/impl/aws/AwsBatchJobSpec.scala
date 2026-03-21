@@ -189,6 +189,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      Map.empty,
       "",
       Map.empty,
       None
@@ -218,6 +219,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      Map.empty,
       "",
       Map.empty,
       None
@@ -247,6 +249,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      Map.empty,
       "",
       Map.empty,
       None
@@ -679,6 +682,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      Map.empty,
       "",
       Map.empty,
       Some("my-project/workflow-123")
@@ -711,6 +715,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      Map.empty,
       "",
       Map.empty,
       Some("")
@@ -745,6 +750,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
       None,
       None,
       None,
+      Map.empty,
       "",
       Map.empty,
       Some("my-project/scripts/")

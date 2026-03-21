@@ -19,7 +19,7 @@ object Dependencies {
   private val circeYamlV = "0.15.1"
   private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
   private val commonsCsvV = "1.9.0"
-  private val commonsIoV = "2.11.0" // via: https://commons.apache.org/proper/commons-io/
+  private val commonsIoV = "2.21.0" // via: https://commons.apache.org/proper/commons-io/
   private val commonsLang3V = "3.12.0"
   private val commonsMathV = "3.6.1"
   private val commonNetV = "3.8.0" // via: https://commons.apache.org/proper/commons-net/
@@ -87,7 +87,6 @@ object Dependencies {
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.5"
   private val scalaPoolV = "0.4.3"
-  private val scalacticV = "3.2.13"
   private val scalameterV = "0.21"
   private val scalatestV = "3.2.15"
   private val scalatestScalacheckV = scalatestV + ".0"
@@ -104,7 +103,7 @@ object Dependencies {
   private val swaggerParserV = "1.0.71"
   private val swaggerUiV = "4.5.2"
   private val testContainersScalaV = "0.40.10"
-  private val tikaV = "2.3.0"
+  private val tikaV = "3.2.3"
   private val typesafeConfigV = "1.4.2"
   private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
   private val workbenchModelV = "0.15-f9f0d4c" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md

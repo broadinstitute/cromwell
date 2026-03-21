@@ -46,7 +46,8 @@ final case class Workflow private (testName: String,
     workflowUrl = data.workflowUrl,
     workflowType = data.workflowType,
     workflowTypeVersion = data.workflowTypeVersion,
-    inputsJson = data.inputs.map(_.unsafeRunSync())
+    inputsJson = data.inputs.map(_.unsafeRunSync()),
+    zippedImports = data.zippedImports
   )
 
   def secondRun: Workflow =

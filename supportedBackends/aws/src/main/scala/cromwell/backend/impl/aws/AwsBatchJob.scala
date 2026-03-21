@@ -94,6 +94,7 @@ final case class AwsBatchJob(
   efsDelocalize: Option[Boolean],
   tagResources: Option[Boolean],
   tagHardware: Option[Boolean],
+  tagAliases: Map[String, String],
   logGroupName: String,
   additionalTags: Map[String, String],
   scriptBucketPrefix: Option[String]
@@ -715,8 +716,12 @@ final case class AwsBatchJob(
           )
         )
 
-        // Combine both maps - Tags will override customLabels if there are duplicate keys
-        val allTags: Map[String, String] = customLabels ++ Tags
+        // Expand tag aliases: duplicate engine tag values under alias keys
+        val aliasedTags: Map[String, String] = tagAliases.flatMap { case (sourceKey, aliasKey) =>
+          Tags.get(sourceKey).map(value => aliasKey -> value)
+        }
+        // Combine all maps - Tags override customLabels, aliases come last
+        val allTags: Map[String, String] = customLabels ++ Tags ++ aliasedTags
         submitJobRequest = submitJobRequest.tags(allTags.asJava).propagateTags(true)
       }
       // JobTimeout provided (positive value) : add to request

@@ -668,6 +668,36 @@ backend {
 
 ```
 
+#### Tag Aliases
+
+When `tagResources` is enabled, Cromwell sets five engine-generated tags on each AWS Batch job:
+
+- `cromwell-workflow-name`
+- `cromwell-workflow-id`
+- `cromwell-task-id`
+- `cromwell-root-workflow-name`
+- `cromwell-root-workflow-id`
+
+The `tagAliases` option lets you duplicate any of these engine tags under a second key name. This is useful when you need the same value exposed under a different tag key for external systems (e.g. cost-tracking or orchestration tools). Each entry maps a source engine tag key to an alias key. The alias receives the same (already sanitized) value as the source tag.
+
+```
+backend {
+    providers {
+        AWSBatch {
+            config{
+                tagResources = true
+                tagAliases {
+                    "cromwell-workflow-id" = "alias:workflow-run-id"
+                    "cromwell-workflow-name" = "alias:pipeline-name"
+                }
+            }
+        }
+    }
+}
+```
+
+This configuration is optional. When omitted, no aliases are produced. Only the five engine tag keys listed above are valid as source keys; any entry whose source key does not match an engine tag is silently ignored.
+
 Additional, custom tags can be added to jobs, using the "additionalTags" parameter in the "default-runtime-attributes" section of the job definition:
 
 ```

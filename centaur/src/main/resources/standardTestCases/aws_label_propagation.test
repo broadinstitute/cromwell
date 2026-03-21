@@ -16,4 +16,6 @@ metadata {
   "outputs.CheckAwsLabelPropagation.job_tags.label-key-2": "label-value-2"
   "outputs.CheckAwsLabelPropagation.job_tags.only-key": ""
   "outputs.CheckAwsLabelPropagation.job_tags.fc-id": "0123-abcd-4567-efgh"
+  # test a tag with a predictable value (unlike cromwell-workflow-id)
+  "outputs.CheckAwsLabelPropagation.job_tags.alias-workflow-name": "CheckAwsLabelPropagation"
 }

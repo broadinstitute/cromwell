@@ -1,12 +1,11 @@
 package cromwell.engine.workflow.lifecycle.execution
 
 import java.time.OffsetDateTime
-
 import akka.actor.ActorRef
 import cromwell.backend.async.JobAlreadyFailedInJobStore
 import cromwell.core.ExecutionStatus._
 import cromwell.core._
-import cromwell.engine.workflow.lifecycle.OutputsLocationHelper.FileRelocationMap
+import cromwell.core.path.FileRelocationMap
 import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata._
 import wdl.draft2.model._

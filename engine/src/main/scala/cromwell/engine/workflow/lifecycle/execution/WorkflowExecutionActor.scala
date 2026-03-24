@@ -24,24 +24,16 @@ import cromwell.core.WorkflowOptions.Destination
 import cromwell.core._
 import cromwell.core.io.AsyncIo
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.Path
+import cromwell.core.path.FileRelocationMap
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.workflow.lifecycle.OutputsLocationHelper.FileRelocationMap
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData.DataStoreUpdate
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
-import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{
-  ExpressionEvaluationFailedResponse,
-  ExpressionEvaluationSucceededResponse
-}
+import cromwell.engine.workflow.lifecycle.execution.keys.ExpressionKey.{ExpressionEvaluationFailedResponse, ExpressionEvaluationSucceededResponse}
 import cromwell.engine.workflow.lifecycle.execution.keys._
 import cromwell.engine.workflow.lifecycle.execution.stores.{ActiveExecutionStore, ExecutionStore}
-import cromwell.engine.workflow.lifecycle.{
-  EngineLifecycleActorAbortCommand,
-  EngineLifecycleActorAbortedResponse,
-  OutputsLocationHelper
-}
+import cromwell.engine.workflow.lifecycle.{EngineLifecycleActorAbortCommand, EngineLifecycleActorAbortedResponse, OutputsLocationHelper}
 import cromwell.engine.workflow.workflowstore.{RestartableAborting, StartableState}
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import cromwell.services.instrumentation.CromwellInstrumentation
@@ -419,12 +411,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       val fileMap: FileRelocationMap =
         (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsDirMetadata) match {
           case (Some(outputDir), Destination) =>
-            outputFilePathMapping(outputDir, workflowDescriptor, params.initializationData, outputs.values.toSeq) map {
-              case (src, dst) =>
-                (src, dst)
-            }
+            outputFilePathMapping(outputDir, workflowDescriptor, params.initializationData, outputs.values.toSeq)
           case _ =>
-            Map.empty[Path, Path]
+            FileRelocationMap.empty
         }
 
       val fullyQualifiedOutputs = outputs map { case (outputNode, value) =>

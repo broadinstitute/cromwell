@@ -3,7 +3,12 @@ package cromwell.engine.workflow.lifecycle.finalization
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.event.LoggingReceive
 import cromwell.backend.BackendLifecycleActor.BackendWorkflowLifecycleActorResponse
-import cromwell.backend.BackendWorkflowFinalizationActor.{FinalizationFailed, FinalizationResponse, FinalizationSuccess, Finalize}
+import cromwell.backend.BackendWorkflowFinalizationActor.{
+  FinalizationFailed,
+  FinalizationResponse,
+  FinalizationSuccess,
+  Finalize
+}
 import cromwell.backend.AllBackendInitializationData
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core._

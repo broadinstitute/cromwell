@@ -7,15 +7,10 @@ import cromwell.backend.{
   BackendLifecycleActorFactory
 }
 import cromwell.core.WorkflowOptions.UseRelativeOutputPaths
-import cromwell.core.path.{Path, PathCopier, PathFactory}
+import cromwell.core.path.{FileRelocationMap, Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
-import cromwell.engine.workflow.lifecycle.OutputsLocationHelper.FileRelocationMap
 import wom.values.{WomSingleFile, WomValue}
-
-object OutputsLocationHelper {
-  type FileRelocationMap = Map[Path, Path]
-}
 
 trait OutputsLocationHelper {
 
@@ -59,7 +54,7 @@ trait OutputsLocationHelper {
         }
       }
     }
-    outputFileDestinations.distinct.toMap
+    FileRelocationMap(outputFileDestinations.distinct.toMap)
   }
 
   private def getBackendRootPath(backend: String,

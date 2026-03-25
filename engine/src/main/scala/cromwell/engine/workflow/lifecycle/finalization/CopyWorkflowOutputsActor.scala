@@ -13,7 +13,7 @@ import cromwell.backend.AllBackendInitializationData
 import cromwell.core.Dispatcher.IoDispatcher
 import cromwell.core._
 import cromwell.core.io.AsyncIoActorClient
-import cromwell.core.path.Path
+import cromwell.core.path.{FileRelocationMap, Path}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.workflow.lifecycle.OutputsLocationHelper
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
@@ -81,12 +81,12 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
   }
 
   private def copyWorkflowOutputs(outputsDir: String): Future[Seq[Unit]] = {
-    val outputFilePaths =
+    val outputFilePaths: FileRelocationMap =
       outputFilePathMapping(outputsDir, workflowDescriptor, initializationData, workflowOutputs.outputs.values.toSeq)
 
-    markDuplicates(outputFilePaths)
+    markDuplicates(outputFilePaths.map)
 
-    val copies = outputFilePaths.toList map { case (srcPath, dstPath) =>
+    val copies = outputFilePaths.map.toList map { case (srcPath, dstPath) =>
       asyncIo.copyAsync(srcPath, dstPath)
     }
 

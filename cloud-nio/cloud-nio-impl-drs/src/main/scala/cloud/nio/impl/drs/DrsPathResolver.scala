@@ -26,7 +26,10 @@ import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel}
 import scala.util.Try
 
-class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
+class DrsPathResolver(drsConfig: DrsConfig,
+                      drsCredentials: DrsCredentials,
+                      requesterPaysProjectIdOption: Option[String] = None
+) {
 
   protected lazy val httpClientBuilder: HttpClientBuilder = {
     val clientBuilder = HttpClientBuilder.create()
@@ -48,7 +51,7 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
   }
 
   def makeDrsResolverRequest(drsPath: String, fields: NonEmptyList[DrsResolverField.Value]): DrsResolverRequest =
-    DrsResolverRequest(drsPath, currentCloudPlatform, fields)
+    DrsResolverRequest(drsPath, currentCloudPlatform, fields, userProject = requesterPaysProjectIdOption)
 
   private def makeHttpRequestToDrsResolver(drsPath: String,
                                            fields: NonEmptyList[DrsResolverField.Value]
@@ -214,7 +217,8 @@ object DrsCloudPlatform extends Enumeration {
 
 final case class DrsResolverRequest(url: String,
                                     cloudPlatform: Option[DrsCloudPlatform.Value],
-                                    fields: NonEmptyList[DrsResolverField.Value]
+                                    fields: NonEmptyList[DrsResolverField.Value],
+                                    userProject: Option[String] = None
 )
 
 final case class SADataObject(data: Json)

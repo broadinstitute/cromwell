@@ -15,5 +15,5 @@ case class FileRelocationMap(map: Map[Path, Path]) {
 }
 
 object FileRelocationMap {
-  val empty: FileRelocationMap = FileRelocationMap(Map.empty)
+  lazy val empty: FileRelocationMap = FileRelocationMap(Map.empty)
 }

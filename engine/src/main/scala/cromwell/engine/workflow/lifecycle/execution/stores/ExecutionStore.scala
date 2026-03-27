@@ -299,14 +299,14 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
       runnable
     }
 
-    // Filter for unstarted keys:
-    val readyToStart = keysWithStatus(NotStarted).to(LazyList).filter(isRunnable)
+    // Filter for unstarted keys. `LazyList.filter` preserves laziness, we only evaluate as many elements as we take.
+    val readyToStart: LazyList[JobKey] = keysWithStatus(NotStarted).to(LazyList).filter(isRunnable)
 
-    // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys
-    val keysToStartPlusOne = readyToStart.take(MaxJobsToStartPerTick + 1).toList
+    // Compute the first N runnable keys
+    val keysToStart = readyToStart.take(MaxJobsToStartPerTick).toList
 
-    // Will be true if the result is truncated, in which case we'll need to do another pass later
-    val truncated = keysToStartPlusOne.size > MaxJobsToStartPerTick
+    // If we can take more keys (N + 1) than we are processing now (N), then we need more passes.
+    def truncated: Boolean = keysToStart.size < readyToStart.take(MaxJobsToStartPerTick + 1).size
 
     // If we found unstartable keys, update their status, and set needsUpdate to true (it might unblock other keys)
     val updated = if (internalUpdates.nonEmpty) {
@@ -318,6 +318,6 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
     } else withNeedsUpdateFalse
 
     // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
-    ExecutionStoreUpdate(keysToStartPlusOne.take(MaxJobsToStartPerTick), updated, internalUpdates)
+    ExecutionStoreUpdate(keysToStart, updated, internalUpdates)
   } else ExecutionStoreUpdate(List.empty, this, Map.empty)
 }

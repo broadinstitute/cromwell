@@ -240,7 +240,7 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
     }
   }
 
-  private def keysWithStatus(status: ExecutionStatus) = store.getOrElse(status, List.empty)
+  private def keysWithStatus(status: ExecutionStatus): List[JobKey] = store.getOrElse(status, List.empty)
 
   /**
     * We're done when all the keys have a terminal status,
@@ -278,18 +278,18 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
     * In the process, identifies and updates the status of keys that are unstartable.
     * Returns an ExecutionStoreUpdate which is the list of runnable keys and an updated execution store.
     *
-    * If needsUpdate, returns an empty list of runnable keys and this instance of the store.
+    * If needsUpdate is false, returns an empty list of runnable keys and this instance of the store.
     *
-    * This method can expansive to run for very large workflows if needsUpdate is true.
+    * This method can be expensive to run for very large workflows if needsUpdate is true.
     */
   def update: ExecutionStoreUpdate = if (needsUpdate) {
     // When looking for runnable keys, keep track of the ones that are unstartable so we can mark them as such
     var internalUpdates = Map.empty[JobKey, ExecutionStatus]
 
     // Returns true if a key should be run now. Update its status if necessary
-    def filterFunction(key: JobKey): Boolean = {
+    def isRunnable(key: JobKey): Boolean = {
       // A key is runnable if all its dependencies are Done
-      val runnable = key.allDependenciesAreIn(doneStatus)
+      val runnable: Boolean = key.allDependenciesAreIn(doneStatus)
 
       // If the key is not runnable, but all its dependencies are in a terminal status, then it's unreachable
       if (!runnable && key.allDependenciesAreIn(terminalStatus)) {
@@ -300,7 +300,7 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
     }
 
     // Filter for unstarted keys:
-    val readyToStart = keysWithStatus(NotStarted).to(LazyList).filter(filterFunction)
+    val readyToStart = keysWithStatus(NotStarted).to(LazyList).filter(isRunnable)
 
     // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys
     val keysToStartPlusOne = readyToStart.take(MaxJobsToStartPerTick + 1).toList

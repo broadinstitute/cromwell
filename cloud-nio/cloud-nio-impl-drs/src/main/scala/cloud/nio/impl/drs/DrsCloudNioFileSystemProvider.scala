@@ -8,13 +8,15 @@ import com.typesafe.config.Config
 
 class DrsCloudNioFileSystemProvider(rootConfig: Config,
                                     val drsCredentials: DrsCredentials,
-                                    drsReadInterpreter: DrsReadInterpreter
+                                    drsReadInterpreter: DrsReadInterpreter,
+                                    requesterPaysProjectIdOption: Option[String] = None
 ) extends CloudNioFileSystemProvider {
 
   lazy val drsResolverConfig = rootConfig.getConfig("resolver")
   lazy val drsConfig: DrsConfig = DrsConfig.fromConfig(drsResolverConfig)
 
-  lazy val drsPathResolver: DrsPathResolver = new DrsPathResolver(drsConfig, drsCredentials)
+  lazy val drsPathResolver: DrsPathResolver =
+    new DrsPathResolver(drsConfig, drsCredentials, requesterPaysProjectIdOption)
 
   override def config: Config = rootConfig
 

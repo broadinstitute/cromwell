@@ -30,7 +30,7 @@ class ExecutionStoreSpec extends AnyFlatSpec with Matchers with BeforeAndAfter {
       store.store.getOrElse(QueuedInCromwell, List.empty).size should be(
         iterationNumber * ExecutionStore.MaxJobsToStartPerTick
       )
-      val update = store.update
+      val update = store.update(1)
       store = update.updatedStore.updateKeys(update.runnableKeys.map(_ -> QueuedInCromwell).toMap)
       iterationNumber = iterationNumber + 1
     }

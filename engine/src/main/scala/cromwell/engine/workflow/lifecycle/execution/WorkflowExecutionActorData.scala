@@ -145,8 +145,8 @@ case class WorkflowExecutionActorData(workflowDescriptor: EngineWorkflowDescript
   def jobExecutionMap: JobExecutionMap =
     downstreamExecutionMap updated (workflowDescriptor.backendDescriptor, executionStore.startedJobs)
 
-  def executionStoreUpdate: DataStoreUpdate = {
-    val update = executionStore.update
+  def executionStoreUpdate(maxSubWorkflowsToLaunch: Int): DataStoreUpdate = {
+    val update = executionStore.update(maxSubWorkflowsToLaunch)
     DataStoreUpdate(update.runnableKeys, update.statusChanges, this.copy(executionStore = update.updatedStore))
   }
 

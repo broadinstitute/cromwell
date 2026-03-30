@@ -282,7 +282,7 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
     *
     * This method can be expensive to run for very large workflows if needsUpdate is true.
     */
-  def update: ExecutionStoreUpdate = if (needsUpdate) {
+  def update(maxSubWorkflowsToLaunch: Int): ExecutionStoreUpdate = if (needsUpdate) {
     // When looking for runnable keys, keep track of the ones that are unstartable so we can mark them as such
     var internalUpdates = Map.empty[JobKey, ExecutionStatus]
 
@@ -299,14 +299,21 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
       runnable
     }
 
+    def isSubworkflow(key: JobKey): Boolean = key.isInstanceOf[SubWorkflowKey]
+
     // Filter for unstarted keys. `LazyList.filter` preserves laziness, we only evaluate as many elements as we take.
     val readyToStart: LazyList[JobKey] = keysWithStatus(NotStarted).to(LazyList).filter(isRunnable)
 
-    // Compute the first N runnable keys
-    val keysToStart = readyToStart.take(MaxJobsToStartPerTick).toList
+    // Subworkflows are considerably more expensive to start than any other key. Harmonize their start rate
+    // to the same low rate we configure for top-level workflows. (CTM-409)
+    val subWorkflowKeys = readyToStart.filter(isSubworkflow).take(maxSubWorkflowsToLaunch).toList
+    val otherJobKeys = readyToStart.filterNot(isSubworkflow).take(MaxJobsToStartPerTick).toList
+
+    val keysToStart = subWorkflowKeys ++ otherJobKeys
 
     // If we can take more keys (N + 1) than we are processing now (N), then we need more passes.
-    def truncated: Boolean = keysToStart.size < readyToStart.take(MaxJobsToStartPerTick + 1).size
+    def truncated: Boolean =
+      keysToStart.size < readyToStart.take(MaxJobsToStartPerTick + maxSubWorkflowsToLaunch + 1).size
 
     // If we found unstartable keys, update their status, and set needsUpdate to true (it might unblock other keys)
     val updated = if (internalUpdates.nonEmpty) {

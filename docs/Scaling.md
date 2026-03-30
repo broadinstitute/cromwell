@@ -39,6 +39,9 @@ system {
   # Cromwell will launch up to N submitted workflows at a time, regardless of how many open workflow slots exist
   # Set this to 0 for a non-runner.
   max-workflow-launch-count = 1
+  
+  # Cromwell will launch up to N submitted workflows at a time, regardless of how many open workflow slots exist
+  max-subworkflow-launch-count = 1
 
   # The maximum number of workflows to run concurrently.
   # Set this to 0 for a non-runner.
@@ -56,4 +59,3 @@ Cromwell instances should not require any configuration changes to operate in th
 Cromwell instance is not intended to operate in the front end role then requests should not be directed to
 that instance. If there are multiple front end instances then it may be desirable to configure a load balancer
 in front of these instances to direct requests to the front end instances only.
-

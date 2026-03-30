@@ -86,9 +86,8 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
     params.rootConfig.getOrElse("system.total-max-jobs-per-root-workflow", DefaultTotalMaxJobsPerRootWf)
   private val MaxScatterWidth =
     params.rootConfig.getOrElse("system.max-scatter-width-per-scatter", DefaultMaxScatterSize)
-  // Harmonize subworkflow launch rate to the rate for top-level workflows (CTM-409)
   private val MaxSubWorkflowsToLaunch =
-    params.rootConfig.getOrElse("system.max-workflow-launch-count", DefaultMaxSubWorkflowsToLaunch)
+    params.rootConfig.getOrElse("system.max-subworkflow-launch-count", DefaultMaxSubWorkflowsToLaunch)
   private val FileHashBatchSize: Int = params.rootConfig.as[Int]("system.file-hash-batch-size")
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {

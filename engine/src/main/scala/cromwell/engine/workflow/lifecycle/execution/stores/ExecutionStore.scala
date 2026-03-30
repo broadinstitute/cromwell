@@ -304,8 +304,8 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
     // Filter for unstarted keys. `LazyList.filter` preserves laziness, we only evaluate as many elements as we take.
     val readyToStart: LazyList[JobKey] = keysWithStatus(NotStarted).to(LazyList).filter(isRunnable)
 
-    // Subworkflows are considerably more expensive to start than any other key. Harmonize their start rate
-    // to the same low rate we configure for top-level workflows. (CTM-409)
+    // Subworkflows are considerably more expensive to start than any other key. Start them at a customized,
+    // lower rate. (CTM-409)
     val subWorkflowKeys = readyToStart.filter(isSubworkflow).take(maxSubWorkflowsToLaunch).toList
     val otherJobKeys = readyToStart.filterNot(isSubworkflow).take(MaxJobsToStartPerTick).toList
 

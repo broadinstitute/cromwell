@@ -110,7 +110,17 @@ class ImportResolverSpec extends AnyFlatSpec with CromwellTimeoutSpec with Match
 
   it should "resolve an absolute path from a different initial root and store it in ResolvedImportRecord" in {
     val importUri = "https://github.com/DataBiosphere/job-manager/blob/master/CHANGELOG.md"
-    val resolvedBundle = relativeToGithubHttpResolver.innerResolver(importUri, List(relativeToGithubHttpResolver))
+    // Use a mock resolver to avoid a live HTTP call to an external host that may rate-limit CI runners.
+    // This test only checks that the import path is recorded correctly — response content is irrelevant.
+    val mockResolver =
+      new HttpResolver(relativeTo = Some(relativeToGithubRoot), Map.empty, None, List.empty) {
+        override protected def getUriInner(
+          toLookup: WorkflowUrl,
+          authHeaders: Map[String, String]
+        ): Response[WorkflowSource] =
+          new Response[String](Right("mock content"), 200, "OK", Nil, List.empty)
+      }
+    val resolvedBundle = mockResolver.innerResolver(importUri, List(mockResolver))
 
     resolvedBundle.map(_.resolvedImportRecord) match {
       case Left(e) => fail(s"Expected ResolvedImportBundle but got $e")

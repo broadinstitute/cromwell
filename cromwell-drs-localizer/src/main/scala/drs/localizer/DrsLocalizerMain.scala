@@ -147,7 +147,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
       logger.info(s"Using ${drsConfig.drsResolverUrl} to resolve DRS Objects")
-      new DrsPathResolver(drsConfig, drsCredentials)
+      new DrsPathResolver(drsConfig, drsCredentials, requesterPaysProjectIdOption)
     }
 
   /**

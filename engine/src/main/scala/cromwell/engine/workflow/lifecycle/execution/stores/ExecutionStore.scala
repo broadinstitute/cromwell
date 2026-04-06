@@ -240,7 +240,7 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
     }
   }
 
-  private def keysWithStatus(status: ExecutionStatus) = store.getOrElse(status, List.empty)
+  private def keysWithStatus(status: ExecutionStatus): List[JobKey] = store.getOrElse(status, List.empty)
 
   /**
     * We're done when all the keys have a terminal status,
@@ -278,18 +278,18 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
     * In the process, identifies and updates the status of keys that are unstartable.
     * Returns an ExecutionStoreUpdate which is the list of runnable keys and an updated execution store.
     *
-    * If needsUpdate, returns an empty list of runnable keys and this instance of the store.
+    * If needsUpdate is false, returns an empty list of runnable keys and this instance of the store.
     *
-    * This method can expansive to run for very large workflows if needsUpdate is true.
+    * This method can be expensive to run for very large workflows if needsUpdate is true.
     */
-  def update: ExecutionStoreUpdate = if (needsUpdate) {
+  def update(maxSubWorkflowsToLaunch: Int): ExecutionStoreUpdate = if (needsUpdate) {
     // When looking for runnable keys, keep track of the ones that are unstartable so we can mark them as such
     var internalUpdates = Map.empty[JobKey, ExecutionStatus]
 
     // Returns true if a key should be run now. Update its status if necessary
-    def filterFunction(key: JobKey): Boolean = {
+    def isRunnable(key: JobKey): Boolean = {
       // A key is runnable if all its dependencies are Done
-      val runnable = key.allDependenciesAreIn(doneStatus)
+      val runnable: Boolean = key.allDependenciesAreIn(doneStatus)
 
       // If the key is not runnable, but all its dependencies are in a terminal status, then it's unreachable
       if (!runnable && key.allDependenciesAreIn(terminalStatus)) {
@@ -299,14 +299,21 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
       runnable
     }
 
-    // Filter for unstarted keys:
-    val readyToStart = keysWithStatus(NotStarted).to(LazyList).filter(filterFunction)
+    def isSubworkflow(key: JobKey): Boolean = key.isInstanceOf[SubWorkflowKey]
 
-    // Compute the first ExecutionStore.MaxJobsToStartPerTick + 1 runnable keys
-    val keysToStartPlusOne = readyToStart.take(MaxJobsToStartPerTick + 1).toList
+    // Filter for unstarted keys. `LazyList.filter` preserves laziness, we only evaluate as many elements as we take.
+    val readyToStart: LazyList[JobKey] = keysWithStatus(NotStarted).to(LazyList).filter(isRunnable)
 
-    // Will be true if the result is truncated, in which case we'll need to do another pass later
-    val truncated = keysToStartPlusOne.size > MaxJobsToStartPerTick
+    // Subworkflows are considerably more expensive to start than any other key. Start them at a customized,
+    // lower rate. (CTM-409)
+    val subWorkflowKeys = readyToStart.filter(isSubworkflow).take(maxSubWorkflowsToLaunch).toList
+    val otherJobKeys = readyToStart.filterNot(isSubworkflow).take(MaxJobsToStartPerTick).toList
+
+    val keysToStart = subWorkflowKeys ++ otherJobKeys
+
+    // If we can take more keys (N + 1) than we are processing now (N), then we need more passes.
+    def truncated: Boolean =
+      keysToStart.size < readyToStart.take(MaxJobsToStartPerTick + maxSubWorkflowsToLaunch + 1).size
 
     // If we found unstartable keys, update their status, and set needsUpdate to true (it might unblock other keys)
     val updated = if (internalUpdates.nonEmpty) {
@@ -318,6 +325,6 @@ sealed abstract class ExecutionStore private[stores] (statusStore: Map[JobKey, E
     } else withNeedsUpdateFalse
 
     // Only take the first ExecutionStore.MaxJobsToStartPerTick from the above list.
-    ExecutionStoreUpdate(keysToStartPlusOne.take(MaxJobsToStartPerTick), updated, internalUpdates)
+    ExecutionStoreUpdate(keysToStart, updated, internalUpdates)
   } else ExecutionStoreUpdate(List.empty, this, Map.empty)
 }

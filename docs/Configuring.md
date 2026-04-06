@@ -148,6 +148,14 @@ On every poll, Cromwell will take at limited number of new submissions, provided
 system.max-workflow-launch-count = 1
 ```
 
+**Max Subworkflow Launch Count**
+
+When starting new work, Cromwell applies a separate rate to jobs and subworkflows, as the latter are considerably more expensive.
+
+```hocon
+system.max-subworkflow-launch-count = 1
+```
+
 ***Abort configuration***
 
 Cromwell will scan for abort requests using default configuration values equivalent to those below. In most circumstances

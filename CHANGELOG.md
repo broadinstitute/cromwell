@@ -1,7 +1,16 @@
 # Cromwell Change Log
 
+## 93 Release Notes
 ### AWS Batch
 * Added `tagAliases` backend config option, which duplicates engine-generated tags (e.g. `cromwell-workflow-id`) under alternative key names for external systems like cost-tracking tools. See the [Tag Aliases](supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/README.md#tag-aliases) section for configuration details.
+
+### General
+
+#### Configurable subworkflow launch rate
+
+The key `system.max-subworkflow-launch-count` now controls how many subworkflows launch per batch, with a default of 1.
+
+Complements the existing `system.max-workflow-launch-count`, also with a default of 1.
 
 ## 92 Release Notes
 ### WDL 1.1 Support

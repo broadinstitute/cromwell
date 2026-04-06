@@ -7,15 +7,10 @@ import cromwell.backend.{
   BackendLifecycleActorFactory
 }
 import cromwell.core.WorkflowOptions.UseRelativeOutputPaths
-import cromwell.core.path.{Path, PathCopier, PathFactory}
+import cromwell.core.path.{FileRelocationMap, Path, PathCopier, PathFactory}
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendConfiguration, CromwellBackends}
-import cromwell.engine.workflow.lifecycle.OutputsLocationHelper.FileRelocationMap
 import wom.values.{WomSingleFile, WomValue}
-
-object OutputsLocationHelper {
-  type FileRelocationMap = Map[Path, Path]
-}
 
 trait OutputsLocationHelper {
 
@@ -35,7 +30,7 @@ trait OutputsLocationHelper {
     val useRelativeOutputPaths: Boolean = descriptor.getWorkflowOption(UseRelativeOutputPaths).contains("true")
     val rootAndFiles = for {
       // NOTE: Without .toSeq, outputs in arrays only yield the last output
-      backend <- descriptor.backendAssignments.values.toSeq
+      backend <- descriptor.backendAssignments.values.toSeq.distinct
       config <- BackendConfiguration.backendConfigurationDescriptor(backend).toOption.toSeq
       rootPath <- getBackendRootPath(backend, config, descriptor, backendInitData).toSeq
       outputFiles = findFiles(workflowOutputs).map(_.value)
@@ -59,7 +54,7 @@ trait OutputsLocationHelper {
         }
       }
     }
-    outputFileDestinations.distinct.toMap
+    FileRelocationMap(outputFileDestinations.toMap)
   }
 
   private def getBackendRootPath(backend: String,

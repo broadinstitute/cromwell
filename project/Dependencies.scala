@@ -76,7 +76,7 @@ object Dependencies {
   https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html#mysqld-8-0-29-charset
    */
   private val mysqlV = "8.0.28"
-  private val nettyV = "4.1.119.Final"
+  private val nettyV = "4.2.12.Final"
   private val postgresV = "42.4.4"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"

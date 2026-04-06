@@ -6,7 +6,7 @@ import cats.data.NonEmptyList
 import cromwell.core._
 import cromwell.services.ServiceRegistryActor.{ListenToMessage, ServiceRegistryMessage}
 import common.exception.{MessageAggregation, ThrowableAggregation}
-import cromwell.core.path.Path
+import cromwell.core.path.FileRelocationMap
 import cromwell.database.sql.tables.MetadataEntry
 import slick.basic.DatabasePublisher
 import wom.core._
@@ -202,7 +202,7 @@ object MetadataService {
   final case class WorkflowQueryFailure(reason: Throwable) extends MetadataQueryResponse
 
   implicit private class EnhancedWomTraversable(val womValues: Iterable[WomValue]) extends AnyVal {
-    def toEvents(metadataKey: MetadataKey, fileMap: Map[Path, Path]): List[MetadataEvent] = if (womValues.isEmpty) {
+    def toEvents(metadataKey: MetadataKey, fileMap: FileRelocationMap): List[MetadataEvent] = if (womValues.isEmpty) {
       List(MetadataEvent.empty(metadataKey.copy(key = s"${metadataKey.key}[]")))
     } else {
       womValues.toList.zipWithIndex
@@ -221,7 +221,7 @@ object MetadataService {
     */
   def womValueToMetadataEvents(metadataKey: MetadataKey,
                                womValue: WomValue,
-                               fileMap: Map[Path, Path] = Map.empty
+                               fileMap: FileRelocationMap = FileRelocationMap.empty
   ): Iterable[MetadataEvent] = womValue match {
     case WomArray(_, valueSeq) => valueSeq.toEvents(metadataKey, fileMap)
     case WomMap(_, valueMap) =>
@@ -247,11 +247,7 @@ object MetadataService {
         womValueToMetadataEvents(metadataKey.copy(key = metadataKey.key + ":right"), right, fileMap)
     case file: WomSingleFile =>
       // Our lookup key is a string; to avoid exceptions, stringify paths instead of pathifying the string
-      val stringifiedMap: Map[String, String] = fileMap map { case (src: Path, dst: Path) =>
-        src.pathAsString -> dst.pathAsString
-      }
-      // Why? When we copy/move final outputs, we need to map the original file to the destination file.
-      val mappedFile: WomSingleFile = stringifiedMap.get(file.valueString) match {
+      val mappedFile: WomSingleFile = fileMap.stringified.get(file.valueString) match {
         case Some(dst) =>
           WomSingleFile(dst)
         case None =>

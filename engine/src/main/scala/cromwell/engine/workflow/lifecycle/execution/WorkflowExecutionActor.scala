@@ -24,10 +24,9 @@ import cromwell.core.WorkflowOptions.Destination
 import cromwell.core._
 import cromwell.core.io.AsyncIo
 import cromwell.core.logging.WorkflowLogging
-import cromwell.core.path.Path
+import cromwell.core.path.FileRelocationMap
 import cromwell.engine.EngineWorkflowDescriptor
 import cromwell.engine.backend.{BackendSingletonCollection, CromwellBackends}
-import cromwell.engine.workflow.lifecycle.OutputsLocationHelper.FileRelocationMap
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActor._
 import cromwell.engine.workflow.lifecycle.execution.WorkflowExecutionActorData.DataStoreUpdate
 import cromwell.engine.workflow.lifecycle.execution.job.EngineJobExecutionActor
@@ -82,10 +81,13 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
 
   private val DefaultTotalMaxJobsPerRootWf = 1000000
   private val DefaultMaxScatterSize = 1000000
+  private val DefaultMaxSubWorkflowsToLaunch = 1
   private val TotalMaxJobsPerRootWf =
     params.rootConfig.getOrElse("system.total-max-jobs-per-root-workflow", DefaultTotalMaxJobsPerRootWf)
   private val MaxScatterWidth =
     params.rootConfig.getOrElse("system.max-scatter-width-per-scatter", DefaultMaxScatterSize)
+  private val MaxSubWorkflowsToLaunch =
+    params.rootConfig.getOrElse("system.max-subworkflow-launch-count", DefaultMaxSubWorkflowsToLaunch)
   private val FileHashBatchSize: Int = params.rootConfig.as[Int]("system.file-hash-batch-size")
 
   private val backendFactories: Map[String, BackendLifecycleActorFactory] = {
@@ -419,12 +421,9 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       val fileMap: FileRelocationMap =
         (workflowDescriptor.finalWorkflowOutputsDir, workflowDescriptor.finalWorkflowOutputsDirMetadata) match {
           case (Some(outputDir), Destination) =>
-            outputFilePathMapping(outputDir, workflowDescriptor, params.initializationData, outputs.values.toSeq) map {
-              case (src, dst) =>
-                (src, dst)
-            }
+            outputFilePathMapping(outputDir, workflowDescriptor, params.initializationData, outputs.values.toSeq)
           case _ =>
-            Map.empty[Path, Path]
+            FileRelocationMap.empty
         }
 
       val fullyQualifiedOutputs = outputs map { case (outputNode, value) =>
@@ -651,7 +650,7 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       } else updatedData.mergeExecutionDiffs(diffs)
     }
 
-    val DataStoreUpdate(runnableKeys, _, updatedData) = data.executionStoreUpdate
+    val DataStoreUpdate(runnableKeys, _, updatedData) = data.executionStoreUpdate(MaxSubWorkflowsToLaunch)
     val runnableCalls = runnableKeys.view
       .collect { case k: BackendJobDescriptorKey => k }
       .groupBy(_.node)

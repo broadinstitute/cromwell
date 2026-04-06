@@ -67,11 +67,17 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
               .getBoolean("resolver.preresolve")
           )
 
+      // requesterPaysProjectIdOption is passed twice because it is needed in two different DRS resolution paths:
+      // 1. To DrsReader.readInterpreter: used by GcsReader when a DRS URI resolves to a gsUri, so that
+      //    requester-pays GCS buckets can be accessed.
+      // 2. Directly to DrsCloudNioFileSystemProvider (CTM-379): forwarded to DrsPathResolver so that
+      //    requester-pays projects are also sent when a DRS URI resolves to a signed (access) URL.
       DrsPathBuilder(
         new DrsCloudNioFileSystemProvider(
           singletonConfig.config,
           drsCredentials,
-          DrsReader.readInterpreter(googleAuthMode, options, requesterPaysProjectIdOption)
+          DrsReader.readInterpreter(googleAuthMode, options, requesterPaysProjectIdOption),
+          requesterPaysProjectIdOption
         ),
         requesterPaysProjectIdOption,
         preResolve

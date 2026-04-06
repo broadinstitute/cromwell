@@ -68,7 +68,7 @@ object ExecutionStoreBenchmark extends Bench[Double] with DefaultJsonProtocol {
     measure method "update" in {
       val sizes: Gen[Int] = Gen.range("size")(from = 1000, upto = 10000, hop = 1000)
       using(stores(sizes)) in { es =>
-        es.update
+        es.update(1)
       }
     }
 

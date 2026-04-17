@@ -138,7 +138,8 @@ final case class AwsBatchJob(
     */
   lazy val reconfiguredScript: String = {
     // this is the location of the aws cli mounted into the container by the ec2 launch template
-    val awsCmd = "/usr/local/aws-cli/v2/current/bin/aws"
+    // /usr/local/aws-cli/v2/current/bin/aws or /usr/bin/aws
+    val awsCmd = "${AWS_CMD}"
     // internal to the container, therefore not mounted
     val workDir = "/tmp/scratch"
     // working in a mount will cause collisions in long running workers
@@ -206,6 +207,18 @@ final case class AwsBatchJob(
       s"""
          |export AWS_METADATA_SERVICE_TIMEOUT=10
          |export AWS_METADATA_SERVICE_NUM_ATTEMPTS=10
+         |
+         |# Resolve the aws CLI at runtime: prefer the host-mounted glibc binary (fast,
+         |# no extra install); fall back to whatever is on PATH for musl-based images
+         |# (e.g. Alpine) where the glibc-linked binary cannot execute.
+         |if /usr/local/aws-cli/v2/current/bin/aws --version >/dev/null 2>&1; then
+         |  AWS_CMD="/usr/local/aws-cli/v2/current/bin/aws"
+         |elif command -v aws >/dev/null 2>&1; then
+         |  AWS_CMD=$$(command -v aws)
+         |else
+         |  echo "ERROR: no usable aws CLI found in container" >&2
+         |  exit 1
+         |fi
          |
          |function _s3_localize_with_retry() {
          |  local s3_path="$$1"

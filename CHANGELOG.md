@@ -12,6 +12,10 @@ The key `system.max-subworkflow-launch-count` now controls how many subworkflows
 
 Complements the existing `system.max-workflow-launch-count`, also with a default of 1.
 
+#### Metadata statistics recorder
+
+The `metadata-write-statistics.sub-workflow-bundling` config key is removed. The recorder now always follows the default behavior, which is to bundle subworkflow row counts into their parents. 
+
 ## 92 Release Notes
 ### WDL 1.1 Support
 * Cromwell now fully supports WDL 1.1. Users can specify `Version: "1.1"` in their workflow options to use WDL 1.1 features. See the [WDL 1.1 Spec](https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md)

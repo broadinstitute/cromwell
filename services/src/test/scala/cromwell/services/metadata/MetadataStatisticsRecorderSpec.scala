@@ -98,7 +98,7 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be able to accumulate counts from subworkflows" in {
-    val recorder = new ActiveMetadataStatisticsRecorder(10, 10, bundleSubworkflowsIntoParents = true)
+    val recorder = new ActiveMetadataStatisticsRecorder(10, 10)
     val rootWorkflowId = WorkflowId(UUID.randomUUID())
     val subWorkflow1Id = WorkflowId(UUID.randomUUID())
     val subWorkflow2Id = WorkflowId(UUID.randomUUID())
@@ -162,7 +162,7 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "not accumulate counts from subworkflows if disabled" in {
-    val recorder = new ActiveMetadataStatisticsRecorder(10, 10, bundleSubworkflowsIntoParents = false)
+    val recorder = new ActiveMetadataStatisticsRecorder(10, 10)
     val rootWorkflowId = WorkflowId(UUID.randomUUID())
     val subWorkflow1Id = WorkflowId(UUID.randomUUID())
     val subWorkflow2Id = WorkflowId(UUID.randomUUID())

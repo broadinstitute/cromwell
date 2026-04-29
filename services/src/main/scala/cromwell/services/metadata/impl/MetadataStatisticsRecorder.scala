@@ -25,9 +25,8 @@ object MetadataStatisticsRecorder {
   sealed trait MetadataStatisticsRecorderSettings
   case object MetadataStatisticsDisabled extends MetadataStatisticsRecorderSettings
 
-  final case class MetadataStatisticsEnabled(workflowCacheSize: Long,
-                                             metadataAlertInterval: Long
-  ) extends MetadataStatisticsRecorderSettings
+  final case class MetadataStatisticsEnabled(workflowCacheSize: Long, metadataAlertInterval: Long)
+      extends MetadataStatisticsRecorderSettings
 
   def apply(statisticsRecorderSettings: MetadataStatisticsRecorderSettings): MetadataStatisticsRecorder =
     statisticsRecorderSettings match {

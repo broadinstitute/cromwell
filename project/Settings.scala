@@ -118,6 +118,8 @@ object Settings {
       Instructions.Run("apt-get -y install python3"),
       Instructions.Run("apt-get -y install python3-pip"),
       Instructions.Run("apt-get -y install wget gcc python3-dev python3-setuptools"),
+      Instructions.Run("pip3 uninstall crcmod"),
+      Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
       Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3 1"),
       Instructions.Env("CLOUDSDK_PYTHON", "python3"),
       // instructions to install Google Cloud SDK

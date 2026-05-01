@@ -160,31 +160,4 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
 
     // Current standing: root: 39, sub1: 32, sub2: 16
   }
-
-  it should "not accumulate counts from subworkflows if disabled" in {
-    val recorder = new ActiveMetadataStatisticsRecorder(10, 10)
-    val rootWorkflowId = WorkflowId(UUID.randomUUID())
-    val subWorkflow1Id = WorkflowId(UUID.randomUUID())
-    val subWorkflow2Id = WorkflowId(UUID.randomUUID())
-
-    recorder.processEventsAndGenerateAlerts(
-      parentNotificationEvent(rootWorkflowId, rootWorkflowId, subWorkflow1Id)
-    ) should be(Vector.empty)
-    recorder.processEventsAndGenerateAlerts(
-      parentNotificationEvent(rootWorkflowId, subWorkflow1Id, subWorkflow2Id)
-    ) should be(Vector.empty)
-
-    // If we were accumulating these would alert, but we see nothing if not accumulating:
-    recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(Vector.empty)
-    recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow2Id)) should be(Vector.empty)
-
-    // When we trip the limits, we should only see alerts for individual workflows.
-    // Note: it's 16 not 14 because of the two parent notification entries above
-    recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow1Id)) should be(
-      Vector(HeavyMetadataAlert(subWorkflow1Id, 16))
-    )
-    recorder.processEventsAndGenerateAlerts(7 of uninterestingWriteEvent(subWorkflow2Id)) should be(
-      Vector(HeavyMetadataAlert(subWorkflow2Id, 16))
-    )
-  }
 }

@@ -8,7 +8,7 @@ import cromwell.core.WorkflowId
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.metadata.{MetadataEvent, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
+import cromwell.services.metadata.impl.MetadataStatisticsRecorder.{HeavyMetadataAlert, MaxMetadataAlert, MetadataStatisticsRecorderSettings}
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 import wdl.util.StringUtil
 
@@ -32,9 +32,12 @@ class WriteMetadataActor(override val batchSize: Int,
     val (cleanedMetadataWriteActions, allPutEvents, putWithResponse) = prepareMetadata(e)
     val dbAction = addMetadataEvents(allPutEvents)
 
-    statsRecorder.processEventsAndGenerateAlerts(allPutEvents) foreach (a =>
-      log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)")
-    )
+    statsRecorder.processEventsAndGenerateAlerts(allPutEvents) foreach {
+      case a: HeavyMetadataAlert =>
+        log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)")
+      case a: MaxMetadataAlert =>
+        log.error(s"${a.workflowId} has logged too much metadata and will fail (${a.count} rows)")
+    }
 
     dbAction onComplete {
       case Success(_) =>

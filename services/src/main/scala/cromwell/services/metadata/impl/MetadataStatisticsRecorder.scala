@@ -106,7 +106,7 @@ final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long, metadataAl
   ): Vector[MetadataAlert] = {
     val writesForWorkflow = workflowWriteStats.totalWrites + count
 
-    val myAlerts = if (writesForWorkflow >= workflowWriteStats.lastLogged + metadataAlertInterval) {
+    val heavyAlerts = if (writesForWorkflow >= workflowWriteStats.lastLogged + metadataAlertInterval) {
       metadataWriteStatisticsCache.put(
         workflowWriteStats.workflowId,
         workflowWriteStats.copy(totalWrites = writesForWorkflow, lastLogged = writesForWorkflow)
@@ -119,12 +119,16 @@ final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long, metadataAl
       Vector.empty
     }
 
+    val maxAlerts = if (writesForWorkflow > metadataLimit) {
+      Vector(MaxMetadataAlert(workflowWriteStats.workflowId, writesForWorkflow))
+    } else Vector.empty
+
     val parentalAlerts = workflowWriteStats.knownParent.toVector.flatMap { parentId =>
       val parentStatistics = metadataWriteStatisticsCache.get(parentId, writeStatisticsLoader(parentId))
       updateStatisticsCacheAndGenerateAlerts(parentStatistics, count)
     }
 
-    myAlerts ++ parentalAlerts
+    heavyAlerts ++ maxAlerts ++ parentalAlerts
   }
 
   // For testing/debugging only...:

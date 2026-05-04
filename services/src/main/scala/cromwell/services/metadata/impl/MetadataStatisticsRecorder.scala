@@ -15,7 +15,12 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 object MetadataStatisticsRecorder {
-  final case class HeavyMetadataAlert(workflowId: WorkflowId, count: Long)
+  sealed trait MetadataAlert {
+    def workflowId: WorkflowId
+    def count: Long
+  }
+  final case class HeavyMetadataAlert(workflowId: WorkflowId, count: Long) extends MetadataAlert
+  final case class MaxMetadataAlert(workflowId: WorkflowId, count: Long) extends MetadataAlert
   final case class WorkflowMetadataWriteStatistics(workflowId: WorkflowId,
                                                    totalWrites: Long,
                                                    lastLogged: Long,
@@ -54,17 +59,15 @@ object MetadataStatisticsRecorder {
 }
 
 sealed trait MetadataStatisticsRecorder {
-  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert]
+  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[MetadataAlert]
 }
 
 final class NoopMetadataStatisticsRecorder extends MetadataStatisticsRecorder {
-  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = Vector.empty
+  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[MetadataAlert] = Vector.empty
 }
 
-final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long,
-                                             metadataAlertInterval: Long,
-                                             metadataLimit: Long
-) extends MetadataStatisticsRecorder {
+final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long, metadataAlertInterval: Long, metadataLimit: Long)
+    extends MetadataStatisticsRecorder {
 
   // Statistics for each workflow
   private val metadataWriteStatisticsCache = CacheBuilder
@@ -76,12 +79,12 @@ final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long,
   def writeStatisticsLoader(workflowId: WorkflowId): Callable[WorkflowMetadataWriteStatistics] = () =>
     WorkflowMetadataWriteStatistics(workflowId, 0L, 0L, None)
 
-  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] =
+  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[MetadataAlert] =
     putEvents.groupBy(_.key.workflowId).toVector.flatMap { case (id, list) => processEventsForWorkflow(id, list) }
 
   private def processEventsForWorkflow(workflowId: WorkflowId,
                                        events: Iterable[MetadataEvent]
-  ): Vector[HeavyMetadataAlert] = {
+  ): Vector[MetadataAlert] = {
     val workflowWriteStats = metadataWriteStatisticsCache.get(workflowId, writeStatisticsLoader(workflowId))
 
     // Find a new parent record if one exists and update the statistics to record it:
@@ -100,7 +103,7 @@ final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long,
 
   private def updateStatisticsCacheAndGenerateAlerts(workflowWriteStats: WorkflowMetadataWriteStatistics,
                                                      count: Long
-  ): Vector[HeavyMetadataAlert] = {
+  ): Vector[MetadataAlert] = {
     val writesForWorkflow = workflowWriteStats.totalWrites + count
 
     val myAlerts = if (writesForWorkflow >= workflowWriteStats.lastLogged + metadataAlertInterval) {

@@ -31,7 +31,7 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
   )
 
   it should "count rows for one workflow and create alerts every interval" in {
-    val recorder = new ActiveMetadataStatisticsRecorder(10, 10)
+    val recorder = new ActiveMetadataStatisticsRecorder(10, 10, 1000)
     val workflowId = WorkflowId(UUID.randomUUID())
 
     (1 to 10) foreach { i =>
@@ -44,7 +44,7 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be able to reset counters from odd values" in {
-    val recorder = new ActiveMetadataStatisticsRecorder(10, 10)
+    val recorder = new ActiveMetadataStatisticsRecorder(10, 10, 1000)
     val workflowId = WorkflowId(UUID.randomUUID())
 
     var runningCounter: Long = 0L
@@ -61,7 +61,7 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "count rows for multiple workflow and create alerts every interval" in {
-    val recorder = new ActiveMetadataStatisticsRecorder(10, 10)
+    val recorder = new ActiveMetadataStatisticsRecorder(10, 10, 1000)
     val workflowId1 = WorkflowId(UUID.randomUUID())
     val workflowId2 = WorkflowId(UUID.randomUUID())
     val workflowId3 = WorkflowId(UUID.randomUUID())
@@ -98,7 +98,7 @@ class MetadataStatisticsRecorderSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be able to accumulate counts from subworkflows" in {
-    val recorder = new ActiveMetadataStatisticsRecorder(10, 10)
+    val recorder = new ActiveMetadataStatisticsRecorder(10, 10, 1000)
     val rootWorkflowId = WorkflowId(UUID.randomUUID())
     val subWorkflow1Id = WorkflowId(UUID.randomUUID())
     val subWorkflow2Id = WorkflowId(UUID.randomUUID())

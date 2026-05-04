@@ -25,26 +25,28 @@ object MetadataStatisticsRecorder {
   sealed trait MetadataStatisticsRecorderSettings
   case object MetadataStatisticsDisabled extends MetadataStatisticsRecorderSettings
 
-  final case class MetadataStatisticsEnabled(workflowCacheSize: Long, metadataAlertInterval: Long)
+  final case class MetadataStatisticsEnabled(workflowCacheSize: Long, metadataAlertInterval: Long, metadataLimit: Long)
       extends MetadataStatisticsRecorderSettings
 
   def apply(statisticsRecorderSettings: MetadataStatisticsRecorderSettings): MetadataStatisticsRecorder =
     statisticsRecorderSettings match {
-      case MetadataStatisticsEnabled(cacheSize, interval) =>
-        new ActiveMetadataStatisticsRecorder(cacheSize, interval)
+      case MetadataStatisticsEnabled(cacheSize, interval, limit) =>
+        new ActiveMetadataStatisticsRecorder(cacheSize, interval, limit)
       case MetadataStatisticsDisabled => new NoopMetadataStatisticsRecorder()
     }
 
   object MetadataStatisticsRecorderSettings {
     val defaultCacheSize = 20000L
     val defaultAlertInterval = 100000L
+    val defaultLimit = 100000000L
 
     def apply(configSection: Option[Config]): MetadataStatisticsRecorderSettings =
       (configSection flatMap { conf: Config =>
         if (conf.as[Option[Boolean]]("enabled").forall(identity)) {
           val cacheSize: Long = conf.getOrElse("cache-size", defaultCacheSize)
           val metadataAlertInterval: Long = conf.getOrElse("metadata-row-alert-interval", defaultAlertInterval)
-          Option(MetadataStatisticsEnabled(cacheSize, metadataAlertInterval))
+          val metadataLimit: Long = conf.getOrElse("metadata-row-limit", defaultAlertInterval)
+          Option(MetadataStatisticsEnabled(cacheSize, metadataAlertInterval, metadataLimit))
         } else None
 
       }).getOrElse(MetadataStatisticsDisabled)
@@ -59,8 +61,9 @@ final class NoopMetadataStatisticsRecorder extends MetadataStatisticsRecorder {
   def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = Vector.empty
 }
 
-final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long = 100000L, // 100,000
-                                             metadataAlertInterval: Long = 100000L // 100,000
+final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long,
+                                             metadataAlertInterval: Long,
+                                             metadataLimit: Long
 ) extends MetadataStatisticsRecorder {
 
   // Statistics for each workflow

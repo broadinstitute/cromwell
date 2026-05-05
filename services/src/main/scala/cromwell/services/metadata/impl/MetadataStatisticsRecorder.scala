@@ -41,9 +41,9 @@ object MetadataStatisticsRecorder {
     }
 
   object MetadataStatisticsRecorderSettings {
-    val defaultCacheSize = 20000L
-    val defaultAlertInterval = 100000L
-    val defaultLimit = 100000000L
+    private val defaultCacheSize = 20000L
+    private val defaultAlertInterval = 100000L
+    private val defaultLimit = 100000000L
 
     def apply(configSection: Option[Config]): MetadataStatisticsRecorderSettings =
       (configSection flatMap { conf: Config =>

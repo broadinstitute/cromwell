@@ -614,7 +614,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
       stay() using data.copy(effectiveStartableState = RestartableAborting)
     case Event(FailWorkflowWithExceptionCommand(e), data) =>
       goto(WorkflowFailedState) using data.copy(lastStateReached =
-        StateCheckpoint(data.lastStateReached.state, Option(List(e)))
+        data.lastStateReached.copy(state = stateName, failures = Option(List(e)))
       )
     case Event(msg @ EngineStatsActor.JobCountQuery, data) =>
       data.currentLifecycleStateActor match {

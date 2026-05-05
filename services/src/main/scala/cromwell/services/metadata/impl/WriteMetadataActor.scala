@@ -38,6 +38,7 @@ class WriteMetadataActor(override val batchSize: Int,
         log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)")
       case a: MaxMetadataAlert =>
         log.error(s"${a.workflowId} has logged too much metadata and will fail (${a.count} rows)")
+        context.system.eventStream.publish(a)
     }
 
     dbAction onComplete {

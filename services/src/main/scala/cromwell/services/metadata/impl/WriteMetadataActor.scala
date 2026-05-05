@@ -5,14 +5,11 @@ import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
 import cromwell.core.WorkflowId
+import cromwell.core.events.{HeavyMetadataAlert, MaxMetadataAlert}
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.metadata.{MetadataEvent, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.impl.MetadataStatisticsRecorder.{
-  HeavyMetadataAlert,
-  MaxMetadataAlert,
-  MetadataStatisticsRecorderSettings
-}
+import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 import wdl.util.StringUtil
 

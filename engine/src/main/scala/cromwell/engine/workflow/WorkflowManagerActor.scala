@@ -283,7 +283,7 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
       for {
         actor <- stateData.actorForId(id)
       } yield actor ! WorkflowActor.FailWorkflowWithExceptionCommand(
-        new Exception(s"Workflow $id produced $count metadata rows, exceeding limit of $limit.") with NoStackTrace
+        new Exception(s"Workflow $id produced $count metadata, exceeding limit of $limit.") with NoStackTrace
       )
       stay()
     case Event(PreventNewWorkflowsFromStarting, _) =>

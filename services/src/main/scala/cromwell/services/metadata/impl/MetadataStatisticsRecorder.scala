@@ -50,7 +50,7 @@ object MetadataStatisticsRecorder {
         if (conf.as[Option[Boolean]]("enabled").forall(identity)) {
           val cacheSize: Long = conf.getOrElse("cache-size", defaultCacheSize)
           val metadataAlertInterval: Long = conf.getOrElse("metadata-row-alert-interval", defaultAlertInterval)
-          val metadataLimit: Long = conf.getOrElse("metadata-row-limit", defaultAlertInterval)
+          val metadataLimit: Long = conf.getOrElse("metadata-row-limit", defaultLimit)
           Option(MetadataStatisticsEnabled(cacheSize, metadataAlertInterval, metadataLimit))
         } else None
 

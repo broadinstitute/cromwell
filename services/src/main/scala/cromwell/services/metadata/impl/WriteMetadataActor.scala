@@ -8,7 +8,11 @@ import cromwell.core.WorkflowId
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.metadata.{MetadataEvent, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.impl.MetadataStatisticsRecorder.{HeavyMetadataAlert, MaxMetadataAlert, MetadataStatisticsRecorderSettings}
+import cromwell.services.metadata.impl.MetadataStatisticsRecorder.{
+  HeavyMetadataAlert,
+  MaxMetadataAlert,
+  MetadataStatisticsRecorderSettings
+}
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 import wdl.util.StringUtil
 

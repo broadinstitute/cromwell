@@ -67,6 +67,8 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
               .getBoolean("resolver.preresolve")
           )
 
+      // Temporary revert: set #2 to `None` while debugging new passport feature (CTM-494)
+      //
       // requesterPaysProjectIdOption is passed twice because it is needed in two different DRS resolution paths:
       // 1. To DrsReader.readInterpreter: used by GcsReader when a DRS URI resolves to a gsUri, so that
       //    requester-pays GCS buckets can be accessed.
@@ -77,7 +79,7 @@ class DrsPathBuilderFactory(globalConfig: Config, instanceConfig: Config, single
           singletonConfig.config,
           drsCredentials,
           DrsReader.readInterpreter(googleAuthMode, options, requesterPaysProjectIdOption),
-          requesterPaysProjectIdOption
+          None
         ),
         requesterPaysProjectIdOption,
         preResolve

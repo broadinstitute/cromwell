@@ -9,9 +9,11 @@ files {
   inputs: fail_inputs.json
 }
 
-# Produces >1.5M rows of metadata
-metadata {
-  workflowName: dummy_scatter
-  status: Failed
-  "failures.0.message": ~~"metadata, exceeding limit of 1500000."
-}
+# Produces >1.5M rows of metadata.
+# Unfortunately Centaur insists on retrieving all of the metadata at once and times out.
+# This case relies exclusively on the `workflowfailure` assertion for now.
+# metadata {
+#   workflowName: dummy_scatter
+#   status: Failed
+#   "failures.0.message": ~~"metadata, exceeding limit of 1500000."
+# }

@@ -2,6 +2,7 @@ name: dummy_scatter_fail
 testFormat: workflowfailure
 backends: [Dummy]
 tags: [Dummy]
+retryTestFailures: false
 
 files {
   workflow: dummy_scatter.wdl

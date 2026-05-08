@@ -2,6 +2,7 @@ name: dummy_scatter
 testFormat: workflowsuccessandtimedoutputs
 backends: [Dummy]
 tags: [Dummy]
+retryTestFailures: false
 
 # Produces about 1.3M rows of metadata
 files {

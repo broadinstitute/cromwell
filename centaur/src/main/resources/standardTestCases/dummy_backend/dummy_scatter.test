@@ -4,11 +4,12 @@ backends: [Dummy]
 tags: [Dummy]
 retryTestFailures: false
 
-# Produces about 1.3M rows of metadata
 files {
   workflow: dummy_scatter.wdl
 }
 
+# Produces about 1.3M rows of metadata
+# Test how we fly: harmonized to Terra Prod limit set in `_cromwell.conf.tpl`
 metadata {
   "outputs.dummy_scatter.results_count": 35000
 }

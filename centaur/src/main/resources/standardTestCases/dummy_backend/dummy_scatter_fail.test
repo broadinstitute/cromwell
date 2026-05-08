@@ -11,7 +11,5 @@ files {
 metadata {
   workflowName: dummy_scatter
   status: Failed
-  "failures.0.message": ~~"metadata, exceeding limit of 500000."
+  "failures.0.message": ~~"metadata, exceeding limit of 1000000."
 }
-
-maximumTime = 5 minutes

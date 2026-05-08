@@ -3,6 +3,7 @@ testFormat: workflowsuccessandtimedoutputs
 backends: [Dummy]
 tags: [Dummy]
 
+# Produces about 1.3M rows of metadata
 files {
   workflow: dummy_scatter.wdl
 }

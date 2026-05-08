@@ -1,7 +1,10 @@
 version 1.0
 
 workflow dummy_scatter {
-  scatter (x in range(35000)) {
+  input {
+    Int scatter_width = 35000
+  }
+  scatter (x in range(scatter_width)) {
     call dummy_scattered_task
   }
   output {

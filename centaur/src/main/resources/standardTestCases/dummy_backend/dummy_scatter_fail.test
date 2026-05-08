@@ -1,4 +1,4 @@
-name: dummy_scatter
+name: dummy_scatter_fail
 testFormat: workflowfailure
 backends: [Dummy]
 tags: [Dummy]

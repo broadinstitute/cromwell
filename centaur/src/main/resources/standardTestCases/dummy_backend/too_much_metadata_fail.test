@@ -1,4 +1,4 @@
-name: dummy_scatter_fail
+name: too_much_metadata_fail
 testFormat: workflowfailure
 backends: [Dummy]
 tags: [Dummy]

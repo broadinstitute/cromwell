@@ -1,4 +1,4 @@
-name: dummy_scatter
+name: 35k_scatter_success
 testFormat: workflowsuccessandtimedoutputs
 backends: [Dummy]
 tags: [Dummy]

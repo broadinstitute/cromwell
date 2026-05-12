@@ -1,7 +1,6 @@
 package cromwell.engine.workflow
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.FSM.{CurrentState, SubscribeTransitionCallBack, Transition}
 import akka.actor._
 import akka.event.Logging
@@ -11,6 +10,7 @@ import common.exception.ThrowableAggregation
 import cromwell.backend.async.KnownJobFailureException
 import cromwell.backend.standard.callcaching.{CallCachingBlacklistManager, RootWorkflowFileHashCacheActor}
 import cromwell.core.Dispatcher.EngineDispatcher
+import cromwell.core.events.MaxMetadataAlert
 import cromwell.core.{WorkflowId, WorkflowState}
 import cromwell.engine.SubWorkflowStart
 import cromwell.engine.backend.BackendSingletonCollection
@@ -27,6 +27,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.Try
+import scala.util.control.NoStackTrace
 
 object WorkflowManagerActor {
   val DefaultMaxWorkflowsToRun = 5000
@@ -111,6 +112,8 @@ object WorkflowManagerActor {
   case class WorkflowManagerData(workflows: Map[WorkflowId, ActorRef], subWorkflows: Set[ActorRef]) {
     def idFromActor(actor: ActorRef): Option[WorkflowId] = workflows.collectFirst { case (id, a) if a == actor => id }
 
+    def actorForId(id: WorkflowId): Option[ActorRef] = workflows.get(id)
+
     def withAddition(entries: NonEmptyList[WorkflowIdToActorRef]): WorkflowManagerData = {
       val entryTuples = entries map { e => e.workflowId -> e.workflowActor }
       this.copy(workflows = workflows ++ entryTuples.toList)
@@ -171,6 +174,8 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     timers.startSingleTimer(RetrieveNewWorkflowsKey, RetrieveNewWorkflows, Duration.Zero)
     // Listen on subworkflow start events to inform our decision to pick up new root workflows from the workflow store.
     context.system.eventStream.subscribe(self, classOf[SubWorkflowStart])
+    // Listen for workflows that have exceeded the metadata limit (CTM-467)
+    context.system.eventStream.subscribe(self, classOf[MaxMetadataAlert])
     ()
   }
 
@@ -271,8 +276,15 @@ class WorkflowManagerActor(params: WorkflowManagerActorParams)
     case Event(AbortWorkflowsCommand(ids), stateData) =>
       for {
         id <- ids
-        actor <- stateData.workflows.get(id)
+        actor <- stateData.actorForId(id)
       } yield actor ! WorkflowActor.AbortWorkflowCommand
+      stay()
+    case Event(MaxMetadataAlert(id, count, limit), stateData) =>
+      for {
+        actor <- stateData.actorForId(id)
+      } yield actor ! WorkflowActor.FailWorkflowWithExceptionCommand(
+        new Exception(s"Workflow $id produced $count metadata, exceeding limit of $limit.") with NoStackTrace
+      )
       stay()
     case Event(PreventNewWorkflowsFromStarting, _) =>
       timers.cancel(RetrieveNewWorkflowsKey)

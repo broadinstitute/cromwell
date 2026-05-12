@@ -1,11 +1,10 @@
 package cromwell.services.metadata
 
 import java.util.UUID
-
 import common.assertion.ManyTimes.intWithTimes
 import cromwell.core.WorkflowId
+import cromwell.core.events.HeavyMetadataAlert
 import cromwell.services.metadata.impl.ActiveMetadataStatisticsRecorder
-import cromwell.services.metadata.impl.MetadataStatisticsRecorder.HeavyMetadataAlert
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import wom.values.{WomInteger, WomString}

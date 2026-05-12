@@ -2,25 +2,20 @@ package cromwell.services.metadata.impl
 
 import java.util.UUID
 import java.util.concurrent.Callable
-
 import com.google.common.cache.CacheBuilder
 import cromwell.core.WorkflowId
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataString, MetadataValue}
+
 import java.time.{Duration => JDuration}
 import net.ceedubs.ficus.Ficus._
 import com.typesafe.config.Config
+import cromwell.core.events.{HeavyMetadataAlert, MaxMetadataAlert, MetadataAlert}
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder._
 
 import scala.concurrent.duration._
 import scala.util.Try
 
 object MetadataStatisticsRecorder {
-  sealed trait MetadataAlert {
-    def workflowId: WorkflowId
-    def count: Long
-  }
-  final case class HeavyMetadataAlert(workflowId: WorkflowId, count: Long) extends MetadataAlert
-  final case class MaxMetadataAlert(workflowId: WorkflowId, count: Long) extends MetadataAlert
   final case class WorkflowMetadataWriteStatistics(workflowId: WorkflowId,
                                                    totalWrites: Long,
                                                    lastLogged: Long,
@@ -41,16 +36,16 @@ object MetadataStatisticsRecorder {
     }
 
   object MetadataStatisticsRecorderSettings {
-    val defaultCacheSize = 20000L
-    val defaultAlertInterval = 100000L
-    val defaultLimit = 100000000L
+    private val defaultCacheSize = 20000L
+    private val defaultAlertInterval = 100000L
+    private val defaultLimit = 100000000L
 
     def apply(configSection: Option[Config]): MetadataStatisticsRecorderSettings =
       (configSection flatMap { conf: Config =>
         if (conf.as[Option[Boolean]]("enabled").forall(identity)) {
           val cacheSize: Long = conf.getOrElse("cache-size", defaultCacheSize)
           val metadataAlertInterval: Long = conf.getOrElse("metadata-row-alert-interval", defaultAlertInterval)
-          val metadataLimit: Long = conf.getOrElse("metadata-row-limit", defaultAlertInterval)
+          val metadataLimit: Long = conf.getOrElse("metadata-row-limit", defaultLimit)
           Option(MetadataStatisticsEnabled(cacheSize, metadataAlertInterval, metadataLimit))
         } else None
 
@@ -117,7 +112,7 @@ final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long, metadataAl
       // Otherwise we would continuously spam the alert once its condition becomes true.
       // After we fail the workflow it should never reach its next interval.
       val maxAlert = if (writesForWorkflow > metadataLimit) {
-        Vector(MaxMetadataAlert(workflowWriteStats.workflowId, writesForWorkflow))
+        Vector(MaxMetadataAlert(workflowWriteStats.workflowId, writesForWorkflow, metadataLimit))
       } else Vector.empty
 
       heavyAlert ++ maxAlert

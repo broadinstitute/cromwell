@@ -5,14 +5,11 @@ import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
 import cromwell.core.WorkflowId
+import cromwell.core.events.{HeavyMetadataAlert, MaxMetadataAlert}
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.metadata.{MetadataEvent, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService._
-import cromwell.services.metadata.impl.MetadataStatisticsRecorder.{
-  HeavyMetadataAlert,
-  MaxMetadataAlert,
-  MetadataStatisticsRecorderSettings
-}
+import cromwell.services.metadata.impl.MetadataStatisticsRecorder.MetadataStatisticsRecorderSettings
 import cromwell.services.{EnhancedBatchActor, MetadataServicesStore}
 import wdl.util.StringUtil
 
@@ -41,6 +38,7 @@ class WriteMetadataActor(override val batchSize: Int,
         log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)")
       case a: MaxMetadataAlert =>
         log.error(s"${a.workflowId} has logged too much metadata and will fail (${a.count} rows)")
+        context.system.eventStream.publish(a)
     }
 
     dbAction onComplete {

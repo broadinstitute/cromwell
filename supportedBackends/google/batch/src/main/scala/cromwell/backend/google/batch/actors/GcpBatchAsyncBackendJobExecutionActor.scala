@@ -1234,11 +1234,12 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         }
       case Invalid(_) =>
         FailedNonRetryableExecutionHandle(
-          StandardException(errorCode,
-                            Option("Job failed due to preemption, couldn't get information about previous retry attempts."),
-                            jobTag,
-                            jobReturnCode,
-                            standardPaths.error
+          StandardException(
+            errorCode,
+            Option("Job failed due to preemption, couldn't get information about previous retry attempts."),
+            jobTag,
+            jobReturnCode,
+            standardPaths.error
           ),
           jobReturnCode,
           None
@@ -1279,7 +1280,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         FailedNonRetryableExecutionHandle(
           StandardException(
             failed.errorCode,
-            Option("Job failed due to transient GCP Batch error, couldn't get information about previous retry attempts."),
+            Option(
+              "Job failed due to transient GCP Batch error, couldn't get information about previous retry attempts."
+            ),
             jobTag,
             returnCode,
             standardPaths.error

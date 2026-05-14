@@ -30,9 +30,11 @@ object GcpBatchExitCode {
     VMRecreatedDuringExecution
   )
 
-  // Special case non-error code - this does not correspond to any messages we get from Batch,
-  // this is what we use for tasks that don't error out at the Batch layer.
-  case object Success extends GcpBatchExitCode(0)
+  // Special case non-error code - this does not correspond to any Batch error code [0],
+  // this is what we use for tasks that error out at the user layer.
+  //
+  // [0] https://docs.cloud.google.com/batch/docs/troubleshooting#reserved-exit-codes
+  case object GenericFailure extends GcpBatchExitCode(0)
 
   def fromEventMessage(message: String): Option[GcpBatchExitCode] =
     // Note that this will never return Success, because we don't get Success explicitly from GCP.

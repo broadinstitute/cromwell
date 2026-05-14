@@ -178,7 +178,7 @@ object BatchRequestExecutor {
             events
               .flatMap(e => GcpBatchExitCode.fromEventMessage(e.name))
               .headOption
-              .getOrElse(GcpBatchExitCode.Success)
+              .getOrElse(GcpBatchExitCode.GenericFailure)
           RunStatus.Failed(batchExitCode, events, instantiatedVmInfo)
         case JobStatus.State.CANCELLED => RunStatus.Aborted(events, instantiatedVmInfo)
         case _ => RunStatus.Initializing(events, instantiatedVmInfo)

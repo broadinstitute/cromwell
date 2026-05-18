@@ -67,11 +67,11 @@ import scala.util.{Failure, Success, Try}
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
-  def StandardException(errorCode: GcpBatchExitCode,
-                        message: String,
-                        jobTag: String,
-                        returnCodeOption: Option[Int],
-                        stderrPath: Path
+  private def StandardException(errorCode: GcpBatchExitCode,
+                                message: Option[String],
+                                jobTag: String,
+                                returnCodeOption: Option[Int],
+                                stderrPath: Path
   ): Exception = {
     val returnCodeMessage = returnCodeOption match {
       case Some(returnCode) if returnCode == 0 => "Job exited without an error, exit code 0."
@@ -79,8 +79,17 @@ object GcpBatchAsyncBackendJobExecutionActor {
       case None => "The job was stopped before the command finished."
     }
 
+    val batchCodeMessage =
+      if (errorCode == GcpBatchExitCode.GenericFailure) "Check GCP Batch job logs for details."
+      else s"GCP Batch task exited with $errorCode(${errorCode.code})."
+
+    val contextMessage = message match {
+      case Some(msg) => s" $msg"
+      case None => ""
+    }
+
     new Exception(
-      s"Task $jobTag failed. $returnCodeMessage GCP Batch task exited with ${errorCode}(${errorCode.code}). ${message}"
+      s"Task $jobTag failed. $returnCodeMessage $batchCodeMessage$contextMessage"
     ) with NoStackTrace
   }
 
@@ -1148,7 +1157,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       FailedNonRetryableExecutionHandle(
         StandardException(
           runStatus.errorCode,
-          "", // We have no additional context to provide beyond what's already included by StandardException
+          None, // We have no additional context to provide beyond what's already included by StandardException
           jobTag,
           returnCode,
           standardPaths.error
@@ -1210,7 +1219,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
             s"$baseMsg The call will be restarted with another preemptible VM (max preemptible attempts number is " +
               s"$maxPreemption)."
           FailedRetryableExecutionHandle(
-            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            StandardException(errorCode, Option(msg), jobTag, jobReturnCode, standardPaths.error),
             jobReturnCode,
             kvPairsToSave = Option(retryCountsKvPairs)
           )
@@ -1218,18 +1227,19 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
           val msg = s"$baseMsg The maximum number of preemptible attempts ($maxPreemption) has been reached. The " +
             s"call will be restarted with a non-preemptible VM."
           FailedRetryableExecutionHandle(
-            StandardException(errorCode, msg, jobTag, jobReturnCode, standardPaths.error),
+            StandardException(errorCode, Option(msg), jobTag, jobReturnCode, standardPaths.error),
             jobReturnCode,
             kvPairsToSave = Option(retryCountsKvPairs)
           )
         }
       case Invalid(_) =>
         FailedNonRetryableExecutionHandle(
-          StandardException(errorCode,
-                            "Job failed due to preemption, couldn't get information about previous retry attempts.",
-                            jobTag,
-                            jobReturnCode,
-                            standardPaths.error
+          StandardException(
+            errorCode,
+            Option("Job failed due to preemption, couldn't get information about previous retry attempts."),
+            jobTag,
+            jobReturnCode,
+            standardPaths.error
           ),
           jobReturnCode,
           None
@@ -1262,7 +1272,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         val msg =
           s"Task failed immediately due to a transient GCP Batch error and will be automatically resubmitted up to ${remainingTransientRetries} more times."
         FailedRetryableExecutionHandle(
-          StandardException(failed.errorCode, msg, jobTag, returnCode, standardPaths.error),
+          StandardException(failed.errorCode, Option(msg), jobTag, returnCode, standardPaths.error),
           returnCode,
           kvPairsToSave = Option(retryCountsKvPairs)
         )
@@ -1270,7 +1280,9 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
         FailedNonRetryableExecutionHandle(
           StandardException(
             failed.errorCode,
-            "Job failed due to transient GCP Batch error, couldn't get information about previous retry attempts.",
+            Option(
+              "Job failed due to transient GCP Batch error, couldn't get information about previous retry attempts."
+            ),
             jobTag,
             returnCode,
             standardPaths.error

@@ -502,7 +502,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     val handle = new GcpBatchPendingExecutionHandle(null, runId, None, None)
 
     val failedStatus = RunStatus.Failed(
-      GcpBatchExitCode.Success,
+      GcpBatchExitCode.GenericFailure,
       Seq.empty
     )
     val executionResult = batchBackend.handleExecutionResult(failedStatus, handle)
@@ -629,7 +629,7 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
       .isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
 
     // Should not retry
-    checkFailedResult(GcpBatchExitCode.Success)
+    checkFailedResult(GcpBatchExitCode.GenericFailure)
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
     checkFailedResult(GcpBatchExitCode.TaskRunsOverMaximumRuntime)
       .isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true

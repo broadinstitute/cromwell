@@ -74,9 +74,7 @@ object MetadataBuilderActor {
       this.copy(subWorkflowsMetadata = subWorkflowsMetadata + ((id, metadata)))
   }
 
-  def props(readMetadataWorkerMaker: () => Props,
-            isForSubworkflows: Boolean = false
-  ) =
+  def props(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean = false) =
     Props(new MetadataBuilderActor(readMetadataWorkerMaker, isForSubworkflows))
 
   val log = LoggerFactory.getLogger("MetadataBuilder")
@@ -392,9 +390,8 @@ object MetadataBuilderActor {
     }
 }
 
-class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
-                           isForSubworkflows: Boolean
-) extends LoggingFSM[MetadataBuilderActorState, MetadataBuilderActorData]
+class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean)
+    extends LoggingFSM[MetadataBuilderActorState, MetadataBuilderActorData]
     with DefaultJsonProtocol {
 
   import MetadataBuilderActor._
@@ -573,11 +570,10 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       else {
         // Otherwise spin up a metadata builder actor for each sub workflow
         subWorkflowIds foreach { subId =>
-          val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker,
-                                                                              isForSubworkflows = true
-                                                   ),
-                                                   uniqueActorName(subId)
-          )
+          val subMetadataBuilder =
+            context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker, isForSubworkflows = true),
+                            uniqueActorName(subId)
+            )
           subMetadataBuilder ! GetMetadataAction(query.copy(workflowId = WorkflowId.fromString(subId)))
         }
         goto(WaitingForSubWorkflows) using HasReceivedEventsData(target,
@@ -608,11 +604,10 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
     else {
       // Otherwise spin up a metadata builder actor for each sub workflow
       subWorkflowIds foreach { subId =>
-        val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker,
-                                                                            isForSubworkflows = true
-                                                 ),
-                                                 uniqueActorName(subId)
-        )
+        val subMetadataBuilder =
+          context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker, isForSubworkflows = true),
+                          uniqueActorName(subId)
+          )
         subMetadataBuilder ! GetCost(WorkflowId.fromString(subId))
       }
       goto(WaitingForSubWorkflowCost) using HasReceivedCostEventsData(target,

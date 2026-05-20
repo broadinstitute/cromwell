@@ -98,14 +98,6 @@ trait MetadataSqlDatabase extends SqlDatabase {
                                            timeout: Duration
   )(implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
-  def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
-                                           metadataKeysToFilterFor: List[String],
-                                           metadataKeysToFilterAgainst: List[String],
-                                           metadataJobQueryValue: MetadataJobQueryValue,
-                                           expandSubWorkflows: Boolean,
-                                           timeout: Duration
-  )(implicit ec: ExecutionContext): Future[Int]
-
   /**
     * Retrieves next summarizable block of metadata satisfying the specified criteria.
     *

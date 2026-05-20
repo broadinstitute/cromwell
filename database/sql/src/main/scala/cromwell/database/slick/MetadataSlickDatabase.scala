@@ -280,47 +280,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action, timeout = timeout)
   }
 
-  override def countMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
-                                                    metadataKeysToFilterFor: List[String],
-                                                    metadataKeysToFilterOut: List[String],
-                                                    metadataJobQueryValue: MetadataJobQueryValue,
-                                                    expandSubWorkflows: Boolean,
-                                                    timeout: Duration
-  )(implicit ec: ExecutionContext): Future[Int] = {
-    val action = metadataJobQueryValue match {
-      case CallQuery(callFqn, jobIndex, jobAttempt) =>
-        dataAccess
-          .countMetadataEntriesForJobWithKeyConstraints(workflowExecutionUuid,
-                                                        metadataKeysToFilterFor,
-                                                        metadataKeysToFilterOut,
-                                                        callFqn,
-                                                        jobIndex,
-                                                        jobAttempt,
-                                                        expandSubWorkflows
-          )
-          .result
-      case WorkflowQuery =>
-        dataAccess
-          .countMetadataEntriesWithKeyConstraints(workflowExecutionUuid,
-                                                  metadataKeysToFilterFor,
-                                                  metadataKeysToFilterOut,
-                                                  requireEmptyJobKey = true,
-                                                  expandSubWorkflows = expandSubWorkflows
-          )
-          .result
-      case CallOrWorkflowQuery =>
-        dataAccess
-          .countMetadataEntriesWithKeyConstraints(workflowExecutionUuid,
-                                                  metadataKeysToFilterFor,
-                                                  metadataKeysToFilterOut,
-                                                  requireEmptyJobKey = false,
-                                                  expandSubWorkflows = expandSubWorkflows
-          )
-          .result
-    }
-    runTransaction(action, timeout = timeout)
-  }
-
   private def updateWorkflowMetadataSummaryEntry(
     buildUpdatedWorkflowMetadataSummaryEntry: (Option[WorkflowMetadataSummaryEntry],
                                                Seq[MetadataEntry]

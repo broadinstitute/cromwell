@@ -8,7 +8,6 @@ import cromwell.core.{WorkflowId, WorkflowMetadataKeys}
 import cromwell.database.migration.metadata.table.symbol.MetadataStatement._
 import cromwell.database.slick.MetadataSlickDatabase
 import cromwell.database.slick.MetadataSlickDatabase.SummarizationPartitionedMetadata
-import cromwell.database.sql.joins.{CallOrWorkflowQuery, CallQuery, WorkflowQuery}
 import cromwell.database.sql.tables.{MetadataEntry, WorkflowMetadataSummaryEntry}
 import cromwell.services.metadata.CallMetadataKeys
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
@@ -594,42 +593,6 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
                                                     Option(1),
                                                     expandSubWorkflows = expandSubWorkflows,
                                                     10 seconds
-          )
-          count.futureValue(Timeout(10 seconds)) should be(1 * expansionFactor)
-        }
-
-        {
-          val count = database.countMetadataEntryWithKeyConstraints(
-            workflowExecutionUuid = rootCountableId,
-            metadataKeysToFilterFor = List("includable%"),
-            metadataKeysToFilterOut = List("excludable%"),
-            CallQuery("includableCall", Option(0), Option(1)),
-            expandSubWorkflows = expandSubWorkflows,
-            10 seconds
-          )
-          count.futureValue(Timeout(10 seconds)) should be(1 * expansionFactor)
-        }
-
-        {
-          val count = database.countMetadataEntryWithKeyConstraints(
-            workflowExecutionUuid = rootCountableId,
-            metadataKeysToFilterFor = List("includable%"),
-            metadataKeysToFilterOut = List("excludable%"),
-            CallOrWorkflowQuery,
-            expandSubWorkflows = expandSubWorkflows,
-            10 seconds
-          )
-          count.futureValue(Timeout(10 seconds)) should be(4 * expansionFactor)
-        }
-
-        {
-          val count = database.countMetadataEntryWithKeyConstraints(
-            workflowExecutionUuid = rootCountableId,
-            metadataKeysToFilterFor = List("includable%"),
-            metadataKeysToFilterOut = List("excludable%"),
-            WorkflowQuery,
-            expandSubWorkflows = expandSubWorkflows,
-            10 seconds
           )
           count.futureValue(Timeout(10 seconds)) should be(1 * expansionFactor)
         }

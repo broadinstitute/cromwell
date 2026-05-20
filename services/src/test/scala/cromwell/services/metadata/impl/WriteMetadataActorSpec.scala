@@ -498,27 +498,6 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
     override def getSummaryQueueSize()(implicit ec: ExecutionContext): Future[Int] =
       notImplemented()
 
-    override def countMetadataEntries(workflowExecutionUuid: String, expandSubWorkflows: Boolean, timeout: Duration)(
-      implicit ec: ExecutionContext
-    ): Future[Int] =
-      notImplemented()
-
-    override def countMetadataEntries(workflowExecutionUuid: String,
-                                      metadataKey: String,
-                                      expandSubWorkflows: Boolean,
-                                      timeout: Duration
-    )(implicit ec: ExecutionContext): Future[Int] =
-      notImplemented()
-
-    override def countMetadataEntries(workflowExecutionUuid: String,
-                                      callFullyQualifiedName: String,
-                                      jobIndex: Option[Int],
-                                      jobAttempt: Option[Int],
-                                      expandSubWorkflows: Boolean,
-                                      timeout: Duration
-    )(implicit ec: ExecutionContext): Future[Int] =
-      notImplemented()
-
     override def getMetadataArchiveStatusAndEndTime(workflowId: String)(implicit
       ec: ExecutionContext
     ): Future[(Option[String], Option[Timestamp])] = notImplemented()

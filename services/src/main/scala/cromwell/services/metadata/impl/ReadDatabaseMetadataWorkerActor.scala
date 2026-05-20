@@ -14,12 +14,12 @@ import scala.concurrent.duration.Duration
 import scala.util.Try
 
 object ReadDatabaseMetadataWorkerActor {
-  def props(metadataReadTimeout: Duration, metadataReadRowNumberSafetyThreshold: Int) =
-    Props(new ReadDatabaseMetadataWorkerActor(metadataReadTimeout, metadataReadRowNumberSafetyThreshold))
+  def props(metadataReadTimeout: Duration) =
+    Props(new ReadDatabaseMetadataWorkerActor(metadataReadTimeout))
       .withDispatcher(ServiceDispatcher)
 }
 
-class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataReadRowNumberSafetyThreshold: Int)
+class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration)
     extends Actor
     with ActorLogging
     with MetadataDatabaseAccess
@@ -30,8 +30,8 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
   def receive = {
     case FetchFailedJobsMetadataWithWorkflowId(w: WorkflowId) =>
       evaluateRespondAndStop(sender(), getFailedJobs(w))
-    case GetMetadataAction(query: MetadataQuery, checkTotalMetadataRowNumberBeforeQuerying: Boolean) =>
-      evaluateRespondAndStop(sender(), getMetadata(query, checkTotalMetadataRowNumberBeforeQuerying))
+    case GetMetadataAction(query: MetadataQuery) =>
+      evaluateRespondAndStop(sender(), queryMetadata(query))
     case GetMetadataStreamAction(workflowId) =>
       evaluateRespondAndStop(sender(), Future.fromTry(getMetadataStream(workflowId)))
     case GetStatus(workflowId) => evaluateRespondAndStop(sender(), getStatus(workflowId))
@@ -61,24 +61,6 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration, metadataRea
     }
     ()
   }
-
-  private def getMetadata(query: MetadataQuery,
-                          checkResultSizeBeforeQuerying: Boolean
-  ): Future[MetadataServiceResponse] =
-    if (checkResultSizeBeforeQuerying) {
-      getMetadataReadRowCount(query, metadataReadTimeout) flatMap { count =>
-        if (count > metadataReadRowNumberSafetyThreshold) {
-          Future.successful(MetadataLookupFailedTooLargeResponse(query, count))
-        } else {
-          queryMetadata(query)
-        }
-      } recoverWith {
-        case _: SQLTimeoutException => Future.successful(MetadataLookupFailedTimeoutResponse(query))
-        case t => Future.successful(MetadataServiceKeyLookupFailed(query, t))
-      }
-    } else {
-      queryMetadata(query)
-    }
 
   private def getMetadataStream(workflowId: WorkflowId): Try[MetadataServiceResponse] =
     metadataEventsStream(workflowId) map { s =>

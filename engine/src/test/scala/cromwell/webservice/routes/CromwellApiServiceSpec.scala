@@ -740,7 +740,7 @@ object CromwellApiServiceSpec {
         )
       case request @ FetchFailedJobsMetadataWithWorkflowId(id) =>
         sender() ! SuccessfulMetadataJsonResponse(request, responseMetadataValues(id, List.empty, List.empty))
-      case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _), _) =>
+      case request @ GetMetadataAction(MetadataQuery(id, _, _, withKeys, withoutKeys, _)) =>
         val withKeysList = withKeys.map(_.toList).getOrElse(List.empty)
         val withoutKeysList = withoutKeys.map(_.toList).getOrElse(List.empty)
         sender() ! SuccessfulMetadataJsonResponse(request, responseMetadataValues(id, withKeysList, withoutKeysList))

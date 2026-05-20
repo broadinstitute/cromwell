@@ -12,9 +12,13 @@ The key `system.max-subworkflow-launch-count` now controls how many subworkflows
 
 Complements the existing `system.max-workflow-launch-count`, also with a default of 1.
 
-#### Metadata statistics recorder
+#### Metadata
+
+A new configuration key `metadata-row-limit` is introduced with a default of 100,000,000. Workflows are not allowed to exceed this limit (including subworkflows) and will fail with an error.
 
 The `metadata-write-statistics.sub-workflow-bundling` config key is removed. The recorder now always follows the default behavior, which is to bundle subworkflow row counts into their parents. 
+
+The `metadata-read-row-number-safety-threshold` config key is removed. `metadata-row-limit` is its recommended replacement.
 
 ## 92 Release Notes
 ### WDL 1.1 Support

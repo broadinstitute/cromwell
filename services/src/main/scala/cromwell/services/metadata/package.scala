@@ -18,11 +18,6 @@ final case class FailedMetadataJsonResponse(originalRequest: BuildMetadataJsonAc
 
 class MetadataTooLargeException(message: String) extends RuntimeException(message) with NoStackTrace
 
-final class MetadataTooLargeNumberOfRowsException(workflowId: WorkflowId, metadataSizeRows: Int, metadataLimitRows: Int)
-    extends MetadataTooLargeException(
-      s"Metadata for workflow $workflowId exists in database but cannot be served because row count of $metadataSizeRows exceeds configured limit of $metadataLimitRows."
-    )
-
 final class MetadataTooLargeTimeoutException(workflowId: WorkflowId)
     extends MetadataTooLargeException(
       s"Metadata for workflow $workflowId exists in database but retrieval timed out, possibly due to large row count."

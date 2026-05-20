@@ -79,8 +79,6 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   private val metadataReadTimeout: Duration =
     serviceConfig.getOrElse[Duration]("metadata-read-query-timeout", Duration.Inf)
-  private val metadataReadRowNumberSafetyThreshold: Int =
-    serviceConfig.getOrElse[Int]("metadata-read-row-number-safety-threshold", 1000000)
 
   private val metadataTableMetricsInterval: Option[FiniteDuration] =
     serviceConfig.getAs[FiniteDuration]("metadata-table-metrics-interval")
@@ -93,11 +91,11 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
 
   def readMetadataWorkerActorProps(): Props =
     ReadDatabaseMetadataWorkerActor
-      .props(metadataReadTimeout, metadataReadRowNumberSafetyThreshold)
+      .props(metadataReadTimeout)
       .withDispatcher(ServiceDispatcher)
 
   def metadataBuilderActorProps(): Props = MetadataBuilderActor
-    .props(readMetadataWorkerActorProps, metadataReadRowNumberSafetyThreshold)
+    .props(readMetadataWorkerActorProps)
     .withDispatcher(ServiceDispatcher)
 
   val readActor = context.actorOf(

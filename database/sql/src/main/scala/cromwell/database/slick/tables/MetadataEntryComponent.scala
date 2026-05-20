@@ -105,22 +105,6 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataEntryId)
   )
 
-  val countMetadataEntriesForWorkflowExecutionUuid =
-    Compiled((rootWorkflowId: Rep[String], expandSubWorkflows: Rep[Boolean]) =>
-      {
-        val targetWorkflowIds = for {
-          summary <- workflowMetadataSummaryEntries
-          // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-          if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
-        } yield summary.workflowExecutionUuid
-
-        for {
-          metadata <- metadataEntries
-          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `IX_METADATA_ENTRY_WEU_MK`
-        } yield metadata
-      }.size
-    )
-
   val metadataEntriesForWorkflowExecutionUuidAndMetadataKey =
     Compiled((workflowExecutionUuid: Rep[String], metadataKey: Rep[String]) =>
       (for {
@@ -131,26 +115,6 @@ trait MetadataEntryComponent {
         if metadataEntry.jobIndex.isEmpty
         if metadataEntry.jobAttempt.isEmpty
       } yield metadataEntry).sortBy(_.metadataTimestamp)
-    )
-
-  val countMetadataEntriesForWorkflowExecutionUuidAndMetadataKey =
-    Compiled((rootWorkflowId: Rep[String], metadataKey: Rep[String], expandSubWorkflows: Rep[Boolean]) =>
-      {
-        val targetWorkflowIds = for {
-          summary <- workflowMetadataSummaryEntries
-          // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-          if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
-        } yield summary.workflowExecutionUuid
-
-        for {
-          metadata <- metadataEntries
-          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `IX_METADATA_ENTRY_WEU_MK`
-          if metadata.metadataKey === metadataKey
-          if metadata.callFullyQualifiedName.isEmpty
-          if metadata.jobIndex.isEmpty
-          if metadata.jobAttempt.isEmpty
-        } yield metadata
-      }.size
     )
 
   val metadataEntriesForJobKey = Compiled(
@@ -168,30 +132,6 @@ trait MetadataEntryComponent {
       } yield metadataEntry).sortBy(_.metadataTimestamp)
   )
 
-  val countMetadataEntriesForJobKey = Compiled(
-    (rootWorkflowId: Rep[String],
-     callFullyQualifiedName: Rep[String],
-     jobIndex: Rep[Option[Int]],
-     jobAttempt: Rep[Option[Int]],
-     expandSubWorkflows: Rep[Boolean]
-    ) =>
-      {
-        val targetWorkflowIds = for {
-          summary <- workflowMetadataSummaryEntries
-          // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-          if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
-        } yield summary.workflowExecutionUuid
-
-        for {
-          metadata <- metadataEntries
-          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `IX_METADATA_ENTRY_WEU_MK`
-          if metadata.callFullyQualifiedName === callFullyQualifiedName
-          if hasSameIndex(metadata, jobIndex)
-          if hasSameAttempt(metadata, jobAttempt)
-        } yield metadata
-      }.size
-  )
-
   val metadataEntriesForJobKeyAndMetadataKey = Compiled(
     (workflowExecutionUuid: Rep[String],
      metadataKey: Rep[String],
@@ -207,32 +147,6 @@ trait MetadataEntryComponent {
         if hasSameIndex(metadataEntry, jobIndex)
         if hasSameAttempt(metadataEntry, jobAttempt)
       } yield metadataEntry).sortBy(_.metadataTimestamp)
-  )
-
-  val countMetadataEntriesForJobKeyAndMetadataKey = Compiled(
-    (rootWorkflowId: Rep[String],
-     metadataKey: Rep[String],
-     callFullyQualifiedName: Rep[String],
-     jobIndex: Rep[Option[Int]],
-     jobAttempt: Rep[Option[Int]],
-     expandSubWorkflows: Rep[Boolean]
-    ) =>
-      {
-        val targetWorkflowIds = for {
-          summary <- workflowMetadataSummaryEntries
-          // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-          if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
-        } yield summary.workflowExecutionUuid
-
-        for {
-          metadata <- metadataEntries
-          if metadata.workflowExecutionUuid in targetWorkflowIds // Uses `IX_METADATA_ENTRY_WEU_MK`
-          if metadata.metadataKey === metadataKey
-          if metadata.callFullyQualifiedName === callFullyQualifiedName
-          if hasSameIndex(metadata, jobIndex)
-          if hasSameAttempt(metadata, jobAttempt)
-        } yield metadata
-      }.size
   )
 
   val metadataEntriesForIdRange = Compiled { (minMetadataEntryId: Rep[Long], maxMetadataEntryId: Rep[Long]) =>
@@ -261,32 +175,6 @@ trait MetadataEntryComponent {
     } yield metadataEntry).sortBy(_.metadataTimestamp)
 
   /**
-    * Counts metadata entries that are "like" metadataKeys for the specified workflow.
-    * If requireEmptyJobKey is true, only workflow level keys are counted, otherwise both workflow and call level
-    * keys are counted.
-    */
-  def countMetadataEntriesWithKeyConstraints(rootWorkflowId: String,
-                                             metadataKeysToFilterFor: List[String],
-                                             metadataKeysToFilterOut: List[String],
-                                             requireEmptyJobKey: Boolean,
-                                             expandSubWorkflows: Boolean
-  ) = {
-
-    val targetWorkflowIds = for {
-      summary <- workflowMetadataSummaryEntries
-      // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-      if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
-    } yield summary.workflowExecutionUuid
-
-    (for {
-      metadataEntry <- metadataEntries
-      if metadataEntry.workflowExecutionUuid in targetWorkflowIds
-      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor, metadataKeysToFilterOut)
-      if metadataEntryHasEmptyJobKey(metadataEntry, requireEmptyJobKey)
-    } yield metadataEntry).size
-  }
-
-  /**
     * Returns metadata entries that are "like" metadataKeys for the specified call.
     * If jobAttempt has no value, all metadata keys for all attempts are returned.
     */
@@ -308,38 +196,6 @@ trait MetadataEntryComponent {
       // regardless of the attempt
       if (metadataEntry.jobAttempt === jobAttempt) || jobAttempt.isEmpty
     } yield metadataEntry).sortBy(_.metadataTimestamp)
-
-  /**
-    * Counts metadata entries that are "like" metadataKeys for the specified call.
-    * If jobAttempt has no value, all metadata keys for all attempts are counted.
-    */
-  def countMetadataEntriesForJobWithKeyConstraints(rootWorkflowId: String,
-                                                   metadataKeysToFilterFor: List[String],
-                                                   metadataKeysToFilterOut: List[String],
-                                                   callFqn: String,
-                                                   jobIndex: Option[Int],
-                                                   jobAttempt: Option[Int],
-                                                   expandSubWorkflows: Boolean
-  ) = {
-
-    val targetWorkflowIds = for {
-      summary <- workflowMetadataSummaryEntries
-      // Uses `IX_WORKFLOW_METADATA_SUMMARY_ENTRY_RWEU`, `UC_WORKFLOW_METADATA_SUMMARY_ENTRY_WEU`
-      if summary.workflowExecutionUuid === rootWorkflowId || ((summary.rootWorkflowExecutionUuid === rootWorkflowId) && expandSubWorkflows)
-    } yield summary.workflowExecutionUuid
-
-    (for {
-      metadataEntry <- metadataEntries
-      if metadataEntry.workflowExecutionUuid in targetWorkflowIds
-      if metadataEntryHasMetadataKeysLike(metadataEntry, metadataKeysToFilterFor, metadataKeysToFilterOut)
-      if metadataEntry.callFullyQualifiedName === callFqn
-      if hasSameIndex(metadataEntry, jobIndex)
-      // Assume that every metadata entry for a call should have a non null attempt value
-      // Because of that, if the jobAttempt parameter is Some(_), make sure it matches, otherwise take all entries
-      // regardless of the attempt
-      if (metadataEntry.jobAttempt === jobAttempt) || jobAttempt.isEmpty
-    } yield metadataEntry).size
-  }
 
   def metadataTableSizeInformation() = {
     val query =

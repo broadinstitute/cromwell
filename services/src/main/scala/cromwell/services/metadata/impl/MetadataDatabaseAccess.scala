@@ -140,64 +140,6 @@ trait MetadataDatabaseAccess {
       MetadataEvent(key, value, m.metadataTimestamp.toSystemOffsetDateTime)
     }
 
-  def getMetadataReadRowCount(query: MetadataQuery, timeout: Duration)(implicit ec: ExecutionContext): Future[Int] = {
-
-    def listKeyRequirements(keyRequirementsInput: Option[NonEmptyList[String]]): List[String] =
-      keyRequirementsInput.map(_.toList).toList.flatten.map(_ + "%")
-
-    val uuid = query.workflowId.id.toString
-
-    query match {
-      case q @ MetadataQuery(_, None, None, None, None, _) =>
-        metadataDatabaseInterface.countMetadataEntries(uuid, q.expandSubWorkflows, timeout)
-      case q @ MetadataQuery(_, None, Some(key), None, None, _) =>
-        metadataDatabaseInterface.countMetadataEntries(uuid, key, q.expandSubWorkflows, timeout)
-      case q @ MetadataQuery(_, Some(jobKey), None, None, None, _) =>
-        metadataDatabaseInterface.countMetadataEntries(uuid,
-                                                       jobKey.callFqn,
-                                                       jobKey.index,
-                                                       jobKey.attempt,
-                                                       q.expandSubWorkflows,
-                                                       timeout
-        )
-      case q @ MetadataQuery(_, Some(jobKey), Some(key), None, None, _) =>
-        metadataDatabaseInterface.countMetadataEntries(uuid,
-                                                       key,
-                                                       jobKey.callFqn,
-                                                       jobKey.index,
-                                                       jobKey.attempt,
-                                                       q.expandSubWorkflows,
-                                                       timeout
-        )
-      case q @ MetadataQuery(_, None, None, includeKeys, excludeKeys, _) =>
-        val excludeKeyRequirements = listKeyRequirements(excludeKeys)
-        val queryType = if (excludeKeyRequirements.contains("calls%")) WorkflowQuery else CallOrWorkflowQuery
-
-        metadataDatabaseInterface.countMetadataEntryWithKeyConstraints(uuid,
-                                                                       listKeyRequirements(includeKeys),
-                                                                       excludeKeyRequirements,
-                                                                       queryType,
-                                                                       q.expandSubWorkflows,
-                                                                       timeout
-        )
-      case q @ MetadataQuery(_,
-                             Some(MetadataQueryJobKey(callFqn, index, attempt)),
-                             None,
-                             includeKeys,
-                             excludeKeys,
-                             _
-          ) =>
-        metadataDatabaseInterface.countMetadataEntryWithKeyConstraints(uuid,
-                                                                       listKeyRequirements(includeKeys),
-                                                                       listKeyRequirements(excludeKeys),
-                                                                       CallQuery(callFqn, index, attempt),
-                                                                       q.expandSubWorkflows,
-                                                                       timeout
-        )
-      case _ => Future.failed(new IllegalArgumentException(s"Invalid MetadataQuery: $query"))
-    }
-  }
-
   def metadataEventsStream(workflowId: WorkflowId): Try[DatabasePublisher[MetadataEntry]] =
     Try(metadataDatabaseInterface.streamMetadataEntries(workflowId.id.toString))
 

@@ -82,15 +82,6 @@ trait MetadataSqlDatabase extends SqlDatabase {
                            timeout: Duration
   )(implicit ec: ExecutionContext): Future[Seq[MetadataEntry]]
 
-  def countMetadataEntries(workflowUuid: String,
-                           metadataKey: String,
-                           callFullyQualifiedName: String,
-                           jobIndex: Option[Int],
-                           jobAttempt: Option[Int],
-                           expandSubWorkflows: Boolean,
-                           timeout: Duration
-  )(implicit ec: ExecutionContext): Future[Int]
-
   def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
                                            metadataKeysToFilterFor: List[String],
                                            metadataKeysToFilterAgainst: List[String],

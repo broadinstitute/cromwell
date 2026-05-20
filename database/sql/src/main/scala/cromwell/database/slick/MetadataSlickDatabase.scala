@@ -227,22 +227,6 @@ class MetadataSlickDatabase(originalDatabaseConfig: Config)
     runTransaction(action, timeout = timeout)
   }
 
-  override def countMetadataEntries(workflowUuid: String,
-                                    metadataKey: String,
-                                    callFullyQualifiedName: String,
-                                    jobIndex: Option[Int],
-                                    jobAttempt: Option[Int],
-                                    expandSubWorkflows: Boolean,
-                                    timeout: Duration
-  )(implicit ec: ExecutionContext): Future[Int] = {
-    val action = dataAccess
-      .countMetadataEntriesForJobKeyAndMetadataKey(
-        (workflowUuid, metadataKey, callFullyQualifiedName, jobIndex, jobAttempt, expandSubWorkflows)
-      )
-      .result
-    runTransaction(action, timeout = timeout)
-  }
-
   override def queryMetadataEntryWithKeyConstraints(workflowExecutionUuid: String,
                                                     metadataKeysToFilterFor: List[String],
                                                     metadataKeysToFilterOut: List[String],

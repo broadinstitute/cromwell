@@ -554,51 +554,6 @@ class MetadataSlickDatabaseSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
       delete.futureValue(Timeout(10.seconds)) should be(1)
     }
 
-    it should "count up rows" taggedAs DbmsTest in {
-      List(true, false) foreach { expandSubWorkflows =>
-        val expansionFactor = if (expandSubWorkflows) 3 else 1;
-        // Everything
-        {
-          val count =
-            database.countMetadataEntries(rootCountableId, expandSubWorkflows = expandSubWorkflows, 10 seconds)
-          count.futureValue(Timeout(10.seconds)) should be(7 * expansionFactor)
-        }
-
-        // Only includable keys - this looks for workflow level data only
-        {
-          val count = database.countMetadataEntries(rootCountableId,
-                                                    "includableKey",
-                                                    expandSubWorkflows = expandSubWorkflows,
-                                                    10 seconds
-          )
-          count.futureValue(Timeout(10.seconds)) should be(1 * expansionFactor)
-        }
-
-        {
-          val count = database.countMetadataEntries(rootCountableId,
-                                                    "includableCall",
-                                                    Option(0),
-                                                    Option(1),
-                                                    expandSubWorkflows = expandSubWorkflows,
-                                                    10 seconds
-          )
-          count.futureValue(Timeout(10 seconds)) should be(2 * expansionFactor)
-        }
-
-        {
-          val count = database.countMetadataEntries(rootCountableId,
-                                                    "includableKey",
-                                                    "includableCall",
-                                                    Option(0),
-                                                    Option(1),
-                                                    expandSubWorkflows = expandSubWorkflows,
-                                                    10 seconds
-          )
-          count.futureValue(Timeout(10 seconds)) should be(1 * expansionFactor)
-        }
-      }
-    }
-
     it should "fetch failed tasks from a failed workflow" taggedAs DbmsTest in {
       database
         .runTestTransaction(

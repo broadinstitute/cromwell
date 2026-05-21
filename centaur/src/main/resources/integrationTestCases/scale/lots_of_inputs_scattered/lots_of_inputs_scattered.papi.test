@@ -5,11 +5,12 @@ testFormat: workflowsuccess
 # (after numerous failed retry attempts), and "java.lang.OutOfMemoryError: Java heap space" on Jenkins workers.
 # `ignore`ing for now but hopefully can be re-enabled in Jenkins if full metadata fetches can be sidestepped (BT-380)
 # or perhaps migrated to the Cromwell perf environment.
-ignore: true
+ignore: false
 backends: [ GCPBATCH ]
 
 files {
-  workflow: scale/lots_of_inputs_scattered/lots_of_inputs_scattered.wdl
+  workflow: lots_of_inputs_scattered.wdl
+  inputs: inputs.json
 }
 
 metadata {

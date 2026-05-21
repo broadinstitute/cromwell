@@ -15,6 +15,7 @@ task hello {
     }
     input {
         Array[File] inputs
+        String machine_type
     }
     command {
         echo "Hello world!"
@@ -24,15 +25,16 @@ task hello {
     }
     runtime {
       docker: "ubuntu:latest"
+      predefinedMachineType: machine_type
     }
 }
 
 task write_fofn {
     input {
         Int shard
+        Int num_inputs
+        String machine_type
     }
-
-    Int num_inputs = 1700
 
     command <<<
         python <<CODE
@@ -71,19 +73,34 @@ task write_fofn {
     }
     runtime {
         docker: "python:latest"
+        predefinedMachineType: machine_type
     }
 }
 
 workflow lots_of_inputs_scattered {
 
-    Int scatter_width = 700
-
-    scatter (i in range(scatter_width)) {
-        call write_fofn { input: shard = i }
+    # An "expensive" T2D machine completes the task 3x faster and 50% cheaper than the default.
+    input {
+        Int scatter_width = 700
+        Int num_inputs = 1700
+        String machine_type = "t2d-standard-1"
     }
 
     scatter (i in range(scatter_width)) {
-        call hello { input: inputs = write_fofn.inputs[i] }
+        call write_fofn {
+            input:
+                shard = i,
+                num_inputs = num_inputs,
+                machine_type = machine_type
+        }
+    }
+
+    scatter (i in range(scatter_width)) {
+        call hello {
+            input:
+                inputs = write_fofn.inputs[i],
+                machine_type = machine_type
+        }
     }
 
     output {

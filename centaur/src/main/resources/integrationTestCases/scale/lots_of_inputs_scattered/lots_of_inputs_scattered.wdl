@@ -11,7 +11,7 @@ version 1.0
 
 task massive_localize {
     meta {
-        volatile: true
+        volatile: false
     }
     input {
         Array[File] inputs

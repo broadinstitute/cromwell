@@ -11,6 +11,7 @@ backends: [ GCPBATCH ]
 files {
   workflow: lots_of_inputs_scattered.wdl
   inputs: inputs.json
+  options: options.json
 }
 
 metadata {

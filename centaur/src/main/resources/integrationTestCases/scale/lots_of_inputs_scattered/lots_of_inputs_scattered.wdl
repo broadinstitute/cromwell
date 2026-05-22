@@ -26,12 +26,13 @@ task hello {
     runtime {
       docker: "ubuntu:latest"
       predefinedMachineType: machine_type
+      maxRetries: 1
     }
 }
 
 task write_fofn {
     input {
-        Int shard
+        Int shard_index
         Int num_inputs
         String machine_type
     }
@@ -42,7 +43,7 @@ task write_fofn {
         prefix = bucket + \
             'lorem-ipsum-dolor-sit-amet/consectetur-adipiscing-elit/nullam-in-aliquet-sapien/phasellus-at-feugiat-diam'
 
-        output = open('inputs.txt', 'w')
+        output = open('inputs_fofn.txt', 'w')
 
         # Write an array of input files.
         # To replicate the scenario in BT-343 this should produce ~(6 * 285) or ~1700 inputs per shard.
@@ -55,13 +56,13 @@ task write_fofn {
                 for c in range(10):
                     lines.append(f'{prefix}/{a}-{"a"*64}/{b}-{"b"*64}/{c}-{"c"*64}/input.txt')
 
-        x = (~{num_inputs} * ~{shard}) % ~{num_inputs}
-        y = (~{num_inputs} * (~{shard} + 1)) % ~{num_inputs}
+        start = (~{num_inputs} * ~{shard_index}) % ~{num_inputs}
+        end = (~{num_inputs} * (~{shard_index} + 1)) % ~{num_inputs}
 
-        if x < y:
-            raw = lines[x:y]
+        if start < end:
+            raw = lines[start:end]
         else:
-            raw = lines[:y] + lines[x:]
+            raw = lines[:end] + lines[start:]
 
         output.write('\n'.join(raw))
 
@@ -69,11 +70,12 @@ task write_fofn {
         CODE
     >>>
     output {
-        Array[String] inputs = read_lines("inputs.txt")
+        Array[String] inputs = read_lines("inputs_fofn.txt")
     }
     runtime {
         docker: "python:latest"
         predefinedMachineType: machine_type
+        maxRetries: 1
     }
 }
 
@@ -89,7 +91,7 @@ workflow lots_of_inputs_scattered {
     scatter (i in range(scatter_width)) {
         call write_fofn {
             input:
-                shard = i,
+                shard_index = i,
                 num_inputs = num_inputs,
                 machine_type = machine_type
         }

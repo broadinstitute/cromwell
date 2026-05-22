@@ -106,7 +106,10 @@ class AwsBatchRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeout
     "/Cromwell/job/",
     Map(),
     false,
-    "local"
+    "local",
+    false,
+    false,
+    None
   )
 
   "AwsBatchRuntimeAttributes" should {

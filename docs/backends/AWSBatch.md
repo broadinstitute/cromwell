@@ -10,6 +10,26 @@ This section provides details on how to configure the AWS Batch backend with Cro
 
 Cromwell and AWS Batch recognizes number of runtime attributes, more information can be found in the [customize tasks](/RuntimeAttributes#recognized-runtime-attributes-and-backends) page.
 
+### batchJobRoleArn
+
+The `batchJobRoleArn` runtime attribute allows you to specify an IAM role ARN for a specific task's container. This is useful when individual tasks in a workflow need different permissions — for example, tasks that run on different AWS Batch queues with queue-specific roles.
+
+**Usage:**
+
+```wdl
+task my_task {
+  command { ... }
+  runtime {
+    docker: "ubuntu:latest"
+    batchJobRoleArn: "arn:aws:iam::123456789012:role/MyTaskRole"
+  }
+}
+```
+
+When both `batchJobRoleArn` and the `aws_batch_job_role_arn` workflow option are set, the runtime attribute takes priority. This allows a workflow-level default role to be overridden on a per-task basis.
+
+This attribute is optional. If not specified, the role from the `aws_batch_job_role_arn` workflow option is used instead.
+
 
 ## Running Cromwell on an EC2 instance
 

@@ -3,6 +3,7 @@
 ## 93 Release Notes
 ### AWS Batch
 * Added `tagAliases` backend config option, which duplicates engine-generated tags (e.g. `cromwell-workflow-id`) under alternative key names for external systems like cost-tracking tools. See the [Tag Aliases](supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/README.md#tag-aliases) section for configuration details.
+* Added `batchJobRoleArn` runtime attribute, allowing per-task IAM role overrides for AWS Batch job containers. When set, it takes priority over the `aws_batch_job_role_arn` workflow option.
 
 ### General
 

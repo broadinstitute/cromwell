@@ -9,7 +9,7 @@ version 1.0
 # * Largely unique object path prefixes resulting in a large number of stanzas in the
 #   `gcs_localization.sh` script, inflating the size of these scripts to ~1.7 MiB per shard.
 
-task hello {
+task massive_localize {
     meta {
         volatile: true
     }
@@ -50,19 +50,23 @@ task write_fofn {
         # Cycle through all of the inputs so a hash is requested for all of them (avoid the root workflow file hash
         # cache actor coalescing hash requests).
 
+        # Generate pool of 2,000 paths
         lines = []
         for a in range(20):
             for b in range(10):
                 for c in range(10):
                     lines.append(f'{prefix}/{a}-{"a"*64}/{b}-{"b"*64}/{c}-{"c"*64}/input.txt')
 
-        start = (~{num_inputs} * ~{shard_index}) % ~{num_inputs}
-        end = (~{num_inputs} * (~{shard_index} + 1)) % ~{num_inputs}
+        # Stagger each shard's window across the pool so different shards localize a different subset of inputs.
+        pool_size = len(lines)
+        start = (~{num_inputs} * ~{shard_index}) % pool_size
+        end = start + ~{num_inputs}
 
-        if start < end:
+        # Select within this pool (T) or wrap around to the next pool (F)
+        if end <= pool_size:
             raw = lines[start:end]
         else:
-            raw = lines[:end] + lines[start:]
+            raw = lines[:end - pool_size] + lines[start:]
 
         output.write('\n'.join(raw))
 
@@ -98,7 +102,7 @@ workflow lots_of_inputs_scattered {
     }
 
     scatter (i in range(scatter_width)) {
-        call hello {
+        call massive_localize {
             input:
                 inputs = write_fofn.inputs[i],
                 machine_type = machine_type

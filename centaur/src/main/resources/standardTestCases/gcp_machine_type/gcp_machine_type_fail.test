@@ -9,5 +9,5 @@ files {
 
 # Batch rejects the task and Cromwell fails it in an orderly manner
 metadata {
-  "failures.0.causedBy.0.message": ~~"GCP Batch task exited with Success(0). "
+  "failures.0.causedBy.0.message": ~~" Check GCP Batch job logs for details."
 }

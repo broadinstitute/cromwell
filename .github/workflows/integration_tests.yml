@@ -83,9 +83,10 @@ jobs:
             friendly_name: Centaur Engine Upgrade Local with MySQL 8.4
           - build_type: referenceDiskManifestBuilderApp
             friendly_name: Reference Disk Manifest Builder App
-          - build_type: centaurSlurm
-            build_mysql: 8.4
-            friendly_name: "Centaur Slurm with MySQL 8.4"
+          # Disabled due to Ubuntu CDN outage (CTM-467)
+          # - build_type: centaurSlurm
+          #  build_mysql: 8.4
+          #  friendly_name: "Centaur Slurm with MySQL 8.4"
     name: ${{ matrix.friendly_name }}
     env:
       BUILD_NAME: ${{ matrix.build_type }}

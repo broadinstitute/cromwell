@@ -1,0 +1,17 @@
+name: too_much_metadata_fail
+testFormat: workflowfailure
+backends: [Dummy]
+tags: [Dummy]
+retryTestFailures: false
+
+files {
+  workflow: dummy_scatter.wdl
+  inputs: fail_inputs.json
+}
+
+# Produces >1.5M rows of metadata.
+metadata {
+  workflowName: dummy_scatter
+  status: Failed
+  "failures.0.message": ~~"metadata, exceeding limit of 1500000."
+}

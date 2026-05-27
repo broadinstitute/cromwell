@@ -2,20 +2,20 @@ package cromwell.services.metadata.impl
 
 import java.util.UUID
 import java.util.concurrent.Callable
-
 import com.google.common.cache.CacheBuilder
 import cromwell.core.WorkflowId
 import cromwell.services.metadata.{MetadataEvent, MetadataKey, MetadataString, MetadataValue}
+
 import java.time.{Duration => JDuration}
 import net.ceedubs.ficus.Ficus._
 import com.typesafe.config.Config
+import cromwell.core.events.{HeavyMetadataAlert, MaxMetadataAlert, MetadataAlert}
 import cromwell.services.metadata.impl.MetadataStatisticsRecorder._
 
 import scala.concurrent.duration._
 import scala.util.Try
 
 object MetadataStatisticsRecorder {
-  final case class HeavyMetadataAlert(workflowId: WorkflowId, count: Long)
   final case class WorkflowMetadataWriteStatistics(workflowId: WorkflowId,
                                                    totalWrites: Long,
                                                    lastLogged: Long,
@@ -25,30 +25,28 @@ object MetadataStatisticsRecorder {
   sealed trait MetadataStatisticsRecorderSettings
   case object MetadataStatisticsDisabled extends MetadataStatisticsRecorderSettings
 
-  final case class MetadataStatisticsEnabled(workflowCacheSize: Long,
-                                             metadataAlertInterval: Long,
-                                             bundleSubworkflowsIntoParents: Boolean
-  ) extends MetadataStatisticsRecorderSettings
+  final case class MetadataStatisticsEnabled(workflowCacheSize: Long, metadataAlertInterval: Long, metadataLimit: Long)
+      extends MetadataStatisticsRecorderSettings
 
   def apply(statisticsRecorderSettings: MetadataStatisticsRecorderSettings): MetadataStatisticsRecorder =
     statisticsRecorderSettings match {
-      case MetadataStatisticsEnabled(cacheSize, interval, subworkflowBundling) =>
-        new ActiveMetadataStatisticsRecorder(cacheSize, interval, subworkflowBundling)
+      case MetadataStatisticsEnabled(cacheSize, interval, limit) =>
+        new ActiveMetadataStatisticsRecorder(cacheSize, interval, limit)
       case MetadataStatisticsDisabled => new NoopMetadataStatisticsRecorder()
     }
 
   object MetadataStatisticsRecorderSettings {
-    val defaultCacheSize = 20000L
-    val defaultAlertInterval = 100000L
-    val defaultSubworkflowBundling = true
+    private val defaultCacheSize = 20000L
+    private val defaultAlertInterval = 100000L
+    private val defaultLimit = 100000000L
 
     def apply(configSection: Option[Config]): MetadataStatisticsRecorderSettings =
       (configSection flatMap { conf: Config =>
         if (conf.as[Option[Boolean]]("enabled").forall(identity)) {
           val cacheSize: Long = conf.getOrElse("cache-size", defaultCacheSize)
           val metadataAlertInterval: Long = conf.getOrElse("metadata-row-alert-interval", defaultAlertInterval)
-          val subworkflowBundling: Boolean = conf.getOrElse("sub-workflow-bundling", defaultSubworkflowBundling)
-          Option(MetadataStatisticsEnabled(cacheSize, metadataAlertInterval, subworkflowBundling))
+          val metadataLimit: Long = conf.getOrElse("metadata-row-limit", defaultLimit)
+          Option(MetadataStatisticsEnabled(cacheSize, metadataAlertInterval, metadataLimit))
         } else None
 
       }).getOrElse(MetadataStatisticsDisabled)
@@ -56,17 +54,15 @@ object MetadataStatisticsRecorder {
 }
 
 sealed trait MetadataStatisticsRecorder {
-  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert]
+  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[MetadataAlert]
 }
 
 final class NoopMetadataStatisticsRecorder extends MetadataStatisticsRecorder {
-  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] = Vector.empty
+  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[MetadataAlert] = Vector.empty
 }
 
-final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long = 100000L, // 100,000
-                                             metadataAlertInterval: Long = 100000L, // 100,000
-                                             bundleSubworkflowsIntoParents: Boolean = false
-) extends MetadataStatisticsRecorder {
+final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long, metadataAlertInterval: Long, metadataLimit: Long)
+    extends MetadataStatisticsRecorder {
 
   // Statistics for each workflow
   private val metadataWriteStatisticsCache = CacheBuilder
@@ -78,18 +74,17 @@ final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long = 100000L, 
   def writeStatisticsLoader(workflowId: WorkflowId): Callable[WorkflowMetadataWriteStatistics] = () =>
     WorkflowMetadataWriteStatistics(workflowId, 0L, 0L, None)
 
-  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[HeavyMetadataAlert] =
+  def processEventsAndGenerateAlerts(putEvents: Iterable[MetadataEvent]): Vector[MetadataAlert] =
     putEvents.groupBy(_.key.workflowId).toVector.flatMap { case (id, list) => processEventsForWorkflow(id, list) }
 
   private def processEventsForWorkflow(workflowId: WorkflowId,
                                        events: Iterable[MetadataEvent]
-  ): Vector[HeavyMetadataAlert] = {
+  ): Vector[MetadataAlert] = {
     val workflowWriteStats = metadataWriteStatisticsCache.get(workflowId, writeStatisticsLoader(workflowId))
 
     // Find a new parent record if one exists and update the statistics to record it:
     val parentallyUpdatedStatistics =
-      if (!bundleSubworkflowsIntoParents) workflowWriteStats
-      else if (workflowWriteStats.knownParent.isDefined) workflowWriteStats
+      if (workflowWriteStats.knownParent.isDefined) workflowWriteStats
       else {
         val newParentId = events.collectFirst {
           case MetadataEvent(MetadataKey(_, None, "parentWorkflowId"), Some(MetadataValue(value, MetadataString)), _) =>
@@ -103,7 +98,7 @@ final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long = 100000L, 
 
   private def updateStatisticsCacheAndGenerateAlerts(workflowWriteStats: WorkflowMetadataWriteStatistics,
                                                      count: Long
-  ): Vector[HeavyMetadataAlert] = {
+  ): Vector[MetadataAlert] = {
     val writesForWorkflow = workflowWriteStats.totalWrites + count
 
     val myAlerts = if (writesForWorkflow >= workflowWriteStats.lastLogged + metadataAlertInterval) {
@@ -111,7 +106,16 @@ final class ActiveMetadataStatisticsRecorder(workflowCacheSize: Long = 100000L, 
         workflowWriteStats.workflowId,
         workflowWriteStats.copy(totalWrites = writesForWorkflow, lastLogged = writesForWorkflow)
       )
-      Vector(HeavyMetadataAlert(workflowWriteStats.workflowId, writesForWorkflow))
+      val heavyAlert = Vector(HeavyMetadataAlert(workflowWriteStats.workflowId, writesForWorkflow))
+
+      // Check against limit once per interval.
+      // Otherwise we would continuously spam the alert once its condition becomes true.
+      // After we fail the workflow it should never reach its next interval.
+      val maxAlert = if (writesForWorkflow > metadataLimit) {
+        Vector(MaxMetadataAlert(workflowWriteStats.workflowId, writesForWorkflow, metadataLimit))
+      } else Vector.empty
+
+      heavyAlert ++ maxAlert
     } else {
       metadataWriteStatisticsCache.put(workflowWriteStats.workflowId,
                                        workflowWriteStats.copy(totalWrites = writesForWorkflow)

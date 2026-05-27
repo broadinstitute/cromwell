@@ -115,11 +115,7 @@ object Settings {
       Instructions.Env("PATH", "$PATH:/usr/local/gcloud/google-cloud-sdk/bin"),
       // instructions to install `crcmod`
       Instructions.Run("apt-get -y update"),
-      Instructions.Run("apt-get -y install python3.11"),
-      Instructions.Run("apt-get -y install python3-pip"),
-      Instructions.Run("apt-get -y install wget gcc python3-dev python3-setuptools"),
-      Instructions.Run("pip3 uninstall crcmod"),
-      Instructions.Run("pip3 install --no-cache-dir -U crcmod"),
+      Instructions.Run("apt-get -y install python3.12 python3-pip wget"),
       Instructions.Run("update-alternatives --install /usr/bin/python python /usr/bin/python3 1"),
       Instructions.Env("CLOUDSDK_PYTHON", "python3"),
       // instructions to install Google Cloud SDK
@@ -129,7 +125,9 @@ object Settings {
                          | && /usr/local/gcloud/google-cloud-sdk/install.sh""".stripMargin),
       // instructions to install `getm`. Pin to version 0.0.5 as the behaviors of future versions with respect to
       // messages or exit codes may change.
-      Instructions.Run("pip3 install getm==0.0.5")
+      // `--break-system-packages` added for 24.04 to let us overwrite OS packages (PEP 668)
+      // TODO: `getm` is abandonware and should be removed
+      Instructions.Run("pip3 install getm==0.0.5 --break-system-packages")
     )
   )
 

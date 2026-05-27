@@ -5,6 +5,7 @@ import cats.data.NonEmptyVector
 import cromwell.core.Dispatcher.ServiceDispatcher
 import cromwell.core.Mailbox.PriorityMailbox
 import cromwell.core.WorkflowId
+import cromwell.core.events.{HeavyMetadataAlert, MaxMetadataAlert}
 import cromwell.core.instrumentation.InstrumentationPrefixes
 import cromwell.services.metadata.{MetadataEvent, MetadataString, MetadataValue}
 import cromwell.services.metadata.MetadataService._
@@ -32,9 +33,13 @@ class WriteMetadataActor(override val batchSize: Int,
     val (cleanedMetadataWriteActions, allPutEvents, putWithResponse) = prepareMetadata(e)
     val dbAction = addMetadataEvents(allPutEvents)
 
-    statsRecorder.processEventsAndGenerateAlerts(allPutEvents) foreach (a =>
-      log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)")
-    )
+    statsRecorder.processEventsAndGenerateAlerts(allPutEvents) foreach {
+      case a: HeavyMetadataAlert =>
+        log.warning(s"${a.workflowId} has logged a heavy amount of metadata (${a.count} rows)")
+      case a: MaxMetadataAlert =>
+        log.error(s"${a.workflowId} has logged too much metadata and will fail (${a.count} rows)")
+        context.system.eventStream.publish(a)
+    }
 
     dbAction onComplete {
       case Success(_) =>

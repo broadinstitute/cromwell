@@ -74,11 +74,8 @@ object MetadataBuilderActor {
       this.copy(subWorkflowsMetadata = subWorkflowsMetadata + ((id, metadata)))
   }
 
-  def props(readMetadataWorkerMaker: () => Props,
-            metadataReadRowNumberSafetyThreshold: Int,
-            isForSubworkflows: Boolean = false
-  ) =
-    Props(new MetadataBuilderActor(readMetadataWorkerMaker, metadataReadRowNumberSafetyThreshold, isForSubworkflows))
+  def props(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean = false) =
+    Props(new MetadataBuilderActor(readMetadataWorkerMaker, isForSubworkflows))
 
   val log = LoggerFactory.getLogger("MetadataBuilder")
 
@@ -393,10 +390,8 @@ object MetadataBuilderActor {
     }
 }
 
-class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
-                           metadataReadRowNumberSafetyThreshold: Int,
-                           isForSubworkflows: Boolean
-) extends LoggingFSM[MetadataBuilderActorState, MetadataBuilderActorData]
+class MetadataBuilderActor(readMetadataWorkerMaker: () => Props, isForSubworkflows: Boolean)
+    extends LoggingFSM[MetadataBuilderActorState, MetadataBuilderActorData]
     with DefaultJsonProtocol {
 
   import MetadataBuilderActor._
@@ -437,14 +432,6 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       processMetadataResponse(query, metadata, target, originalRequest)
     case Event(FetchFailedJobsMetadataLookupResponse(metadata), HasWorkData(target, originalRequest)) =>
       processFailedJobsMetadataResponse(metadata, target, originalRequest)
-    case Event(MetadataLookupFailedTooLargeResponse(query, metadataSizeRows), HasWorkData(target, originalRequest)) =>
-      val metadataTooLargeNumberOfRowsException =
-        new MetadataTooLargeNumberOfRowsException(query.workflowId,
-                                                  metadataSizeRows,
-                                                  metadataReadRowNumberSafetyThreshold
-        )
-      target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeNumberOfRowsException)
-      allDone()
     case Event(MetadataLookupFailedTimeoutResponse(query), HasWorkData(target, originalRequest)) =>
       val metadataTooLargeTimeoutException = new MetadataTooLargeTimeoutException(query.workflowId)
       target ! FailedMetadataJsonResponse(originalRequest, metadataTooLargeTimeoutException)
@@ -493,7 +480,7 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
 
   def processSubWorkflowMetadata(metadataResponse: MetadataJsonResponse, data: HasReceivedEventsData) =
     metadataResponse match {
-      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey, _), js) =>
+      case SuccessfulMetadataJsonResponse(GetMetadataAction(queryKey), js) =>
         val subId: WorkflowId = queryKey.workflowId
         val newData = data.withSubWorkflow(subId.toString, js)
 
@@ -583,15 +570,11 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
       else {
         // Otherwise spin up a metadata builder actor for each sub workflow
         subWorkflowIds foreach { subId =>
-          val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker,
-                                                                              metadataReadRowNumberSafetyThreshold,
-                                                                              isForSubworkflows = true
-                                                   ),
-                                                   uniqueActorName(subId)
-          )
-          subMetadataBuilder ! GetMetadataAction(query.copy(workflowId = WorkflowId.fromString(subId)),
-                                                 checkTotalMetadataRowNumberBeforeQuerying = false
-          )
+          val subMetadataBuilder =
+            context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker, isForSubworkflows = true),
+                            uniqueActorName(subId)
+            )
+          subMetadataBuilder ! GetMetadataAction(query.copy(workflowId = WorkflowId.fromString(subId)))
         }
         goto(WaitingForSubWorkflows) using HasReceivedEventsData(target,
                                                                  originalRequest,
@@ -621,12 +604,10 @@ class MetadataBuilderActor(readMetadataWorkerMaker: () => Props,
     else {
       // Otherwise spin up a metadata builder actor for each sub workflow
       subWorkflowIds foreach { subId =>
-        val subMetadataBuilder = context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker,
-                                                                            metadataReadRowNumberSafetyThreshold,
-                                                                            isForSubworkflows = true
-                                                 ),
-                                                 uniqueActorName(subId)
-        )
+        val subMetadataBuilder =
+          context.actorOf(MetadataBuilderActor.props(readMetadataWorkerMaker, isForSubworkflows = true),
+                          uniqueActorName(subId)
+          )
         subMetadataBuilder ! GetCost(WorkflowId.fromString(subId))
       }
       goto(WaitingForSubWorkflowCost) using HasReceivedCostEventsData(target,

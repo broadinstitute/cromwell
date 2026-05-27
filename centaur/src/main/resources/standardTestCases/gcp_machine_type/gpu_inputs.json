@@ -1,4 +1,4 @@
 {
   "minimal_hello_world.machine_type": "g2-standard-4",
-  "minimal_hello_world.zones": "us-east4-a us-east4-c"
+  "minimal_hello_world.zones": "northamerica-northeast1-a northamerica-northeast1-b northamerica-northeast1-c"
 }

@@ -36,7 +36,6 @@ class MetadataBuilderActorSpec
 
   behavior of "MetadataBuilderActor"
 
-  val defaultSafetyRowNumberThreshold = 1000000
   val defaultTimeout: FiniteDuration = 5.second.dilated
   implicit val timeout: Timeout = defaultTimeout
 
@@ -51,7 +50,7 @@ class MetadataBuilderActorSpec
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
     val mba = system.actorOf(
-      props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
+      props = MetadataBuilderActor.props(readMetadataWorkerMaker),
       name = metadataBuilderActorName
     )
 
@@ -71,7 +70,7 @@ class MetadataBuilderActorSpec
   ): Future[Assertion] = {
     val mockReadMetadataWorkerActor = TestProbe("mockReadMetadataWorkerActor")
     val mba = system.actorOf(
-      props = MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props, defaultSafetyRowNumberThreshold),
+      props = MetadataBuilderActor.props(() => mockReadMetadataWorkerActor.props),
       name = metadataBuilderActorName
     )
     val response = mba.ask(action).mapTo[MetadataServiceResponse]
@@ -226,7 +225,7 @@ class MetadataBuilderActorSpec
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
     val mba = system.actorOf(
-      props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
+      props = MetadataBuilderActor.props(readMetadataWorkerMaker),
       name = "mba-cost-builder"
     )
 
@@ -280,7 +279,7 @@ class MetadataBuilderActorSpec
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
     val mba = system.actorOf(
-      props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
+      props = MetadataBuilderActor.props(readMetadataWorkerMaker),
       name = "mba-cost-builder"
     )
 
@@ -304,7 +303,7 @@ class MetadataBuilderActorSpec
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
     val mba = system.actorOf(
-      props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
+      props = MetadataBuilderActor.props(readMetadataWorkerMaker),
       name = "mba-cost-builder"
     )
 
@@ -389,7 +388,7 @@ class MetadataBuilderActorSpec
     // Mock ReadDatabaseMetadataWorkerActor to return the expected metadata results for each query.
     // Would normally have done this with expect/reply on a TestProbe, but that required the messages to
     // be sent in a deterministic order, which is not the case here.
-    class TestReadDatabaseMetadataWorkerActorForCost extends ReadDatabaseMetadataWorkerActor(defaultTimeout, 1000000) {
+    class TestReadDatabaseMetadataWorkerActorForCost extends ReadDatabaseMetadataWorkerActor(defaultTimeout) {
       override def receive: Receive = {
         case GetCost(wfId) if wfId == mainWorkflowId =>
           sender() ! CostResponse(mainWorkflowId, workflowRunningState, MetadataLookupResponse(mainQuery, mainEvents))
@@ -427,7 +426,7 @@ class MetadataBuilderActorSpec
 
     def readMetadataWorkerMaker = () => Props(new TestReadDatabaseMetadataWorkerActorForCost)
     val mba = system.actorOf(
-      props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
+      props = MetadataBuilderActor.props(readMetadataWorkerMaker),
       name = "mba-cost-builder"
     )
 
@@ -983,7 +982,7 @@ class MetadataBuilderActorSpec
     val mainQueryAction = GetMetadataAction(mainQuery)
 
     val subQuery = MetadataQuery(subWorkflowId, None, None, None, None, expandSubWorkflows = true)
-    val subQueryAction = GetMetadataAction(subQuery, checkTotalMetadataRowNumberBeforeQuerying = false)
+    val subQueryAction = GetMetadataAction(subQuery)
 
     val parentProbe = TestProbe("parentProbe")
 
@@ -992,7 +991,7 @@ class MetadataBuilderActorSpec
 
     val metadataBuilder =
       TestActorRef(
-        props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
+        props = MetadataBuilderActor.props(readMetadataWorkerMaker),
         supervisor = parentProbe.ref,
         name = s"MetadataActor-$mainWorkflowId"
       )
@@ -1046,7 +1045,7 @@ class MetadataBuilderActorSpec
     def readMetadataWorkerMaker = () => mockReadMetadataWorkerActor.props
 
     val metadataBuilder = TestActorRef(
-      props = MetadataBuilderActor.props(readMetadataWorkerMaker, 1000000),
+      props = MetadataBuilderActor.props(readMetadataWorkerMaker),
       supervisor = parentProbe.ref,
       name = s"MetadataActor-$mainWorkflowId"
     )
@@ -1204,23 +1203,6 @@ class MetadataBuilderActorSpec
     assertMetadataResponse(queryAction, mdQuery, events, expectedRes, "mba-statuses-forward")
     assertMetadataResponse(queryAction, mdQuery, events.reverse, expectedRes, "mba-statuses-reverse")
     assertMetadataResponse(queryAction, mdQuery, Random.shuffle(events), expectedRes, "mba-statuses-random")
-  }
-
-  it should "politely refuse building metadata JSON if metadata number of rows is too large" in {
-    val workflowId = WorkflowId.randomId()
-
-    val mdQuery = MetadataQuery(workflowId, None, None, None, None, expandSubWorkflows = false)
-    val action = GetMetadataAction(mdQuery)
-
-    val metadataRowNumber = 100500
-    val expectedException =
-      new MetadataTooLargeNumberOfRowsException(workflowId, metadataRowNumber, defaultSafetyRowNumberThreshold)
-    assertMetadataFailureResponse(
-      action = action,
-      metadataServiceResponse = MetadataLookupFailedTooLargeResponse(mdQuery, metadataRowNumber),
-      expectedException = expectedException,
-      metadataBuilderActorName = "mba-too-large"
-    )
   }
 
   it should "politely refuse building metadata JSON if timeout occurs on attempt to read metadata from database" in {

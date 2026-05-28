@@ -6,12 +6,13 @@ coverage:
   round: down
   precision: 2
 
+  # Coverage is tracked but not enforced — Codecov would fail PRs before all suites finish reporting.
   status:
     project:
       default:
         base: pr
-        target: 50%
-        threshold: 5%
+        target: 0%
+        threshold: 0%
     patch: # coverage report for the PR changes only
       default:
         base: pr

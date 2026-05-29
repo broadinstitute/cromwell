@@ -264,7 +264,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
       containerProperties.volumes().asScala.map(_.name()) should contain("cromwellDiskUtils")
       containerProperties.mountPoints().asScala.map(_.sourceVolume()) should contain("cromwellDiskUtils")
       containerProperties.mountPoints().asScala.map(_.containerPath()) should contain("/usr/local/cromwell-disk-utils")
-      containerProperties.privileged() should be(true)
+      containerProperties.privileged() shouldBe true
     }
 
     "not mount cromwellDiskUtils volume and not set privileged when working disk sizeGb is 0" in {
@@ -273,7 +273,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
 
       containerProperties.volumes().asScala.map(_.name()) should not contain "cromwellDiskUtils"
       containerProperties.mountPoints().asScala.map(_.sourceVolume()) should not contain "cromwellDiskUtils"
-      containerProperties.privileged() should be(false)
+      containerProperties.privileged() shouldBe false
     }
 
     "produce distinct job definition names for different working disk sizes" in {

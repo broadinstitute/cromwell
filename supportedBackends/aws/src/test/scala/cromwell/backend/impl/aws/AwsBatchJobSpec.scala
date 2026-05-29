@@ -759,6 +759,18 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
     // Verify that the existing trailing slash is preserved (not doubled)
     job.scriptKeyPrefix should be("my-project/scripts/")
   }
+
+  it should "use AWS_CMD variable in S3 operations" in {
+    val job = generateJobWithS3InOut
+
+    // Verify AWS_CMD is used in localization
+    job.reconfiguredScript should include("${AWS_CMD} s3 ls")
+    job.reconfiguredScript should include("${AWS_CMD} s3 cp")
+
+    // Verify AWS_CMD is used in delocalization
+    job.reconfiguredScript should include("${AWS_CMD} s3api head-object")
+    job.reconfiguredScript should include("${AWS_CMD} configure set")
+  }
 }
 
 // ADD TEST FOR jobTimout

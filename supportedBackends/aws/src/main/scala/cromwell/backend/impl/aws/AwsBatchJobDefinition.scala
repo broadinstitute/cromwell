@@ -32,7 +32,7 @@
 package cromwell.backend.impl.aws
 
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.impl.aws.io.AwsBatchVolume
+import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.io.JobPaths
 import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
@@ -82,6 +82,11 @@ trait AwsBatchJobDefinitionBuilder {
    */
   def containerPropertiesBuilder(context: AwsBatchJobDefinitionContext): (ContainerProperties.Builder, String) = {
 
+    val workingDiskSizeGb: Int = context.runtimeAttributes.disks
+      .find(_.name == AwsBatchWorkingDisk.Name)
+      .map(_.sizeGb)
+      .getOrElse(0)
+
     def buildVolumes(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[Volume] = {
 
       val fsx_volumes = fsx.isDefined match {
@@ -89,6 +94,16 @@ trait AwsBatchJobDefinitionBuilder {
           fsx.get.map(mnt => Volume.builder().name(mnt).host(Host.builder().sourcePath(s"/$mnt").build()).build())
         case false => List()
       }
+
+      val diskProvisioningVolumes: List[Volume] = if (workingDiskSizeGb > 0) {
+        List(
+          Volume
+            .builder()
+            .name("cromwellDiskUtils")
+            .host(Host.builder().sourcePath("/usr/local/cromwell-disk-utils").build())
+            .build()
+        )
+      } else List()
 
       // all the configured disks plus the fetch and run volume and the aws-cli volume
       disks.map(d => d.toVolume()).toList ++ List(
@@ -110,7 +125,7 @@ trait AwsBatchJobDefinitionBuilder {
           .name("instanceId")
           .host(Host.builder().sourcePath("/var/lib/cloud/data/instance-id").build())
           .build()
-      ) ++ fsx_volumes
+      ) ++ fsx_volumes ++ diskProvisioningVolumes
     }
 
     def buildMountPoints(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[MountPoint] = {
@@ -120,6 +135,17 @@ trait AwsBatchJobDefinitionBuilder {
           fsx.get.map(mnt => MountPoint.builder().readOnly(false).sourceVolume(mnt).containerPath(s"/$mnt").build())
         case false => List()
       }
+
+      val diskProvisioningMounts: List[MountPoint] = if (workingDiskSizeGb > 0) {
+        List(
+          MountPoint
+            .builder()
+            .readOnly(true)
+            .sourceVolume("cromwellDiskUtils")
+            .containerPath("/usr/local/cromwell-disk-utils")
+            .build()
+        )
+      } else List()
 
       // all the configured disks plus the fetch and run mount point and the AWS cli mount point
       disks.map(_.toMountPoint).toList ++ List(
@@ -143,7 +169,7 @@ trait AwsBatchJobDefinitionBuilder {
           .sourceVolume("instanceId")
           .containerPath("/var/lib/cloud/data/instance-id")
           .build()
-      ) ++ fsx_disks
+      ) ++ fsx_disks ++ diskProvisioningMounts
     }
 
     def buildUlimits(ulimits: Seq[Map[String, String]]): List[Ulimit] =
@@ -184,7 +210,9 @@ trait AwsBatchJobDefinitionBuilder {
           .toInt}:${fuseMount.toString}:${jobTimeout}:$roleArnStr"
     }
 
-    val environment = List.empty[KeyValuePair]
+    val environment: List[KeyValuePair] = if (workingDiskSizeGb > 0) {
+      List(KeyValuePair.builder().name("CROMWELL_DISK_GB").value(workingDiskSizeGb.toString).build())
+    } else List.empty[KeyValuePair]
     val cmdName = context.runtimeAttributes.fileSystem match {
       case AWSBatchStorageSystems.s3 => "/var/scratch/fetch_and_run.sh"
       case _ => context.commandText
@@ -244,8 +272,7 @@ trait AwsBatchJobDefinitionBuilder {
     }
 
     val linuxParameters = linuxParametersBuilder.build()
-    // simple true / false for now, depending on a single attribute
-    val privileged = context.runtimeAttributes.fuseMount
+    val privileged = context.runtimeAttributes.fuseMount || workingDiskSizeGb > 0
 
     val builderWithBasicProperties = ContainerProperties
       .builder()

@@ -60,11 +60,13 @@ object AwsBatchVolume {
         Valid(AwsBatchWorkingDisk())
       case MountedDiskPattern(mountPoint) =>
         Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
-      // In addition to the AWS-specific patterns above, we can also fall back to PAPI-style patterns and ignore the size
-      case DiskPatterns.WorkingDiskPattern(_, _) =>
-        Valid(AwsBatchWorkingDisk())
-      case DiskPatterns.MountedDiskPattern(mountPoint, _, fsType) =>
-        Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint), fsType))
+      // Fall back to PAPI-style patterns and capture the size
+      case DiskPatterns.WorkingDiskPattern(sizeStr, _) =>
+        Valid(AwsBatchWorkingDisk(sizeGb = Try(sizeStr.toInt).getOrElse(0)))
+      case DiskPatterns.MountedDiskPattern(mountPoint, sizeStr, fsType) =>
+        Valid(
+          AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint), fsType, sizeGb = Try(sizeStr.toInt).getOrElse(0))
+        )
       case _ =>
         s"Disk strings should be of the format 'local-disk' or '/mount/point' but got: '$s'".invalidNel
 
@@ -85,6 +87,7 @@ trait AwsBatchVolume {
   def name: String
   def mountPoint: Path
   def fsType: String
+  def sizeGb: Int
   def getHostPath(id: Option[String]): String =
     id match {
       case Some(id) => mountPoint.toAbsolutePath.pathAsString + "/" + id
@@ -102,10 +105,10 @@ trait AwsBatchVolume {
       .build
 }
 
-case class AwsBatchEmptyMountedDisk(mountPoint: Path, ftype: String = "ebs") extends AwsBatchVolume {
+case class AwsBatchEmptyMountedDisk(mountPoint: Path, ftype: String = "ebs", sizeGb: Int = 0) extends AwsBatchVolume {
   val name = s"d-${mountPoint.pathAsString.md5Sum}"
   val fsType = ftype.toLowerCase
-  override def toString: String = s"$name $mountPoint"
+  override def toString: String = s"$name $mountPoint $sizeGb"
 }
 
 object AwsBatchWorkingDisk {
@@ -115,9 +118,9 @@ object AwsBatchWorkingDisk {
   val Default = AwsBatchWorkingDisk()
 }
 
-case class AwsBatchWorkingDisk() extends AwsBatchVolume {
+case class AwsBatchWorkingDisk(sizeGb: Int = 0) extends AwsBatchVolume {
   val mountPoint = AwsBatchWorkingDisk.MountPoint
   val name = AwsBatchWorkingDisk.Name
   val fsType = AwsBatchWorkingDisk.fsType
-  override def toString: String = s"$name $mountPoint"
+  override def toString: String = s"$name $mountPoint $sizeGb"
 }

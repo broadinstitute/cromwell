@@ -12,5 +12,5 @@ files {
 
 fileSystemCheck: "aws"
 outputExpectations: {
-  "/tmp/outputs/docker_alpine/<<UUID>>/call-mkdir/execution/empty_dir/.file": 1
+  "s3://cromwell-centaur-execution-9-25/wf_results/docker_alpine/<<UUID>>/call-mkdir/execution/empty_dir/.file": 1
 }

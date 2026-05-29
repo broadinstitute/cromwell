@@ -10,6 +10,7 @@ files {
   options: docker_alpine/docker_alpine.options
 }
 
+fileSystemCheck: "aws"
 outputExpectations: {
   "/tmp/outputs/docker_alpine/<<UUID>>/call-mkdir/execution/empty_dir/.file": 1
 }

@@ -213,7 +213,7 @@ They are specified as a comma separated list of disks. Each disk is further sepa
 
 All tasks launched on Google Cloud *must* have a `local-disk`.  If one is not specified in the runtime section of the task, then a default of `local-disk 10 SSD` will be used.  The `local-disk` will be mounted to `/cromwell_root`.
 
-For the AWS Batch backend, the disk volume is managed by AWS EBS with autoscaling capabilities.  As such, the Disk size and disk type will be ignored. If provided, the mount point will be verified at runtime.
+For the AWS Batch backend (EC2 compute environments), the disk size is honored: when a size greater than zero is specified, each task receives a dedicated gp3 EBS volume of exactly the requested size, provisioned before the task runs and deleted on exit. The disk type field is ignored. If no size is specified (e.g. bare `local-disk`), the task uses the EBS volume already attached to the host instance.
 
 
 The Disk type must be one of "LOCAL", "SSD", or "HDD". When set to "LOCAL", the size of the drive is constrained to 375 GB intervals so intermediate values will be rounded up to the next 375 GB. All disks are set to auto-delete after the job completes.

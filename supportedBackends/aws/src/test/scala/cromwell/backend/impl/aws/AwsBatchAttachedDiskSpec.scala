@@ -42,21 +42,21 @@ import org.scalatest.prop.Tables.Table
 
 class AwsBatchAttachedDiskSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with TryValues {
 
-  // toString includes sizeGb so tasks with different disk sizes produce different job definition hashes
+  // toString includes sizeGb when present so tasks with different disk sizes produce different job definition hashes
   val stringifyTable = Table(
     ("disk", "expected"),
-    (AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt")), "d-39de0dbcfb68c8735bd088c62fa061a4 /mnt 0"),
+    (AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt")), "d-39de0dbcfb68c8735bd088c62fa061a4 /mnt"),
     (AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt/my_path")),
-     "d-753b3ff55ce6e29b10951ad6190f7c84 /mnt/my_path 0"
+     "d-753b3ff55ce6e29b10951ad6190f7c84 /mnt/my_path"
     ),
-    (AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt"), "ssd", 200),
+    (AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt"), "ssd", Some(200)),
      "d-39de0dbcfb68c8735bd088c62fa061a4 /mnt 200"
     ),
-    (AwsBatchWorkingDisk(), "local-disk /cromwell_root 0"),
-    (AwsBatchWorkingDisk(sizeGb = 500), "local-disk /cromwell_root 500")
+    (AwsBatchWorkingDisk(), "local-disk /cromwell_root"),
+    (AwsBatchWorkingDisk(sizeGb = Some(500)), "local-disk /cromwell_root 500")
   )
 
-  it should "stringify including sizeGb" in {
+  it should "stringify including sizeGb when present" in {
     forAll(stringifyTable) { (disk, expected) =>
       disk.toString shouldEqual expected
     }
@@ -64,13 +64,12 @@ class AwsBatchAttachedDiskSpec extends AnyFlatSpec with CromwellTimeoutSpec with
 
   val parseTable = Table(
     ("wdlString", "expected"),
-    // AWS-specific short-form (no size): sizeGb = 0, no EBS provisioning
+    // AWS-specific short-form (no size): sizeGb = None, no EBS provisioning
     ("local-disk", AwsBatchWorkingDisk()),
     ("/mnt", AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt"))),
     // PAPI-style with explicit size: sizeGb is captured for per-task EBS provisioning
-    ("local-disk 500 HDD", AwsBatchWorkingDisk(sizeGb = 500)),
-    ("local-disk 0 HDD", AwsBatchWorkingDisk(sizeGb = 0)),
-    ("/mnt 200 SSD", AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt"), "SSD", sizeGb = 200))
+    ("local-disk 500 HDD", AwsBatchWorkingDisk(sizeGb = Some(500))),
+    ("/mnt 200 SSD", AwsBatchEmptyMountedDisk(DefaultPathBuilder.get("/mnt"), "SSD", sizeGb = Some(200)))
   )
 
   it should "parse WDL disk strings, capturing explicit sizes" in {
@@ -79,7 +78,7 @@ class AwsBatchAttachedDiskSpec extends AnyFlatSpec with CromwellTimeoutSpec with
     }
   }
 
-  val invalidTable = Table("unparsed", "BAD", "foobar")
+  val invalidTable = Table("unparsed", "BAD", "foobar", "local-disk 0 HDD")
 
   it should "reject malformed disk mounts" in {
     forAll(invalidTable) { unparsed =>

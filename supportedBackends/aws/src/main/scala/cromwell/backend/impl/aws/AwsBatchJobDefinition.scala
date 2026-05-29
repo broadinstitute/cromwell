@@ -82,10 +82,9 @@ trait AwsBatchJobDefinitionBuilder {
    */
   def containerPropertiesBuilder(context: AwsBatchJobDefinitionContext): (ContainerProperties.Builder, String) = {
 
-    val workingDiskSizeGb: Int = context.runtimeAttributes.disks
+    val workingDiskSizeGb: Option[Int] = context.runtimeAttributes.disks
       .find(_.name == AwsBatchWorkingDisk.Name)
-      .map(_.sizeGb)
-      .getOrElse(0)
+      .flatMap(_.sizeGb)
 
     def buildVolumes(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[Volume] = {
 
@@ -95,7 +94,7 @@ trait AwsBatchJobDefinitionBuilder {
         case false => List()
       }
 
-      val diskProvisioningVolumes: List[Volume] = if (workingDiskSizeGb > 0) {
+      val diskProvisioningVolumes: List[Volume] = if (workingDiskSizeGb.isDefined) {
         List(
           Volume
             .builder()
@@ -136,7 +135,7 @@ trait AwsBatchJobDefinitionBuilder {
         case false => List()
       }
 
-      val diskProvisioningMounts: List[MountPoint] = if (workingDiskSizeGb > 0) {
+      val diskProvisioningMounts: List[MountPoint] = if (workingDiskSizeGb.isDefined) {
         List(
           MountPoint
             .builder()
@@ -210,9 +209,11 @@ trait AwsBatchJobDefinitionBuilder {
           .toInt}:${fuseMount.toString}:${jobTimeout}:$roleArnStr"
     }
 
-    val environment: List[KeyValuePair] = if (workingDiskSizeGb > 0) {
-      List(KeyValuePair.builder().name("CROMWELL_DISK_GB").value(workingDiskSizeGb.toString).build())
-    } else List.empty[KeyValuePair]
+    val environment: List[KeyValuePair] = workingDiskSizeGb
+      .map { gb =>
+        List(KeyValuePair.builder().name("CROMWELL_DISK_GB").value(gb.toString).build())
+      }
+      .getOrElse(List.empty)
     val cmdName = context.runtimeAttributes.fileSystem match {
       case AWSBatchStorageSystems.s3 => "/var/scratch/fetch_and_run.sh"
       case _ => context.commandText
@@ -272,7 +273,7 @@ trait AwsBatchJobDefinitionBuilder {
     }
 
     val linuxParameters = linuxParametersBuilder.build()
-    val privileged = context.runtimeAttributes.fuseMount || workingDiskSizeGb > 0
+    val privileged = context.runtimeAttributes.fuseMount || workingDiskSizeGb.isDefined
 
     val builderWithBasicProperties = ContainerProperties
       .builder()

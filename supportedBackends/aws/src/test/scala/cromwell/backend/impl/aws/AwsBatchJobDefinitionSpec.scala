@@ -238,7 +238,7 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
     }
 
     "set CROMWELL_DISK_GB environment variable when working disk sizeGb > 0" in {
-      val context = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk(sizeGb = 500))))
+      val context = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk(sizeGb = Some(500)))))
       val containerProperties = StandardAwsBatchJobDefinitionBuilder.build(context).containerProperties
       val envNames = containerProperties.environment().asScala.map(_.name())
 
@@ -251,14 +251,14 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
     }
 
     "not set CROMWELL_DISK_GB environment variable when working disk sizeGb is 0" in {
-      val context = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk(sizeGb = 0))))
+      val context = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk())))
       val containerProperties = StandardAwsBatchJobDefinitionBuilder.build(context).containerProperties
 
       containerProperties.environment().asScala.map(_.name()) should not contain "CROMWELL_DISK_GB"
     }
 
     "mount cromwellDiskUtils volume and set privileged when working disk sizeGb > 0" in {
-      val context = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk(sizeGb = 500))))
+      val context = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk(sizeGb = Some(500)))))
       val containerProperties = StandardAwsBatchJobDefinitionBuilder.build(context).containerProperties
 
       containerProperties.volumes().asScala.map(_.name()) should contain("cromwellDiskUtils")
@@ -277,8 +277,8 @@ class AwsBatchJobDefinitionSpec extends AnyWordSpecLike with Matchers with MockS
     }
 
     "produce distinct job definition names for different working disk sizes" in {
-      val context100 = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk(sizeGb = 100))))
-      val context500 = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk(sizeGb = 500))))
+      val context100 = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk(sizeGb = Some(100)))))
+      val context500 = buildContext(runtimeAttributes.copy(disks = Seq(AwsBatchWorkingDisk(sizeGb = Some(500)))))
 
       val name100 = StandardAwsBatchJobDefinitionBuilder.build(context100).name
       val name500 = StandardAwsBatchJobDefinitionBuilder.build(context500).name

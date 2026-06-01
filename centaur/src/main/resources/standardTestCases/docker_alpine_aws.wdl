@@ -6,7 +6,7 @@ task mkdir {
         File empty_dir = "empty_dir"
     }
     runtime {
-        docker: "python:alpine"
+        docker: "manifoldai/alpine-plus-bash:3.20.0"
     }
 }
 

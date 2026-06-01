@@ -26,7 +26,7 @@ startup_funnel() {
         curl \
             --location \
             --output "${funnel_tar_gz}" \
-            "https://github.com/ohsu-comp-bio/funnel/releases/download/0.5.0/${funnel_tar_gz}"
+            "https://github.com/calypr/funnel/releases/download/0.5.0/${funnel_tar_gz}"
         tar xzf "${funnel_tar_gz}"
     fi
 

@@ -6,7 +6,7 @@ task mkdir {
         File empty_dir = "empty_dir"
     }
     runtime {
-        docker: "alpine:3.5"
+        docker: "python:alpine"
     }
 }
 

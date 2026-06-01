@@ -6,8 +6,7 @@ backends: [ AWSBATCH ]
 # with the custom aws cli mount point funkiness
 
 files {
-  workflow: docker_alpine/docker_alpine.wdl
-  options: docker_alpine/docker_alpine.options
+  workflow: docker_alpine_aws.wdl
 }
 
 fileSystemCheck: "aws"

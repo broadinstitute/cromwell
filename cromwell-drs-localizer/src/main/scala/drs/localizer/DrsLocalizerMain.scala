@@ -147,10 +147,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     IO {
       val drsConfig = DrsConfig.fromEnv(sys.env)
       logger.info(s"Using ${drsConfig.drsResolverUrl} to resolve DRS Objects")
-
-      // Temporary revert: set requesterPaysProjectIdOption to `None` while
-      // debugging new passport feature (CTM-494)
-      new DrsPathResolver(drsConfig, drsCredentials, None)
+      new DrsPathResolver(drsConfig, drsCredentials, requesterPaysProjectIdOption)
     }
 
   /**

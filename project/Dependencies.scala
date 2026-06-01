@@ -57,7 +57,7 @@ object Dependencies {
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
   private val logbackV = "1.2.13"
-  private val lz4JavaV = "1.8.0"
+  private val lz4JavaV = "1.11.0"
   private val mariadbV = "2.7.4"
   /*
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
@@ -512,7 +512,7 @@ object Dependencies {
   val tesBackendDependencies: List[ModuleID] = akkaHttpDependencies
 
   val sfsBackendDependencies = List (
-    "org.lz4" % "lz4-java" % lz4JavaV
+    "at.yawk.lz4" % "lz4-java" % lz4JavaV
   )
   val scalaTest = "org.scalatest" %% "scalatest" % scalatestV
 

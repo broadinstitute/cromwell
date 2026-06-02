@@ -3,6 +3,7 @@
 ## 93 Release Notes
 ### AWS Batch
 * Added `tagAliases` backend config option, which duplicates engine-generated tags (e.g. `cromwell-workflow-id`) under alternative key names for external systems like cost-tracking tools. See the [Tag Aliases](supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/README.md#tag-aliases) section for configuration details.
+* Added support for non-glibc-based docker images (Alpine Linux, etc.)s
 
 ### General
 

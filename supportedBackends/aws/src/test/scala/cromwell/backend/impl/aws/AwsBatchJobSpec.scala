@@ -338,7 +338,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |      return
          |    fi
          |    ## if missing on s3 : check if optional:
-         |    if ! /usr/local/aws-cli/v2/current/bin/aws s3 ls "$$s3_path" > /dev/null 2>&1 ; then
+         |    if ! $${AWS_CMD} s3 ls "$$s3_path" > /dev/null 2>&1 ; then
          |      if [[ "$$is_optional" == "true" ]]; then
          |        echo "Optional file '$$s3_path' does not exist. skipping localization"
          |      else
@@ -353,7 +353,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |       return 
          |    fi
          |    # copy
-         |    /usr/local/aws-cli/v2/current/bin/aws s3 cp --no-progress "$$s3_path" "$$destination"  ||
+         |    $${AWS_CMD} s3 cp --no-progress "$$s3_path" "$$destination"  ||
          |        { echo "attempt $$i to copy $$s3_path failed" && sleep $$((7 * "$$i")) && continue; }
          |    # check data integrity
          |    _check_data_integrity "$$destination" "$$s3_path" ||
@@ -382,8 +382,8 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |  chunk_size=$$(_get_multipart_chunk_size "$$local_path")
          |  local MP_THRESHOLD=5368709120
          |  # then set them
-         |  /usr/local/aws-cli/v2/current/bin/aws configure set default.s3.multipart_threshold $$MP_THRESHOLD
-         |  /usr/local/aws-cli/v2/current/bin/aws configure set default.s3.multipart_chunksize $$chunk_size
+         |  $${AWS_CMD} configure set default.s3.multipart_threshold $$MP_THRESHOLD
+         |  $${AWS_CMD} configure set default.s3.multipart_chunksize $$chunk_size
          |
          |  # try & validate upload 5 times
          |  for i in {1..6};
@@ -405,7 +405,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |       # make sure to strip the trailing / in destination
          |       destination=$${destination%/}
          |       # glob directory. do recursive copy
-         |       /usr/local/aws-cli/v2/current/bin/aws s3 cp --no-progress "$$local_path" "$$destination" --recursive --exclude "cromwell_glob_control_file" ||
+         |       $${AWS_CMD} s3 cp --no-progress "$$local_path" "$$destination" --recursive --exclude "cromwell_glob_control_file" ||
          |         { echo "attempt $$i to copy globDir $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |       # check integrity for each of the files (allow spaces)
          |       SAVEIFS="$$IFS"
@@ -417,7 +417,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |       IFS="$$SAVEIFS"
          |    # files : if exists or non-optional : must succeed
          |    elif [[ "$$is_optional" == "false" || -e "$$local_path" ]]; then
-         |      /usr/local/aws-cli/v2/current/bin/aws s3 cp --no-progress "$$local_path" "$$destination" ||
+         |      $${AWS_CMD} s3 cp --no-progress "$$local_path" "$$destination" ||
          |         { echo "attempt $$i to copy $$local_path failed" && sleep $$((7 * "$$i")) && continue; }
          |      # check content length for data integrity
          |      _check_data_integrity "$$local_path" "$$destination" ||
@@ -453,7 +453,7 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
          |      echo "$$s3_path is not an S3 path with a bucket and key."
          |      return 1
          |  fi
-         |  s3_content_length=$$(/usr/local/aws-cli/v2/current/bin/aws s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') ||
+         |  s3_content_length=$$($${AWS_CMD} s3api head-object --bucket "$$bucket" --key "$$key" --query 'ContentLength') ||
          |        { echo "Attempt to get head of object failed for $$s3_path." && return 1; }
          |  # local
          |  local_content_length=$$(LC_ALL=C ls -dnL -- "$$local_path" | awk '{print $$5; exit}' ) ||
@@ -758,6 +758,18 @@ class AwsBatchJobSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wi
 
     // Verify that the existing trailing slash is preserved (not doubled)
     job.scriptKeyPrefix should be("my-project/scripts/")
+  }
+
+  it should "use AWS_CMD variable in S3 operations" in {
+    val job = generateJobWithS3InOut
+
+    // Verify AWS_CMD is used in localization
+    job.reconfiguredScript should include("${AWS_CMD} s3 ls")
+    job.reconfiguredScript should include("${AWS_CMD} s3 cp")
+
+    // Verify AWS_CMD is used in delocalization
+    job.reconfiguredScript should include("${AWS_CMD} s3api head-object")
+    job.reconfiguredScript should include("${AWS_CMD} configure set")
   }
 }
 

@@ -52,7 +52,9 @@ cromwell::build::run_centaur \
     -e bad_file_string \
     -e awsbatch_labels \
     -e gpu_required_and_requested \
-    -e lots_of_inputs
+    -e lots_of_inputs \
+    -e docker_alpine_aws # Need to exclude docker_alpine until CE can be updated with a fetch_and_run script that supports it
+
 
 
 cromwell::build::generate_code_coverage

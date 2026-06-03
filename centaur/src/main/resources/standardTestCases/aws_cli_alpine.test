@@ -1,0 +1,15 @@
+name: aws_cli_alpine
+testFormat: workflowsuccess
+backends: [ AWSBATCH ]
+
+# basic test that a task with a non-musl based docker image can run on AWS
+# with the custom aws cli mount point funkiness
+
+files {
+  workflow: docker_alpine_aws.wdl
+}
+
+fileSystemCheck: "aws"
+outputExpectations: {
+  "s3://cromwell-centaur-execution-9-25/wf_results/docker_alpine/<<UUID>>/call-mkdir/execution/empty_dir/.file": 1
+}

@@ -273,6 +273,9 @@ trait AwsBatchJobDefinitionBuilder {
     }
 
     val linuxParameters = linuxParametersBuilder.build()
+    // privileged grants CAP_SYS_ADMIN (required for mount) and unrestricted block device
+    // access (required to reach the attached EBS volume). Both fuseMount and per-task disk
+    // provisioning need this; either condition activates it.
     val privileged = context.runtimeAttributes.fuseMount || workingDiskSizeGb.isDefined
 
     val builderWithBasicProperties = ContainerProperties

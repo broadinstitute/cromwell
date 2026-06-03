@@ -60,7 +60,7 @@ object AwsBatchVolume {
         Valid(AwsBatchWorkingDisk())
       case MountedDiskPattern(mountPoint) =>
         Valid(AwsBatchEmptyMountedDisk(DefaultPathBuilder.get(mountPoint)))
-      // Fall back to PAPI-style patterns and capture the size
+      // Fall back to standard WDL disk patterns (size and type) and capture the size
       case DiskPatterns.WorkingDiskPattern(sizeStr, _) =>
         Valid(AwsBatchWorkingDisk(sizeGb = Try(sizeStr.toInt).toOption.filter(_ > 0)))
       case DiskPatterns.MountedDiskPattern(mountPoint, sizeStr, fsType) =>

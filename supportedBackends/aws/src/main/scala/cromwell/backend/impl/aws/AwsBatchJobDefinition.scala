@@ -32,7 +32,7 @@
 package cromwell.backend.impl.aws
 
 import cromwell.backend.BackendJobDescriptor
-import cromwell.backend.impl.aws.io.AwsBatchVolume
+import cromwell.backend.impl.aws.io.{AwsBatchVolume, AwsBatchWorkingDisk}
 import cromwell.backend.io.JobPaths
 import org.apache.commons.lang3.builder.{ToStringBuilder, ToStringStyle}
 import org.slf4j.{Logger, LoggerFactory}
@@ -82,6 +82,10 @@ trait AwsBatchJobDefinitionBuilder {
    */
   def containerPropertiesBuilder(context: AwsBatchJobDefinitionContext): (ContainerProperties.Builder, String) = {
 
+    val workingDiskSizeGb: Option[Int] = context.runtimeAttributes.disks
+      .find(_.name == AwsBatchWorkingDisk.Name)
+      .flatMap(_.sizeGb)
+
     def buildVolumes(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[Volume] = {
 
       val fsx_volumes = fsx.isDefined match {
@@ -89,6 +93,16 @@ trait AwsBatchJobDefinitionBuilder {
           fsx.get.map(mnt => Volume.builder().name(mnt).host(Host.builder().sourcePath(s"/$mnt").build()).build())
         case false => List()
       }
+
+      val diskProvisioningVolumes: List[Volume] = if (workingDiskSizeGb.isDefined) {
+        List(
+          Volume
+            .builder()
+            .name("cromwellDiskUtils")
+            .host(Host.builder().sourcePath("/usr/local/cromwell-disk-utils").build())
+            .build()
+        )
+      } else List()
 
       // all the configured disks plus the fetch and run volume and the aws-cli volume
       disks.map(d => d.toVolume()).toList ++ List(
@@ -110,7 +124,7 @@ trait AwsBatchJobDefinitionBuilder {
           .name("instanceId")
           .host(Host.builder().sourcePath("/var/lib/cloud/data/instance-id").build())
           .build()
-      ) ++ fsx_volumes
+      ) ++ fsx_volumes ++ diskProvisioningVolumes
     }
 
     def buildMountPoints(disks: Seq[AwsBatchVolume], fsx: Option[List[String]]): List[MountPoint] = {
@@ -120,6 +134,17 @@ trait AwsBatchJobDefinitionBuilder {
           fsx.get.map(mnt => MountPoint.builder().readOnly(false).sourceVolume(mnt).containerPath(s"/$mnt").build())
         case false => List()
       }
+
+      val diskProvisioningMounts: List[MountPoint] = if (workingDiskSizeGb.isDefined) {
+        List(
+          MountPoint
+            .builder()
+            .readOnly(true)
+            .sourceVolume("cromwellDiskUtils")
+            .containerPath("/usr/local/cromwell-disk-utils")
+            .build()
+        )
+      } else List()
 
       // all the configured disks plus the fetch and run mount point and the AWS cli mount point
       disks.map(_.toMountPoint).toList ++ List(
@@ -143,7 +168,7 @@ trait AwsBatchJobDefinitionBuilder {
           .sourceVolume("instanceId")
           .containerPath("/var/lib/cloud/data/instance-id")
           .build()
-      ) ++ fsx_disks
+      ) ++ fsx_disks ++ diskProvisioningMounts
     }
 
     def buildUlimits(ulimits: Seq[Map[String, String]]): List[Ulimit] =
@@ -184,7 +209,11 @@ trait AwsBatchJobDefinitionBuilder {
           .toInt}:${fuseMount.toString}:${jobTimeout}:$roleArnStr"
     }
 
-    val environment = List.empty[KeyValuePair]
+    val environment: List[KeyValuePair] = workingDiskSizeGb
+      .map { gb =>
+        List(KeyValuePair.builder().name("CROMWELL_DISK_GB").value(gb.toString).build())
+      }
+      .getOrElse(List.empty)
     val cmdName = context.runtimeAttributes.fileSystem match {
       case AWSBatchStorageSystems.s3 => "/var/scratch/fetch_and_run.sh"
       case _ => context.commandText
@@ -244,8 +273,10 @@ trait AwsBatchJobDefinitionBuilder {
     }
 
     val linuxParameters = linuxParametersBuilder.build()
-    // simple true / false for now, depending on a single attribute
-    val privileged = context.runtimeAttributes.fuseMount
+    // privileged grants CAP_SYS_ADMIN (required for mount) and unrestricted block device
+    // access (required to reach the attached EBS volume). Both fuseMount and per-task disk
+    // provisioning need this; either condition activates it.
+    val privileged = context.runtimeAttributes.fuseMount || workingDiskSizeGb.isDefined
 
     val builderWithBasicProperties = ContainerProperties
       .builder()

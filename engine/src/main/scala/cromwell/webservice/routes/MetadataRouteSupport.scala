@@ -27,7 +27,6 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.metadata.impl.MetadataServiceActor
 import cromwell.webservice.LabelsManagerActor
 import cromwell.webservice.LabelsManagerActor._
-import cromwell.webservice.WebServiceUtils.EnhancedThrowable
 import cromwell.webservice.WorkflowJsonSupport._
 import cromwell.webservice.routes.CromwellApiService._
 import cromwell.webservice.routes.MetadataRouteSupport._

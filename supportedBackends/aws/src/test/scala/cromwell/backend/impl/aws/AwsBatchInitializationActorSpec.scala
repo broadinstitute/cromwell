@@ -238,10 +238,6 @@ class AwsBatchInitializationActorSpec extends TestKitSuite with AnyFlatSpecLike 
     }
   }
 
-  private case class TestingBits(actorRef: TestActorRef[AwsBatchInitializationActor],
-                                 configuration: AwsBatchConfiguration
-  )
-
 }
 
 object AwsBatchInitializationActorSpec {

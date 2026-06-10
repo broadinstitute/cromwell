@@ -265,7 +265,7 @@ object TestFormulas extends StrictLogging {
       _ <- checkDescription(workflowDefinition, validityExpectation = Option(true))
       _ <- timingVerificationNotSupported(workflowDefinition.maximumAllowedTime)
       submittedWorkflow <- submitWorkflow(workflowDefinition)
-      jobId <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
+      _ <- pollUntilCallIsRunning(workflowDefinition, submittedWorkflow, callMarker.callKey)
       // The Cromwell call status could be running but the backend job might not have started yet, give it some time
       _ <- waitFor(30.seconds)
       _ <- abortWorkflow(submittedWorkflow)

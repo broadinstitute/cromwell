@@ -106,7 +106,6 @@ case class ValueEvaluator(override val lookup: String => WomValue, override val 
         for {
           elements <- TryUtil.sequence(evaluatedElements)
           subtype = WomType.homogeneousTypeFromValues(elements)
-          isEmpty = elements.isEmpty
         } yield WomArray(WomArrayType(subtype), elements.map(subtype.coerceRawValue(_).get))
       case a: Ast if a.isTupleLiteral =>
         val unevaluatedElements = a.getAttribute("values").astListAsVector

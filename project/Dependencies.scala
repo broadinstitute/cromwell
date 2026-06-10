@@ -93,7 +93,7 @@ object Dependencies {
   private val sentryLogbackV = "5.7.4"
   private val shapelessV = "2.3.9"
   private val simulacrumV = "1.0.1"
-  private val slf4jV = "1.7.32"
+  private val slf4jV = "2.0.18"
   private val slickCatsV = "0.10.4"
   private val slickV = "3.4.0-M1"
   private val snakeyamlV = "2.3"

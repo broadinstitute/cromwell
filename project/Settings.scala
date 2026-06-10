@@ -134,7 +134,6 @@ object Settings {
   )
 
   val swaggerUiSettings = List(Compile / resourceGenerators += writeSwaggerUiVersionConf)
-  val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
   val engineSettings: List[Setting[_]] = swaggerUiSettings
   val cromiamSettings: List[Setting[_]] = swaggerUiSettings
   val drsLocalizerSettings: List[Setting[_]] = installLocalizerSettings

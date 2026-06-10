@@ -53,7 +53,6 @@ object Dependencies {
   private val janinoV = "3.1.7"
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
-  private val kindProjectorV = "0.13.2"
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
   private val logbackV = "1.5.34"
@@ -523,8 +522,6 @@ object Dependencies {
     "org.mockito" % "mockito-core" % mockitoV,
     "org.mockito" % "mockito-inline" % mockitoInlineV
   ) ++ slf4jBindingDependencies // During testing, add an slf4j binding for _all_ libraries.
-
-  val kindProjectorPlugin = "org.typelevel" % "kind-projector" % kindProjectorV cross CrossVersion.full
 
   // Version of the swagger UI to write into config files
   val swaggerUiVersion: String = swaggerUiV

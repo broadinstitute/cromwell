@@ -4,10 +4,6 @@ import java.util.concurrent.Callable
 
 import cats.data.EitherT.fromEither
 import cats.effect.IO
-import cats.syntax.functor._
-import cats.syntax.traverse._
-import cats.instances.list._
-import cats.instances.either._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 import common.Checked
@@ -32,10 +28,8 @@ import wom.ResolvedImportRecord
 import wom.core.{WorkflowJson, WorkflowOptionsJson, WorkflowSource}
 import wom.executable.WomBundle
 import wom.expression.IoFunctionSet
-import wom.graph.GraphNodePort.OutputPort
 import wom.transforms.WomBundleMaker.ops._
 import wom.transforms.WomExecutableMaker.ops._
-import wom.values._
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -57,22 +51,9 @@ class WdlDraft2LanguageFactory(override val config: Config)
                                  importResolvers: List[ImportResolver]
   ): IOChecked[ValidatedWomNamespace] = {
 
-    def checkTypes(namespace: WdlNamespace, inputs: Map[OutputPort, WomValue]): Checked[Unit] = namespace match {
-
-      case namespaceWithWorkflow: WdlNamespaceWithWorkflow =>
-        val allDeclarations =
-          namespaceWithWorkflow.workflow.declarations ++ namespaceWithWorkflow.workflow.calls.flatMap(_.declarations)
-        val list: List[Checked[Unit]] = inputs.map { case (k, v) =>
-          allDeclarations.find(_.fullyQualifiedName == k) match {
-            case Some(decl) if decl.womType.coerceRawValue(v).isFailure =>
-              s"Invalid right-side type of '$k'.  Expecting ${decl.womType.stableName}, got ${v.womType.stableName}"
-                .invalidNelCheck[Unit]
-            case _ => ().validNelCheck
-          }
-        }.toList
-
-        list.sequence[Checked, Unit].void
-
+    // Check that there is a primary workflow to run
+    def checkWorkflowExists(namespace: WdlNamespace): Checked[Unit] = namespace match {
+      case _: WdlNamespaceWithWorkflow => ().validNelCheck
       case _: WdlNamespaceWithoutWorkflow =>
         logger.error("Programmer Error: validateNamespace should never get called on WdlNamespaceWithoutWorkflow")
         "Cannot execute this WDL: no primary workflow provided".invalidNelCheck
@@ -107,7 +88,7 @@ class WdlDraft2LanguageFactory(override val config: Config)
       importedUris = evaluateImports(wdlNamespace)
       womExecutable <- wdlNamespace.toWomExecutable(Option(source.inputsJson), ioFunctions, strictValidation)
       validatedWomNamespaceBeforeMetadata <- LanguageFactoryUtil.validateWomNamespace(womExecutable, ioFunctions)
-      _ <- checkTypes(wdlNamespace, validatedWomNamespaceBeforeMetadata.womValueInputs)
+      _ <- checkWorkflowExists(wdlNamespace)
     } yield validatedWomNamespaceBeforeMetadata.copy(importedFileContent = importedUris)
 
     fromEither[IO](checked)

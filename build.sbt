@@ -1,6 +1,9 @@
 import Dependencies._
 import Settings._
 
+// sbt-scoverage 2.3.1's default scalac-scoverage-plugin is not published for Scala 2.13.18; 2.5.2 is.
+ThisBuild / coverageScalacPluginVersion := "2.5.2"
+
 // Libraries
 
 lazy val common = project

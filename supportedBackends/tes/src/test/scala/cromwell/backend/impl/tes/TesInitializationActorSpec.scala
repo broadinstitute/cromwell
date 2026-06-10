@@ -76,7 +76,7 @@ class TesInitializationActorSpec extends TestKitSuite with AnyWordSpecLike with 
 
   val backendConfig: Config = ConfigFactory.parseString(backendConfigTemplate)
   val conf: BackendConfigurationDescriptor = new BackendConfigurationDescriptor(backendConfig, globalConfig) {
-    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(globalConfig)
+    override private[backend] lazy val cromwellFileSystems = new CromwellFileSystems(this.globalConfig)
   }
 
   // TODO WOM: needs runtime attributes validation working again

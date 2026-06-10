@@ -1,8 +1,7 @@
 addSbtPlugin("se.marcuslonnberg" % "sbt-docker" % "1.9.0")
 addSbtPlugin("com.eed3si9n" % "sbt-assembly" % "1.1.1")
 addSbtPlugin("com.github.sbt" % "sbt-git" % "2.0.0")
-// 2.3.1 is the newest version resolvable by sbt 1.8.2
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.3.1")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "2.4.4")
 addSbtPlugin("com.github.cb372" % "sbt-explicit-dependencies" % "0.2.16")
 addSbtPlugin("org.scalameta" % "sbt-scalafmt" % "2.5.2")
 addDependencyTreePlugin

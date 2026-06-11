@@ -40,8 +40,6 @@ class EnhancedDateConverter extends DateConverter {
     super.start()
   }
 
-  /* CachingDateFormatter became immutable in logback 1.3.x, so the optional TZ option is now passed to the
-   * constructor instead of applied afterwards via setTimeZone. */
   private def timeZone: ZoneId = Option(getOptionList).toList
     .flatMap(_.asScala)
     .drop(1)

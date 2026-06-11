@@ -28,7 +28,7 @@
         <then>
             <appender name="STANDARD_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
                 <encoder>
-                    <pattern>%ed{yyyy-MM-dd HH:mm:ss,SSS} %et %-5level - %msg%n</pattern>
+                    <pattern>%ed{"yyyy-MM-dd HH:mm:ss,SSS"} %et %-5level - %msg%n</pattern>
                 </encoder>
             </appender>
         </then>
@@ -78,7 +78,7 @@
 
                 </rollingPolicy>
                 <encoder>
-                    <pattern>%ed{yyyy-MM-dd HH:mm:ss,SSS} [%et] %-5level %logger{35} - %msg%n</pattern>
+                    <pattern>%ed{"yyyy-MM-dd HH:mm:ss,SSS"} [%et] %-5level %logger{35} - %msg%n</pattern>
                 </encoder>
             </appender>
         </then>

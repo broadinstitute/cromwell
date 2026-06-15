@@ -15,8 +15,8 @@ import scala.util.{Failure, Success}
   * A docker flow using the CLI to return docker hashes.
   */
 class DockerCliFlow(implicit ec: ExecutionContext) extends DockerRegistry {
-  implicit val cs = IO.contextShift(ec)
-  implicit val timer = IO.timer(ec)
+  implicit val cs: ContextShift[IO] = IO.contextShift(ec)
+  implicit val timer: Timer[IO] = IO.timer(ec)
 
   // If the docker cli hangs it would be difficult to debug. So timeout the first request after a short duration.
   // https://github.com/docker/docker/issues/18279

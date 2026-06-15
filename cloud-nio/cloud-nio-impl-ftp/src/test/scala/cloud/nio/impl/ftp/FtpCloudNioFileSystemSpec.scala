@@ -16,7 +16,7 @@ class FtpCloudNioFileSystemSpec extends AnyFlatSpec with CromwellTimeoutSpec wit
   behavior of "FtpCloudNioFileSystemSpec"
 
   override val patienceConfig = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(1.second))
-  implicit val patience = patienceConfig
+  implicit val patience: PatienceConfig = patienceConfig
 
   it should "lease the number of clients configured, not more, not less" in {
     val fileSystems =

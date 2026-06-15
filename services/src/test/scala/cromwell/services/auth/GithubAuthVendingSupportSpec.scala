@@ -18,7 +18,7 @@ import scala.concurrent.duration._
 
 class GithubAuthVendingSupportSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with Eventually {
 
-  implicit val timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(10.seconds)
 
   behavior of "GithubAuthVendingSupport"
 

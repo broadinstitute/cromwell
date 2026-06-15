@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import cromwell.core.Dispatcher
 import cromwell.webservice.EngineStatsActor._
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 
 /**
   * An imperfect collector of the number of workflows & jobs active in the system. Takes a list of WorkflowActor
@@ -16,7 +17,7 @@ import scala.concurrent.duration._
 final case class EngineStatsActor(workflowActors: List[ActorRef], replyTo: ActorRef, timeout: FiniteDuration)
     extends Actor
     with ActorLogging {
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
 
   private var jobCounts = Map.empty[ActorRef, Int]
 

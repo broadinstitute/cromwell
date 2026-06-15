@@ -21,7 +21,7 @@ class HealthMonitorServiceActorSpec
     with Eventually
     with AskSupport {
 
-  implicit override def patienceConfig =
+  implicit override def patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(Span(15, Seconds)), interval = Span(500, Millis))
 
   behavior of "HealthMonitorServiceActor"

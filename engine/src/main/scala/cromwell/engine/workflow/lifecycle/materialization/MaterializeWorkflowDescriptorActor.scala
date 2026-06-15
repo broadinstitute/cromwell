@@ -54,6 +54,7 @@ import scala.concurrent.Future
 import scala.language.postfixOps
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext
 
 object MaterializeWorkflowDescriptorActor {
 
@@ -203,7 +204,7 @@ class MaterializeWorkflowDescriptorActor(override val serviceRegistryActor: Acto
   override lazy val rootWorkflowIdForLogging = workflowId.toRoot
 
   val iOExecutionContext = context.system.dispatchers.lookup("akka.dispatchers.io-dispatcher")
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
 
   protected val pathBuilderFactories: List[PathBuilderFactory] = EngineFilesystems.configuredPathBuilderFactories
 

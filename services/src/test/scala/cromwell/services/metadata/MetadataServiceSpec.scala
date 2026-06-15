@@ -18,7 +18,7 @@ class MetadataServiceSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matc
   behavior of "MetadataServiceSpec"
 
   // Discard timestamp when determining equality here
-  implicit val metadataEventEquality = new Equality[MetadataEvent] {
+  implicit val metadataEventEquality: Equality[MetadataEvent] = new Equality[MetadataEvent] {
     override def areEqual(a: MetadataEvent, b: Any): Boolean = b match {
       case bEvent: MetadataEvent =>
         a.key == bEvent.key && a.value == bEvent.value

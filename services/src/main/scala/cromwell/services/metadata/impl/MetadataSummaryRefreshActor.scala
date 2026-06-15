@@ -10,6 +10,7 @@ import cromwell.services.instrumentation.{AsynchronousThrottlingGaugeMetricActor
 import cromwell.services.metadata.impl.MetadataSummaryRefreshActor._
 
 import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext
 
 /**
   * This looks for workflows whose metadata summaries are in need of refreshing and refreshes those summaries.
@@ -41,7 +42,7 @@ class MetadataSummaryRefreshActor(override val serviceRegistryActor: ActorRef)
     with MetadataServicesStore
     with CromwellInstrumentation {
 
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
 
   private val summaryMetricsGapsPath: NonEmptyList[String] =
     MetadataServiceActor.MetadataInstrumentationPrefix :+ "summarizer" :+ "gap"

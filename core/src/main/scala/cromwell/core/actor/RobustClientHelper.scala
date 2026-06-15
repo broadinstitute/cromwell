@@ -8,6 +8,7 @@ import cromwell.core.retry.SimpleExponentialBackoff
 
 import scala.concurrent.duration.{FiniteDuration, _}
 import scala.language.postfixOps
+import scala.concurrent.ExecutionContext
 
 object RobustClientHelper {
   case class RequestTimeout(msg: Any, to: ActorRef)
@@ -15,7 +16,7 @@ object RobustClientHelper {
 }
 
 trait RobustClientHelper { this: Actor with ActorLogging =>
-  implicit private[actor] val robustActorHelperEc = context.dispatcher
+  implicit private[actor] val robustActorHelperEc: ExecutionContext = context.dispatcher
 
   private var backoff: Option[Backoff] = None
 

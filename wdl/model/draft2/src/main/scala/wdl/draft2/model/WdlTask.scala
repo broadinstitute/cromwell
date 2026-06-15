@@ -17,10 +17,12 @@ import wom.values.WomValue
 import scala.jdk.CollectionConverters._
 import scala.language.postfixOps
 import cats.derived.MkMonoid
+import cats.Monoid
 
 object WdlTask {
   val Ws = Pattern.compile("[\\ \\t]+")
-  implicit private val instantiatedCommandMonoid: MkMonoid[InstantiatedCommand] = MkMonoid[InstantiatedCommand]
+  // Ascribe the Monoid supertype (not MkMonoid) so this val isn't a candidate during its own derivation
+  implicit private val instantiatedCommandMonoid: Monoid[InstantiatedCommand] = MkMonoid[InstantiatedCommand]
 
   /** The function validateDeclaration() and the DeclarationAccumulator class are used
     * to accumulate errors and keep track of which Declarations/TaskOutputs have been examined.

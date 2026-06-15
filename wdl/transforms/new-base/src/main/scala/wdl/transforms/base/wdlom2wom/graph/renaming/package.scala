@@ -11,7 +11,7 @@ package object renaming {
     new GraphIdentifierLookupRenamer[WorkflowDefinitionElement] {
       override def renameIdentifiers(a: WorkflowDefinitionElement, renamingMap: Map[String, String])(implicit
         expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement],
-        graphIdentifierLookupRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
+        graphElementIdentifierRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
       ): WorkflowDefinitionElement = {
         val newInputsSection = a.inputsSection map { inputSection =>
           inputSection.copy(inputDeclarations = inputSection.inputDeclarations.map { id =>
@@ -32,29 +32,30 @@ package object renaming {
       }
     }
 
-  implicit val graphElementIdentifierRenamer = new GraphIdentifierLookupRenamer[WorkflowGraphElement] {
-    override def renameIdentifiers(a: WorkflowGraphElement, renamingMap: Map[String, String])(implicit
-      expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement],
-      graphIdentifierLookupRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
-    ): WorkflowGraphElement = a match {
-      case e: ScatterElement => e.renameIdentifiers(renamingMap)
-      case e: IfElement => e.renameIdentifiers(renamingMap)
-      case e: CallElement => e.renameIdentifiers(renamingMap)
-      case e: InputDeclarationElement => e.renameIdentifiers(renamingMap)
-      case e: IntermediateValueDeclarationElement => e.renameIdentifiers(renamingMap)
-      case e: OutputDeclarationElement => e.renameIdentifiers(renamingMap)
+  implicit val graphElementIdentifierRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement] =
+    new GraphIdentifierLookupRenamer[WorkflowGraphElement] {
+      override def renameIdentifiers(a: WorkflowGraphElement, renamingMap: Map[String, String])(implicit
+        expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement],
+        graphElementIdentifierRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
+      ): WorkflowGraphElement = a match {
+        case e: ScatterElement => e.renameIdentifiers(renamingMap)
+        case e: IfElement => e.renameIdentifiers(renamingMap)
+        case e: CallElement => e.renameIdentifiers(renamingMap)
+        case e: InputDeclarationElement => e.renameIdentifiers(renamingMap)
+        case e: IntermediateValueDeclarationElement => e.renameIdentifiers(renamingMap)
+        case e: OutputDeclarationElement => e.renameIdentifiers(renamingMap)
+      }
     }
-  }
 
   implicit val scatterElementIdentifierRenamer: GraphIdentifierLookupRenamer[ScatterElement] =
     new GraphIdentifierLookupRenamer[ScatterElement] {
       override def renameIdentifiers(a: ScatterElement, renamingMap: Map[String, String])(implicit
         expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement],
-        graphIdentifierLookupRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
+        graphElementIdentifierRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
       ): ScatterElement =
         a.copy(
           scatterExpression = a.scatterExpression.renameIdentifiers(renamingMap),
-          graphElements = a.graphElements.map(graphIdentifierLookupRenamer.renameIdentifiers(_, renamingMap))
+          graphElements = a.graphElements.map(graphElementIdentifierRenamer.renameIdentifiers(_, renamingMap))
         )
     }
 
@@ -62,11 +63,11 @@ package object renaming {
     new GraphIdentifierLookupRenamer[IfElement] {
       override def renameIdentifiers(a: IfElement, renamingMap: Map[String, String])(implicit
         expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement],
-        graphIdentifierLookupRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
+        graphElementIdentifierRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
       ): IfElement =
         a.copy(
           conditionExpression = a.conditionExpression.renameIdentifiers(renamingMap),
-          graphElements = a.graphElements.map(graphIdentifierLookupRenamer.renameIdentifiers(_, renamingMap))
+          graphElements = a.graphElements.map(graphElementIdentifierRenamer.renameIdentifiers(_, renamingMap))
         )
     }
 
@@ -74,7 +75,7 @@ package object renaming {
     new GraphIdentifierLookupRenamer[CallElement] {
       override def renameIdentifiers(a: CallElement, renamingMap: Map[String, String])(implicit
         expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement],
-        graphIdentifierLookupRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
+        graphElementIdentifierRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
       ): CallElement =
         a.copy(body = a.body map { bodyElement =>
           bodyElement.copy(inputs = bodyElement.inputs.map { callInput =>
@@ -87,7 +88,7 @@ package object renaming {
     new GraphIdentifierLookupRenamer[InputDeclarationElement] {
       override def renameIdentifiers(a: InputDeclarationElement, renamingMap: Map[String, String])(implicit
         expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement],
-        graphIdentifierLookupRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
+        graphElementIdentifierRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
       ): InputDeclarationElement = {
         val renamingMapWithoutThisValue = renamingMap.filterNot(_._2 == a.name)
         a.copy(expression = a.expression.map(_.renameIdentifiers(renamingMapWithoutThisValue)))
@@ -99,7 +100,7 @@ package object renaming {
     new GraphIdentifierLookupRenamer[IntermediateValueDeclarationElement] {
       override def renameIdentifiers(a: IntermediateValueDeclarationElement, renamingMap: Map[String, String])(implicit
         expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement],
-        graphIdentifierLookupRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
+        graphElementIdentifierRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
       ): IntermediateValueDeclarationElement = {
         val renamingMapWithoutThisValue = renamingMap.filterNot(_._2 == a.name)
         a.copy(expression = a.expression.renameIdentifiers(renamingMapWithoutThisValue))
@@ -110,7 +111,7 @@ package object renaming {
     new GraphIdentifierLookupRenamer[OutputDeclarationElement] {
       override def renameIdentifiers(a: OutputDeclarationElement, renamingMap: Map[String, String])(implicit
         expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement],
-        graphIdentifierLookupRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
+        graphElementIdentifierRenamer: GraphIdentifierLookupRenamer[WorkflowGraphElement]
       ): OutputDeclarationElement = {
         val renamingMapWithoutThisValue = renamingMap.filterNot(_._2 == a.name)
         a.copy(expression = a.expression.renameIdentifiers(renamingMapWithoutThisValue))

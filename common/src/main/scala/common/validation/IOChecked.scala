@@ -38,7 +38,7 @@ object IOChecked {
     * An applicative instance on Attempt which is aware of MessageAggregation and can unpack them to maintain the list
     * of error messages when combining Left values
     */
-  implicit val eitherThrowableApplicative = new Applicative[Attempt] {
+  implicit val eitherThrowableApplicative: Applicative[Attempt] = new Applicative[Attempt] {
     override def pure[A](x: A) = Right(x)
     override def ap[A, B](ff: Attempt[A => B])(fa: Attempt[A]): Attempt[B] =
       (fa, ff) match {
@@ -82,7 +82,7 @@ object IOChecked {
     *   EitherT.liftF(IO(Right(i.toChar))) // == IOChecked[Char]
     * )
     */
-  implicit def ioCheckedParallel(implicit cs: ContextShift[IO]) = new Parallel[IOChecked] {
+  implicit def ioCheckedParallel(implicit cs: ContextShift[IO]): Parallel[IOChecked] = new Parallel[IOChecked] {
     type F[A] = IOCheckedPar[A]
     // Applicative instance for IOCheckedPar is the one for Io.Par composed with Attempt, since IOCheckedPar[A] == IO.Par[Attempt[A]]
     override def applicative: Applicative[IOCheckedPar] = IO.parApplicative(cs).compose[Attempt]
@@ -114,11 +114,11 @@ object IOChecked {
       * How to convert an IOChecked to an IOCheckedPar
       * Here we get the IO value of the IOChecked and call attempt on it
       * We go from an IO[ Either[NonEmptyList[String], A] ] to an IO[ Either[Throwable, Either[NonEmptyList[String], A] ] ]
-      * If we convert that IO to an IO.Par using IO.Par.apply, we get a 
-      * IO.Par[ Either[Throwable, Either[NonEmptyList[String], A] ] ] 
+      * If we convert that IO to an IO.Par using IO.Par.apply, we get a
+      * IO.Par[ Either[Throwable, Either[NonEmptyList[String], A] ] ]
       *   == IO.Par[Attempt[ Either[NonEmptyList[String], A] ] ]
       *   == IOCheckedPar[ Either[NonEmptyList[String], A] ]
-      * To get an IOCheckedPar[A], we convert the 
+      * To get an IOCheckedPar[A], we convert the
       *  Either[Throwable, Either[NonEmptyList[String], A] ] to Either[Throwable, A ]
       *  by creating a AggregatedMessageException from the Nel[String]
       * This gives us an IO.Par[ Either[Throwable, A] ] == IO.Par[ Attempt[A] ] == IOCheckedPar[A]

@@ -18,6 +18,7 @@ import wom.values.WomValue
 
 import scala.concurrent.Future
 import scala.util.{Success, Try}
+import akka.actor.ActorSystem
 
 trait StandardInitializationActorParams {
   def workflowDescriptor: BackendWorkflowDescriptor
@@ -48,7 +49,7 @@ case class DefaultInitializationActorParams(
 class StandardInitializationActor(val standardParams: StandardInitializationActorParams)
     extends BackendWorkflowInitializationActor {
 
-  implicit protected val system = context.system
+  implicit protected val system: ActorSystem = context.system
 
   override lazy val serviceRegistryActor: ActorRef = standardParams.serviceRegistryActor
 

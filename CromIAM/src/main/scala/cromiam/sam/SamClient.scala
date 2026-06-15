@@ -21,6 +21,7 @@ import mouse.boolean._
 import spray.json.RootJsonFormat
 
 import scala.concurrent.ExecutionContextExecutor
+import cats.effect.ContextShift
 
 /*
   TODO: There exists a swagger codegen Sam client somewhere, and there also exists a Scala wrapper for it in Leo.
@@ -38,7 +39,7 @@ class SamClient(scheme: String,
     extends StatusCheckedSubsystem
     with CromIamInstrumentation {
 
-  implicit private val cs = IO.contextShift(ece)
+  implicit private val cs: ContextShift[IO] = IO.contextShift(ece)
 
   override val statusUri = uri"$samBaseUri/status"
   override val serviceRegistryActor: ActorRef = serviceRegistryActorRef

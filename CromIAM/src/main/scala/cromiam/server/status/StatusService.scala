@@ -17,7 +17,7 @@ class StatusService(checkStatus: () => Map[Subsystem, Future[SubsystemStatus]],
                     initialDelay: FiniteDuration = Duration.Zero,
                     pollInterval: FiniteDuration = 1.minute
 )(implicit system: ActorSystem, executionContext: ExecutionContext) {
-  implicit val askTimeout = Timeout(5.seconds)
+  implicit val askTimeout: Timeout = Timeout(5.seconds)
 
   private val healthMonitor = system.actorOf(HealthMonitor.props(Set(Cromwell, Sam))(checkStatus), "HealthMonitorActor")
 

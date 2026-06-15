@@ -15,6 +15,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
+import akka.actor.ActorSystem
 
 class StatsDInstrumentationServiceActorSpec
     extends TestKitSuite
@@ -160,7 +161,7 @@ class StatsDInstrumentationServiceActorSpec
   }
 
   private class UDPListenerActor(remote: InetSocketAddress, sendTo: ActorRef) extends Actor with ActorLogging {
-    implicit val system = context.system
+    implicit val system: ActorSystem = context.system
     IO(Udp) ! Udp.Bind(sendTo, remote)
 
     def receive = { case Udp.Bound(_) =>

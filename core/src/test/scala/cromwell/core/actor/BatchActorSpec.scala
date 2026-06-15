@@ -20,7 +20,7 @@ class BatchActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers wit
   behavior of "BatchingDbWriter"
 
   override val patienceConfig = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(1.second))
-  implicit val patience = patienceConfig
+  implicit val patience: PatienceConfig = patienceConfig
 
   it should "start with WaitingToProcess" in {
     val batch = TestFSMRef(new BatchActorTest)

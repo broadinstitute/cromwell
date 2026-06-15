@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory
 import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext
 
 /** A collection of state, data, and message types to support BatchActor. */
 object BatchActor {
@@ -49,7 +50,7 @@ abstract class BatchActor[C](val flushRate: FiniteDuration, val batchSize: Int)
     with Timers {
   private var shuttingDown: Boolean = false
 
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
   private val name = self.path.name
 
   /**

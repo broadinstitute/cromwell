@@ -222,7 +222,7 @@ object CallNode {
   /* A monoid can't be derived automatically for this class because it contains a Map[InputDefinition, InputDefinitionPointer],
    * and there's no monoid defined over InputDefinitionPointer
    */
-  implicit val inputDefinitionFoldMonoid = new Monoid[InputDefinitionFold] {
+  implicit val inputDefinitionFoldMonoid: Monoid[InputDefinitionFold] = new Monoid[InputDefinitionFold] {
     override def empty: InputDefinitionFold = InputDefinitionFold()
     override def combine(x: InputDefinitionFold, y: InputDefinitionFold): InputDefinitionFold =
       InputDefinitionFold(

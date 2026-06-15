@@ -29,7 +29,7 @@ class EjeaBackendIsCopyingCachedOutputsSpec
     with CanExpectCacheWrites
     with CanExpectCacheInvalidation {
 
-  implicit override val stateUnderTest = BackendIsCopyingCachedOutputs
+  implicit override val stateUnderTest: BackendIsCopyingCachedOutputs.type = BackendIsCopyingCachedOutputs
 
   "An EJEA in BackendIsCopyingCachedOutputs state" should {
 

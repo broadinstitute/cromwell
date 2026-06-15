@@ -15,7 +15,7 @@ import scala.util.control.NoStackTrace
 
 class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
 
-  implicit override val stateUnderTest = CheckingJobStore
+  implicit override val stateUnderTest: CheckingJobStore.type = CheckingJobStore
 
   "An EJEA in EjeaCheckingCacheEntryExistence state should" should {
     "re-use the results from the cache hit" in {

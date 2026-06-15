@@ -14,7 +14,7 @@ class EjeaUpdatingCallCacheSpec
     with CanExpectJobStoreWrites
     with HasJobFailureResponses {
 
-  implicit override val stateUnderTest = UpdatingCallCache
+  implicit override val stateUnderTest: UpdatingCallCache.type = UpdatingCallCache
 
   "An EJEA in UpdatingCallCache state" should {
 

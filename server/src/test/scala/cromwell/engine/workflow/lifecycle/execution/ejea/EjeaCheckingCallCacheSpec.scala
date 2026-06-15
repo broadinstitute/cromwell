@@ -16,7 +16,7 @@ import scala.util.control.NoStackTrace
 
 class EjeaCheckingCallCacheSpec extends EngineJobExecutionActorSpec with Eventually with CanExpectFetchCachedResults {
 
-  implicit override val stateUnderTest = CheckingCallCache
+  implicit override val stateUnderTest: CheckingCallCache.type = CheckingCallCache
 
   "An EJEA in CheckingCallCache mode" should {
     "Try to fetch the call cache outputs if it gets a CacheHit" in {

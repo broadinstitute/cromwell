@@ -24,7 +24,7 @@ class EjeaRunningJobSpec
     with HasJobSuccessResponse
     with HasJobFailureResponses {
 
-  implicit override val stateUnderTest = RunningJob
+  implicit override val stateUnderTest: RunningJob.type = RunningJob
 
   val hashError = HashError(new Exception("ARGH!!!") with NoStackTrace)
 

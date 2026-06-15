@@ -13,7 +13,7 @@ import org.scalatest.concurrent.Eventually
 
 class EjeaPreparingJobSpec extends EngineJobExecutionActorSpec with CanExpectHashingInitialization with Eventually {
 
-  implicit override val stateUnderTest = PreparingJob
+  implicit override val stateUnderTest: PreparingJob.type = PreparingJob
 
   "An EJEA in PreparingJob state" should {
 

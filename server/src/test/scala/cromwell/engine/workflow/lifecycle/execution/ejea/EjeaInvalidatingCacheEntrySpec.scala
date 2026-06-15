@@ -13,7 +13,7 @@ import cromwell.services.CallCaching.CallCachingEntryId
 
 class EjeaInvalidatingCacheEntrySpec extends EngineJobExecutionActorSpec {
 
-  implicit override val stateUnderTest = InvalidatingCacheEntry
+  implicit override val stateUnderTest: InvalidatingCacheEntry.type = InvalidatingCacheEntry
 
   "An EJEA in InvalidatingCacheEntry state" should {
 

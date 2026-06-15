@@ -1,5 +1,6 @@
 package wom.callable
 
+import cats.Monoid
 import cats.data.OptionT
 import cats.syntax.all._
 import cats.instances.all._
@@ -41,7 +42,8 @@ object CommandTaskDefinition {
     }
   }
 
-  implicit private val instantiatedCommandMonoid: MkMonoid[InstantiatedCommand] = MkMonoid[InstantiatedCommand]
+  // Ascribe the Monoid supertype (not MkMonoid) so this val isn't a candidate during its own derivation
+  implicit private val instantiatedCommandMonoid: Monoid[InstantiatedCommand] = MkMonoid[InstantiatedCommand]
   object CommandTemplateBuilder {
     def fromValues(values: Seq[CommandPart]) = new CommandTemplateBuilder {
       override def build(inputs: WomEvaluatedCallInputs): ErrorOr[Seq[CommandPart]] = values.validNel

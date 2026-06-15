@@ -17,6 +17,7 @@ import wom.{CommandPart, InstantiatedCommand, RuntimeAttributes, SourceFileLocat
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.Try
+import cats.derived.MkMonoid
 
 object CommandTaskDefinition {
 
@@ -40,7 +41,7 @@ object CommandTaskDefinition {
     }
   }
 
-  implicit private val instantiatedCommandMonoid = cats.derived.MkMonoid[InstantiatedCommand]
+  implicit private val instantiatedCommandMonoid: MkMonoid[InstantiatedCommand] = MkMonoid[InstantiatedCommand]
   object CommandTemplateBuilder {
     def fromValues(values: Seq[CommandPart]) = new CommandTemplateBuilder {
       override def build(inputs: WomEvaluatedCallInputs): ErrorOr[Seq[CommandPart]] = values.validNel

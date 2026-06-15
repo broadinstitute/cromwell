@@ -16,7 +16,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration._
 
 class WriteMetadataActorBenchmark extends TestKitSuite with AnyFlatSpecLike with Eventually with Matchers {
-  implicit override val patienceConfig = PatienceConfig(scaled(30.seconds), 1.second)
+  implicit override val patienceConfig: PatienceConfig = PatienceConfig(scaled(30.seconds), 1.second)
 
   behavior of "WriteMetadataActor"
 

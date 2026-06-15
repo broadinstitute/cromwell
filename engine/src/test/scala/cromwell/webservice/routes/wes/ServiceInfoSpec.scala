@@ -10,10 +10,14 @@ import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContextExecutor
 
 class ServiceInfoSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers {
   val actorRefFactory = system
-  implicit val ec = system.dispatcher
+
+  // ExecutionContextExecutor rather than ExecutionContext to make sure we take precedence
+  // over the `executor: ExecutionContextExecutor` inherited from ScalatestRouteTest
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
   val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))

@@ -1,14 +1,19 @@
 package cromwell.api.model
 
 import spray.json.{DefaultJsonProtocol, JsObject, JsValue}
+import spray.json.RootJsonFormat
 
 object WorkflowDescriptionJsonSupport extends DefaultJsonProtocol {
-  implicit val WaasWorkflowDescriptorTypeFormat = jsonFormat2(WaasWorkflowDescriptorType)
-  implicit val WaasDescriptionWomTypeFormat = jsonFormat1(WaasDescriptionWomType)
-  implicit val WaasDescriptionInputDefinitionFormat = jsonFormat5(WaasDescriptionInputDefinition)
-  implicit val WaasDescriptionOutputDefinitionFormat = jsonFormat3(WaasDescriptionOutputDefinition)
+  implicit val WaasWorkflowDescriptorTypeFormat: RootJsonFormat[WaasWorkflowDescriptorType] =
+    jsonFormat2(WaasWorkflowDescriptorType)
+  implicit val WaasDescriptionWomTypeFormat: RootJsonFormat[WaasDescriptionWomType] =
+    jsonFormat1(WaasDescriptionWomType)
+  implicit val WaasDescriptionInputDefinitionFormat: RootJsonFormat[WaasDescriptionInputDefinition] =
+    jsonFormat5(WaasDescriptionInputDefinition)
+  implicit val WaasDescriptionOutputDefinitionFormat: RootJsonFormat[WaasDescriptionOutputDefinition] =
+    jsonFormat3(WaasDescriptionOutputDefinition)
 
-  implicit val WorkflowDescriptionFormat = jsonFormat12(WaasDescription)
+  implicit val WorkflowDescriptionFormat: RootJsonFormat[WaasDescription] = jsonFormat12(WaasDescription)
 }
 
 final case class WaasDescription(valid: Boolean,

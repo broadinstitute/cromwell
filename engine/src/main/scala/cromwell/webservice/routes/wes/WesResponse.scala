@@ -38,15 +38,16 @@ object WesResponseJsonSupport extends SprayJsonSupport with DefaultJsonProtocol 
   import WesStateJsonSupport._
   import DefaultWorkflowEngineParameter.DefaultWorkflowEngineParameterFormat
 
-  implicit val WesResponseErrorFormat = jsonFormat2(WesErrorResponse)
-  implicit val WesResponseRunIdFormat = jsonFormat1(WesRunId)
-  implicit val WesResponseStatusFormat = jsonFormat2(WesRunStatus)
-  implicit val WesResponseStatusInfoFormat = jsonFormat9(WesStatusInfoResponse)
-  implicit val WesResponseRunListFormat = jsonFormat1(WesResponseRunList)
-  implicit val WesRunRequestFormat = jsonFormat6(WesRunRequest)
-  implicit val WesLogFormat = jsonFormat7(WesLog)
-  implicit val WesRunLogFormat = jsonFormat6(WesRunLog.apply)
-  implicit val WesResponseWorkflowMetadataFormat = jsonFormat1(WesResponseWorkflowMetadata)
+  implicit val WesResponseErrorFormat: RootJsonFormat[WesErrorResponse] = jsonFormat2(WesErrorResponse)
+  implicit val WesResponseRunIdFormat: RootJsonFormat[WesRunId] = jsonFormat1(WesRunId)
+  implicit val WesResponseStatusFormat: RootJsonFormat[WesRunStatus] = jsonFormat2(WesRunStatus)
+  implicit val WesResponseStatusInfoFormat: RootJsonFormat[WesStatusInfoResponse] = jsonFormat9(WesStatusInfoResponse)
+  implicit val WesResponseRunListFormat: RootJsonFormat[WesResponseRunList] = jsonFormat1(WesResponseRunList)
+  implicit val WesRunRequestFormat: RootJsonFormat[WesRunRequest] = jsonFormat6(WesRunRequest)
+  implicit val WesLogFormat: RootJsonFormat[WesLog] = jsonFormat7(WesLog)
+  implicit val WesRunLogFormat: RootJsonFormat[WesRunLog] = jsonFormat6(WesRunLog.apply)
+  implicit val WesResponseWorkflowMetadataFormat: RootJsonFormat[WesResponseWorkflowMetadata] =
+    jsonFormat1(WesResponseWorkflowMetadata)
 
   implicit object WesResponseFormat extends RootJsonFormat[WesResponse] {
     import spray.json._

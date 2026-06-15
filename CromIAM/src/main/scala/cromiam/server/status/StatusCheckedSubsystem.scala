@@ -5,6 +5,7 @@ import com.softwaremill.sttp.{sttp, Uri}
 import org.broadinstitute.dsde.workbench.util.health.SubsystemStatus
 
 import scala.concurrent.{ExecutionContext, Future}
+import com.softwaremill.sttp.SttpBackend
 
 /**
   * Represents a workbench system in use by CaaS which is checked via a call to its "status" endpoint
@@ -12,7 +13,7 @@ import scala.concurrent.{ExecutionContext, Future}
 trait StatusCheckedSubsystem {
   val statusUri: Uri
 
-  implicit val sttpBackend = AsyncHttpClientFutureBackend()
+  implicit val sttpBackend: SttpBackend[Future, Nothing] = AsyncHttpClientFutureBackend()
 
   /**
     * Make a call to the status endpoint. If we receive a 200 OK fill in the SubsystemStatus w/ OK = true and no

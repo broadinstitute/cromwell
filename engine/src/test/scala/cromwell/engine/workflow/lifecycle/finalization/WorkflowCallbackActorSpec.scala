@@ -24,12 +24,13 @@ import java.net.URI
 import java.time.Instant
 import scala.concurrent.Future
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 
 class WorkflowCallbackActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with MockSugar {
 
   behavior of "WorkflowCallbackActor"
 
-  implicit private val ec = system.dispatcher
+  implicit private val ec: ExecutionContext = system.dispatcher
 
   private val msgWait = 10.second.dilated
   private val awaitAlmostNothing = 1.second

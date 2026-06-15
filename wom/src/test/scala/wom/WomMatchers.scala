@@ -5,7 +5,7 @@ import wom.graph.GraphNode
 
 trait WomMatchers {
   // This will take precedence when comparing graph nodes or collections of graph nodes
-  implicit val graphNodeReferenceEquality = new Equality[GraphNode] {
+  implicit val graphNodeReferenceEquality: Equality[GraphNode] = new Equality[GraphNode] {
     override def areEqual(left: GraphNode, right: Any): Boolean = right match {
       case node: GraphNode => left eq node
       case _ => false

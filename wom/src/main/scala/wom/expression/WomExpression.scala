@@ -8,6 +8,7 @@ import wom.types._
 import wom.values._
 
 import scala.concurrent.{ExecutionContext, Future}
+import cats.effect.ContextShift
 
 case class FileEvaluation(file: WomFile, optional: Boolean, secondary: Boolean)
 
@@ -155,7 +156,7 @@ trait IoFunctionSet {
     */
   implicit def ec: ExecutionContext
 
-  implicit def cs = IO.contextShift(ec)
+  implicit def cs: ContextShift[IO] = IO.contextShift(ec)
 
   /**
     * Returns an IO function set where input specific functions have been turned on. This allows backends such as the sfs

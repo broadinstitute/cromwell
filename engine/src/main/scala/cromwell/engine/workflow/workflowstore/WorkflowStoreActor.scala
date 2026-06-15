@@ -10,6 +10,7 @@ import cromwell.core._
 import cromwell.engine.CromwellTerminator
 import cromwell.util.GracefulShutdownHelper
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
+import scala.concurrent.ExecutionContext
 
 final case class WorkflowStoreActor private (workflowStore: WorkflowStore,
                                              workflowStoreAccess: WorkflowStoreAccess,
@@ -22,7 +23,7 @@ final case class WorkflowStoreActor private (workflowStore: WorkflowStore,
     with GracefulShutdownHelper {
   import WorkflowStoreActor._
 
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
 
   lazy val workflowStoreSubmitActor: ActorRef = context.actorOf(
     WorkflowStoreSubmitActor.props(workflowStoreDatabase = workflowStore, serviceRegistryActor = serviceRegistryActor),

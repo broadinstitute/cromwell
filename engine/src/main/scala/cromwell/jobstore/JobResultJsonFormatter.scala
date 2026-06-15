@@ -25,8 +25,8 @@ object JobResultJsonFormatter extends DefaultJsonProtocol {
     )
   }
 
-  implicit val JobResultSuccessFormat = jsonFormat2(JobResultSuccess)
-  implicit val JobResultFailureFormat = jsonFormat3(JobResultFailure)
+  implicit val JobResultSuccessFormat: RootJsonFormat[JobResultSuccess] = jsonFormat2(JobResultSuccess)
+  implicit val JobResultFailureFormat: RootJsonFormat[JobResultFailure] = jsonFormat3(JobResultFailure)
 
   implicit object JobResultFormat extends RootJsonFormat[JobResult] {
     def write(value: JobResult) = JsObject(

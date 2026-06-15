@@ -10,6 +10,7 @@ import cromwell.webservice.routes.CromwellApiService
 import net.ceedubs.ficus.Ficus._
 import com.typesafe.config.ConfigFactory
 import spray.json.DefaultJsonProtocol
+import spray.json.RootJsonFormat
 import akka.pattern.ask
 import cromwell.core.WorkflowState
 import cromwell.engine.workflow.workflowstore.WorkflowStoreActor.GetWorkflowStoreStats
@@ -84,5 +85,6 @@ object ServiceInfo {
 final case class DefaultWorkflowEngineParameter(name: String, `type`: String, default_value: String)
 
 object DefaultWorkflowEngineParameter extends DefaultJsonProtocol {
-  implicit val DefaultWorkflowEngineParameterFormat = jsonFormat3(DefaultWorkflowEngineParameter.apply)
+  implicit val DefaultWorkflowEngineParameterFormat: RootJsonFormat[DefaultWorkflowEngineParameter] =
+    jsonFormat3(DefaultWorkflowEngineParameter.apply)
 }

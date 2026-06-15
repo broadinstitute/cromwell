@@ -11,7 +11,7 @@ import cromwell.core.WorkflowOptions
 import scala.concurrent.ExecutionContext
 
 object MockGcsPathBuilder {
-  implicit val ec = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor())
   private def makeStorageOptions(project: Option[String] = Option("cromwell-test")) =
     GcsStorage.gcsStorageOptions(NoCredentials.getInstance(), RetrySettings.newBuilder().build(), project)
   private val storageOptions = makeStorageOptions()

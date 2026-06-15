@@ -6,9 +6,13 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.slf4j.Logger
 import org.slf4j.helpers.{MarkerIgnoringBase, MessageFormatter}
 
+import scala.annotation.nowarn
+
 /**
   * Wraps an akka logger and a Set of slf4j loggers together in slf4j style.
   */
+// MarkerIgnoringBase is deprecated in slf4j 2.x
+@nowarn("cat=deprecation")
 abstract class LoggerWrapper extends MarkerIgnoringBase {
 
   def akkaLogger: Option[LoggingAdapter]

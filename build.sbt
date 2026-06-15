@@ -192,7 +192,7 @@ lazy val services = project
 lazy val backendRoot = Path("supportedBackends")
 
 lazy val backend = project
-  .withLibrarySettings("cromwell-backend", backendDependencies, backendSettings)
+  .withLibrarySettings("cromwell-backend", backendDependencies)
   .dependsOn(services)
   .dependsOn(core % "test->test")
   .dependsOn(common % "test->test")

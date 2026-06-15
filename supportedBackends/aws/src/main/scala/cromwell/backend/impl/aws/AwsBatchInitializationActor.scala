@@ -31,8 +31,6 @@
 
 package cromwell.backend.impl.aws
 
-import java.io.IOException
-
 import akka.actor.ActorRef
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient
@@ -51,7 +49,6 @@ import cromwell.backend.standard.{
 import cromwell.backend.{BackendConfigurationDescriptor, BackendInitializationData, BackendWorkflowDescriptor}
 import cromwell.core.io.DefaultIoCommandBuilder
 import cromwell.core.io.AsyncIoActorClient
-import cromwell.core.path.Path
 import wom.graph.CommandCallNode
 import org.apache.commons.codec.binary.Base64
 import spray.json.{JsObject, JsString}
@@ -72,19 +69,11 @@ case class AwsBatchInitializationActorParams(
   override val configurationDescriptor: BackendConfigurationDescriptor = configuration.configurationDescriptor
 }
 
-object AwsBatchInitializationActor {
-  private case class AuthFileAlreadyExistsException(path: Path)
-      extends IOException(
-        s"Failed to upload authentication file at $path:" +
-          s" there was already a file at the same location and this workflow was not being restarted."
-      )
-}
-
 class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
     extends StandardInitializationActor(params)
     with AsyncIoActorClient {
 
-  val Log: Logger = LoggerFactory.getLogger(AwsBatchInitializationActor.getClass)
+  val Log: Logger = LoggerFactory.getLogger(classOf[AwsBatchInitializationActor])
 
   override lazy val ioActor = params.ioActor
   private val configuration = params.configuration

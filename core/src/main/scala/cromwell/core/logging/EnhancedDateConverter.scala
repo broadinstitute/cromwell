@@ -5,6 +5,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.CoreConstants
 import ch.qos.logback.core.util.CachingDateFormatter
 
+import java.time.ZoneId
 import java.util.TimeZone
 import scala.jdk.CollectionConverters._
 
@@ -23,28 +24,30 @@ class EnhancedDateConverter extends DateConverter {
   /* Duplicated from ch.qos.logback.classic.pattern.DateConverter as cachingDateFormatter is package private. */
   override def start(): Unit = {
     cachingDateFormatterProtected = Option(getFirstOption) match {
-      case Some(CoreConstants.ISO8601_STR) | None => new CachingDateFormatter(CoreConstants.ISO8601_PATTERN)
+      case Some(CoreConstants.ISO8601_STR) | None => new CachingDateFormatter(CoreConstants.ISO8601_PATTERN, timeZone)
       case Some(datePattern) =>
         try
-          new CachingDateFormatter(datePattern)
+          new CachingDateFormatter(datePattern, timeZone)
         catch {
           case e: IllegalArgumentException =>
-            addWarn("Could not instantiate SimpleDateFormat with pattern " + datePattern, e)
+            addWarn("Could not instantiate DateTimeFormatter with pattern " + datePattern, e)
             // default to the ISO8601 format
-            new CachingDateFormatter(CoreConstants.ISO8601_PATTERN)
+            new CachingDateFormatter(CoreConstants.ISO8601_PATTERN, timeZone)
         }
     }
-    // if the option list contains a TZ option, then set it.
-    Option(getOptionList).toList
-      .flatMap(_.asScala)
-      .drop(1)
-      .headOption
-      .map(TimeZone.getTimeZone)
-      .foreach(cachingDateFormatterProtected.setTimeZone)
 
     // Allow the parent class to start/initialize its private members.
     super.start()
   }
+
+  /* CachingDateFormatter became immutable in logback 1.3.x, so the optional TZ option is now passed to the
+   * constructor instead of applied afterwards via setTimeZone. */
+  private def timeZone: ZoneId = Option(getOptionList).toList
+    .flatMap(_.asScala)
+    .drop(1)
+    .headOption
+    .map(TimeZone.getTimeZone(_).toZoneId)
+    .getOrElse(ZoneId.systemDefault())
 
   /**
     * Look for the Akka timestamp and use that to format the date.

@@ -1,7 +1,6 @@
 package cromwell.docker
 
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
-import akka.stream._
 import cats.effect.IO._
 import cats.effect.{ContextShift, IO, Timer}
 import cats.instances.list._
@@ -222,9 +221,6 @@ object DockerInfoActor {
     val dockerImageID: DockerImageIdentifier = request.dockerImageID
     val credentials: List[Any] = request.credentials
   }
-
-  private case class EnqueueResponse(result: QueueOfferResult, dockerInfoContext: DockerInfoContext)
-  private case class FailedToEnqueue(failure: Throwable, dockerInfoContext: DockerInfoContext)
 
   def props(dockerRegistryFlows: Seq[DockerRegistry],
             queueBufferSize: Int = 100,

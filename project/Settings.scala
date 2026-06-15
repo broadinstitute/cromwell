@@ -55,7 +55,9 @@ object Settings {
     "-Ywarn-unused:implicits",
     "-Ywarn-unused:privates",
     "-Ywarn-unused:locals",
-    "-Ywarn-unused:patvars"
+    "-Ywarn-unused:patvars",
+    // Silence (`:s`) new lint introduced in Scala 2.13.11+; we have a lot of updates to get ready for it
+    "-Wconf:msg=Implicit definition should have explicit type:s"
   )
 
   val consoleHostileSettings = List(
@@ -69,7 +71,7 @@ object Settings {
     assembly / assemblyMergeStrategy := customMergeStrategy.value,
   )
 
-  val Scala2_13Version = "2.13.9"
+  val Scala2_13Version = "2.13.18"
   private val ScalaVersion: String = Scala2_13Version
   private val sharedSettings: Seq[Setting[_]] =
     cromwellVersionWithGit ++ publishingSettings ++ List(
@@ -132,7 +134,6 @@ object Settings {
   )
 
   val swaggerUiSettings = List(Compile / resourceGenerators += writeSwaggerUiVersionConf)
-  val backendSettings = List(addCompilerPlugin(kindProjectorPlugin))
   val engineSettings: List[Setting[_]] = swaggerUiSettings
   val cromiamSettings: List[Setting[_]] = swaggerUiSettings
   val drsLocalizerSettings: List[Setting[_]] = installLocalizerSettings

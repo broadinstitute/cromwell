@@ -15,7 +15,7 @@ class RootWorkflowFileHashCacheActor private[callcaching] (override val ioActor:
     extends Actor
     with ActorLogging
     with IoClientHelper {
-  case class FileHashRequester(replyTo: ActorRef, fileHashContext: FileHashContext, ioCommand: IoCommand[_])
+  case class FileHashRequester(replyTo: ActorRef, fileHashContext: FileHashContext, ioCommand: IoCommand[String])
 
   sealed trait FileHashValue
   // The hash value is not yet in the cache and has not been requested.

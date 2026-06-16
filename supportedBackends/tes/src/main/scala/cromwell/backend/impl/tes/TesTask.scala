@@ -76,12 +76,30 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       _.collectAsSeq { case w: WomFile => w }
     }
 
+  // Shared filesystem mount point. Reads `filesystems.local.local-root` with legacy fallback
+  // to `filesystems.local.efs`. Passed to isLocalPath() to restrict shared-FS detection to
+  // paths under this root rather than accepting any absolute path.
+  private val localRoot: Option[String] =
+    configurationDescriptor.backendConfig
+      .as[Option[String]]("filesystems.local.local-root")
+      .orElse(configurationDescriptor.backendConfig.as[Option[String]]("filesystems.local.efs"))
+
   lazy val inputs: Seq[Input] = {
+    val allInputs =
+      TesTask.buildTaskInputs(callInputFiles ++ writeFunctionFiles, workflowName, mapCommandLineWomFile)
+
+    // Paths under the shared filesystem mount point are already present inside the worker
+    // container (if workers are properly configured...). 
+    // Passing them to TES as Input entries would cause Funnel (or another TES
+    // executor) to attempt a redundant local-file copy. Filter them out so only cloud / HTTP
+    // / DRS inputs are localised. The mount point is configured via
+    // `filesystems.local.local-root` (falls back to any absolute path when unset).
     val result =
-      TesTask.buildTaskInputs(callInputFiles ++ writeFunctionFiles, workflowName, mapCommandLineWomFile) ++ Seq(
-        commandScript
-      )
-    jobLogger.info(
+      allInputs.filterNot { input =>
+        input.url.exists(url => TesBackendFileHashingActor.isLocalPath(url, localRoot))
+      } ++ Seq(commandScript)
+
+    jobLogger.debug(
       s"Calculated TES inputs (found ${result.size}): " + result.mkString(System.lineSeparator(),
                                                                           System.lineSeparator(),
                                                                           System.lineSeparator()
@@ -209,7 +227,7 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
       case OutputMode.ROOT => List(cwdOutput) ++ additionalGlobOutput
     }
 
-    jobLogger.info(
+    jobLogger.debug(
       s"Calculated TES outputs (found ${result.size}): " + result.mkString(System.lineSeparator(),
                                                                            System.lineSeparator(),
                                                                            System.lineSeparator()
@@ -246,6 +264,19 @@ final case class TesTask(jobDescriptor: BackendJobDescriptor,
 }
 
 object TesTask {
+  /**
+    * Returns true for an input URL that represents a path on the shared filesystem
+    * inside a TES worker container (absolute path without a URI scheme,
+    * e.g. "/mnt/shared/data/file.bam"). Such inputs are already present
+    * on the mounted filesystem and must not be localised by the TES executor.
+    *
+    * @param localRoot optional mount point from `filesystems.local.local-root` config;
+    *                  when set, only paths under this root are considered local.
+    *                  Defaults to None (any absolute path without a URI scheme).
+    */
+  def isLocalStyleUrl(url: String, localRoot: Option[String] = None): Boolean =
+    TesBackendFileHashingActor.isLocalPath(url, localRoot)
+
   // Helper to determine which source to use for a workflowExecutionIdentity
   def getPreferredWorkflowExecutionIdentity(configIdentity: Option[WorkflowExecutionIdentityConfig],
                                             workflowOptionsIdentity: Option[WorkflowExecutionIdentityOption]
@@ -390,7 +421,7 @@ final case class Resources(cpu_cores: Option[Int],
                            backend_parameters: Option[Map[String, Option[String]]]
 )
 
-final case class OutputFileLog(url: String, path: String, size_bytes: Int)
+final case class OutputFileLog(url: String, path: String, size_bytes: Long)
 
 final case class TaskLog(start_time: Option[String],
                          end_time: Option[String],

@@ -34,6 +34,15 @@ public class S3Utils {
         String key = s3Path.getKey();
         String bucketName = s3Path.getFileStore().name();
         S3Client client = s3Path.getFileStore().getClient();
+
+        // Guard: empty key means the bucket root virtual directory.
+        // headObject with an empty key causes 
+        // SdkClientException("Key cannot be empty") before any HTTP call is made.
+        // The bucket root is never a real S3 object, so just signal not-found.
+        if (key.isEmpty()) {
+            throw new NoSuchFileException(bucketName + S3Path.PATH_SEPARATOR);
+        }
+
         // try to find the element with the current key (maybe with end slash or maybe not.)
         try {
             HeadObjectResponse metadata = client.headObject(HeadObjectRequest.builder().bucket(bucketName).key(key).build());
@@ -56,11 +65,24 @@ public class S3Utils {
 
             return builder.build();
         } catch (S3Exception e) {
-            if (e.statusCode() != 404)
+            // 404 = object not found; fall through to virtual-directory check.
+            // 400 = some S3-compatible endpoints (e.g. OVH Ceph RadosGW) return 400 instead of
+            //       404 for headObject when the key doesn't exist, or when AWS SDK v2 sends a
+            //       header that the service doesn't support.
+            // 403 = OVH Ceph RadosGW also returns 403 ("Forbidden") for headObject on keys that
+            //       do not exist, depending on bucket ACL/policy configuration. This is a Ceph
+            //       quirk: rather than 404 it returns 403 to avoid leaking whether a key exists
+            //       when the caller has only limited bucket permissions.
+            // All three: treat as "not found" and fall through to listObjectsV2 which gives the
+            //       authoritative answer without these ambiguous status codes.
+            // Any other status code (5xx, etc.) is a real error and should propagate.
+            if (e.statusCode() != 404 && e.statusCode() != 400 && e.statusCode() != 403)
                 throw e;
+            if (e.statusCode() != 404)
+                log.debug("headObject returned " + e.statusCode() + " for key '" + key + "' in bucket '" + bucketName + "' — treating as not found and retrying via listObjectsV2 (S3-compatible endpoint quirk)");
         }
 
-        // if not found (404 err) with the original key.
+        // if not found (404, or non-404 from an S3-compatible service) with the original key.
         // try to find the element as a directory.
         try {
             // is a virtual directory (S3 prefix)

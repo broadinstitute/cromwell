@@ -39,6 +39,7 @@ import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import cromwell.cloudsupport.aws.s3.S3Storage
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.PathBuilderFactory
+import java.net.URI
 import net.ceedubs.ficus.Ficus._
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 
@@ -55,13 +56,16 @@ final case class S3PathBuilderFactory private (globalConfig: Config, instanceCon
   val authModeValidation: ErrorOr[AwsAuthMode] = conf.auth(authModeAsString)
   val authMode = authModeValidation.unsafe(s"Failed to get authentication mode for $authModeAsString")
 
+  // conf.endpointUrl is Some(url) for non-AWS S3-compatible services (OVH, MinIO, etc.)
+  private val endpointUri: Option[URI] = conf.endpointUrl.map(URI.create)
+
   def withOptions(options: WorkflowOptions)(implicit as: ActorSystem, ec: ExecutionContext): Future[S3PathBuilder] =
-    S3PathBuilder.fromAuthMode(authMode, S3Storage.DefaultConfiguration, options, conf.region)
+    S3PathBuilder.fromAuthMode(authMode, S3Storage.DefaultConfiguration, options, conf.region, endpointUri)
 
   // Ignores the authMode and creates an S3PathBuilder using the passed credentials directly.
   // Can be used when the Credentials are already available.
   def fromProvider(options: WorkflowOptions, provider: AwsCredentialsProvider): S3PathBuilder =
-    S3PathBuilder.fromProvider(provider, S3Storage.DefaultConfiguration, options, conf.region)
+    S3PathBuilder.fromProvider(provider, S3Storage.DefaultConfiguration, options, conf.region, endpointUri)
 }
 
 object S3PathBuilderFactory {

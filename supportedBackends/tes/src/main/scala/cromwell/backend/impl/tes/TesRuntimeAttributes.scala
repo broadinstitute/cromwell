@@ -17,6 +17,7 @@ import wom.types.{WomIntegerType, WomStringType}
 import wom.values._
 
 import java.util.regex.Pattern
+import org.slf4j.LoggerFactory
 
 case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 dockerImage: String,
@@ -27,17 +28,25 @@ case class TesRuntimeAttributes(continueOnReturnCode: ContinueOnReturnCode,
                                 disk: Option[MemorySize],
                                 preemptible: Boolean,
                                 localizedSasEnvVar: Option[String],
-                                backendParameters: Map[String, Option[String]]
+                                backendParameters: Map[String, Option[String]],
+                                memoryRetryMultiplier: Option[Double]
 )
 
 object TesRuntimeAttributes {
+  private val log = LoggerFactory.getLogger(getClass.getSimpleName)
+
   val DockerWorkingDirKey = "dockerWorkingDir"
   val DiskSizeKey = "disk"
   val PreemptibleKey = "preemptible"
   val LocalizedSasKey = "azureSasEnvironmentVariable"
+  val MemoryRetryMultiplierKey = "memory_retry_multiplier"
+  val BackoffLimitKey = "backoff_limit"
 
   private def cpuValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[Int Refined Positive] =
-    CpuValidation.optional
+    CpuValidation.configDefaultWomValue(runtimeConfig) match {
+      case Some(default) => CpuValidation.instance.withDefault(default).optional
+      case None          => CpuValidation.optional
+    }
 
   private def failOnStderrValidation(runtimeConfig: Option[Config]) = FailOnStderrValidation.default(runtimeConfig)
 
@@ -45,7 +54,10 @@ object TesRuntimeAttributes {
     ContinueOnReturnCodeValidation.default(runtimeConfig)
 
   private def diskSizeValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] =
-    MemoryValidation.optional(DiskSizeKey)
+    MemoryValidation.configDefaultString(DiskSizeKey, runtimeConfig) match {
+      case Some(default) => MemoryValidation.withDefaultMemory(DiskSizeKey, default).optional
+      case None          => MemoryValidation.optional(DiskSizeKey)
+    }
 
   private def diskSizeCompatValidation(
     runtimeConfig: Option[Config]
@@ -53,7 +65,10 @@ object TesRuntimeAttributes {
     DisksValidation.optional
 
   private def memoryValidation(runtimeConfig: Option[Config]): OptionalRuntimeAttributesValidation[MemorySize] =
-    MemoryValidation.optional(RuntimeAttributesKeys.MemoryKey)
+    MemoryValidation.configDefaultString(RuntimeAttributesKeys.MemoryKey, runtimeConfig) match {
+      case Some(default) => MemoryValidation.withDefaultMemory(RuntimeAttributesKeys.MemoryKey, default).optional
+      case None          => MemoryValidation.optional(RuntimeAttributesKeys.MemoryKey)
+    }
 
   // As of WDL 1.1 these two are aliases of each other
   private val dockerValidation: OptionalRuntimeAttributesValidation[Containers] = DockerValidation.instance
@@ -63,6 +78,26 @@ object TesRuntimeAttributes {
     DockerWorkingDirValidation.optional
   private def preemptibleValidation(runtimeConfig: Option[Config]) = PreemptibleValidation.default(runtimeConfig)
   private def localizedSasValidation: OptionalRuntimeAttributesValidation[String] = LocalizedSasValidation.optional
+
+  private def memoryRetryMultiplierValidation(
+    runtimeConfig: Option[Config]
+  ): OptionalRuntimeAttributesValidation[Double] = {
+    val instance = new FloatRuntimeAttributesValidation(MemoryRetryMultiplierKey)
+    instance.configDefaultWomValue(runtimeConfig) match {
+      case Some(default) => instance.withDefault(default).optional
+      case None          => instance.optional
+    }
+  }
+
+  private def backoffLimitValidation(
+    runtimeConfig: Option[Config]
+  ): OptionalRuntimeAttributesValidation[String] = {
+    val instance = new BackoffLimitValidation
+    instance.configDefaultWomValue(runtimeConfig) match {
+      case Some(default) => instance.withDefault(default).optional
+      case None          => instance.optional
+    }
+  }
 
   def runtimeAttributesBuilder(backendRuntimeConfig: Option[Config]): StandardValidatedRuntimeAttributesBuilder =
     // !! NOTE !! If new validated attributes are added to TesRuntimeAttributes, be sure to include
@@ -79,13 +114,23 @@ object TesRuntimeAttributes {
         containerValidation,
         dockerWorkingDirValidation,
         preemptibleValidation(backendRuntimeConfig),
-        localizedSasValidation
+        localizedSasValidation,
+        memoryRetryMultiplierValidation(backendRuntimeConfig),
+        backoffLimitValidation(backendRuntimeConfig)
       )
 
   def makeBackendParameters(runtimeAttributes: Map[String, WomValue],
                             keysToExclude: Set[String],
                             config: TesConfiguration
-  ): Map[String, Option[String]] =
+  ): Map[String, Option[String]] = {
+    // unknownKeys was declared but never used (compiler error with -Wunused).
+    // Log at debug so callers can see which runtime attributes are being forwarded as
+    // TES backend_parameters (useful for diagnosing Funnel/TES 1.1 passthrough issues).
+    val unknownKeys = runtimeAttributes.keySet -- keysToExclude
+    if (unknownKeys.nonEmpty)
+      log.debug("makeBackendParameters: forwarding non-standard runtime keys as TES backend_parameters: {}",
+                unknownKeys.mkString(", "))
+
     if (config.useBackendParameters)
       runtimeAttributes.view
         .filterKeys(k => !keysToExclude.contains(k))
@@ -98,6 +143,7 @@ object TesRuntimeAttributes {
         .toMap
     else
       Map.empty
+  }
 
   private def detectDiskFormat(backendRuntimeConfig: Option[Config],
                                validatedRuntimeAttributes: ValidatedRuntimeAttributes
@@ -176,13 +222,31 @@ object TesRuntimeAttributes {
       failOnStderrValidation(backendRuntimeConfig),
       continueOnReturnCodeValidation(backendRuntimeConfig),
       preemptibleValidation(backendRuntimeConfig),
-      localizedSasValidation
+      localizedSasValidation,
+      memoryRetryMultiplierValidation(backendRuntimeConfig),
+      backoffLimitValidation(backendRuntimeConfig)
     )
+
+    val memoryRetryMultiplier: Option[Double] =
+      RuntimeAttributesValidation.extractOption(memoryRetryMultiplierValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+
+    // Extract backoff_limit from validated attributes (covers both default-runtime-attributes
+    // config defaults and per-task runtime { backoff_limit: "N" } declarations).
+    val backoffLimit: Option[String] =
+      RuntimeAttributesValidation.extractOption(backoffLimitValidation(backendRuntimeConfig).key, validatedRuntimeAttributes)
+    println(s"[backoff_limit] apply: extracted backoffLimit from validatedRuntimeAttributes = $backoffLimit")
+    println(s"[backoff_limit] apply: rawRuntimeAttributes keys = ${rawRuntimeAttributes.keys.mkString(", ")}")
 
     // BT-458 any strings included in runtime attributes that aren't otherwise used should be
     // passed through to the TES server as part of backend_parameters
     val keysToExclude = validations map { _.key }
-    val backendParameters = makeBackendParameters(rawRuntimeAttributes, keysToExclude, config)
+    val rawBackendParameters = makeBackendParameters(rawRuntimeAttributes, keysToExclude, config)
+    // Inject backoff_limit from validated attributes (handles the config-default path, since
+    // default-runtime-attributes values don't appear in rawRuntimeAttributes for unknown keys).
+    val backendParameters = if (config.useBackendParameters)
+      backoffLimit.fold(rawBackendParameters)(v => rawBackendParameters + (BackoffLimitKey -> Option(v)))
+    else rawBackendParameters
+    println(s"[backoff_limit] apply: final backendParameters = $backendParameters")
 
     new TesRuntimeAttributes(
       continueOnReturnCode,
@@ -194,7 +258,8 @@ object TesRuntimeAttributes {
       disk,
       preemptible,
       localizedSas,
-      backendParameters
+      backendParameters,
+      memoryRetryMultiplier
     )
   }
 }
@@ -256,6 +321,18 @@ class PreemptibleValidation extends BooleanRuntimeAttributesValidation(TesRuntim
 
   override protected def missingValueMessage: String =
     s"Expecting $key runtime attribute to be an Integer, Boolean, or a String with values of 'true' or 'false'"
+}
+
+object BackoffLimitValidation {
+  lazy val instance: RuntimeAttributesValidation[String] = new BackoffLimitValidation
+  lazy val optional: OptionalRuntimeAttributesValidation[String] = instance.optional
+}
+
+class BackoffLimitValidation extends StringRuntimeAttributesValidation(TesRuntimeAttributes.BackoffLimitKey) {
+  override protected def validateValue: PartialFunction[WomValue, ErrorOr[String]] = {
+    case WomString(value)  => value.validNel
+    case WomInteger(value) => value.toString.validNel
+  }
 }
 
 object LocalizedSasValidation {

@@ -110,21 +110,37 @@ case object MockAuthMode extends AwsAuthMode {
 object CustomKeyMode
 
 /**
- * The AwsAuthMode constructed from a 'custom_key' auths scheme.
+ * The AwsAuthMode constructed from the 'custom_keys' auths scheme.
  *
- * @param name
- * @param accessKey static AWS access key
- * @param secretKey static AWS secret key
- * @param region an optional AWS region
+ * Supports both AWS and non-AWS S3-compatible services (e.g. OVH Object Storage, MinIO, Ceph).
+ * When `endpointUrl` is provided the target is NOT AWS: STS-based credential validation is
+ * intentionally skipped because AWS STS does not exist on third-party S3-compatible APIs.
+ *
+ * @param name        auth entry name from config
+ * @param accessKey   static S3 access key
+ * @param secretKey   static S3 secret key
+ * @param region      AWS region string (or S3-compatible region label)
+ * @param endpointUrl optional custom S3-compatible endpoint URL (non-AWS); when set, STS
+ *                    credential validation is skipped.
  */
-final case class CustomKeyMode(override val name: String, accessKey: String, secretKey: String, region: Option[String])
-    extends AwsAuthMode {
+final case class CustomKeyMode(
+    override val name: String,
+    accessKey: String,
+    secretKey: String,
+    region: Option[String],
+    endpointUrl: Option[String] = None
+) extends AwsAuthMode {
   private lazy val _provider: AwsCredentialsProvider = {
-    // make a provider locked to the given access and secret
     val p = StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey))
-
-    // immediately validate the credentials that the provider will generate before returning the provider
-    validateCredential(p, region)
+    endpointUrl match {
+      case Some(_) =>
+        // Non-AWS S3-compatible endpoint: AWS STS is unavailable on these services.
+        // The caller has explicitly supplied static credentials, so trust them as-is.
+        p
+      case None =>
+        // AWS endpoint: validate via STS GetCallerIdentity as normal.
+        validateCredential(p, region)
+    }
   }
 
   override def provider(): AwsCredentialsProvider = _provider

@@ -294,7 +294,24 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       ),
       new IOException(
         "Some other text. Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-4688/rc: 504 Gateway Timeout"
-      )
+      ),
+
+      // Local / NFS / sshfs transient filesystem errors (EIO = kernel I/O error, ESTALE = stale NFS handle).
+      // These are wrapped by EvenBetterPathMethods.fileIoErrorPf as
+      //   IOException("Could not read from <local-path>: <kernel message>").
+      // They should be retried up to system.io.number-of-attempts times.
+      new IOException(
+        "Could not read from /mnt/shared/gra9/References/genome/hs38DH.amb: Input/output error"
+      ),
+      new IOException(
+        "Could not read from /cromwell-executions/wf/call-task/inputs/Intervals.files.txt: Input/output error"
+      ),
+      new IOException(
+        "Could not read from /mnt/nfs/data/reference.fa: Stale file handle"
+      ),
+      // Bare kernel error messages (no "Could not read from" prefix) — also transient
+      new IOException("Input/output error"),
+      new IOException("Stale file handle")
     )
 
     retryables foreach { e =>
@@ -313,7 +330,15 @@ class IoActorSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with I
       new Exception("5xx HTTP Status Code"),
       new IOException(
         "Could not read from gs://fc-secure-<snip>/JointGenotyping/<snip>/call-HardFilterAndMakeSitesOnlyVcf/shard-500/rc: 404 File Not Found"
-      )
+      ),
+
+      // Permanent local filesystem errors — must NOT be retried
+      new IOException("Could not read from /mnt/shared/file.txt: No such file or directory"),
+      new IOException("Could not read from /mnt/shared/file.txt: Permission denied"),
+
+      // Cloud-scheme paths with EIO-like messages — isNioTransient must not fire for gs:// or s3://
+      new IOException("Could not read from gs://bucket/file.tsv: Input/output error"),
+      new IOException("Could not read from s3://bucket/file.tsv: Input/output error")
     )
 
     nonRetryables foreach { RetryableRequestSupport.isRetryable(_) shouldBe false }

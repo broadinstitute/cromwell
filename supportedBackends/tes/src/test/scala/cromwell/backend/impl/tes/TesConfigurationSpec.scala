@@ -48,4 +48,21 @@ class TesConfigurationSpec extends AnyFlatSpec with Matchers {
   it should "fail if user defines an invalid backoff" in {
     assertThrows[ConfigException.Missing](makeTesConfig(TesTestConfig.backendConfigWithInvalidBackoffs))
   }
+
+  // localRoot: shared filesystem mount point used to skip TES localisation for already-present files.
+
+  it should "read localRoot from filesystems.local.local-root" in {
+    val tesConfig = makeTesConfig(TesTestConfig.backendConfigWithLocalRoot)
+    tesConfig.localRoot shouldBe Some("/mnt/shared")
+  }
+
+  it should "fall back to filesystems.local.efs for localRoot when local-root is absent" in {
+    val tesConfig = makeTesConfig(TesTestConfig.backendConfigWithLegacyEfs)
+    tesConfig.localRoot shouldBe Some("/mnt/efs")
+  }
+
+  it should "return None for localRoot when neither filesystems.local.local-root nor filesystems.local.efs is configured" in {
+    val tesConfig = makeTesConfig(TesTestConfig.backendConfig)
+    tesConfig.localRoot shouldBe None
+  }
 }

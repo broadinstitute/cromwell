@@ -37,7 +37,8 @@ import cromwell.cloudsupport.aws.auth.AwsAuthMode
 import cromwell.core.WorkflowOptions
 import cromwell.core.path.{NioPath, Path, PathBuilder}
 import cromwell.filesystems.s3.S3PathBuilder._
-import org.lerch.s3fs.{AmazonS3ClientFactory, S3FileSystemProvider}
+import cromwell.cloudsupport.aws.s3.S3Storage
+import org.lerch.s3fs.{S3FileSystem, S3FileSystemProvider}
 import org.lerch.s3fs.util.S3Utils
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.regions.Region
@@ -108,36 +109,100 @@ object S3PathBuilder {
       } else { InvalidScheme(string) }
     } recover { case t => UnparseableS3Path(string, t) } get
 
+  /**
+   * @param endpointUri optional custom S3-compatible endpoint URI (non-AWS, e.g. OVH, MinIO).
+   */
   def fromAuthMode(authMode: AwsAuthMode,
                    configuration: S3Configuration,
                    options: WorkflowOptions,
-                   storageRegion: Option[Region]
+                   storageRegion: Option[Region],
+                   endpointUri: Option[URI] = None
   )(implicit ec: ExecutionContext): Future[S3PathBuilder] = {
     val provider = authMode.provider()
-
     // Other backends needed retry here. In case we need retry, we'll return
     // a future. This will allow us to add capability without changing signature
-    Future(fromProvider(provider, configuration, options, storageRegion))
+    Future(fromProvider(provider, configuration, options, storageRegion, endpointUri))
   }
 
   def fromProvider(provider: AwsCredentialsProvider,
                    configuration: S3Configuration,
                    options: WorkflowOptions,
-                   storageRegion: Option[Region]
+                   storageRegion: Option[Region],
+                   endpointUri: Option[URI] = None
   ): S3PathBuilder =
-    new S3PathBuilder(configuration)
+    new S3PathBuilder(provider, configuration, storageRegion, endpointUri)
 }
 
-class S3PathBuilder(configuration: S3Configuration) extends PathBuilder {
+/**
+ * Builds S3Path instances for a given credentials provider, region and (optionally) a
+ * custom S3-compatible endpoint.
+ *
+ * Previously this class held only `S3Configuration` and `build()` always fell back
+ * to `System.getenv` / `System.getProperties` for credentials and endpoint, making it
+ * impossible to use configured credentials or a non-AWS endpoint. The class now stores the
+ * full auth context and injects it into both the s3fs-nio filesystem (for NIO path resolution)
+ * and the AWS SDK v2 S3Client (for direct SDK operations stored on S3Path).
+ *
+ * @param provider     AWS SDK v2 credentials provider built from the configured auth mode
+ * @param configuration S3Configuration (accelerate, dual-stack, path-style flags)
+ * @param storageRegion optional region (AWS region or S3-compatible region label)
+ * @param endpointUri  optional custom S3-compatible endpoint; when set, path-style access
+ *                     is forced and the s3fs-nio filesystem is pointed at this host
+ */
+class S3PathBuilder(
+    provider: AwsCredentialsProvider,
+    configuration: S3Configuration,
+    storageRegion: Option[Region],
+    endpointUri: Option[URI]
+) extends PathBuilder {
+
+  /**
+   * Lazily-initialised S3FileSystem backed by our own AWS SDK v2 S3Client.
+   * Shared across all build() calls on this builder instance (one builder per workflow).
+   *
+   * s3fs-nio's AmazonS3Factory.getS3Client(URI, Properties) extracts the host from
+   * the filesystem URI and then calls AWS SDK v2 builder.endpointOverride(uri) passing the
+   * full URI — including the s3:// scheme — which the SDK rejects:
+   *   "Custom endpoint 's3://...' was not a valid URI"
+   * The SDK requires http:// or https:// for endpointOverride.
+   *
+   * S3FileSystemProvider also exposes a 3-arg overload
+   *   createFileSystem(URI, Properties, S3Client)
+   * that constructs S3FileSystem directly from a caller-supplied S3Client, completely
+   * bypassing AmazonS3Factory. We pre-build the S3Client via S3Storage.s3Client() which
+   * already calls endpointOverride() with the correct https:// URI.
+   */
+  private lazy val cachedFilesystem: S3FileSystem = {
+    // Build our correctly-configured S3Client (endpointOverride with https:// URI,
+    // pathStyleAccessEnabled forced when endpointUri is set).
+    val s3Client = S3Storage.s3Client(configuration, provider, storageRegion, endpointUri)
+
+    // Build a Properties map with our configured credentials for s3fs-nio's bookkeeping.
+    // s3fs-nio uses s3fs_access_key / s3fs_secret_key as part of the filesystem cache key.
+    // We do not need to copy System.getenv() here because the actual S3 client is already
+    // pre-built (passed as the third argument to createFileSystem); AmazonS3Factory is never
+    // invoked, so only the cache-key fields matter.
+    val creds = provider.resolveCredentials()
+    val props  = new java.util.Properties()
+    props.put("s3fs_access_key", creds.accessKeyId())
+    props.put("s3fs_secret_key", creds.secretAccessKey())
+
+    // The URI is only used to derive the filesystem key; the actual endpoint is
+    // driven by s3Client, not by this URI.
+    val fsUri = endpointUri
+      .map(ep => URI.create(s"s3://${ep.getHost}/"))
+      .getOrElse(URI.create("s3:////"))
+
+    new S3FileSystemProvider().createFileSystem(fsUri, props, s3Client)
+  }
+
   // Tries to create a new S3Path from a String representing an absolute s3 path: s3://<bucket>[/<key>].
   def build(string: String): Try[S3Path] =
     validatePath(string) match {
       case ValidFullS3Path(bucket, path) =>
         Try {
-          val s3Path = new S3FileSystemProvider()
-            .getFileSystem(URI.create("s3:////"), System.getenv)
-            .getPath(s"""/$bucket/$path""")
-          S3Path(s3Path, bucket, new AmazonS3ClientFactory().getS3Client(URI.create("s3:////"), System.getProperties))
+          val nioPath = cachedFilesystem.getPath(s"""/$bucket/$path""")
+          S3Path(nioPath, bucket, cachedFilesystem.getClient())
         }
       case PossiblyValidRelativeS3Path => Failure(new IllegalArgumentException(s"$string does not have a s3 scheme"))
       case invalid: InvalidS3Path => Failure(new IllegalArgumentException(invalid.errorMessage))
@@ -153,7 +218,10 @@ case class S3Path private[s3] (nioPath: NioPath, bucket: String, client: S3Clien
 
   override def pathAsString: String = s"s3://$pathWithoutScheme"
 
-  override def pathWithoutScheme: String = safeAbsolutePath.stripPrefix("s3://s3.amazonaws.com/")
+  // Previously, this was `stripPrefix("s3://s3.amazonaws.com/")` which broke for custom S3-compatible
+  // endpoints (OVH, MinIO, etc.) where s3fs-nio encodes a different host in the path string.
+  // Now strips s3://[any-host]/ generically so pathAsString always returns s3://bucket/key.
+  override def pathWithoutScheme: String = safeAbsolutePath.replaceFirst("^s3://[^/]*/", "")
 
   def key: String = safeAbsolutePath
 
@@ -182,5 +250,28 @@ case class S3Path private[s3] (nioPath: NioPath, bucket: String, client: S3Clien
       case '/' => s3Path.toAbsolutePath.toString
       case _ => s3Path.resolve(s"/$bucket/$originalPath").toAbsolutePath.toString
     }
+  }
+
+  /**
+   * Override createDirectories() as a no-op for S3 paths.
+   *
+   * S3 is a flat key-value namespace — "directories" are a purely virtual concept defined
+   * by key prefixes. There is no API call required (or meaningful) to "create" a directory.
+   * The base BetterFileMethods.createDirectories() delegates to better-files which calls the
+   * s3fs-nio NIO FileSystemProvider.createDirectory(), which attempts to PUT a zero-byte
+   * object with a trailing slash as a "directory marker". S3-compatible endpoints such as
+   * OVH Ceph RadosGW reject these putObject calls with 403 Access Denied.
+   *
+   * Since directories don't physically exist in S3, creating them is unnecessary.
+   * Cromwell's actual workflow files are written directly at their full key paths later;
+   * those writes succeed without any parent "directory" having been pre-created.
+   *
+   * The subsequent addPermission() call in createPermissionedDirectories() will throw
+   * IOException (S3 has no POSIX permission model), which is already caught and ignored
+   * by EvenBetterPathMethods.createPermissionedDirectories().
+   */
+  override def createDirectories()(implicit attributes: better.files.File.Attributes = better.files.File.Attributes.default): this.type = {
+    // S3 directories are virtual — no-op.
+    this
   }
 }

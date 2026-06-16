@@ -19,6 +19,20 @@ class TesConfiguration(val configurationDescriptor: BackendConfigurationDescript
       .as[Option[Boolean]](TesConfiguration.useBackendParametersKey)
       .getOrElse(false)
 
+  /**
+   * Mount point of the shared filesystem inside TES worker containers (e.g. /mnt/shared for
+   * Manila NFS, /mnt/efs for AWS EFS). Configured via `filesystems.local.local-root`.
+   * Legacy key `filesystems.local.efs` is accepted for backward compatibility.
+   *
+   * When set, only paths under this root are treated as "already present on the shared
+   * filesystem" and excluded from TES input localisation. When absent, any absolute path
+   * without a URI scheme is treated as local (previous behaviour).
+   */
+  val localRoot: Option[String] =
+    configurationDescriptor.backendConfig
+      .as[Option[String]]("filesystems.local.local-root")
+      .orElse(configurationDescriptor.backendConfig.as[Option[String]]("filesystems.local.efs"))
+
   val pollBackoff =
     configurationDescriptor.backendConfig
       .as[Option[Config]]("poll-backoff")

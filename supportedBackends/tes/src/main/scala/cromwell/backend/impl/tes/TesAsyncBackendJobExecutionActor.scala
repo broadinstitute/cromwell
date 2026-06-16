@@ -13,13 +13,20 @@ import cats.implicits._
 import common.exception.AggregatedMessageException
 import common.validation.ErrorOr.ErrorOr
 import common.validation.Validation._
+import eu.timepit.refined.refineV
+import cromwell.core.WorkflowOptions
 import cromwell.backend.async.{
   AbortedExecutionHandle,
   ExecutionHandle,
   FailedNonRetryableExecutionHandle,
-  PendingExecutionHandle
+  PendingExecutionHandle,
+  ReturnCodeIsNotAnInt,
+  RetryWithMoreMemory,
+  StderrNonEmpty,
+  WrongReturnCode
 }
 import cromwell.backend.impl.tes.TesAsyncBackendJobExecutionActor._
+import cromwell.backend.standard.retry.memory.MemoryRetryResult
 import cromwell.backend.impl.tes.TesResponseJsonFormatter._
 import cromwell.backend.standard.{StandardAsyncExecutionActor, StandardAsyncExecutionActorParams, StandardAsyncJob}
 import cromwell.backend.{BackendJobLifecycleActor, Platform}
@@ -36,7 +43,7 @@ import wom.values.WomFile
 import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.{Failure, Success, Try}
 
 case class TesVmCostData(startTime: Option[String], endTime: Option[String], vmCost: Option[String]) {
   val fullyPopulated: Boolean = startTime.nonEmpty && vmCost.nonEmpty
@@ -238,6 +245,28 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     jobDescriptor.maybeCallCachingEligible.dockerHash.getOrElse(runtimeAttributes.dockerImage)
   override lazy val dockerImageUsed: Option[String] = Option(realDockerImageUsed)
 
+  // Override memoryRetryFactor to read from the runtime attribute (set via backend config default-runtime-attributes
+  // or per-task WDL runtime block), falling back to the standard workflow-option mechanism.
+  override lazy val memoryRetryFactor: Option[MemoryRetryMultiplierRefined] = {
+    val fromRuntimeAttr: Option[MemoryRetryMultiplierRefined] =
+      runtimeAttributes.memoryRetryMultiplier.flatMap { v =>
+        refineV[MemoryRetryMultiplier](v) match {
+          case Right(refined) => Some(refined)
+          case Left(e) =>
+            jobLogger.warn(s"[OOM-check] Invalid memory_retry_multiplier value $v (must be 1.0..99.0): $e")
+            None
+        }
+      }
+    // Fall back to the workflow-option mechanism (reads memory_retry_multiplier from workflow options JSON)
+    fromRuntimeAttr.orElse {
+      jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MemoryRetryMultiplier).flatMap { value =>
+        scala.util.Try(value.toDouble).toOption.flatMap { v =>
+          refineV[MemoryRetryMultiplier](v).toOption
+        }
+      }
+    }
+  }
+
   private val tesEndpoint = workflowDescriptor.workflowOptions.getOrElse("endpoint", tesConfiguration.endpointURL)
 
   override lazy val jobTag: String = jobDescriptor.key.tag
@@ -263,14 +292,19 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     )
 
   override def mapCommandLineJobInputWomFile(womFile: WomFile): WomFile =
-    womFile.mapFile(value =>
-      getPath(value) match {
-        case Success(path: Path) =>
-          TesAsyncBackendJobExecutionActor.mapInputPath(path, tesJobPaths, commandDirectory)
-        case _ =>
-          value
-      }
-    )
+    womFile.mapFile { value =>
+      // Paths under the configured shared filesystem mount point are already available
+      // inside the container – pass them through unchanged so the command script sees
+      // the original path. Mount point is read from `filesystems.local.local-root` config.
+      if (TesBackendFileHashingActor.isLocalPath(value, tesConfiguration.localRoot)) value
+      else
+        getPath(value) match {
+          case Success(path: Path) =>
+            TesAsyncBackendJobExecutionActor.mapInputPath(path, tesJobPaths, commandDirectory)
+          case _ =>
+            value
+        }
+    }
 
   override lazy val commandDirectory: Path =
     runtimeAttributes.dockerWorkingDir match {
@@ -507,6 +541,126 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
           Unmarshal(response.entity).to[A]
         }
     } yield data
+
+  /**
+   * Checks if the task's stderr contains any of the configured memory-retry-error-keys.
+   * For TES/nerdctl, an OOM-killed container produces "Killed" in stderr (via bash set -e)
+   * and exits with rc=137.
+   */
+  private def checkStderrForOOM: Future[Boolean] = {
+    val stderr = jobPaths.standardPaths.error
+    jobLogger.debug(s"[OOM-check] memoryRetryRequested=$memoryRetryRequested memoryRetryFactor=$memoryRetryFactor keys=$memoryRetryErrorKeys stderr=$stderr")
+    memoryRetryErrorKeys match {
+      case None | Some(Nil) =>
+        jobLogger.debug(s"[OOM-check] no keys configured, skipping OOM check")
+        Future.successful(false)
+      case Some(keys) =>
+        for {
+          exists <- asyncIo.existsAsync(stderr)
+          _ = jobLogger.debug(s"[OOM-check] stderr exists=$exists at $stderr")
+          contentOpt <-
+            if (exists)
+              asyncIo.contentAsStringAsync(stderr, None, failOnOverflow = false).map(Option(_))
+            else
+              Future.successful(None)
+          result = contentOpt.exists(content => keys.exists(content.contains))
+          _ = if (result) jobLogger.warn(s"[OOM-check] OOM kill detected — contentLen=${contentOpt.map(_.length)} matchedKeys=$keys")
+              else jobLogger.debug(s"[OOM-check] result=$result contentLen=${contentOpt.map(_.length)} keys=$keys")
+        } yield result
+    }
+  }
+
+  /**
+   * Override handleExecutionResult to add TES-specific memory retry detection.
+   * When nerdctl kills a container at its cgroup memory limit, bash's set -e propagates
+   * rc=137 and writes "Killed" to stderr. We detect this by scanning stderr for the
+   * configured memory-retry-error-keys and retry with a larger memory allocation.
+   */
+  override def handleExecutionResult(
+    status: StandardAsyncRunState,
+    oldHandle: StandardAsyncPendingExecutionHandle
+  ): Future[ExecutionHandle] = {
+    val stderr = jobPaths.standardPaths.error
+    lazy val stderrAsOption: Option[Path] = Option(stderr)
+
+    val stderrSizeAndReturnCodeAndMemoryRetry = for {
+      returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
+      stderrSize <- if (failOnStdErr) asyncIo.sizeAsync(stderr) else Future.successful(0L)
+      retryWithMoreMemory <- checkStderrForOOM
+    } yield (stderrSize, returnCodeAsString, retryWithMoreMemory)
+
+    stderrSizeAndReturnCodeAndMemoryRetry flatMap { case (stderrSize, returnCodeAsString, retryWithMoreMemory) =>
+      val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
+      if (isDone(status)) {
+        tryReturnCodeAsInt match {
+          case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>
+            val executionHandle = Future.successful(
+              FailedNonRetryableExecutionHandle(StderrNonEmpty(jobDescriptor.key.tag, stderrSize, stderrAsOption),
+                                                Option(returnCodeAsInt),
+                                                None
+              )
+            )
+            retryElseFail(executionHandle)
+          case Success(returnCodeAsInt) if continueOnReturnCode.continueFor(returnCodeAsInt) =>
+            handleExecutionSuccess(status, oldHandle, returnCodeAsInt)
+          // Important: check OOM before isAbort — rc=137 can be either; OOM takes priority.
+          case Success(returnCodeAsInt) if retryWithMoreMemory && memoryRetryRequested =>
+            jobLogger.info(s"Memory retry triggered for TES job (rc=$returnCodeAsInt, stderr contains OOM key)")
+            val executionHandle = Future.successful(
+              FailedNonRetryableExecutionHandle(
+                RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
+                Option(returnCodeAsInt),
+                None
+              )
+            )
+            retryElseFail(executionHandle,
+                          MemoryRetryResult(retryWithMoreMemory, memoryRetryFactor, previousMemoryMultiplier)
+            )
+          case Success(returnCodeAsInt) if isAbort(returnCodeAsInt) =>
+            Future.successful(AbortedExecutionHandle)
+          case Success(returnCodeAsInt) =>
+            val executionHandle = Future.successful(
+              FailedNonRetryableExecutionHandle(WrongReturnCode(jobDescriptor.key.tag, returnCodeAsInt, stderrAsOption),
+                                                Option(returnCodeAsInt),
+                                                None
+              )
+            )
+            retryElseFail(executionHandle)
+          case Failure(_) =>
+            Future.successful(
+              FailedNonRetryableExecutionHandle(
+                ReturnCodeIsNotAnInt(jobDescriptor.key.tag, returnCodeAsString, stderrAsOption),
+                kvPairsToSave = None
+              )
+            )
+        }
+      } else {
+        tryReturnCodeAsInt match {
+          case Success(returnCodeAsInt)
+              if retryWithMoreMemory && memoryRetryRequested && !continueOnReturnCode.continueFor(returnCodeAsInt) =>
+            val executionHandle = Future.successful(
+              FailedNonRetryableExecutionHandle(
+                RetryWithMoreMemory(jobDescriptor.key.tag, stderrAsOption, memoryRetryErrorKeys, log),
+                Option(returnCodeAsInt),
+                None
+              )
+            )
+            retryElseFail(executionHandle,
+                          MemoryRetryResult(retryWithMoreMemory, memoryRetryFactor, previousMemoryMultiplier)
+            )
+          case _ =>
+            val failureStatus = handleExecutionFailure(status, tryReturnCodeAsInt.toOption)
+            retryElseFail(failureStatus)
+        }
+      }
+    } recoverWith { case exception =>
+      if (isDone(status)) Future.successful(FailedNonRetryableExecutionHandle(exception, kvPairsToSave = None))
+      else {
+        val failureStatus = handleExecutionFailure(status, None)
+        retryElseFail(failureStatus)
+      }
+    }
+  }
 
   override def platform: Option[Platform] = tesConfiguration.platform
 }

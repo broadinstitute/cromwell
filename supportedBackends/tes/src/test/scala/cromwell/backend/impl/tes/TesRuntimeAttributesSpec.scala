@@ -21,12 +21,13 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
     "ubuntu:latest",
     None,
     false,
-    None,
-    None,
-    None,
+    Option(refineMV[Positive](1)),              // cpu default from backendConfig
+    Option(MemorySize.parse("2 GB").get),       // memory default from backendConfig
+    Option(MemorySize.parse("2 GB").get),       // disk default from backendConfig
     false,
     None,
-    Map.empty
+    Map.empty,
+    None                                        // memoryRetryMultiplier
   )
 
   val expectedDefaultsPlusUbuntuDocker = expectedDefaults.copy(dockerImage = "ubuntu:latest")
@@ -331,6 +332,65 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
       val expectedRuntimeAttributes = expectedDefaults.copy(backendParameters = Map("foo" -> None))
       assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
     }
+
+    // memory_retry_multiplier: optional per-task float that multiplies the memory allocation on OOM retry.
+    "validate a valid memory_retry_multiplier entry" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            TesRuntimeAttributes.MemoryRetryMultiplierKey -> WomFloat(1.5)
+        )
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(memoryRetryMultiplier = Option(1.5))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "use memory_retry_multiplier config default when not set per-task" in {
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
+      val expectedRuntimeAttributes = expectedDefaultsPlusUbuntuDocker.copy(memoryRetryMultiplier = Option(2.0))
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithMemoryRetry)
+    }
+
+    // backoff_limit: forwarded as a TES backend_parameter; accepts both string and integer values.
+    "validate a valid backoff_limit string entry" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            TesRuntimeAttributes.BackoffLimitKey -> WomString("3")
+        )
+      // With useBackendParameters = false the key is silently dropped — validation must not fail.
+      assertSuccess(runtimeAttributes, expectedDefaultsPlusUbuntuDocker)
+    }
+
+    "validate a backoff_limit provided as WomInteger" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            TesRuntimeAttributes.BackoffLimitKey -> WomInteger(5)
+        )
+      assertSuccess(runtimeAttributes, expectedDefaultsPlusUbuntuDocker)
+    }
+
+    "include task-level backoff_limit in backend_parameters when useBackendParameters is true" in {
+      val runtimeAttributes =
+        Map("docker" -> WomString("ubuntu:latest"),
+            TesRuntimeAttributes.BackoffLimitKey -> WomString("3")
+        )
+      val expectedRuntimeAttributes =
+        expectedDefaultsPlusUbuntuDocker.copy(
+          backendParameters = Map(TesRuntimeAttributes.BackoffLimitKey -> Option("3"))
+        )
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes, tesConfig = mockTesConfigWithBackendParams)
+    }
+
+    "inject config-default backoff_limit into backend_parameters when useBackendParameters is true" in {
+      // backoff_limit is not set per-task; the value comes from default-runtime-attributes in the backend config.
+      val runtimeAttributes = Map("docker" -> WomString("ubuntu:latest"))
+      val expectedRuntimeAttributes =
+        expectedDefaultsPlusUbuntuDocker.copy(
+          backendParameters = Map(TesRuntimeAttributes.BackoffLimitKey -> Option("5"))
+        )
+      assertSuccess(runtimeAttributes,
+                    expectedRuntimeAttributes,
+                    tesConfig = mockTesConfigWithBackendParamsAndBackoffLimit
+      )
+    }
   }
 
   private val mockConfigurationDescriptor =
@@ -338,6 +398,12 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
   private val mockTesConfiguration = new TesConfiguration(mockConfigurationDescriptor)
   private val mockTesConfigWithBackendParams = new TesConfiguration(
     mockConfigurationDescriptor.copy(backendConfig = TesTestConfig.backendConfigWithBackendParams)
+  )
+  private val mockTesConfigWithMemoryRetry = new TesConfiguration(
+    mockConfigurationDescriptor.copy(backendConfig = TesTestConfig.backendConfigWithMemoryRetryMultiplier)
+  )
+  private val mockTesConfigWithBackendParamsAndBackoffLimit = new TesConfiguration(
+    mockConfigurationDescriptor.copy(backendConfig = TesTestConfig.backendConfigWithBackendParamsAndBackoffLimit)
   )
 
   private def assertSuccess(runtimeAttributes: Map[String, WomValue],

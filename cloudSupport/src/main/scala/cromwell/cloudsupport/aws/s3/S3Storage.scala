@@ -31,6 +31,7 @@
 package cromwell.cloudsupport.aws.s3
 
 import com.typesafe.config.ConfigFactory
+import java.net.URI
 import net.ceedubs.ficus.Ficus._
 import scala.annotation.nowarn
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
@@ -52,11 +53,31 @@ object S3Storage {
     builder.build
   }
 
-  def s3Client(configuration: S3Configuration, provider: AwsCredentialsProvider, region: Option[Region]): S3Client = {
-    val builder = S3Client.builder
-      .serviceConfiguration(configuration)
-      .credentialsProvider(provider)
+  /**
+   * Build an S3Client.
+   *
+   * @param endpointUri optional custom S3-compatible endpoint (e.g. OVH, MinIO).
+   *                    When set, path-style access is forced automatically because:
+   *                    (a) non-AWS services do not support virtual-hosted-style bucket addressing,
+   *                    (b) AWS SDK v2 would otherwise prepend the bucket name to the custom hostname.
+   */
+  def s3Client(
+    configuration: S3Configuration,
+    provider: AwsCredentialsProvider,
+    region: Option[Region],
+    endpointUri: Option[URI] = None
+  ): S3Client = {
+    val builder = S3Client.builder.credentialsProvider(provider)
+    // For a custom endpoint, rebuild the S3Configuration with path-style access enabled.
+    // Non-AWS S3-compatible services require path-style (https://endpoint/bucket/key)
+    // rather than virtual-hosted-style (https://bucket.endpoint/key).
+    val finalConfig = endpointUri match {
+      case Some(_) => configuration.toBuilder.pathStyleAccessEnabled(true).build()
+      case None    => configuration
+    }
+    builder.serviceConfiguration(finalConfig)
     region.foreach(builder.region)
+    endpointUri.foreach(builder.endpointOverride)
     builder.build
   }
 

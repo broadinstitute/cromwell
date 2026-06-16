@@ -77,6 +77,16 @@ trait EvenBetterPathMethods {
         // code to run against a GCS Path. Fortunately creating directories in GCS is also unnecessary, so this
         // exception type is just ignored.
         case _: UnsupportedOperationException =>
+        // The S3 filesystem (via better-files) does not support POSIX permissions. Unlike GCS which throws
+        // UnsupportedOperationException, better-files' File.permissions() returns null for S3 paths because
+        // the underlying NIO attribute view returns null. The subsequent .toSet() call on null produces a
+        // NullPointerException. Setting permissions on S3 "directories" is unnecessary (S3 has no POSIX
+        // permission model), so this exception type is safe to ignore here.
+        case _: NullPointerException =>
+        // S3 (and S3-compatible) paths also throw IOException (e.g. NoSuchFileException) from
+        // readAttributes when addPermission is called on a virtual directory or bucket root.
+        // S3 has no POSIX permission model so this is always a no-op; ignore any IOException here.
+        case _: java.io.IOException =>
       }
     }
     this

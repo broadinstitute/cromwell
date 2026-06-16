@@ -44,9 +44,15 @@ import net.ceedubs.ficus.Ficus._
 import org.slf4j.LoggerFactory
 import software.amazon.awssdk.regions.Region
 
+/**
+ * @param endpointUrl optional custom S3-compatible endpoint URL (e.g. "https://s3.gra.io.cloud.ovh.net").
+ *                    When set, all S3 filesystem operations are directed to this endpoint instead
+ *                    of the default AWS S3 endpoint. Corresponds to the `aws.endpoint-url` config key.
+ */
 final case class AwsConfiguration private (applicationName: String,
                                            authsByName: Map[String, AwsAuthMode],
-                                           strRegion: Option[String]
+                                           strRegion: Option[String],
+                                           endpointUrl: Option[String]
 ) {
 
   def auth(name: String): ErrorOr[AwsAuthMode] =
@@ -82,12 +88,18 @@ object AwsConfiguration {
     val region: Option[String] =
       awsConfig.getAs[String]("region")
 
+    // Optional custom S3-compatible endpoint URL (e.g. OVH Object Storage, MinIO, Ceph).
+    // When set, S3 filesystem operations target this endpoint instead of AWS.
+    val endpointUrl: Option[String] =
+      awsConfig.getAs[String]("endpoint-url")
+
     def buildAuth(authConfig: Config): ErrorOr[AwsAuthMode] = {
 
       def customKeyAuth(authConfig: Config, name: String, region: Option[String]): ErrorOr[AwsAuthMode] = validate {
         (authConfig.getAs[String]("access-key"), authConfig.getAs[String]("secret-key")) match {
           case (Some(accessKey), Some(secretKey)) =>
-            CustomKeyMode(name, accessKey, secretKey, region)
+            // Pass endpointUrl so CustomKeyMode can skip STS validation for non-AWS endpoints.
+            CustomKeyMode(name, accessKey, secretKey, region, endpointUrl)
           case _ =>
             throw new ConfigException.Generic(
               s"""Access key and/or secret """ +
@@ -159,7 +171,7 @@ object AwsConfiguration {
 
     (appName, errorOrAuthList).flatMapN { (name, list) =>
       uniqueAuthNames(list) map { _ =>
-        AwsConfiguration(name, list map { a => a.name -> a } toMap, region)
+        AwsConfiguration(name, list map { a => a.name -> a } toMap, region, endpointUrl)
       }
     } match {
       case Valid(r) => r

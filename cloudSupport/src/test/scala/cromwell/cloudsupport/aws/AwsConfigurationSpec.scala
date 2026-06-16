@@ -316,4 +316,43 @@ class AwsConfigurationSpec extends AnyFlatSpec with CromwellTimeoutSpec with Mat
       AwsConfiguration(ConfigFactory.parseString(duplicateAuthName))
     } should have message "AWS configuration:\nDuplicate auth names: name-default"
   }
+
+  // endpoint-url: optional custom S3-compatible endpoint (OVH, MinIO, etc.).
+
+  it should "parse an optional endpoint-url" in {
+    val configWithEndpoint =
+      """
+        |aws {
+        |  application-name = "cromwell"
+        |  endpoint-url = "https://s3.gra.io.cloud.ovh.net"
+        |  auths = [
+        |    {
+        |      name = "default"
+        |      scheme = "default"
+        |    }
+        |  ]
+        |}
+      """.stripMargin
+
+    val conf = AwsConfiguration(ConfigFactory.parseString(configWithEndpoint))
+    conf.endpointUrl shouldBe Some("https://s3.gra.io.cloud.ovh.net")
+  }
+
+  it should "have endpointUrl as None when endpoint-url is absent from config" in {
+    val configWithoutEndpoint =
+      """
+        |aws {
+        |  application-name = "cromwell"
+        |  auths = [
+        |    {
+        |      name = "default"
+        |      scheme = "default"
+        |    }
+        |  ]
+        |}
+      """.stripMargin
+
+    val conf = AwsConfiguration(ConfigFactory.parseString(configWithoutEndpoint))
+    conf.endpointUrl shouldBe None
+  }
 }

@@ -395,12 +395,30 @@ public class S3FileSystemProvider extends FileSystemProvider {
             s3Path.getFileStore().getClient().createBucket(CreateBucketRequest.builder().bucket(bucketName).build());
         }
         // create the object as directory
-        PutObjectRequest.Builder builder = PutObjectRequest.builder();
+        // S3 is a flat namespace — directory marker objects (zero-byte keys ending in "/") are
+        // optional. Some S3-compatible endpoints (e.g. OVH Ceph RadosGW) return 403 Access Denied
+        // for putObject on such markers even when the credentials have full read/write access to
+        // actual objects in the bucket. Swallow S3Exception here: the marker not existing does not
+        // prevent cromwell from writing real objects under this prefix.
+        //
+        // Special case: if s3Path.getKey() is empty we are at the bucket root (e.g. the NIO path
+        // "/bucket/" whose key strips to ""). The bucket root is purely virtual — no marker object
+        // should ever be created for it, and attempting putObject with key "/" causes OVH to 403.
+        // Skip putObject entirely for the bucket root.
         String directoryKey = s3Path.getKey().endsWith("/") ? s3Path.getKey() : s3Path.getKey() + "/";
-        builder.bucket(bucketName)
-                .key(directoryKey)
-                .contentLength(0L);
-        s3Path.getFileStore().getClient().putObject(builder.build(), RequestBody.fromBytes(new byte[0]));
+        if (s3Path.getKey().isEmpty()) {
+            log.info("createDirectory: skipping putObject for bucket root (no marker needed)");
+        } else {
+            PutObjectRequest.Builder builder = PutObjectRequest.builder();
+            builder.bucket(bucketName)
+                    .key(directoryKey)
+                    .contentLength(0L);
+            try {
+                s3Path.getFileStore().getClient().putObject(builder.build(), RequestBody.fromBytes(new byte[0]));
+            } catch (S3Exception e) {
+                log.warning("createDirectory: putObject for directory marker '" + directoryKey + "' returned " + e.statusCode() + " — ignoring (S3 directory markers are optional)");
+            }
+        }
     }
 
     @Override
@@ -834,6 +852,28 @@ public class S3FileSystemProvider extends FileSystemProvider {
      */
     boolean exists(S3Path path) {
         S3Path s3Path = toS3Path(path);
+
+        // Calling headObject with an empty key throws SdkClientException("Key cannot be empty") rather
+        // than a catchable S3Exception/NoSuchFileException, so the exception escapes the try-block below
+        // and propagates as an unhandled initialization error.
+        //
+        // This is triggered by cromwell.core.path.EvenBetterPathMethods.createPermissionedDirectories(),
+        // which walks the parent chain all the way to the bucket root when the workflow root directory
+        // does not yet exist (e.g. first run, or a bare-bucket `root` config like "s3://my-bucket").
+        //
+        // Fix: detect the empty-key case early and probe the bucket itself via headBucket instead.
+        // The bucket root is a virtual directory that "exists" if the bucket is accessible.
+        if (s3Path.getKey().isEmpty()) {
+            try {
+                s3Path.getFileStore().getClient().headBucket(
+                    HeadBucketRequest.builder().bucket(s3Path.getFileStore().name()).build()
+                );
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
         try {
             s3Utils.getS3ObjectSummary(s3Path);
             return true;

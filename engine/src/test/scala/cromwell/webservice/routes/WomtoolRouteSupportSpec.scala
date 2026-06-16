@@ -156,8 +156,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
 }
 
 object WomtoolRouteSupportSpec {
-  class MockWomtoolRouteSupport()(implicit val system: ActorSystem)
-      extends WomtoolRouteSupport {
+  class MockWomtoolRouteSupport()(implicit val system: ActorSystem) extends WomtoolRouteSupport {
     override def actorRefFactory = system
     override val ec = system.dispatcher
 

@@ -22,11 +22,11 @@ object WorkflowState {
     .find(_.toString.equalsIgnoreCase(str))
     .getOrElse(throw new NoSuchElementException(s"No such WorkflowState: $str"))
 
-  implicit val WorkflowStateSemigroup = new Semigroup[WorkflowState] {
+  implicit val WorkflowStateSemigroup: Semigroup[WorkflowState] = new Semigroup[WorkflowState] {
     override def combine(f1: WorkflowState, f2: WorkflowState): WorkflowState = f1.combine(f2)
   }
 
-  implicit val WorkflowStateOrdering = Ordering.by { self: WorkflowState => self.ordinal }
+  implicit val WorkflowStateOrdering: Ordering[WorkflowState] = Ordering.by { self: WorkflowState => self.ordinal }
 }
 
 case object WorkflowOnHold extends WorkflowState {

@@ -33,7 +33,8 @@ class WriteMetadataActorSpec extends TestKitSuite with AnyFlatSpecLike with Matc
 
   behavior of "WriteMetadataActor"
 
-  implicit val defaultPatience = PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = Span(500, Millis))
+  implicit val defaultPatience: PatienceConfig =
+    PatienceConfig(timeout = scaled(Span(10, Seconds)), interval = Span(500, Millis))
 
   it should "process jobs in the correct batch sizes" in {
     val registry = TestProbe().ref

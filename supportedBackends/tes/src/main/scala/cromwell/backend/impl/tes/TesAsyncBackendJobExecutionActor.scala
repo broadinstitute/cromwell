@@ -37,6 +37,7 @@ import java.io.FileNotFoundException
 import java.nio.file.FileAlreadyExistsException
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
+import akka.actor.ActorSystem
 
 case class TesVmCostData(startTime: Option[String], endTime: Option[String], vmCost: Option[String]) {
   val fullyPopulated: Boolean = startTime.nonEmpty && vmCost.nonEmpty
@@ -223,8 +224,8 @@ class TesAsyncBackendJobExecutionActor(override val standardParams: StandardAsyn
     with StandardAsyncExecutionActor
     with TesJobCachingActorHelper
     with CromwellInstrumentation {
-  implicit val actorSystem = context.system
-  implicit val materializer = ActorMaterializer()
+  implicit val actorSystem: ActorSystem = context.system
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   override type StandardAsyncRunInfo = Any
 

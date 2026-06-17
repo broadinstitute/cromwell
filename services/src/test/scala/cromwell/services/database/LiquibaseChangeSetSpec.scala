@@ -13,7 +13,7 @@ import scala.concurrent.ExecutionContext
 
 class LiquibaseChangeSetSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
-  implicit val executionContext = ExecutionContext.global
+  implicit val executionContext: ExecutionContext = ExecutionContext.global
 
   behavior of "Liquibase Change Sets"
 

@@ -21,7 +21,7 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
 
   val version = "v1"
 
-  implicit def routeTestTimeout = RouteTestTimeout(5.seconds)
+  implicit def routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
   behavior of "REST API /status endpoint"
   it should "return 200 for get of a known workflow id" in {

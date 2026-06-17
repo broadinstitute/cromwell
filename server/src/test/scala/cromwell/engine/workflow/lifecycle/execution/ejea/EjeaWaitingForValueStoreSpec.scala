@@ -7,7 +7,7 @@ import cromwell.engine.workflow.lifecycle.execution.stores.ValueStore
 
 class EjeaWaitingForValueStoreSpec extends EngineJobExecutionActorSpec {
 
-  implicit override val stateUnderTest = CheckingJobStore
+  implicit override val stateUnderTest: CheckingJobStore.type = CheckingJobStore
 
   "An EJEA in EjeaWaitingForValueStore state should" should {
     "prepare the job when receiving the output store" in {

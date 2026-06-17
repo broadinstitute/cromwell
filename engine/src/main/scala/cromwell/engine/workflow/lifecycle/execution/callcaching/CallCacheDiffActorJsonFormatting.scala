@@ -11,10 +11,10 @@ import spray.json._
 
 object CallCacheDiffActorJsonFormatting extends SprayJsonSupport with DefaultJsonProtocol {
 
-  implicit val callDetailsJsonFormatter = jsonFormat5(CallDetails)
+  implicit val callDetailsJsonFormatter: RootJsonFormat[CallDetails] = jsonFormat5(CallDetails)
 
   // Note: This json format is written out longform to get the non-standard Option behavior (the default omits 'None' fields altogether)
-  implicit val hashDifferenceJsonFormatter = new RootJsonFormat[HashDifference] {
+  implicit val hashDifferenceJsonFormatter: RootJsonFormat[HashDifference] = new RootJsonFormat[HashDifference] {
     override def write(hashDifference: HashDifference): JsValue = {
       def fromOption(opt: Option[String]) = opt.map(JsString.apply).getOrElse(JsNull)
       JsObject(
@@ -31,5 +31,6 @@ object CallCacheDiffActorJsonFormatting extends SprayJsonSupport with DefaultJso
       )
   }
 
-  implicit val successfulResponseJsonFormatter = jsonFormat3(SuccessfulCallCacheDiffResponse)
+  implicit val successfulResponseJsonFormatter: RootJsonFormat[SuccessfulCallCacheDiffResponse] =
+    jsonFormat3(SuccessfulCallCacheDiffResponse)
 }

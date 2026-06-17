@@ -13,7 +13,7 @@ class EjeaUpdatingJobStoreSpec
     with HasJobSuccessResponse
     with HasJobFailureResponses {
 
-  implicit override val stateUnderTest = UpdatingJobStore
+  implicit override val stateUnderTest: UpdatingJobStore.type = UpdatingJobStore
 
   "An EJEA in UpdatingJobStoreSpec" should {
 

@@ -14,7 +14,7 @@ import net.ceedubs.ficus.readers.ValueReader
 import scala.concurrent.duration.FiniteDuration
 
 object CromwellFtpFileSystems {
-  implicit val connectionModeReader = new ValueReader[ConnectionMode] {
+  implicit val connectionModeReader: ValueReader[ConnectionMode] = new ValueReader[ConnectionMode] {
     override def read(config: Config, path: String) = if (config.hasPath(path)) {
       config.as[String](path) match {
         case "passive" => Passive

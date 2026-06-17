@@ -17,7 +17,8 @@ import scala.concurrent.{ExecutionContext, Future}
 
 package object model {
 
-  implicit val OffsetDateTimeJsonFormat = OffsetDateTimeJsonFormatter.OffsetDateTimeFormat
+  implicit val OffsetDateTimeJsonFormat: RootJsonFormat[OffsetDateTime] =
+    OffsetDateTimeJsonFormatter.OffsetDateTimeFormat
 
   object OffsetDateTimeJsonFormatter extends DefaultJsonProtocol {
     object OffsetDateTimeFormat extends RootJsonFormat[OffsetDateTime] {

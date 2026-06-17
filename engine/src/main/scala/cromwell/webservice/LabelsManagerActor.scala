@@ -8,6 +8,7 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.services.SuccessfulMetadataJsonResponse
 import cromwell.webservice.LabelsManagerActor._
 import spray.json.{DefaultJsonProtocol, JsObject, JsString}
+import scala.concurrent.ExecutionContext
 
 object LabelsManagerActor {
 
@@ -31,7 +32,7 @@ object LabelsManagerActor {
 
 class LabelsManagerActor(serviceRegistryActor: ActorRef) extends Actor with ActorLogging with DefaultJsonProtocol {
 
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
 
   // These var Options get set by the effective entry point of the actor, the LabelsAddition case
   private var wfId: Option[WorkflowId] = None

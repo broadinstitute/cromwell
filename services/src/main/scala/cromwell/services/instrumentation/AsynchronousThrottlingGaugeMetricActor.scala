@@ -13,7 +13,7 @@ class AsynchronousThrottlingGaugeMetricActor(metricPath: NonEmptyList[String],
 ) extends LoggingFSM[AsynchronousThrottlingGaugeMetricActorState, Unit]
     with CromwellInstrumentation {
 
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
 
   startWith(WaitingForMetricCalculationRequestOrMetricValue, ())
 

@@ -99,7 +99,7 @@ class SimpleWorkflowActorSpec extends CromwellTestKitWordSpec with BeforeAndAfte
     TestableWorkflowActorAndMetadataPromise(workflowActor, supervisor, promise)
   }
 
-  implicit val TestExecutionTimeout = 30.seconds.dilated
+  implicit val TestExecutionTimeout: FiniteDuration = 30.seconds.dilated
   val AwaitAlmostNothing = 100.milliseconds.dilated
   var workflowId: WorkflowId = _
   before {

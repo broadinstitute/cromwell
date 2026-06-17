@@ -17,14 +17,18 @@ import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 import spray.json._
 
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration._
 
 class WesRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with Matchers with WesRouteSupport {
 
   val actorRefFactory = system
-  implicit override val ec = system.dispatcher
+
+  // ExecutionContextExecutor rather than ExecutionContext to make sure we take precedence
+  // over the `executor: ExecutionContextExecutor` inherited from ScalatestRouteTest
+  implicit override val ec: ExecutionContextExecutor = system.dispatcher
   override val timeout = routeTestTimeout.duration
-  implicit def routeTestTimeout = RouteTestTimeout(5.seconds)
+  implicit def routeTestTimeout: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
   override val workflowStoreActor = actorRefFactory.actorOf(Props(new MockWorkflowStoreActor()))
   override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))

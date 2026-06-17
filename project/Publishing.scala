@@ -232,7 +232,7 @@ object Publishing {
   val additionalResolvers = List(
     garVirtualResolver,
     garVirtualResolverSnap
-  ) ++ Resolver.sonatypeOssRepos("releases")
+  )
 
   // BT-250 Check if publishing will fail due to already published artifacts
   val checkAlreadyPublished = taskKey[Boolean]("Verifies if publishing has already occurred")

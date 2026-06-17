@@ -15,11 +15,11 @@ object IoAttempts {
       extends Throwable(message, cause, true, false)
       with CromwellFatalExceptionMarker
 
-  implicit val showState = new Show[IoAttempts] {
+  implicit val showState: Show[IoAttempts] = new Show[IoAttempts] {
     override def show(t: IoAttempts) = s"Attempted ${t.attempts} time(s)"
   }
 
-  implicit val stateToThrowable = new StatefulIoError[IoAttempts] {
+  implicit val stateToThrowable: StatefulIoError[IoAttempts] = new StatefulIoError[IoAttempts] {
     override def toThrowable(state: IoAttempts, throwable: Throwable) = {
       state.throwables.foreach(throwable.addSuppressed)
       EnhancedCromwellIoException(state, throwable)

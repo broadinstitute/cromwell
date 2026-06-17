@@ -14,6 +14,8 @@ import cromwell.webservice.routes.wes.WesRouteSupport
 
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext
+import akka.actor.ActorSystem
 
 // Note that as per the language specification, this is instantiated lazily and only used when necessary (i.e. server mode)
 object CromwellServer {
@@ -41,8 +43,8 @@ class CromwellServerActor(cromwellSystem: CromwellSystem, gracefulShutdown: Bool
     with WesRouteSupport
     with SwaggerService
     with ActorLogging {
-  implicit val actorSystem = context.system
-  implicit override val ec = context.dispatcher
+  implicit val actorSystem: ActorSystem = context.system
+  implicit override val ec: ExecutionContext = context.dispatcher
   override def actorRefFactory: ActorContext = context
 
   val webserviceConf = cromwellSystem.config.getConfig("webservice")

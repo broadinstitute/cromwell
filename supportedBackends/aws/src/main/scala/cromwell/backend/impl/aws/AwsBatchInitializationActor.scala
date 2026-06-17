@@ -57,6 +57,7 @@ import cromwell.backend.impl.aws.io.AwsBatchWorkflowPaths
 
 import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
+import akka.actor.ActorSystem
 
 case class AwsBatchInitializationActorParams(
   workflowDescriptor: BackendWorkflowDescriptor,
@@ -77,7 +78,7 @@ class AwsBatchInitializationActor(params: AwsBatchInitializationActorParams)
 
   override lazy val ioActor = params.ioActor
   private val configuration = params.configuration
-  implicit override val system = context.system
+  implicit override val system: ActorSystem = context.system
 
   override def beforeAll(): Future[Option[BackendInitializationData]] =
     configuration.fileSystem match {

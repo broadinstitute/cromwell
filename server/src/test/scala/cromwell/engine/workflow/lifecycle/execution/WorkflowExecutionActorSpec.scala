@@ -25,6 +25,7 @@ import org.scalatest.matchers.should.Matchers
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Promise}
+import akka.actor.ActorSystem
 
 class WorkflowExecutionActorSpec
     extends CromwellTestKitSpec
@@ -33,8 +34,8 @@ class WorkflowExecutionActorSpec
     with BeforeAndAfter
     with WorkflowDescriptorBuilderForSpecs {
 
-  implicit override val actorSystem = system
-  implicit val DefaultDuration = 60.seconds.dilated
+  implicit override val actorSystem: ActorSystem = system
+  implicit val DefaultDuration: FiniteDuration = 60.seconds.dilated
 
   def mockServiceRegistryActor = TestActorRef(new Actor {
     override def receive = { case _ => // No action

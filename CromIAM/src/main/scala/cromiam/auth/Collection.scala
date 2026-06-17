@@ -47,7 +47,7 @@ object Collection {
   def forUser(user: User): Collection =
     Collection(user.userId.value)
 
-  implicit val collectionJsonReader = new JsonReader[Collection] {
+  implicit val collectionJsonReader: JsonReader[Collection] = new JsonReader[Collection] {
     import spray.json.DefaultJsonProtocol._
     override def read(json: JsValue): Collection = Collection(json.convertTo[String])
   }

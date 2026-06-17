@@ -29,6 +29,7 @@ import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
+import io.circe.Encoder.AsObject
 
 class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
                              override val dispensingRate: DynamicRateLimiter.Rate,
@@ -312,7 +313,7 @@ object JobTokenDispenserActor {
   case object FetchLimitedGroups
   final case class ReplyLimitedGroups(groups: Set[String])
 
-  implicit val tokenEncoder = deriveEncoder[JobTokenType]
+  implicit val tokenEncoder: AsObject[JobTokenType] = deriveEncoder[JobTokenType]
 
   @JsonCodec(encodeOnly = true)
   final case class TokenDispenserState(dispenserType: String,

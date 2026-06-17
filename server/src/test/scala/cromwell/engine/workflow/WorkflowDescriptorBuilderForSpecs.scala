@@ -14,10 +14,12 @@ import cromwell.engine.workflow.lifecycle.materialization.MaterializeWorkflowDes
 }
 
 import scala.concurrent.Await
+import scala.concurrent.duration.FiniteDuration
+import akka.util.Timeout
 
 trait WorkflowDescriptorBuilderForSpecs {
 
-  implicit val awaitTimeout = CromwellTestKitSpec.TimeoutDuration
+  implicit val awaitTimeout: FiniteDuration = CromwellTestKitSpec.TimeoutDuration
   implicit val actorSystem: ActorSystem
   lazy val ioActor = actorSystem.actorOf(SimpleIoActor.props)
 
@@ -25,7 +27,7 @@ trait WorkflowDescriptorBuilderForSpecs {
                                                  workflowSources: WorkflowSourceFilesCollection
   ): EngineWorkflowDescriptor = {
     import akka.pattern.ask
-    implicit val timeout = akka.util.Timeout(awaitTimeout)
+    implicit val timeout = Timeout(awaitTimeout)
     implicit val ec = actorSystem.dispatcher
     val callCachingEnabled = true
     val invalidateBadCacheResults = true

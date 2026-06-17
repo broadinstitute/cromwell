@@ -14,16 +14,21 @@ import cromwell.services.metadata.MetadataService._
 import cromwell.util.JsonFormatting.WomValueJsonFormatter._
 import cromwell.webservice.routes.CromwellApiService.BackendResponse
 import spray.json.{DefaultJsonProtocol, JsonFormat, JsString, JsValue, RootJsonFormat}
+import cromwell.webservice.EngineStatsActor.EngineStats
 
 object WorkflowJsonSupport extends DefaultJsonProtocol {
-  implicit val workflowStatusResponseProtocol = jsonFormat2(WorkflowStatusResponse)
-  implicit val workflowAbortResponseProtocol = jsonFormat2(WorkflowAbortResponse)
-  implicit val workflowSubmitResponseProtocol = jsonFormat2(WorkflowSubmitResponse)
-  implicit val workflowOutputResponseProtocol = jsonFormat2(WorkflowOutputResponse)
-  implicit val callOutputResponseProtocol = jsonFormat3(CallOutputResponse)
-  implicit val engineStatsProtocol = jsonFormat2(EngineStatsActor.EngineStats)
-  implicit val BackendResponseFormat = jsonFormat2(BackendResponse)
-  implicit val callAttempt = jsonFormat2(CallAttempt)
+  implicit val workflowStatusResponseProtocol: RootJsonFormat[WorkflowStatusResponse] =
+    jsonFormat2(WorkflowStatusResponse)
+  implicit val workflowAbortResponseProtocol: RootJsonFormat[WorkflowAbortResponse] =
+    jsonFormat2(WorkflowAbortResponse)
+  implicit val workflowSubmitResponseProtocol: RootJsonFormat[WorkflowSubmitResponse] =
+    jsonFormat2(WorkflowSubmitResponse)
+  implicit val workflowOutputResponseProtocol: RootJsonFormat[WorkflowOutputResponse] =
+    jsonFormat2(WorkflowOutputResponse)
+  implicit val callOutputResponseProtocol: RootJsonFormat[CallOutputResponse] = jsonFormat3(CallOutputResponse)
+  implicit val engineStatsProtocol: RootJsonFormat[EngineStats] = jsonFormat2(EngineStatsActor.EngineStats)
+  implicit val BackendResponseFormat: RootJsonFormat[BackendResponse] = jsonFormat2(BackendResponse)
+  implicit val callAttempt: RootJsonFormat[CallAttempt] = jsonFormat2(CallAttempt)
 
   implicit val workflowOptionsFormatter: JsonFormat[WorkflowOptions] = new JsonFormat[WorkflowOptions] {
     override def read(json: JsValue): WorkflowOptions = json match {
@@ -47,9 +52,10 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     override def write(obj: WorkflowId): JsValue = JsString(obj.id.toString)
   }
 
-  implicit val workflowSourceData = jsonFormat11(WorkflowSourceFilesWithoutImports)
-  implicit val subsystemStatusFormat = jsonFormat2(SubsystemStatus)
-  implicit val statusCheckResponseFormat = jsonFormat2(StatusCheckResponse)
+  implicit val workflowSourceData: RootJsonFormat[WorkflowSourceFilesWithoutImports] =
+    jsonFormat11(WorkflowSourceFilesWithoutImports)
+  implicit val subsystemStatusFormat: RootJsonFormat[SubsystemStatus] = jsonFormat2(SubsystemStatus)
+  implicit val statusCheckResponseFormat: RootJsonFormat[StatusCheckResponse] = jsonFormat2(StatusCheckResponse)
 
   implicit object fileJsonFormat extends RootJsonFormat[File] {
     override def write(obj: File) = JsString(obj.path.toAbsolutePath.toString)
@@ -59,16 +65,17 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowSourceDataWithImports = jsonFormat12(WorkflowSourceFilesWithDependenciesZip)
-  implicit val errorResponse = jsonFormat3(FailureResponse)
+  implicit val workflowSourceDataWithImports: RootJsonFormat[WorkflowSourceFilesWithDependenciesZip] =
+    jsonFormat12(WorkflowSourceFilesWithDependenciesZip)
+  implicit val errorResponse: RootJsonFormat[FailureResponse] = jsonFormat3(FailureResponse)
 
   // By default the formatter for JsValues prints them out ADT-style.
   // In the case of SuccessResponses, we just want raw JsValues to be included in our output verbatim.
-  implicit private val identityJsValueFormatter = new RootJsonFormat[JsValue] {
+  implicit private val identityJsValueFormatter: RootJsonFormat[JsValue] = new RootJsonFormat[JsValue] {
     override def read(json: JsValue): JsValue = json
     override def write(obj: JsValue): JsValue = obj
   }
-  implicit val successResponse = jsonFormat3(SuccessResponse)
+  implicit val successResponse: RootJsonFormat[SuccessResponse] = jsonFormat3(SuccessResponse)
 
   implicit object DateJsonFormat extends RootJsonFormat[OffsetDateTime] {
     override def write(offsetDateTime: OffsetDateTime) = JsString(offsetDateTime.toUtcMilliString)
@@ -88,6 +95,6 @@ object WorkflowJsonSupport extends DefaultJsonProtocol {
     }
   }
 
-  implicit val workflowQueryResult = jsonFormat10(WorkflowQueryResult)
-  implicit val workflowQueryResponse = jsonFormat2(WorkflowQueryResponse)
+  implicit val workflowQueryResult: RootJsonFormat[WorkflowQueryResult] = jsonFormat10(WorkflowQueryResult)
+  implicit val workflowQueryResponse: RootJsonFormat[WorkflowQueryResponse] = jsonFormat2(WorkflowQueryResponse)
 }

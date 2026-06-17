@@ -11,6 +11,7 @@ import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.{EngineServicesStore, MetadataServicesStore}
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext
 
 trait CromwellSystem extends CromwellTerminator {
   /*
@@ -38,9 +39,9 @@ trait CromwellSystem extends CromwellTerminator {
     system
   }
 
-  implicit final lazy val actorSystem = newActorSystem()
-  implicit final lazy val materializer = ActorMaterializer()
-  implicit final private lazy val ec = actorSystem.dispatcher
+  implicit final lazy val actorSystem: ActorSystem = newActorSystem()
+  implicit final lazy val materializer: ActorMaterializer = ActorMaterializer()
+  implicit final private lazy val ec: ExecutionContext = actorSystem.dispatcher
 
   override def beginCromwellShutdown(reason: CoordinatedShutdown.Reason): Future[Done] =
     CromwellShutdown.instance(actorSystem).run(reason)

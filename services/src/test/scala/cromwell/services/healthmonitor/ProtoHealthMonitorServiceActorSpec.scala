@@ -19,13 +19,13 @@ import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutor, Futu
 import scala.language.postfixOps
 
 class ProtoHealthMonitorServiceActorSpec extends TestKitSuite with AnyFlatSpecLike with Eventually {
-  implicit val timeout = Timeout(scaled(5.seconds))
+  implicit val timeout: Timeout = Timeout(scaled(5.seconds))
   implicit final val blockingEc: ExecutionContextExecutor = ExecutionContext.fromExecutor(
     Executors.newCachedThreadPool()
   )
 
   override val patienceConfig = PatienceConfig(timeout = scaled(20 seconds), interval = scaled(1 second))
-  implicit val patience = patienceConfig
+  implicit val patience: PatienceConfig = patienceConfig
 
   private def eventualStatus(actorRef: ActorRef,
                              ok: Boolean,

@@ -24,7 +24,7 @@ import scala.util.{Failure, Success, Try}
   */
 class SlickDeadlocksSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
 
-  implicit val executionContext = ExecutionContext.global
+  implicit val executionContext: ExecutionContext = ExecutionContext.global
 
   behavior of "Slick Deadlocks"
 

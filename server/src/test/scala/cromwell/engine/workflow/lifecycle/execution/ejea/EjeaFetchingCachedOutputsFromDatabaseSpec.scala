@@ -20,7 +20,7 @@ import scala.util.{Failure, Success}
 
 class EjeaFetchingCachedOutputsFromDatabaseSpec extends EngineJobExecutionActorSpec with HasJobSuccessResponse {
 
-  implicit override def stateUnderTest = FetchingCachedOutputsFromDatabase
+  implicit override def stateUnderTest: FetchingCachedOutputsFromDatabase.type = FetchingCachedOutputsFromDatabase
 
   "An EJEA in FetchingCachedOutputsFromDatabase state" should {
 

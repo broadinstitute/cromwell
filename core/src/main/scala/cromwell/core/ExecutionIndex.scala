@@ -22,7 +22,7 @@ object ExecutionIndex {
     def isShard: Boolean = index.nonEmpty
   }
 
-  implicit val ExecutionIndexOrdering = new Ordering[ExecutionIndex] {
+  implicit val ExecutionIndexOrdering: Ordering[ExecutionIndex] = new Ordering[ExecutionIndex] {
     override def compare(x: ExecutionIndex, y: ExecutionIndex): Int =
       x.fromIndex.compareTo(y.fromIndex)
   }

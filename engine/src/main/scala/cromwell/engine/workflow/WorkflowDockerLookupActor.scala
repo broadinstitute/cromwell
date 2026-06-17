@@ -20,6 +20,7 @@ import cromwell.services.EngineServicesStore
 
 import scala.util.control.NoStackTrace
 import scala.util.{Failure, Success}
+import akka.dispatch.MessageDispatcher
 
 /**
   * Ensures docker hash consistency throughout a workflow.
@@ -49,7 +50,7 @@ class WorkflowDockerLookupActor private[workflow] (workflowId: WorkflowId,
 ) extends LoggingFSM[WorkflowDockerLookupActorState, WorkflowDockerLookupActorData]
     with DockerClientHelper {
 
-  implicit val ec = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
+  implicit val ec: MessageDispatcher = context.system.dispatchers.lookup(Dispatcher.EngineDispatcher)
 
   context.become(dockerReceive orElse receive)
 

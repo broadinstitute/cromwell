@@ -20,24 +20,27 @@ object LookupEvaluators {
         Set[UnlinkedConsumedValueHook](UnlinkedIdentifierHook(a.identifier))
     }
 
-  implicit val identifierMemberAccessUnlinkedValueConsumer = new ExpressionValueConsumer[IdentifierMemberAccess] {
-    override def expressionConsumedValueHooks(a: IdentifierMemberAccess)(implicit
-      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
-    ): Set[UnlinkedConsumedValueHook] =
-      Set[UnlinkedConsumedValueHook](UnlinkedCallOutputOrIdentifierAndMemberAccessHook(a.first, a.second))
-  }
+  implicit val identifierMemberAccessUnlinkedValueConsumer: ExpressionValueConsumer[IdentifierMemberAccess] =
+    new ExpressionValueConsumer[IdentifierMemberAccess] {
+      override def expressionConsumedValueHooks(a: IdentifierMemberAccess)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] =
+        Set[UnlinkedConsumedValueHook](UnlinkedCallOutputOrIdentifierAndMemberAccessHook(a.first, a.second))
+    }
 
-  implicit val expressionMemberAccessUnlinkedValueConsumer = new ExpressionValueConsumer[ExpressionMemberAccess] {
-    override def expressionConsumedValueHooks(a: ExpressionMemberAccess)(implicit
-      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
-    ): Set[UnlinkedConsumedValueHook] =
-      a.expression.expressionConsumedValueHooks
-  }
+  implicit val expressionMemberAccessUnlinkedValueConsumer: ExpressionValueConsumer[ExpressionMemberAccess] =
+    new ExpressionValueConsumer[ExpressionMemberAccess] {
+      override def expressionConsumedValueHooks(a: ExpressionMemberAccess)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] =
+        a.expression.expressionConsumedValueHooks
+    }
 
-  implicit val indexAccessUnlinkedValueConsumer = new ExpressionValueConsumer[IndexAccess] {
-    override def expressionConsumedValueHooks(a: IndexAccess)(implicit
-      expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
-    ): Set[UnlinkedConsumedValueHook] =
-      a.expressionElement.expressionConsumedValueHooks ++ a.index.expressionConsumedValueHooks
-  }
+  implicit val indexAccessUnlinkedValueConsumer: ExpressionValueConsumer[IndexAccess] =
+    new ExpressionValueConsumer[IndexAccess] {
+      override def expressionConsumedValueHooks(a: IndexAccess)(implicit
+        expressionValueConsumer: ExpressionValueConsumer[ExpressionElement]
+      ): Set[UnlinkedConsumedValueHook] =
+        a.expressionElement.expressionConsumedValueHooks ++ a.index.expressionConsumedValueHooks
+    }
 }

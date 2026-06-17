@@ -12,6 +12,7 @@ import cromwell.services.metadata.{CallMetadataKeys, MetadataEvent, MetadataQuer
 import scala.concurrent.Future
 import scala.concurrent.duration.Duration
 import scala.util.Try
+import scala.concurrent.ExecutionContext
 
 object ReadDatabaseMetadataWorkerActor {
   def props(metadataReadTimeout: Duration) =
@@ -25,7 +26,7 @@ class ReadDatabaseMetadataWorkerActor(metadataReadTimeout: Duration)
     with MetadataDatabaseAccess
     with MetadataServicesStore {
 
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
 
   def receive = {
     case FetchFailedJobsMetadataWithWorkflowId(w: WorkflowId) =>

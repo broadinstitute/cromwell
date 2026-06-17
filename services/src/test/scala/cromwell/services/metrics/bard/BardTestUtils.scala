@@ -6,9 +6,10 @@ import cromwell.services.metrics.bard.model.TaskSummaryEvent
 import java.time.OffsetDateTime
 import java.time.temporal.ChronoUnit
 import java.util.UUID
+import akka.actor.ActorSystem
 
 trait BardTestUtils {
-  implicit val actorSystem = akka.actor.ActorSystem("BardTestUtils")
+  implicit val actorSystem: ActorSystem = ActorSystem("BardTestUtils")
   val serviceRegistryProbe: TestProbe = TestProbe()
   val workflowId = UUID.randomUUID()
   val parentWorkflowId = UUID.randomUUID()

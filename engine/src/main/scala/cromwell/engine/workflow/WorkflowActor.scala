@@ -70,6 +70,7 @@ import wom.values.WomValue
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Failure
+import scala.concurrent.ExecutionContext
 
 object WorkflowActor {
 
@@ -290,7 +291,7 @@ class WorkflowActor(workflowToStart: WorkflowToStart,
     with WorkflowInstrumentation
     with Timers {
 
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
   private val WorkflowToStart(workflowId, submissionTime, sources, initialStartableState, hogGroup) = workflowToStart
   override val workflowIdForLogging = workflowId.toPossiblyNotRoot
   override val rootWorkflowIdForLogging = workflowId.toRoot

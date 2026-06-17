@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContext
 class StreamActorHelperSpec extends TestKitSuite with AnyFlatSpecLike with Matchers with ImplicitSender {
   behavior of "StreamActorHelper"
 
-  implicit val materializer = ActorMaterializer()
+  implicit val materializer: ActorMaterializer = ActorMaterializer()
 
   it should "catch EnqueueResponse message" in {
     val actor = TestActorRef(Props(new TestStreamActor(1)))

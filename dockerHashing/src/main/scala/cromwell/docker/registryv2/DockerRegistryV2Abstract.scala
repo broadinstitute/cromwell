@@ -18,6 +18,9 @@ import org.http4s.headers._
 import org.http4s.util.CaseInsensitiveString
 
 import scala.util.control.NoStackTrace
+import scala.concurrent.ExecutionContext
+import cats.effect.ContextShift
+import cats.effect.Timer
 
 object DockerRegistryV2Abstract {
   implicit class EnhancedParseResult[A](val parseResult: ParseResult[A]) extends AnyVal {
@@ -53,9 +56,11 @@ object DockerRegistryV2Abstract {
     .parse(OCIMediaTypes)
     .unsafe("Cannot parse invalid OCI index v1 Accept header. Please report this error.")
 
-  implicit val entityManifestDecoder = jsonEntityDecoder[DockerManifest](DockerManifestV2MediaRange)
-  implicit val entityManifestListDecoder = jsonEntityDecoder[DockerManifestList](DockerManifestListV2MediaRange)
-  implicit val entityTokenDecoder = jsonOf[IO, DockerAccessToken]
+  implicit val entityManifestDecoder: EntityDecoder[IO, DockerManifest] =
+    jsonEntityDecoder[DockerManifest](DockerManifestV2MediaRange)
+  implicit val entityManifestListDecoder: EntityDecoder[IO, DockerManifestList] =
+    jsonEntityDecoder[DockerManifestList](DockerManifestListV2MediaRange)
+  implicit val entityTokenDecoder: EntityDecoder[IO, DockerAccessToken] = jsonOf[IO, DockerAccessToken]
 
   /**
     * Creates a Json decoder for the given type but allows a different media type than application/json
@@ -90,9 +95,9 @@ object DockerRegistryV2Abstract {
   * https://docs.docker.com/registry/spec/api/
   */
 abstract class DockerRegistryV2Abstract(override val config: DockerRegistryConfig) extends DockerRegistry {
-  implicit val ec = config.executionContext
-  implicit val cs = IO.contextShift(ec)
-  implicit val timer = IO.timer(ec)
+  implicit val ec: ExecutionContext = config.executionContext
+  implicit val cs: ContextShift[IO] = IO.contextShift(ec)
+  implicit val timer: Timer[IO] = IO.timer(ec)
 
   protected val authorizationScheme: AuthScheme = AuthScheme.Bearer
 

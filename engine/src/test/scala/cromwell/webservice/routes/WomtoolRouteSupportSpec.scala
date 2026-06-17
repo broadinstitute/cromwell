@@ -23,7 +23,7 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
   val akkaHttpService = new MockWomtoolRouteSupport()
   val version = "v1"
 
-  implicit def default = RouteTestTimeout(10.seconds.dilated)
+  implicit def default: RouteTestTimeout = RouteTestTimeout(10.seconds.dilated)
 
   behavior of "/describe endpoint"
 
@@ -156,12 +156,14 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
 }
 
 object WomtoolRouteSupportSpec {
-  class MockWomtoolRouteSupport()(implicit val system: ActorSystem, routeTestTimeout: RouteTestTimeout)
-      extends WomtoolRouteSupport {
+  class MockWomtoolRouteSupport()(implicit val system: ActorSystem) extends WomtoolRouteSupport {
     override def actorRefFactory = system
     override val ec = system.dispatcher
-    override val timeout = routeTestTimeout.duration
+
+    // Apply a shorter 5s timeout to the production code, causing the "actor explodes" ask-timeout test
+    // to hit that instead of the 10s route test timeout
+    override val timeout = 5.seconds
     override val serviceRegistryActor = actorRefFactory.actorOf(Props(new MockServiceRegistryActor()))
-    implicit override val materializer = ActorMaterializer()
+    implicit override val materializer: ActorMaterializer = ActorMaterializer()
   }
 }

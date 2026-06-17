@@ -42,7 +42,7 @@ class CopyWorkflowOutputsActor(workflowId: WorkflowId,
     with AsyncIoActorClient
     with OutputsLocationHelper {
   override lazy val ioCommandBuilder = GcsBatchCommandBuilder
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
 
   override def receive = LoggingReceive { case Finalize =>
     performActionThenRespond(afterAll()(context.dispatcher), FinalizationFailed)(context.dispatcher)

@@ -17,7 +17,7 @@ import scala.concurrent.duration._
 class UnhoggableTokenPoolSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with Eventually {
 
   override val patienceConfig = PatienceConfig(timeout = scaled(5.seconds), interval = scaled(1.second))
-  implicit val patience = patienceConfig
+  implicit val patience: PatienceConfig = patienceConfig
 
   val hogLimitingTokenTypeToHogLimit = List(
     JobTokenType("backend", Some(150), 2) -> 75,

@@ -39,6 +39,7 @@ import net.ceedubs.ficus.Ficus._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
+import scala.concurrent.ExecutionContext
 
 object MetadataServiceActor {
   val MetadataInstrumentationPrefix = NonEmptyList.of("metadata")
@@ -120,7 +121,7 @@ case class MetadataServiceActor(serviceConfig: Config, globalConfig: Config, ser
     "WriteMetadataActor"
   )
 
-  implicit val ec = context.dispatcher
+  implicit val ec: ExecutionContext = context.dispatcher
   // noinspection ActorMutableStateInspection
   private var summaryRefreshCancellable: Option[Cancellable] = None
 

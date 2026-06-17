@@ -28,8 +28,8 @@ object MetadataJsonSupport extends DefaultJsonProtocol {
     )
   }
 
-  implicit val MetadataValueFormat = jsonFormat2(MetadataValue.apply)
-  implicit val MetadataJobKeyFormat = jsonFormat3(MetadataJobKey)
-  implicit val MetadataKeyFormat = jsonFormat3(MetadataKey.apply)
-  implicit val MetadataEventFormat = jsonFormat3(MetadataEvent.apply)
+  implicit val MetadataValueFormat: RootJsonFormat[MetadataValue] = jsonFormat2(MetadataValue.apply)
+  implicit val MetadataJobKeyFormat: RootJsonFormat[MetadataJobKey] = jsonFormat3(MetadataJobKey)
+  implicit val MetadataKeyFormat: RootJsonFormat[MetadataKey] = jsonFormat3(MetadataKey.apply)
+  implicit val MetadataEventFormat: RootJsonFormat[MetadataEvent] = jsonFormat3(MetadataEvent.apply)
 }

@@ -12,7 +12,7 @@ trait DriverComponent {
   import driver.api._
 
   /** Ensure clobs are retrieved inside the transaction, not after */
-  implicit val serialClobColumnType = MappedColumnType.base[SerialClob, Clob](
+  implicit val serialClobColumnType: BaseColumnType[SerialClob] = MappedColumnType.base[SerialClob, Clob](
     identity,
     {
       case serialClob: SerialClob => serialClob
@@ -36,7 +36,7 @@ trait DriverComponent {
   )
 
   /** Ensure clobs are retrieved inside the transaction, not after */
-  implicit val serialBlobColumnType = MappedColumnType.base[SerialBlob, Blob](
+  implicit val serialBlobColumnType: BaseColumnType[SerialBlob] = MappedColumnType.base[SerialBlob, Blob](
     identity,
     {
       case serialBlob: SerialBlob => serialBlob

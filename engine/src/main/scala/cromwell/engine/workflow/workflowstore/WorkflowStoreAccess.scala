@@ -75,7 +75,7 @@ case class UncoordinatedWorkflowStoreAccess(store: WorkflowStore) extends Workfl
   * that runs its operations sequentially. Enabled by default in `CromwellRootActor`.
   */
 case class CoordinatedWorkflowStoreAccess(coordinatedWorkflowStoreAccessActor: ActorRef) extends WorkflowStoreAccess {
-  implicit val timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
+  implicit val timeout: Timeout = Timeout(WorkflowStoreCoordinatedAccessActor.Timeout)
 
   override def writeWorkflowHeartbeats(workflowIds: NonEmptyVector[(WorkflowId, OffsetDateTime)],
                                        heartbeatDateTime: OffsetDateTime

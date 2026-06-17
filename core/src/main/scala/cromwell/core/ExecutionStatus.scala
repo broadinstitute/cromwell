@@ -9,7 +9,7 @@ object ExecutionStatus extends Enumeration {
   val NonTerminalStatuses = values.diff(TerminalOrRetryableStatuses)
   val ActiveStatuses = Set(WaitingForQueueSpace, QueuedInCromwell, Starting, Running, Aborting)
 
-  implicit val ExecutionStatusOrdering = Ordering.by { status: ExecutionStatus =>
+  implicit val ExecutionStatusOrdering: Ordering[ExecutionStatus] = Ordering.by { status: ExecutionStatus =>
     status match {
       case NotStarted => 0
       case WaitingForQueueSpace => 1

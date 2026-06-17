@@ -22,7 +22,7 @@ class SubmissionSupportSpec
   override val samClient = new MockSamClient()
   override val log: LoggingAdapter = NoLogging
 
-  implicit val routeTestTimeout = new RouteTestTimeout(10.seconds.dilated)
+  implicit val routeTestTimeout: RouteTestTimeout = new RouteTestTimeout(10.seconds.dilated)
 
   val authorization = Authorization(OAuth2BearerToken("my-token"))
   val badAuthHeaders: List[HttpHeader] = List(

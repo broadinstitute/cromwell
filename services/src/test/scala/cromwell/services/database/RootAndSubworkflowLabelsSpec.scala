@@ -16,7 +16,7 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 class RootAndSubworkflowLabelsSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers with ScalaFutures {
-  implicit val ec = ExecutionContext.global
+  implicit val ec: ExecutionContext = ExecutionContext.global
 
   DatabaseSystem.All foreach { databaseSystem =>
     behavior of s"MetadataSlickDatabase on ${databaseSystem.name}"

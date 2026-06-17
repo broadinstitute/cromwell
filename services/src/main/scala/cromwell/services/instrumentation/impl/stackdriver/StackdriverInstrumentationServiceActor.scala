@@ -19,13 +19,14 @@ import cromwell.util.GracefulShutdownHelper.ShutdownCommand
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 import scala.util.Try
+import scala.concurrent.ExecutionContext
 
 class StackdriverInstrumentationServiceActor(serviceConfig: Config,
                                              globalConfig: Config,
                                              serviceRegistryActor: ActorRef
 ) extends Actor
     with StrictLogging {
-  implicit lazy val executionContext = context.dispatcher
+  implicit lazy val executionContext: ExecutionContext = context.dispatcher
 
   val stackdriverConfig = StackdriverConfig(serviceConfig, globalConfig)
 

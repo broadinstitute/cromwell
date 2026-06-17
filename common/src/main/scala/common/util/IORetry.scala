@@ -14,7 +14,7 @@ object IORetry {
     }
   }
 
-  implicit val noopUnitState = IORetry.StatefulIoError.noop[Unit]
+  implicit val noopUnitState: StatefulIoError[Unit] = IORetry.StatefulIoError.noop[Unit]
 
   /**
     * When we reach a point where we need to fail the IO (because we ran out of retries, or exception was fatal etc...)

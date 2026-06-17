@@ -51,7 +51,7 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
   val akkaHttpService = new MockApiService()
   val version = "v1"
 
-  implicit def default = RouteTestTimeout(5.seconds)
+  implicit def default: RouteTestTimeout = RouteTestTimeout(5.seconds)
 
   "REST ENGINE /stats endpoint" should "no longer return 200 for stats" in {
     Get(s"/engine/$version/stats") ~>

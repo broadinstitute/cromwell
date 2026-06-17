@@ -18,7 +18,7 @@ import cromwell.jobstore.{JobResultFailure, JobResultSuccess}
 
 class EjeaCheckingJobStoreSpec extends EngineJobExecutionActorSpec {
 
-  implicit override val stateUnderTest = CheckingJobStore
+  implicit override val stateUnderTest: CheckingJobStore.type = CheckingJobStore
 
   "An EJEA in CheckingJobStore state should" should {
     "send a Job SucceededResponse if the job is already complete and successful" in {

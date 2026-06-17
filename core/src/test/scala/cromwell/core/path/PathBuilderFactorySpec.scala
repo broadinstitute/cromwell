@@ -11,7 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 class PathBuilderFactorySpec extends TestKitSuite with AnyFlatSpecLike with ScalaFutures with Matchers {
   behavior of "PathBuilderFactory"
-  implicit val ec = system.dispatcher
+  implicit val ec: ExecutionContext = system.dispatcher
 
   it should "sort factories when instantiating path builders" in {
     val factory1 = new MockPathBuilderFactory(ConfigFactory.empty(), ConfigFactory.parseString("name=factory1"))

@@ -123,7 +123,7 @@ class WorkflowCallbackActor(serviceRegistryActor: ActorRef,
   // this thread pool, consider refactoring this actor to maintain a queue of callbacks and
   // handle them one at a time, as opposed to starting a thread to perform each as soon as its
   // received.
-  implicit val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(config.numThreads))
+  implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(config.numThreads))
   implicit val system: ActorSystem = context.system
 
   override def receive: Actor.Receive = LoggingReceive {

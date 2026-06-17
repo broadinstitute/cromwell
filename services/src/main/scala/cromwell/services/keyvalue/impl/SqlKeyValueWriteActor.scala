@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Props}
 import cromwell.services.keyvalue.{KeyValueServiceActor, KeyValueWriteActor}
 
 import scala.concurrent.duration.FiniteDuration
+import akka.actor.ActorSystem
 
 object SqlKeyValueWriteActor {
   def props(threshold: Int, serviceRegistryActor: ActorRef, flushRate: FiniteDuration, batchSize: Int) =
@@ -16,7 +17,7 @@ class SqlKeyValueWriteActor(override val threshold: Int,
                             batchSize: Int
 ) extends KeyValueWriteActor(serviceRegistryActor, flushRate, batchSize)
     with BackendKeyValueDatabaseAccess {
-  implicit private val system = context.system
+  implicit private val system: ActorSystem = context.system
 
   override def processPut(puts: Vector[KeyValueServiceActor.KvPut]) = {
     val pairs = puts.map { put =>

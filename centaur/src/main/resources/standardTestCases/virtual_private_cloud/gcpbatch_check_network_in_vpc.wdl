@@ -45,7 +45,7 @@ workflow check_network_in_vpc {
   Array[String] commandScript = [
     "set -euo pipefail",
     "",
-    "apt-get update && apt-get install -y jq > /dev/null",
+    "apt-get update > /dev/null && apt-get install -y jq > /dev/null",
     "PROJECT=$(",
     "  curl " + backslash,
     "    -s \"http://metadata.google.internal/computeMetadata/v1/project/project-id\" " + backslash,

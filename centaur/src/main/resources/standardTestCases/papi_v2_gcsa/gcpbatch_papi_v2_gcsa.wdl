@@ -15,7 +15,7 @@ workflow papi_v2_gcsa {
 # https://cromwell.readthedocs.io/en/stable/wf_options/Google/#google-pipelines-api-workflow-options
 task get_token_info {
     command <<<
-        apt-get update && apt-get install -y jq > /dev/null
+        apt-get update > /dev/null && apt-get install -y jq > /dev/null
 
         curl --fail --silent \
             'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/?recursive=true' \

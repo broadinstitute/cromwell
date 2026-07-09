@@ -4,7 +4,7 @@
 name: lots_of_inputs_papiv2
 testFormat: workflowsuccess
 tags: [ big_metadata ]
-backends: [ Papiv2, GCPBATCH ]
+backends: [ GCPBATCH ]
 
 files {
   workflow: lots_of_inputs/lots_of_inputs.wdl

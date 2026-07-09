@@ -30,7 +30,6 @@ class HealthMonitorServiceActorSpec
 
     val serviceConfigString =
       """check-engine-database: false
-        |check-papi-backends: []
         |""".stripMargin
 
     val globalConfigString =

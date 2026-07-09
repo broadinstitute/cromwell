@@ -1,6 +1,6 @@
 name: workbench_health_monitor_check_papiv2
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH_HEALTH_MONITORS_BEING_PHASED_OUT]
+backends: [GCPBATCH_HEALTH_MONITORS_BEING_PHASED_OUT]
 
 files {
   workflow: workbench_health_monitor_check/workbench_health_monitor_check.wdl

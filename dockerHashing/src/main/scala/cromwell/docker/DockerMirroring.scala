@@ -6,6 +6,8 @@ import cromwell.docker.registryv2.flows.dockerhub.DockerHub
 import net.ceedubs.ficus.Ficus._
 import net.ceedubs.ficus.readers.ValueReader
 
+import scala.util.{Failure, Success}
+
 case class DockerMirroring(mirrors: List[DockerMirror]) {
   def mirrorImage(image: DockerImageIdentifier): Option[DockerImageIdentifier] =
     mirrors.flatMap(_.mirrorImage.lift(image)).headOption
@@ -30,9 +32,34 @@ sealed trait DockerMirror {
   val mirrorImage: PartialFunction[DockerImageIdentifier, DockerImageIdentifier]
 }
 
-case class DockerHubMirror(address: String) extends DockerMirror {
+/*
+ * Configures a Docker mirror, which can be used to enable Cromwell to use pull-through caches for Docker images.
+ * This is most useful for creating a pull-through Dockerhub cache in a cloud vendor's container registry, for example
+ * Google's Artifact Registry, AWS's ECR, etc.
+ *
+ *  - address: The address of the mirror. The host of user-provided images will be replaced with this address.
+ */
+case class DockerHubMirror(address: String) extends DockerMirror with LazyLogging {
   val mirrorImage: PartialFunction[DockerImageIdentifier, DockerImageIdentifier] = {
-    case i if DockerHub.isValidDockerHubHost(i.host) => i.swapHost(address)
+    case i if DockerHub.isValidDockerHubHost(i.host) =>
+      // if address contains slashes, terms after them should be made part of the repository, not the host name
+      // Example:
+      //   address: my.mirror.io/my-namespace
+      //   image: docker.io/broadinstitute/cromwell
+      //   mirrored image: my.mirror.io/my-namespace/broadinstitute/cromwell:latest
+      //   mirrored image host: my.mirror.io
+      //   mirrored image repository: my-namespace/broadinstitute
+      // we can be lazy and get this behavior for free by swapping the host to the mirror address, then re-parsing the image identifier
+      val mirroredImage = i.withDefaultRepository.swapHost(address)
+      DockerImageIdentifier.fromString(mirroredImage.fullName) match {
+        case Success(mirroredId) => mirroredId
+        case Failure(exception) =>
+          logger.error(
+            s"Failed to mirror Docker image '${i.fullName}' using mirror address '$address'. " +
+              s"Falling back to original image. Exception: ${exception.getMessage}"
+          )
+          i
+      }
   }
 }
 

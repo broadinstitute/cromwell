@@ -5,10 +5,10 @@ import common.validation.IOChecked.IOChecked
 import wom.SourceFileLocation
 import wom.callable.Callable.InputDefinition.InputValueMapper
 import wom.callable.Callable._
-import wom.expression.{IoFunctionSet, WomExpression}
+import wom.expression.{IoFunctionSet, ValueAsAnExpression, WomExpression}
 import wom.graph.{CommandCallNode, Graph, LocalName}
-import wom.types.{WomOptionalType, WomType}
-import wom.values.WomValue
+import wom.types.{WomObjectType, WomOptionalType, WomType}
+import wom.values.{WomObject, WomValue}
 
 trait Callable {
   def name: String
@@ -163,6 +163,17 @@ object Callable {
                                            valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper,
                                            parameterMeta: Option[MetaValueElement] = None
   ) extends InputDefinition
+
+  // A special case of input that sets or overrides the members of a call's runtime section, supported starting in WDL 1.1.
+  // This input is represented as a WomObject so we can be flexible about which runtime attributes are set.
+  // See WdlSharedInputParsing for the logic that converts from individual runtime attr keys to this single input.
+  final case class RuntimeOverrideInputDefinition(localName: LocalName = LocalName("runtime"))
+      extends InputDefinitionWithDefault {
+    val womType: WomType = WomObjectType
+    val valueMapper: InputValueMapper = InputDefinition.IdentityValueMapper
+    val parameterMeta: Option[MetaValueElement] = None
+    val default: WomExpression = ValueAsAnExpression(WomObject(Map.empty))
+  }
 
   object OutputDefinition {
     def apply(name: String, womType: WomType, expression: WomExpression): OutputDefinition =

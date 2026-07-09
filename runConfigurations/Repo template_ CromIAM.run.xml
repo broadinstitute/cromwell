@@ -1,7 +1,7 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Repo template: CromIAM" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="cromiam.Main" />
-    <module name="cromiam" />
+    <module name="root.cromiam.main" />
     <option name="PROGRAM_PARAMETERS" value="-D sam.interface=https://sam.dsde-dev.broadinstitute.org" />
     <method v="2">
       <option name="Make" enabled="true" />

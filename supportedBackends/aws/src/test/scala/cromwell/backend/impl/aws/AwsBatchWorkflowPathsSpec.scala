@@ -33,6 +33,7 @@ package cromwell.backend.impl.aws
 
 import common.collections.EnhancedCollections._
 import cromwell.backend.BackendSpec
+import cromwell.backend.impl.aws.io.AwsBatchWorkflowPaths
 import org.scalatest.flatspec.AnyFlatSpecLike
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import cromwell.core.Tags.AwsTest

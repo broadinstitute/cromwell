@@ -1,6 +1,6 @@
 name: confirm_preemptible
 testFormat: workflowsuccess
-backends: [Papi, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: confirm_preemptible/confirm_preemptible.wdl

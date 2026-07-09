@@ -31,7 +31,7 @@
       <env name="CROMWELL_BUILD_CENTAUR_256_BITS_KEY" value="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />
-    <module name="cromwell" />
+    <module name="root.cromwell.main" />
     <option name="PROGRAM_PARAMETERS" value="server" />
     <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/tes_application.conf" />
     <method v="2">

@@ -21,7 +21,8 @@ import wom.callable.Callable.{
   InputDefinition,
   OptionalInputDefinition,
   OverridableInputDefinitionWithDefault,
-  RequiredInputDefinition
+  RequiredInputDefinition,
+  RuntimeOverrideInputDefinition
 }
 import wom.callable.{Callable, WorkflowDefinition}
 import wom.graph.CallNode.{CallNodeBuilder, InputDefinitionFold, InputDefinitionPointer}
@@ -211,6 +212,11 @@ object ScatterElementToGraphNode {
                                            i.womType,
                                            a.workflowName + "." + i.name,
                                            Callable.InputDefinition.IdentityValueMapper
+          )
+        case i: RuntimeOverrideInputDefinition =>
+          i.name -> RuntimeOverrideGraphInputNode(inputNodeIdentifier(i),
+                                                  a.workflowName + "." + i.name,
+                                                  Callable.InputDefinition.IdentityValueMapper
           )
         case i: OverridableInputDefinitionWithDefault =>
           i.name -> OptionalGraphInputNodeWithDefault(inputNodeIdentifier(i),

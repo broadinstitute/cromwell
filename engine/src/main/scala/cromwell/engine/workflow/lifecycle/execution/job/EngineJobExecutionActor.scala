@@ -287,9 +287,8 @@ class EngineJobExecutionActor(replyTo: ActorRef,
         )
       } else {
         log.info(s"BT-322 {} cache hit copying nomatch: could not find a suitable cache hit.", jobTag)
-        workflowLogger.info("Could not copy a suitable cache hit for {}. No copy attempts were made.", arg = jobTag)
+        workflowLogger.info(s"Could not copy a suitable cache hit for {$jobTag}. No copy attempts were made.")
       }
-
       runJob(data)
     case Event(hashes: CallCacheHashes, data: ResponsePendingData) =>
       addHashesAndStay(data, hashes)
@@ -731,7 +730,10 @@ class EngineJobExecutionActor(replyTo: ActorRef,
           jobDescriptor,
           initializationData,
           fileHashingActorProps,
-          CallCacheReadingJobActor.props(callCachingParameters.readActor, callCachePathPrefixes),
+          CallCacheReadingJobActor.props(callCachingParameters.readActor,
+                                         callCachePathPrefixes,
+                                         callCachingParameters.maxResultAgeDays
+          ),
           backendLifecycleActorFactory.runtimeAttributeDefinitions(initializationData),
           backendLifecycleActorFactory.nameForCallCachingPurposes,
           activity,
@@ -1077,7 +1079,8 @@ object EngineJobExecutionActor {
     fileHashCacheActor: Option[ActorRef],
     maxFailedCopyAttempts: Int,
     blacklistCache: Option[BlacklistCache],
-    fileHashBatchSize: Int
+    fileHashBatchSize: Int,
+    maxResultAgeDays: Option[Long]
   )
 
   /** Commands */

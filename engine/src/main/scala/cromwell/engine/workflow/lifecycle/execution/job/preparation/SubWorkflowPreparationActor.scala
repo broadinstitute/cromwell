@@ -14,7 +14,13 @@ import cromwell.engine.workflow.lifecycle.execution.job.preparation.SubWorkflowP
 import cromwell.engine.workflow.lifecycle.execution.keys.SubWorkflowKey
 import cromwell.engine.{EngineIoFunctions, EngineWorkflowDescriptor}
 import wom.graph.GraphNodePort.OutputPort
-import wom.graph.{GraphInputNode, GraphNode, OptionalGraphInputNode, OptionalGraphInputNodeWithDefault}
+import wom.graph.{
+  GraphInputNode,
+  GraphNode,
+  OptionalGraphInputNode,
+  OptionalGraphInputNodeWithDefault,
+  RuntimeOverrideGraphInputNode
+}
 import wom.values.{WomEvaluatedCallInputs, WomValue}
 
 class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
@@ -63,6 +69,7 @@ class SubWorkflowPreparationActor(workflowDescriptor: EngineWorkflowDescriptor,
     // We don't need to supply these values, but we might have. Used once, in the validation step below.
     def optionalsAndDefaults: Set[GraphNode] = workflowInputs collect {
       case optionalInputNode: OptionalGraphInputNode => optionalInputNode
+      case runtimeOverrideInputNode: RuntimeOverrideGraphInputNode => runtimeOverrideInputNode
       case optionalWithDefault: OptionalGraphInputNodeWithDefault => optionalWithDefault
     }
 

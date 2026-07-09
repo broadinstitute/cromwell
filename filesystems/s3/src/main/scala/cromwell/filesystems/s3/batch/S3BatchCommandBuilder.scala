@@ -31,10 +31,13 @@
 package cromwell.filesystems.s3.batch
 
 import cromwell.core.callcaching.FileHashStrategy
+import cromwell.core.io.DefaultIoCommand.DefaultIoHashCommand
 import cromwell.core.io.IoCommand.IOMetricsCallback
-import cromwell.core.io.{IoCommandBuilder, PartialIoCommandBuilder}
+import cromwell.core.io._
+import cromwell.core.path.BetterFileMethods.OpenOptions
 import cromwell.core.path.Path
 import cromwell.filesystems.s3.S3Path
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.util.Try
 
@@ -42,6 +45,29 @@ import scala.util.Try
   * Generates commands for IO operations on S3
   */
 private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder {
+
+  val Log: Logger = LoggerFactory.getLogger(PartialS3BatchCommandBuilder.getClass)
+
+  override def contentAsStringCommand: PartialFunction[(Path, Option[Int], Boolean), Try[IoContentAsStringCommand]] = {
+    Log.debug("call to contentAsStringCommand but PartialFunction not implemented, falling back to super")
+    super.contentAsStringCommand
+  }
+
+  override def writeCommand: PartialFunction[(Path, String, OpenOptions, Boolean), Try[IoWriteCommand]] = {
+    Log.debug("call to writeCommand but PartialFunction not implemented, falling back to super")
+    super.writeCommand
+  }
+
+  override def isDirectoryCommand: PartialFunction[Path, Try[IoIsDirectoryCommand]] = {
+    Log.debug("call to isDirectoryCommand but PartialFunction not implemented, falling back to super")
+    super.isDirectoryCommand
+  }
+
+  override def readLinesCommand: PartialFunction[Path, Try[IoReadLinesCommand]] = {
+    Log.debug("call to readLinesCommand but PartialFunction not implemented, falling back to super")
+    super.readLinesCommand
+  }
+
   override def sizeCommand: PartialFunction[Path, Try[S3BatchSizeCommand]] = { case path: S3Path =>
     Try(S3BatchSizeCommand(path))
   }
@@ -54,9 +80,9 @@ private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder
     case (src: S3Path, dest: S3Path) => Try(S3BatchCopyCommand(src, dest))
   }
 
-  override def hashCommand: PartialFunction[(Path, FileHashStrategy, IOMetricsCallback), Try[S3BatchHashCommand]] = {
-    case (path: S3Path, s, _) =>
-      Try(S3BatchHashCommand(path, s))
+  override def hashCommand: PartialFunction[(Path, FileHashStrategy, IOMetricsCallback), Try[IoHashCommand]] = {
+    case (path: S3Path, s, _) => Try(S3BatchHashCommand(path, s).asInstanceOf[IoHashCommand])
+    case (local_path: Path, s, _) => Try(DefaultIoHashCommand(local_path, s))
   }
 
   override def touchCommand: PartialFunction[Path, Try[S3BatchTouchCommand]] = { case path: S3Path =>
@@ -66,6 +92,15 @@ private case object PartialS3BatchCommandBuilder extends PartialIoCommandBuilder
   override def existsCommand: PartialFunction[Path, Try[S3BatchExistsCommand]] = { case path: S3Path =>
     Try(S3BatchExistsCommand(path))
   }
+
+  override def existsOrThrowCommand: PartialFunction[Path, Try[S3BatchExistsOrThrowCommand]] = { case path: S3Path =>
+    Try(S3BatchExistsOrThrowCommand(path))
+  }
+
+  override def noopCommand: PartialFunction[Path, Try[S3BatchNoopCommand]] = { case path: S3Path =>
+    Try(S3BatchNoopCommand(path))
+  }
+
 }
 
 /**

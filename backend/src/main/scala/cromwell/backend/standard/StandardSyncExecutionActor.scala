@@ -166,7 +166,6 @@ class StandardSyncExecutionActor(val standardParams: StandardSyncExecutionActorP
   def createAsyncRef(): ActorRef = {
     val props = createAsyncProps().withDispatcher(Dispatcher.BackendDispatcher)
     val name = createAsyncRefName()
-    jobLogger.info("AN-436 About to instantiate class")
     context.actorOf(props, name)
   }
 

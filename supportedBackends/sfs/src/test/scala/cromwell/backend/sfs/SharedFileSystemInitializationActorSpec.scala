@@ -55,7 +55,7 @@ class SharedFileSystemInitializationActorSpec
   }
 
   "SharedFileSystemInitializationActor" should {
-    "log a warning message when there are unsupported runtime attributes" in {
+    "log a message when there are unsupported runtime attributes" in {
       within(Timeout) {
         val workflowDescriptor = buildWdlWorkflowDescriptor(HelloWorld, runtime = """runtime { unsupported: 1 }""")
         val mockFileSystems = new CromwellFileSystems(ConfigFactory.empty())
@@ -68,7 +68,7 @@ class SharedFileSystemInitializationActorSpec
         val backend: ActorRef = getActorRef(workflowDescriptor, workflowDescriptor.callable.taskCallNodes, conf)
         val pattern = "Key/s [unsupported] is/are not supported by backend. " +
           "Unsupported attributes will not be part of job executions."
-        EventFilter.warning(pattern = escapePattern(pattern), occurrences = 1) intercept {
+        EventFilter.info(pattern = escapePattern(pattern), occurrences = 1) intercept {
           backend ! Initialize
         }
       }

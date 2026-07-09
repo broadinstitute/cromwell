@@ -1,6 +1,6 @@
 name: cacheBetweenWFNoCost
 testFormat: runtwiceexpectingcallcachingnocost
-backends: [Papi, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: cacheBetweenWF/cacheBetweenWFNoCost.wdl

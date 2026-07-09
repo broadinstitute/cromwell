@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, SupervisorStrategy, Ter
 import akka.dispatch.ControlMessage
 import cats.data.NonEmptyList
 import com.google.api.gax.rpc.ApiException
-import com.google.cloud.batch.v1.{CreateJobRequest, DeleteJobRequest, GetJobRequest, Job}
+import com.google.cloud.batch.v1.{CancelJobRequest, CreateJobRequest, GetJobRequest, Job}
 import common.util.Backoff
 import cromwell.backend.BackendSingletonActorAbortWorkflow
 import cromwell.backend.google.batch.actors.BatchApiAbortClient.BatchAbortRequestSuccess
@@ -410,7 +410,7 @@ object BatchApiRequestManager {
 
   case class BatchAbortRequest(workflowId: WorkflowId,
                                requester: ActorRef,
-                               httpRequest: DeleteJobRequest,
+                               httpRequest: CancelJobRequest,
                                jobId: StandardAsyncJob,
                                failedAttempts: Int = 0,
                                backoff: Backoff = BatchApiRequest.backoff
@@ -464,6 +464,7 @@ object BatchApiRequestManager {
 sealed trait BatchApiResponse extends Product with Serializable
 object BatchApiResponse {
   case class JobCreated(job: Job) extends BatchApiResponse
-  case class DeleteJobRequested(result: BatchAbortRequestSuccess) extends BatchApiResponse
+  case class JobAlreadyExists(jobName: String) extends BatchApiResponse
+  case class CancelJobRequested(result: BatchAbortRequestSuccess) extends BatchApiResponse
   case class StatusQueried(status: RunStatus) extends BatchApiResponse
 }

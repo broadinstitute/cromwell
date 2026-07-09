@@ -488,7 +488,7 @@ This is only necessary in local environments where there is no job manager to co
 Congratulations for improving the reproducibility of your workflows! You might find the following cloud-based tutorials interesting to test your workflows (and ensure the same results) in a completely different environment:
 
 - [Getting started with AWS Batch](AwsBatch101.md)
-- [Getting started on Google Pipelines API](PipelinesApi101.md)
+- [Getting started on GCP Batch](GcpBatch101.md)
 
 [cromwell-examples-conf]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends/cromwell.examples.conf
 [cromwell-examples-folder]: https://www.github.com/broadinstitute/cromwell/tree/develop/cromwell.example.backends

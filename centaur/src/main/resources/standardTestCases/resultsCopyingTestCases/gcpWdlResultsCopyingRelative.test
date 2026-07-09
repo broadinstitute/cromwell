@@ -5,7 +5,7 @@ tags: ["copyGcp"]
 # Will run on a Cromwell that supports any one of these backends
 backendsMode: any
 
-backends: [Papi, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: wdlResultsCopying/simpleWorkflow.wdl

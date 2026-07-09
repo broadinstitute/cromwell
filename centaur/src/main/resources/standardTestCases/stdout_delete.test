@@ -2,7 +2,7 @@
 
 name: stdout_delete
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: delete_intermediates/stdout_delete.wdl

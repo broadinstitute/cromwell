@@ -1,4 +1,4 @@
-version development-1.1
+version 1.1
 
 workflow after_circle {
   call foo as foo1 after foo2 { input: i = 5 }

@@ -19,7 +19,7 @@
   ],
   "submittedDescriptorType" : {
     "descriptorType" : "WDL",
-    "descriptorTypeVersion" : "Biscayne"
+    "descriptorTypeVersion" : "1.1"
   },
   "importedDescriptorTypes" : [
   ],

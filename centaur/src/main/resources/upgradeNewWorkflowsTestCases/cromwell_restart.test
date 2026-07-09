@@ -1,0 +1,24 @@
+name: cromwell_restart
+testFormat: CromwellRestartWithRecover
+backends: [GCPBATCH]
+callMark: cromwell_restart.cromwell_killer
+retryTestFailures: false
+
+files {
+  workflow: cromwell_restart/cromwell_restart.wdl
+  options: cromwell_restart/cromwell_restart.options
+}
+
+metadata {
+  workflowName: cromwell_restart
+  status: Succeeded
+  "calls.cromwell_restart.first_task.executionStatus": Done
+  "calls.cromwell_restart.cromwell_killer.executionStatus": Done
+  "calls.cromwell_restart.third_task.executionStatus": Done
+  "calls.cromwell_restart.first_task.callCaching.hashes.backend name": "F9B949AB11D336FE12AEEF8C8DB7D3F9"
+  "calls.cromwell_restart.first_task.backend": "GCPBATCH"
+  "calls.cromwell_restart.cromwell_killer.callCaching.hashes.backend name": "F9B949AB11D336FE12AEEF8C8DB7D3F9"
+  "calls.cromwell_restart.cromwell_killer.backend": "GCPBATCH"
+  "calls.cromwell_restart.third_task.callCaching.hashes.backend name": "F9B949AB11D336FE12AEEF8C8DB7D3F9"
+  "calls.cromwell_restart.third_task.backend": "GCPBATCH"
+}

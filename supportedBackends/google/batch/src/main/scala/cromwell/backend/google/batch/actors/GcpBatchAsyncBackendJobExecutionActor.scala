@@ -81,7 +81,7 @@ object GcpBatchAsyncBackendJobExecutionActor {
 
     new Exception(
       s"Task $jobTag failed. $returnCodeMessage GCP Batch task exited with ${errorCode}(${errorCode.code}). ${message}"
-    )
+    ) with NoStackTrace
   }
 
   // GCS path regexes comments:
@@ -98,6 +98,10 @@ object GcpBatchAsyncBackendJobExecutionActor {
   //  - If we got this far, we already have a valid directory path. Allow it to optionally end with a `/` character.
   private val gcsFilePathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/[^/]+$".r
   private val gcsDirectoryPathMatcher = "(?s)^gs://([a-zA-Z0-9][^/]+)(/[^/]+)*/?$".r
+
+  private val executionEventRunningMatcher = ".* to RUNNING.*".r
+
+  private val MaxBatchJobIdLength = 63
 
   val GcpBatchOperationIdKey = "__gcp_batch_operation_id"
 
@@ -164,8 +168,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   override def receive: Receive =
     runCreationClientReceive orElse pollingActorClientReceive orElse abortActorClientReceive orElse kvClientReceive orElse super.receive
-
-  jobLogger.info("AN-436 Instantiated class")
 
   /** Should return true if the status contained in `thiz` is equivalent to `that`, delta any other data that might be carried around
    * in the state type.
@@ -269,30 +271,32 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       }
     )
 
+  // TODO: There is an AWS version of this that looks functionally identical. Consider unifying.
   override lazy val inputsToNotLocalize: Set[WomFile] = {
-    val localizeOptional = jobDescriptor.findInputFilesByParameterMeta {
-      case MetaValueElementObject(values) => values.get("localization_optional").contains(MetaValueElementBoolean(true))
-      case _ => false
-    }
-    val localizeSkipped = localizeOptional.filter(canSkipLocalize)
-    val localizeMapped = localizeSkipped.map(cloudResolveWomFile)
-    localizeSkipped ++ localizeMapped
-  }
-
-  private def canSkipLocalize(womFile: WomFile): Boolean = {
-    var canSkipLocalize = true
-    womFile.mapFile { value =>
-      getPath(value) match {
-        case Success(drsPath: DrsPath) =>
-          val gsUriOption = DrsResolver.getSimpleGsUri(drsPath).unsafeRunSync()
-          if (gsUriOption.isEmpty) {
-            canSkipLocalize = false
+    val loFiles: Set[WomFile] =
+      if (noLocalizationForTask)
+        jobDescriptor.allInputFiles
+      else
+        {
+          jobDescriptor.findInputFilesByParameterMeta {
+            case MetaValueElementObject(values) =>
+              values.get("localization_optional").contains(MetaValueElementBoolean(true))
+            case _ => false
           }
-        case _ => /* ignore */
+        } ++ runtimeInputsToNotLocalize
+
+    // Try to resolve each DRS path to a GCS path. This typically works with TDR files, and not otherwise. [CTM-292]
+    // If GCS is found, add both the DRS file [0] and its GCS equivalent [1] to the no-localize list.
+    // If no GCS found, exclude the file from the no-localize list. The DRS localizer will download it.
+    //
+    // [0] so the DRS localizer doesn't download it
+    // [1] so regular GCS localization doesn't download it once resolved
+    val (loDrs, loGcs) = loFiles.partition(_.valueString.startsWith("drs://"))
+    loGcs ++
+      loDrs.flatMap { drsPath =>
+        val resolvedPath = cloudResolveWomFile(drsPath)
+        if (resolvedPath.valueString.startsWith("gs://")) Seq(drsPath, resolvedPath) else Seq.empty
       }
-      value
-    }
-    canSkipLocalize
   }
 
   // The original implementation recursively finds all non directory files, in V2 we can keep directory as is
@@ -864,6 +868,36 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     outputs.toSet ++ additionalGlobOutput
   }
 
+  /*
+    This method generates a deterministic job ID for the GCP Batch job using the short workflow id,
+    sanitized call name with appended hash, scatter index and attempt.
+    Note: Job ID needs to follow regex: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$
+    Example of generated job ID: job-e21cbbd3-scatterworkflowmytask-2-1-175f647b
+   */
+  private[actors] def generateJobName(workflowId: WorkflowId,
+                                      fullyQualifiedName: FullyQualifiedName,
+                                      index: Option[Int],
+                                      attempt: Int
+  ): String = {
+    val prefix = "job-"
+    val shortWorkflowId = workflowId.shortString
+    val scatterIndex = index.map(i => s"-$i").getOrElse("")
+    val attemptAsStr = s"-${attempt.toString}"
+    val sanitizedCallName = fullyQualifiedName.toLowerCase.replaceAll("[^a-z0-9-]", "")
+
+    // includes dash between workflow id and call name
+    val baseLength = prefix.length + shortWorkflowId.length + scatterIndex.length + attemptAsStr.length + 1
+    val remainingLength = MaxBatchJobIdLength - baseLength
+
+    // generate hash using both workflow and call information for determinism and uniqueness. It will be appended to the end of job name
+    val hash = DigestUtils.md5Hex(s"${workflowId.toString}-$fullyQualifiedName$scatterIndex$attemptAsStr").take(8)
+
+    // truncate call name if it exceeds the remaining length
+    val safeCallName = sanitizedCallName.take(remainingLength - 9)
+
+    s"$prefix$shortWorkflowId-$safeCallName$scatterIndex$attemptAsStr-$hash"
+  }
+
   protected def uploadGcsTransferLibrary(cloudPath: Path): Future[Unit] =
     asyncIo.writeAsync(cloudPath, gcsTransferLibrary, Seq(CloudStorageOptions.withMimeType("text/plain")))
 
@@ -980,7 +1014,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
                                          gcsTransferConfiguration
       )
       _ = this.hasDockerCredentials = createParameters.privateDockerKeyAndEncryptedToken.isDefined
-      jobName = "job-" + java.util.UUID.randomUUID.toString
+      jobName = generateJobName(jobDescriptor.workflowDescriptor.id,
+                                jobDescriptor.key.call.fullyQualifiedName,
+                                jobDescriptor.key.index,
+                                jobDescriptor.key.attempt
+      )
       request = GcpBatchRequest(workflowId, createParameters, jobName = jobName, gcpBatchParameters)
       response <- runBatchJob(request = request,
                               backendSingletonActor = backendSingletonActor,
@@ -1205,10 +1243,11 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
     lazy val errorTypeIsTransient = List(
       GcpBatchExitCode.VMPreemption,
       GcpBatchExitCode.VMRecreatedDuringExecution,
-      GcpBatchExitCode.VMRebootedDuringExecution
+      GcpBatchExitCode.VMRebootedDuringExecution,
+      GcpBatchExitCode.VMReportingTimeout
     ).contains(failed.errorCode)
-    lazy val taskFailedBeforeStarting = !failed.eventList.exists(_.name == CallMetadataKeys.VmStartTime)
-    transientErrorRetryable && errorTypeIsTransient && taskFailedBeforeStarting
+    lazy val taskStartedRunning = failed.eventList.exists(e => executionEventRunningMatcher.matches(e.name))
+    transientErrorRetryable && errorTypeIsTransient && !taskStartedRunning
   }
 
   private def handleTransientErrorRetry(failed: RunStatus.Failed, returnCode: Option[Int]) =

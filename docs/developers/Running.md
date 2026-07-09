@@ -15,4 +15,4 @@ Example for batch:
 Upon startup, the Cromwell swagger will be available at `http://localhost:8000`.
 (You can change the port and other configurations by following [these instructions](../Configuring.md)
 
-**Note**: To verify that workflows are being submitted to the correct backend, look for logs  with `Call-to-Backend assignments` and check that the tasks are being directed to `-> GCPBATCH` or `-> PAPI` etc.
+**Note**: To verify that workflows are being submitted to the correct backend, look for logs  with `Call-to-Backend assignments` and check that the tasks are being directed to `-> GCPBATCH`.

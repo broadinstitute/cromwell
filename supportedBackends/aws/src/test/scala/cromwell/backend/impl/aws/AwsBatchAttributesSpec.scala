@@ -31,9 +31,8 @@
 
 package cromwell.backend.impl.aws
 
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ConfigException, ConfigFactory}
 import common.assertion.CromwellTimeoutSpec
-import common.exception.MessageAggregation
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.core.Tags._
 import org.scalatest.flatspec.AnyFlatSpec
@@ -54,6 +53,8 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
 
     val attributes = AwsBatchAttributes.fromConfigs(config, backendConfig)
     attributes.executionBucket should be("s3://myBucket")
+    attributes.tagResources should be(Some(true))
+    attributes.tagHardware should be(Some(true))
   }
 
   it should "not parse invalid config" taggedAs IntegrationTest in {
@@ -63,14 +64,11 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
                                   |}
         """.stripMargin)
 
-    val exception = intercept[IllegalArgumentException with MessageAggregation] {
+    val exception = intercept[ConfigException.Missing] {
       AwsBatchAttributes.fromConfigs(config, nakedConfig)
     }
-    val errorsList = exception.errorMessages.toList
-    errorsList should contain("No configuration setting found for key 'project'")
-    errorsList should contain("No configuration setting found for key 'root'")
-    errorsList should contain("No configuration setting found for key 'filesystems'")
-    errorsList should contain("URI is not absolute")
+    val errorsList = exception.getMessage
+    errorsList should equal("String: 2: No configuration setting found for key 'numSubmitAttempts'")
   }
 
   def configString(): String =
@@ -80,6 +78,8 @@ class AwsBatchAttributesSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
        |   maximum-polling-interval = 600
        |   numSubmitAttempts = 6
        |   numCreateDefinitionAttempts = 6
+       |   tagResources = true
+       |   tagHardware = true
        |
        |
        |   filesystems = {

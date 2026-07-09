@@ -1,0 +1,19 @@
+name: gcp_machine_type_gpu
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+# Creates a `g2-standard-4` VM: 1 NVIDIA L4 GPU, 4 vCPUs, 16GB RAM
+# This is the cheapest machine type under the new type-based GPU model, replacing the older machine type + gpu type scheme.
+# For more information, see https://broadworkbench.atlassian.net/browse/AN-758
+
+files {
+  workflow: gcp_machine_type.wdl
+  inputs: gpu_inputs.json
+}
+
+metadata {
+    "calls.minimal_hello_world.hello_world.runtimeAttributes.predefinedMachineType": "g2-standard-4"
+    "calls.minimal_hello_world.hello_world.runtimeAttributes.preemptible": "0"
+    "outputs.minimal_hello_world.actual_machine_type": ~~"machineTypes/g2-standard-4"
+    "outputs.minimal_hello_world.is_preemptible": "FALSE"
+}

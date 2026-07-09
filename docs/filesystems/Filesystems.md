@@ -57,7 +57,7 @@ Those filesystems can be referenced by their name (`drs`, `gcs`, `s3`, `http` an
 
 **Note:**
 - **S3 filesystem is experimental.** 
-- **DRS filesystem has initial support only. Also, currently it works only with [GCS filesystem](../GoogleCloudStorage) in [PapiV2 backend](http://cromwell.readthedocs.io/en/develop/backends/Google).**
+- **DRS filesystem has initial support only. Also, currently it works only with [GCS filesystem](../GoogleCloudStorage) in the [GCP Batch backend](../backends/GCPBatch.md).**
 
 
 Also note that the local filesystem (the one on which Cromwell runs on) is implicitly accessible but can be disabled. 
@@ -95,7 +95,7 @@ engine {
 }
 ```
 
-(See the [Google section](../backends/Google.md) for information about the `auth` field.)
+(See the [Google section](../backends/GCPBatch.md) for information about the `auth` field.)
 
 We can now run this workflow
 
@@ -156,7 +156,7 @@ engine {
 ### Backend Filesystems
 
 Similarly to the engine, you can also configure backend filesystems individually. Some backends might require the use of a specific filesystem.
-For example, the [Pipelines API](../tutorials/PipelinesApi101.md) backend requires Google Cloud Storage.
+For example, the [GCP Batch](../tutorials/GcpBatch101.md) backend requires Google Cloud Storage.
 Let's take another example:
 
 ```wdl

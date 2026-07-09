@@ -1,6 +1,8 @@
 package cromwell.backend.google.batch.util
 
 import com.google.cloud.batch.v1.{Runnable, Volume}
+
+import scala.concurrent.duration.Duration
 //import com.typesafe.config.ConfigFactory
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.GcsTransferConfiguration
 import cromwell.backend.google.batch.models._
@@ -99,7 +101,8 @@ trait GcpBatchParameterConversions {
 
       fileOutput.uploadPeriod match {
         // If the file should be uploaded periodically, create a background upload runnable in addition to any normal ones
-        // that run at the end to make sure we get the most up to date version of the file.
+        // that run at the end to make sure we get the most up to date version of the file. Timeout is set to Duration.Inf
+        // so files continue to be uploaded as long as the job is running.
         case Some(period) =>
           val periodicLabels = labels collect {
             case (key, _) if key == Key.Tag => key -> Value.Background
@@ -110,7 +113,7 @@ trait GcpBatchParameterConversions {
               every(period) {
                 copyCommand
               }
-            )(volumes = volumes, labels = periodicLabels, flags = List.empty)
+            )(volumes = volumes, labels = periodicLabels, flags = List.empty, timeout = Duration.Inf)
             .withRunInBackground(true)
 
           finalDelocalizationRunnables :+ periodic

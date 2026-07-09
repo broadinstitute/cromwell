@@ -44,7 +44,7 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
     "throw an exception when there are no runtime attributes defined." in {
       val runtimeAttributes = Map.empty[String, WomValue]
-      assertFailure(runtimeAttributes, "Can't find an attribute value for key docker")
+      assertFailure(runtimeAttributes, "No container image found in either 'container' or 'docker' runtime attributes.")
     }
 
     "validate a valid Docker entry" in {
@@ -55,7 +55,30 @@ class TesRuntimeAttributesSpec extends AnyWordSpecLike with CromwellTimeoutSpec 
 
     "fail to validate an invalid Docker entry" in {
       val runtimeAttributes = Map("docker" -> WomInteger(1))
-      assertFailure(runtimeAttributes, "Expecting docker runtime attribute to be a String")
+      assertFailure(
+        runtimeAttributes,
+        "Expecting docker runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
+    }
+
+    "validate a valid container entry" in {
+      val runtimeAttributes = Map("container" -> WomArray(WomArrayType(WomStringType), Seq(WomString("ubuntu:latest"))))
+      val expectedRuntimeAttributes = expectedDefaults
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
+    }
+
+    "fail to validate an invalid container entry" in {
+      val runtimeAttributes = Map("container" -> WomInteger(1))
+      assertFailure(
+        runtimeAttributes,
+        "Expecting container runtime attribute to be a type in Set(WomStringType, WomMaybeEmptyArrayType(WomStringType))"
+      )
+    }
+
+    "validate presence of both Docker and container attributes and prefer container" in {
+      val runtimeAttributes = Map("container" -> WomString("ubuntu:latest"), "docker" -> WomString("debian:latest"))
+      val expectedRuntimeAttributes = expectedDefaults.copy(dockerImage = "ubuntu:latest")
+      assertSuccess(runtimeAttributes, expectedRuntimeAttributes)
     }
 
     "validate a valid failOnStderr entry" in {

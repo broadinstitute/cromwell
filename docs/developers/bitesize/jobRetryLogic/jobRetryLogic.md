@@ -9,7 +9,7 @@
 * Job may have attributes which are being stored in the `JOB_KEY_VALUE_ENTRY` table in the database, identified by a 
 `ScopedKey`, which comprises workflow id, call fully qualified name, job index, job attempt number, and attribute name.
 * There are 2 types of retries:
-  * backend-specific retries (e.g., VM preemption in PAPI)
+  * backend-specific retries (e.g., VM preemption in GCP Batch)
   * general retries 
 * Backend-specific and general retries have separate retry counters, which are being stored in `JOB_KEY_VALUE_ENTRY` in
 the end of the job execution attempt, and pre-fetched from the table in the beginning of the next attempt.

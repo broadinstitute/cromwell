@@ -181,7 +181,14 @@ object RunnableBuilder extends BatchUtilityConversions {
       Environment
         .newBuilder()
         .putAllVariables(
-          Map("MEM_UNIT" -> memory.unit.toString, "MEM_SIZE" -> memory.amount.toString).asJava
+          Map(
+            "MEM_UNIT" -> memory.unit.toString,
+            "MEM_SIZE" -> memory.amount.toString,
+            // Batch sets `CLOUDSDK_PYTHON=/usr/bin/python3`, which is not compatible with user-provided
+            // images that have Python in a different place. Here we unset the variable so that
+            // `gcloud` can find its own Python. (AN-601, XKCD-1987)
+            "CLOUDSDK_PYTHON" -> ""
+          ).asJava
         )
 
     Runnable
@@ -224,15 +231,19 @@ object RunnableBuilder extends BatchUtilityConversions {
       labels = runnableLabels collect {
         case (key, value) if key == Key.Tag => Key.Logging -> value
         case (key, value) => key -> value
-      }
-    ).withTimeout(timeout = 300.seconds)
+      },
+      timeout = 30.minutes
+    )
 
   def cloudSdkRunnable: Runnable.Builder = Runnable.newBuilder.setContainer(cloudSdkContainerBuilder)
 
+  // Set a default timeout of 24 hours for these runnables. They are typically used for running
+  // localization, delocalization, small shell commands, etc. These processes occasionally hang and
+  // cost the user money, don't let them hang for the full timeout period of the high-level job.
   def cloudSdkShellRunnable(shellCommand: String)(volumes: List[Volume],
                                                   flags: List[RunnableFlag],
                                                   labels: Map[String, String],
-                                                  timeout: Duration = Duration.Inf
+                                                  timeout: Duration = 24.hours
   ): Runnable.Builder =
     Runnable.newBuilder
       .setContainer(cloudSdkContainerBuilder)

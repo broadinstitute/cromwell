@@ -83,7 +83,7 @@ Example `options.json`:
 | `final_workflow_log_dir`             | A directory available to Cromwell | Specifies a path where per-workflow logs will be written. If this is not specified, per-workflow logs will not be copied out of the Cromwell workflow log temporary directory/path before they are deleted.                                                                                                                |
 | `final_call_logs_dir`                | A directory available to Cromwell | Specifies a path where final call logs will be written.  If this is not specified, call logs will not be copied out of the Cromwell workflow execution directory/path.                                                                                                                                                     |
 
-Note that these directories should be using the same filesystem as the workflow. Eg if you run on Google's PAPI, you should provide `gs://...` paths.
+Note that these directories should be using the same filesystem as the workflow. Eg if you run on Google's Batch, you should provide `gs://...` paths.
 
 Example `options.json`:
 ```json

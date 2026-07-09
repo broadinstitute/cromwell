@@ -31,7 +31,7 @@ task makeFileAndIndex {
         echo $(gsutil stat gs://cloud-cromwell-dev-self-cleaning/cromwell_execution/no_input_delete/test_execution/no_input_delete.txt) > ~{outputFile}
     }
     runtime {
-      docker: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+      docker: "mirror.gcr.io/google/cloud-sdk"
     }
     output {
         String result = read_string(outputFile)

@@ -1,3 +1,4 @@
+# Changelog
 2023-03-16
 
 Duplicated Cromwell `biscayne` into `cascades` to serve as new home for OpenWDL `development` version. Grammar synced from OpenWDL.
@@ -5,6 +6,12 @@ Will become WDL 1.2 or 2.0.
 Some Terra users run `version development` WDLs, we don't officially support it, but shouldn't break it too badly if possible.
 
 2024-02-28
+Added support for struct literals
+
+2025-09-30
+Added support for passthrough task inputs (supply `foo` rather than `foo=foo` when a local variable and task input share the same name).
+
+# HowTo
 When changing the grammar file, generate a new parser by:
 - changing current working directory to cromwell/wdl/transforms/cascades
 - running: hermes generate src/main/resources/grammar.hgr \

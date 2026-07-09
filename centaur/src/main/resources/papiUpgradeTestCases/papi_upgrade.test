@@ -1,6 +1,6 @@
 name: papi_upgrade
 testFormat: PapiUpgrade
-backends: [Papi, GCPBATCH]
+backends: [GCPBATCH]
 tags: [papi_upgrade]
 callMark: papi_upgrade.cromwell_killer
 retryTestFailures: false

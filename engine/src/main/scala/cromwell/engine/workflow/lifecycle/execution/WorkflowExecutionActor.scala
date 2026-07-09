@@ -793,7 +793,10 @@ case class WorkflowExecutionActor(params: WorkflowExecutionActorParams)
       fileHashCacheActor = params.fileHashCacheActor,
       maxFailedCopyAttempts = params.rootConfig.getInt("call-caching.max-failed-copy-attempts"),
       blacklistCache = params.blacklistCache,
-      fileHashBatchSize = FileHashBatchSize
+      fileHashBatchSize = FileHashBatchSize,
+      maxResultAgeDays = params.rootConfig.as[Option[Long]](
+        "call-caching.max-result-age-days"
+      )
     )
 
     val ejeaProps = EngineJobExecutionActor.props(

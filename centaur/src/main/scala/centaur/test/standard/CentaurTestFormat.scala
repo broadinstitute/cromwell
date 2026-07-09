@@ -108,6 +108,8 @@ object CentaurTestFormat {
       extends CentaurTestFormat(WorkflowFailureRestartWithoutRecover.name)
       with RestartFormat
 
+  // Note: Even though it has Papi in the name, these tests currently run on GCP Batch backend.
+  // They are identified by the "papi_upgrade" tag.
   object PapiUpgradeTest extends CentaurTestFormat("PapiUpgrade") with WithCallMarker {
     val build = PapiUpgradeTest.apply _
   }

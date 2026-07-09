@@ -1,8 +1,11 @@
 package org.lerch.s3fs;
 
-import static java.lang.String.format;
+import org.apache.tika.Tika;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.ByteArrayInputStream;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,21 +16,14 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.apache.tika.Tika;
-
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.S3Object;
+import static java.lang.String.format;
 
 public class S3SeekableByteChannel implements SeekableByteChannel, S3Channel {
 
-    private S3Path path;
-    private Set<? extends OpenOption> options;
-    private SeekableByteChannel seekable;
-    private Path tempFile;
+    private final S3Path path;
+    private final Set<? extends OpenOption> options;
+    private final SeekableByteChannel seekable;
+    private final Path tempFile;
 
     /**
      * Open or creates a file, returning a seekable byte channel
@@ -52,7 +48,7 @@ public class S3SeekableByteChannel implements SeekableByteChannel, S3Channel {
         boolean removeTempFile = true;
         try {
             if (exists) {
-                try (InputStream byteStream = path.getFileSystem().getClient()
+                try (InputStream byteStream = path.getFileStore().getClient()
                       .getObject(GetObjectRequest.builder().bucket(path.getFileStore().getBucket().name()).key(key).build())) {
                    Files.copy(byteStream, tempFile, StandardCopyOption.REPLACE_EXISTING);
                 }
@@ -115,7 +111,7 @@ public class S3SeekableByteChannel implements SeekableByteChannel, S3Channel {
             builder.bucket(path.getFileStore().name());
             builder.key(path.getKey());
 
-            S3Client client = path.getFileSystem().getClient();
+            S3Client client = path.getFileStore().getClient();
 
             client.putObject(builder.build(), RequestBody.fromInputStream(stream, length));
         }

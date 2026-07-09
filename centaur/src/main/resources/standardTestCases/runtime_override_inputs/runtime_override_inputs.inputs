@@ -1,0 +1,8 @@
+{
+  "wf_hello.hello.addressee": "World",
+  "wf_hello.hello.runtime.docker": "rockylinux:9",
+  "wf_hello.hello.runtime.maxRetries": "1",
+  "wf_hello.hello.runtime.cpu": "2",
+  "wf_hello.hello.runtime.bogusAttributesShouldBeIgnored": "yes",
+  "wf_hello.sub_runtime_call.foo.runtime.docker": "rockylinux:9"
+}

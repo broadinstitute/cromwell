@@ -1,0 +1,20 @@
+name: runtime_override_inputs
+testFormat: workflowsuccess
+tags: [subworkflow]
+
+files {
+  workflow: runtime_override_inputs/runtime_override_inputs.wdl
+  inputs: runtime_override_inputs/runtime_override_inputs.inputs
+  imports: [
+      runtime_override_inputs/sub_runtime_override_inputs.wdl
+    ]
+}
+
+metadata {
+  "calls.wf_hello.hello.outputs.salutation": "Hello World!",
+  "calls.wf_hello.hello.runtimeAttributes.docker": ~~"rockylinux:9",
+  "calls.wf_hello.hello.runtimeAttributes.maxRetries": "1",
+  "calls.wf_hello.hello.runtimeAttributes.cpu": "2"
+  // TODO enhance Centaur to be able to check subworkflow metadata
+  // "calls.wf_hello.sub_runtime_call.0.subWorkflowMetadata.calls.wf.foo.0.runtimeAttributes.docker": "rockylinux:9"
+}

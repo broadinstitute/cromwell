@@ -33,7 +33,7 @@ package object ast2wdlom {
       AstToNewExpressionElements.newBiscayneEngineFunctionMakers
     )
   implicit val astNodeToKvPair: CheckedAtoB[GenericAstNode, KvPair] =
-    AstNodeToKvPair.astNodeToKvPair(astNodeToExpressionElement)
+    BiscayneAstNodeToKvPair.astNodeToKvPair(astNodeToExpressionElement)
 
   implicit val astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement] =
     AstNodeToTypeElement.astNodeToTypeElement(Map.empty)

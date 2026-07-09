@@ -3,8 +3,6 @@ package org.lerch.s3fs.attribute;
 import java.nio.file.attribute.*;
 import java.util.Set;
 
-import static java.lang.String.format;
-
 public class S3PosixFileAttributes extends S3BasicFileAttributes implements PosixFileAttributes  {
 
     private UserPrincipal userPrincipal;

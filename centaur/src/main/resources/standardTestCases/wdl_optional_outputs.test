@@ -1,6 +1,6 @@
 name: wdl_optional_outputs
 testFormat: workflowsuccess
-backends: [Papiv2, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: wdl_optional_outputs/wdl_optional_outputs.wdl

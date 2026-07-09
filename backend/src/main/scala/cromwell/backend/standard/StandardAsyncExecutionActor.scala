@@ -38,6 +38,7 @@ import net.ceedubs.ficus.Ficus._
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
+import wom.callable.Callable.InputDefinition
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
@@ -214,6 +215,42 @@ trait StandardAsyncExecutionActor
     */
   def inputsToNotLocalize: Set[WomFile] = Set.empty
 
+  protected def noLocalizationForTask: Boolean =
+    // WDL 1.1: `runtime.localizationOptional` indicates all files for task are optional
+    jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
+
+  /**
+   * Identify input files designated as localization optional in the `runtime` section – new for WDL 1.1
+   *
+   * runtime {
+   *   inputs: object {
+   *     foo: object {
+   *       localizationOptional: true
+   *     }
+   *   }
+   * }  
+   * 
+   * @return a set of files to not localize, to be appended to the other sources of such files
+   */
+  protected def runtimeInputsToNotLocalize: Set[WomFile] = {
+    val nonlocalizedInputNames: Set[String] =
+      jobDescriptor.runtimeAttributes.get(wom.RuntimeAttributesKeys.Inputs) match {
+        // Iterate through `foo: object {...}` tuples and return `foo`s where `localizationOptional` is true
+        case Some(inputsAttribute: WomObject) =>
+          inputsAttribute.values.filter { case (_: String, value: WomObject) =>
+            value.values.get(wom.RuntimeAttributesKeys.LocalizationOptional).contains(WomBoolean(true))
+          }.keySet
+        case _ => Set.empty
+      }
+
+    BackendJobDescriptor.findFiles(
+      jobDescriptor.evaluatedTaskInputs.filter {
+        // Go through the input map and pull the Womfiles whose names are in the list
+        case (name: InputDefinition, _: WomValue) => nonlocalizedInputNames.contains(name.localName.value)
+      }
+    )
+  }
+
   /** @see [[Command.instantiate]] */
   final lazy val commandLineValueMapper: WomValue => WomValue = { womValue =>
     mapOrNoResolve(mapCommandLineWomFile)(womValue).get
@@ -356,6 +393,9 @@ trait StandardAsyncExecutionActor
   /** Any custom code that should be run within commandScriptContents before the instantiated command. */
   def scriptPreamble: ErrorOr[ScriptPreambleData] = ScriptPreambleData("").valid
 
+  /** Any custom code that should be run within commandScriptContents right before exiting. */
+  def scriptClosure: Option[String] = None
+
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
 
@@ -389,7 +429,7 @@ trait StandardAsyncExecutionActor
    * to re-do this before sending the response.
    */
   private var jobPathsUpdated: Boolean = false
-  private def updateJobPaths(): Unit = if (!jobPathsUpdated) {
+  def updateJobPaths(): Unit = if (!jobPathsUpdated) {
     // .get's are safe on stdout and stderr after falling back to default names above.
     jobPaths.standardPaths = StandardPaths(
       output = hostPathFromContainerPath(executionStdout),
@@ -505,12 +545,14 @@ trait StandardAsyncExecutionActor
           |${directoryScripts(directoryOutputs)}
           |)
           |mv $rcTmpPath $rcPath
+          |SCRIPT_CLOSURE
           |""".stripMargin
         .replace("SCRIPT_PREAMBLE", preamble)
         .replace("ENVIRONMENT_VARIABLES", environmentVariables)
         .replace("INSTANTIATED_COMMAND", commandString)
         .replace("SCRIPT_EPILOGUE", scriptEpilogue)
         .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir)
+        .replace("SCRIPT_CLOSURE", scriptClosure.getOrElse(""))
     )
   }
 
@@ -1387,6 +1429,7 @@ trait StandardAsyncExecutionActor
 
     // Returns true if the task has written an RC file that indicates OOM, false otherwise
     def memoryRetryRC: Future[Boolean] = {
+      // convert int to boolean
       def returnCodeAsBoolean(codeAsOption: Option[String]): Boolean =
         codeAsOption match {
           case Some(codeAsString) =>
@@ -1405,13 +1448,13 @@ trait StandardAsyncExecutionActor
             }
           case None => false
         }
-
+      // read if the file exists
       def readMemoryRetryRCFile(fileExists: Boolean): Future[Option[String]] =
         if (fileExists)
           asyncIo.contentAsStringAsync(jobPaths.memoryRetryRC, None, failOnOverflow = false).map(Option(_))
         else
           Future.successful(None)
-
+      // finally : assign the yielded variable
       for {
         fileExists <- asyncIo.existsAsync(jobPaths.memoryRetryRC)
         retryCheckRCAsOption <- readMemoryRetryRCFile(fileExists)
@@ -1421,7 +1464,7 @@ trait StandardAsyncExecutionActor
 
     val stderr = jobPaths.standardPaths.error
     lazy val stderrAsOption: Option[Path] = Option(stderr)
-
+    // get the three needed variables, using functions above or direct assignment.
     val stderrSizeAndReturnCodeAndMemoryRetry = for {
       returnCodeAsString <- asyncIo.contentAsStringAsync(jobPaths.returnCode, None, failOnOverflow = false)
       // Only check stderr size if we need to, otherwise this results in a lot of unnecessary I/O that
@@ -1432,7 +1475,6 @@ trait StandardAsyncExecutionActor
 
     stderrSizeAndReturnCodeAndMemoryRetry flatMap { case (stderrSize, returnCodeAsString, outOfMemoryDetected) =>
       val tryReturnCodeAsInt = Try(returnCodeAsString.trim.toInt)
-
       if (isDone(status)) {
         tryReturnCodeAsInt match {
           case Success(returnCodeAsInt) if failOnStdErr && stderrSize.intValue > 0 =>

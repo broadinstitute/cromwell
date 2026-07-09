@@ -1,6 +1,6 @@
 name: missing_input_failure_papiv2
 testFormat: workflowfailure
-backends: [Papiv2, GCPBATCH]
+backends: [GCPBATCH]
 
 files {
   workflow: missing_input_failure/missing_input_failure.wdl

@@ -1,0 +1,7 @@
+name: gpu_required_and_requested
+testFormat: workflowsuccess
+backends: [GCPBATCH, AWSBATCH]
+
+files {
+  workflow: wdl/gpu_required_and_requested.wdl
+}

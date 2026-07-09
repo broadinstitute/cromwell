@@ -34,7 +34,7 @@ package object ast2wdlom {
       AstToNewExpressionElements.newcascadesEngineFunctionMakers
     )
   implicit val astNodeToKvPair: CheckedAtoB[GenericAstNode, KvPair] =
-    AstNodeToKvPair.astNodeToKvPair(astNodeToExpressionElement)
+    CascadesAstNodeToKvPair.astNodeToKvPair(astNodeToExpressionElement)
 
   implicit val astNodeToTypeElement: CheckedAtoB[GenericAstNode, TypeElement] =
     AstNodeToTypeElement.astNodeToTypeElement(Map("Directory" -> WomUnlistedDirectoryType))

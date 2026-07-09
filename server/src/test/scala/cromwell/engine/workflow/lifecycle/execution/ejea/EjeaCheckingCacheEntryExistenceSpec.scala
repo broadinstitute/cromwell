@@ -9,6 +9,8 @@ import cromwell.engine.workflow.tokens.JobTokenDispenserActor.JobTokenRequest
 import cromwell.jobstore.JobStoreActor.RegisterJobCompleted
 import cromwell.services.metadata.MetadataService.PutMetadataAction
 
+import java.sql.Timestamp
+import java.time.Instant
 import scala.util.control.NoStackTrace
 
 class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
@@ -20,7 +22,14 @@ class EjeaCheckingCacheEntryExistenceSpec extends EngineJobExecutionActorSpec {
       createCheckingCacheEntryExistenceEjea()
 
       ejea ! CallCachingJoin(
-        CallCachingEntry(helper.workflowId.toString, helper.jobFqn, 0, None, None, allowResultReuse = true),
+        CallCachingEntry(helper.workflowId.toString,
+                         helper.jobFqn,
+                         0,
+                         None,
+                         None,
+                         allowResultReuse = true,
+                         createdAt = Timestamp.from(Instant.now())
+        ),
         List(CallCachingHashEntry("runtime attribute: docker", "HASHVALUE")),
         None,
         List.empty,

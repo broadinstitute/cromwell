@@ -1,0 +1,6 @@
+name: gpu_required_not_requested
+testFormat: workflowfailure
+
+files {
+  workflow: wdl/gpu_required_not_requested.wdl
+}

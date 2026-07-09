@@ -1,21 +1,15 @@
 package org.lerch.s3fs;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Set;
-
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import org.lerch.s3fs.util.S3Utils;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import org.lerch.s3fs.util.S3Utils;
+
+import java.nio.file.Path;
+import java.util.*;
 
 /**
  * S3 iterator over folders at first level.
@@ -50,7 +44,7 @@ public class S3Iterator implements Iterator<Path> {
         this.fileStore = fileStore;
         this.fileSystem = fileStore.getFileSystem();
         this.key = key;
-        this.current = fileSystem.getClient().listObjects(listObjectsRequest);
+        this.current = fileStore.getClient().listObjects(listObjectsRequest);
         this.incremental = incremental;
         loadObjects();
     }
@@ -69,7 +63,7 @@ public class S3Iterator implements Iterator<Path> {
                                                    .marker(current.nextMarker())
                                                    .build();
 
-            this.current = fileSystem.getClient().listObjects(request);
+            this.current = fileStore.getClient().listObjects(request);
             loadObjects();
         }
         if (cursor == size)

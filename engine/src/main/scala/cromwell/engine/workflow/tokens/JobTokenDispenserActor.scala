@@ -137,7 +137,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
       this.quotaExhaustedGroups = quotaExhaustedGroups
     case GetQuotaExhaustedGroupsFailure(errorMsg) =>
       log.error(s"Failed to fetch quota exhausted groups. Error: $errorMsg")
-      this.quotaExhaustedGroups = List.empty // is this the behavior we want?
+      this.quotaExhaustedGroups = List.empty
   }
 
   // This makes sure the metric paths are being used even if there's no other activity on the token dispenser:

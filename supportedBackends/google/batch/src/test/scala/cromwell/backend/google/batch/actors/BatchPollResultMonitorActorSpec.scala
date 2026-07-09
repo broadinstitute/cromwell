@@ -153,4 +153,102 @@ class BatchPollResultMonitorActorSpec
       )
     }
   }
+
+  it should "emit the latest start time after receiving multiple events" in {
+
+    val vmStartTime1 = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val vmStartTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val pollResult = RunStatus.Running(
+      Seq(ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime1),
+          ExecutionEvent(CallMetadataKeys.VmStartTime, vmStartTime2)
+      ),
+      Some(vmInfo)
+    )
+    val message = ProcessThisPollResult(pollResult)
+
+    actor ! message
+
+    serviceRegistry.expectMsgPF(1.seconds) { case m: PutMetadataAction =>
+      val event = m.events.head
+      m.events.size shouldBe 1
+      event.key.key shouldBe CallMetadataKeys.VmStartTime
+      assert(
+        Instant
+          .parse(event.value.get.value)
+          .equals(vmStartTime2.toInstant.truncatedTo(ChronoUnit.MILLIS))
+      )
+    }
+  }
+
+  it should "emit the latest end time after receiving multiple events" in {
+
+    val vmEndTime1 = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val vmEndTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val pollResult = RunStatus.Running(
+      Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime1),
+          ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime2)
+      ),
+      Some(vmInfo)
+    )
+    val message = ProcessThisPollResult(pollResult)
+
+    actor ! message
+
+    serviceRegistry.expectMsgPF(1.seconds) { case m: PutMetadataAction =>
+      val event = m.events.head
+      m.events.size shouldBe 1
+      event.key.key shouldBe CallMetadataKeys.VmEndTime
+      assert(
+        Instant
+          .parse(event.value.get.value)
+          .equals(vmEndTime2.toInstant.truncatedTo(ChronoUnit.MILLIS))
+      )
+    }
+  }
+
+  it should "emit the latest end time after processing multiple pollResults" in {
+
+    val vmEndTime1 = OffsetDateTime.now().minus(3, ChronoUnit.HOURS)
+    val vmEndTime2 = OffsetDateTime.now().minus(2, ChronoUnit.HOURS)
+    val pollResult = RunStatus.Running(
+      Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime1),
+          ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime2)
+      ),
+      Some(vmInfo)
+    )
+    val message = ProcessThisPollResult(pollResult)
+
+    actor ! message
+
+    serviceRegistry.expectMsgPF(1.seconds) { case m: PutMetadataAction =>
+      val event = m.events.head
+      m.events.size shouldBe 1
+      event.key.key shouldBe CallMetadataKeys.VmEndTime
+      assert(
+        Instant
+          .parse(event.value.get.value)
+          .equals(vmEndTime2.toInstant.truncatedTo(ChronoUnit.MILLIS))
+      )
+    }
+
+    val vmEndTime3 = OffsetDateTime.now().minus(1, ChronoUnit.HOURS)
+    val pollResult2 = RunStatus.Running(
+      Seq(ExecutionEvent(CallMetadataKeys.VmEndTime, vmEndTime3)),
+      Some(vmInfo)
+    )
+    val message2 = ProcessThisPollResult(pollResult2)
+
+    actor ! message2
+
+    serviceRegistry.expectMsgPF(1.seconds) { case m: PutMetadataAction =>
+      val event = m.events.head
+      m.events.size shouldBe 1
+      event.key.key shouldBe CallMetadataKeys.VmEndTime
+      assert(
+        Instant
+          .parse(event.value.get.value)
+          .equals(vmEndTime3.toInstant.truncatedTo(ChronoUnit.MILLIS))
+      )
+    }
+  }
 }

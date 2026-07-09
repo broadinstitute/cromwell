@@ -1,0 +1,19 @@
+name: retry_with_more_memory_java_app_hits_xmx_threshold
+testFormat: workflowfailure
+backends: [GCPBATCH]
+
+files {
+  workflow: retry_with_more_memory/retry_with_more_memory_java_app_hits_xmx_threshold.wdl
+  options: retry_with_more_memory/retry_with_more_memory_2x.options
+}
+
+metadata {
+  workflowName: retry_with_more_memory_java_app_hits_xmx_threshold
+  status: Failed
+  "failures.0.message": "Workflow failed"
+  "failures.0.causedBy.0.message": "stderr for job `retry_with_more_memory_java_app_hits_xmx_threshold.run_app:NA:2` contained one of the `memory-retry-error-keys: [OutOfMemory,Killed]` specified in the Cromwell config. Job might have run out of memory."
+  "retry_with_more_memory_java_app_hits_xmx_threshold.run_app.-1.1.runtimeAttributes.memory": "4 GB"
+  "retry_with_more_memory_java_app_hits_xmx_threshold.run_app.-1.1.executionStatus": "RetryableFailure"
+  "retry_with_more_memory_java_app_hits_xmx_threshold.run_app.-1.2.runtimeAttributes.memory": "8 GB"
+  "retry_with_more_memory_java_app_hits_xmx_threshold.run_app.-1.2.executionStatus": "Failed"
+}

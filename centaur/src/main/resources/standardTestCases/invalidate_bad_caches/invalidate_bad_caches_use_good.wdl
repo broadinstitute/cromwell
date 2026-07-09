@@ -49,24 +49,28 @@ workflow invalidate_bad_caches {
     Boolean running_on_jes
 
     call make_file as make_first_file { input: ready = true }
-    call make_file as make_second_file { input: ready = make_first_file.done }
 
+    # delete file to invalidate cache
     if (running_on_jes) {
         call delete_file_in_gcs {
             input:
-                ready = make_second_file.done,
+                ready = make_first_file.done,
                 file_path = make_first_file.out
         }
     }
     if (!running_on_jes) {
         call delete_file_local {
             input:
-                ready = make_second_file.done,
+                ready = make_first_file.done,
                 file_path_raw = make_first_file.out
         }
     }
 
+   # this should fail to call-cache
+    call make_file as make_second_file { input: ready = select_first([delete_file_in_gcs.done, delete_file_local.done]) }
+
+    # this should call cache from make_second_file
     call make_file as cache_third_file {
-        input: ready = select_first([delete_file_in_gcs.done, delete_file_local.done])
+        input: ready = make_second_file.done
     }
 }

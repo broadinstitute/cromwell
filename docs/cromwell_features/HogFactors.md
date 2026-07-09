@@ -68,7 +68,7 @@ Additionally, you can override system-level hog-factor on a backend level, by se
 ```conf
 backend {
   providers {
-    PAPIv2 {
+    GCPBatch {
       config {
         hog-factor: 2
       }
@@ -145,13 +145,13 @@ jobA1, jobB1, jobC1, jobD1, jobA2, jobB2, jobD2, jobA3, ..., jobA1000000
 
 ##### An administrator sets up a Cromwell server
 
-- A Cromwell administrator sets the overall maximum concurrent job limit to 100,000 PAPIv2 jobs.
+- A Cromwell administrator sets the overall maximum concurrent job limit to 100,000 GCP Batch jobs.
 - The administrator also sets the hog factor to be 25.
-- Cromwell will therefore calculate a per-hog-group concurrent job limit of 4,000 PAPIv2 jobs.
+- Cromwell will therefore calculate a per-hog-group concurrent job limit of 4,000 GCP Batch jobs.
 
 ##### Our first hog group hits its limit
 
-- 100 workflows are running in hog group "A" and between them have generated 20,000 jobs for PAPIv2. 
+- 100 workflows are running in hog group "A" and between them have generated 20,000 jobs for GCP Batch. 
     + Cromwell initially starts 4,000 jobs.
     + Cromwell then starts the remaining 16,000 new jobs as existing jobs from this group finish.
     + New workflows in this group will not be able to start jobs either
@@ -160,7 +160,7 @@ jobA1, jobB1, jobC1, jobD1, jobA2, jobB2, jobD2, jobA3, ..., jobA1000000
 
 ##### Another hog group appears
 
-- Now hog group B submits 1,000 workflows and between them they generate 200,000 jobs for PAPIv2.
+- Now hog group B submits 1,000 workflows and between them they generate 200,000 jobs for GCP Batch.
 - Even though 16,000 of group A's jobs are still queued, Cromwell starts 4,000 of group B's jobs immediately,
 - The remaining 196,000 of group B's jobs are queued up waiting for group B's existing jobs to complete.
 

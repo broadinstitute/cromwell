@@ -1,7 +1,7 @@
 name: draft3_call_cache_capoeira_jes
 testFormat: workflowsuccess
 backendsMode: all
-backends: [Papi, Local, GCPBATCH]
+backends: [Local, GCPBATCH]
 workflowType: WDL
 workflowTypeVersion: 1.0
 tags: ["wdl_1.0"]
@@ -51,5 +51,5 @@ metadata {
   "calls.draft3_call_cache_capoeira.read_array_files.callCaching.hashes.input.Boolean ready": "B326B5062B2F0E69046810717534CB09"
   "calls.draft3_call_cache_capoeira.read_array_files.callCaching.hashes.input.File b.0": "EQWINA=="
   "calls.draft3_call_cache_capoeira.read_array_files.callCaching.hashes.input.File a.0": "T53tZg=="
-  "calls.draft3_call_cache_capoeira.read_array_files.callCaching.hashes.backend name": "36EF4A8AB268D1A1C74D8108C93D48ED"
+  "calls.draft3_call_cache_capoeira.read_array_files.callCaching.hashes.backend name": "F9B949AB11D336FE12AEEF8C8DB7D3F9"
 }

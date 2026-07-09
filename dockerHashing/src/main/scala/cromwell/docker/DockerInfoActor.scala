@@ -14,7 +14,7 @@ import cromwell.core.actor.StreamIntegration.{BackPressure, StreamContext}
 import cromwell.core.{Dispatcher, DockerConfiguration}
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract
-import cromwell.docker.registryv2.flows.azure.AzureContainerRegistry
+import cromwell.docker.registryv2.flows.aws.{AmazonEcr, AmazonEcrPublic}
 import cromwell.docker.registryv2.flows.dockerhub.DockerHubRegistry
 import cromwell.docker.registryv2.flows.google.GoogleRegistry
 import cromwell.docker.registryv2.flows.quay.QuayRegistry
@@ -239,12 +239,15 @@ object DockerInfoActor {
 
     // To add a new registry, simply add it to that list
     List(
-      ("azure", { c: DockerRegistryConfig => new AzureContainerRegistry(c) }),
       ("dockerhub", { c: DockerRegistryConfig => new DockerHubRegistry(c) }),
       ("google", { c: DockerRegistryConfig => new GoogleRegistry(c) }),
-      ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) })
-    ).traverse[ErrorOr, DockerRegistry] { case (configPath, constructor) =>
-      DockerRegistryConfig.fromConfig(config.as[Config](configPath)).map(constructor)
-    }.unsafe("Docker registry configuration")
+      ("quay", { c: DockerRegistryConfig => new QuayRegistry(c) }),
+      ("ecr", { c: DockerRegistryConfig => new AmazonEcr(c) }),
+      ("ecr-public", { c: DockerRegistryConfig => new AmazonEcrPublic(c) })
+    ).filter(r => config.hasPath(r._1)) // Ignore registries that don't appear in config
+      .traverse[ErrorOr, DockerRegistry] { case (configPath, constructor) =>
+        DockerRegistryConfig.fromConfig(config.as[Config](configPath)).map(constructor)
+      }
+      .unsafe("Docker registry configuration")
   }
 }

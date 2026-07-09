@@ -53,7 +53,118 @@ AWS Batch allows the use of private Docker containers by providing `dockerhub` c
 }
 ```
 
+### DockerHub Mirroring
+
+Cromwell supports automatic use of ECR [pull-through caches](https://docs.aws.amazon.com/AmazonECR/latest/userguide/pull-through-cache.html)
+to access DockerHub images in the AWS backend. When enabled, Dockerhub images will be pulled through this mirror rather than directly from Dockerhub. This can be important for avoiding rate limits imposed by Docker. This is an alternative to providing credentials as described 
+above. If you want to enable your pull-through cache to access private DockerHub images, you'll need to provide your DockerHub login
+when setting up the cache through AWS.
+
+To use, include the below `docker-mirror` config in your backend configuration:
+```
+(backend.providers.AWSBatch.config.)docker-mirror = {
+    dockerhub {
+      enabled: true
+      address: "<your-private-ECR-cache-endpoint>"
+    }
+}
+```
+
+To ensure call caching works, confirm that ECR is enabled in your higher-level Cromwell config:
+```
+docker.hash-lookup = {
+    ecr.num-threads = 10
+    ecr-public.num-threads = 10
+}
+```
+
 ### More configuration options
 
 * `(backend.providers.AWSBatch.config.)concurrent-job-limit` specifies the number of jobs that Cromwell will allow to be running in AWS at the same time. Tune this parameter based on how many nodes are in the compute environment.
 * `(backend.providers.AWSBatch.config.)root` points to the S3 bucket where workflow outputs are stored. This becomes a path on the root instance, and by default is cromwell_root. This is monitored by preinstalled daemon that expands drive space on the host, ie AWS EBS autoscale.  This path is used as the 'local-disk' for containers.
+
+## Workflow Options
+
+The AWS Batch backend supports the following workflow options:
+
+### aws_batch_job_role_arn
+
+The `aws_batch_job_role_arn` workflow option allows you to specify an IAM role ARN that will be associated with the AWS Batch job's container. This enables the container to assume the specified role and access AWS resources according to the permissions granted to that role.
+
+**Usage:**
+
+Include this option in your workflow options JSON file:
+
+```json
+{
+  "aws_batch_job_role_arn": "arn:aws:iam::123456789012:role/MyJobRole"
+}
+```
+
+Or specify it on the command line:
+
+```bash
+java -jar cromwell.jar run workflow.wdl -o workflow_options.json
+```
+
+**Example use cases:**
+- Accessing S3 buckets with specific permissions
+- Invoking other AWS services (e.g., Lambda, SNS, SQS)
+- Cross-account resource access
+
+**Note:** The IAM role must have a trust relationship that allows the AWS Batch service to assume it. The role should include the following trust policy:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+### aws_batch_script_bucket_prefix
+
+The `aws_batch_script_bucket_prefix` workflow option allows you to specify a custom prefix (subfolder) within the script bucket where execution scripts will be stored. This enables better organization and isolation of scripts for different workflows, projects, or teams.
+
+**Usage:**
+
+Include this option in your workflow options JSON file:
+
+```json
+{
+  "aws_batch_script_bucket_prefix": "project-x/workflow-123/scripts"
+}
+```
+
+**How it works:**
+- By default (when not specified), scripts are stored in the `scripts/` folder within the configured `scriptBucketName`
+- When you specify a prefix, scripts will be stored directly at that prefix location
+- The prefix should include any subfolder structure you want (including `/scripts` if desired)
+- If no prefix is specified or an empty string is provided, the default `scripts/` location is used
+- A trailing slash will be added automatically if not present to ensure proper S3 key formation (e.g., `my-prefix` becomes `my-prefix/`)
+
+**Example:**
+If your `scriptBucketName` is configured as `my-cromwell-scripts` and you set:
+```json
+{
+  "aws_batch_script_bucket_prefix": "team-alpha/project-genomics/scripts"
+}
+```
+
+Scripts will be stored at: `s3://my-cromwell-scripts/team-alpha/project-genomics/scripts/[script-hash]`
+
+Or for a custom structure without the `scripts` subfolder:
+```json
+{
+  "aws_batch_script_bucket_prefix": "workflows/2024/genomics-pipeline"
+}
+```
+
+Scripts will be stored at: `s3://my-cromwell-scripts/workflows/2024/genomics-pipeline/[script-hash]`

@@ -1,7 +1,7 @@
 name: biscayne_read_functions_windows_line_endings
 testFormat: workflowsuccess
 workflowType: WDL
-workflowTypeVersion: biscayne
+workflowTypeVersion: 1.1
 tags: ["wdl_biscayne"]
 
 files {

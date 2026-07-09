@@ -44,7 +44,6 @@ class DrsPathResolver(drsConfig: DrsConfig, drsCredentials: DrsCredentials) {
   private lazy val currentCloudPlatform: Option[DrsCloudPlatform.Value] = drsCredentials match {
     case _: GoogleOauthDrsCredentials => Option(DrsCloudPlatform.GoogleStorage)
     case GoogleAppDefaultTokenStrategy => Option(DrsCloudPlatform.GoogleStorage)
-    case _: AzureDrsCredentials => Option(DrsCloudPlatform.Azure)
     case _ => None
   }
 
@@ -206,11 +205,10 @@ object DrsResolverField extends Enumeration {
 
 // We supply a cloud platform value to the DRS service. In cases where the DRS repository
 // has multiple cloud files associated with a DRS link, it will prefer sending a file on the same
-// platform as this Cromwell instance. That is, if a DRS file has copies on both GCP and Azure,
-// we'll get the GCP one when running on GCP and the Azure one when running on Azure.
+// platform as this Cromwell instance. That is, if a DRS file has copies on both GCP and S3,
+// we'll get the GCP one when running on GCP and the S3 one when running on Amazon.
 object DrsCloudPlatform extends Enumeration {
   val GoogleStorage: DrsCloudPlatform.Value = Value("gs")
-  val Azure: DrsCloudPlatform.Value = Value("azure")
   val AmazonS3: DrsCloudPlatform.Value = Value("s3") // supported by DRSHub but not currently used by us
 }
 

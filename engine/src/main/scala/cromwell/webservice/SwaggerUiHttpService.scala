@@ -1,6 +1,6 @@
 package cromwell.webservice
 
-import akka.http.scaladsl.model.{HttpResponse, StatusCodes}
+import akka.http.scaladsl.model.{HttpEntity, HttpResponse, StatusCodes}
 import akka.http.scaladsl.server
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.Route
@@ -23,14 +23,23 @@ trait SwaggerUiHttpService {
         |        operationsSorter: "alpha"
       """.stripMargin
 
-    mapResponseEntity { entityFromJar =>
-      entityFromJar.transformDataBytes(Flow.fromFunction[ByteString, ByteString] { original: ByteString =>
-        ByteString(
-          original.utf8String
-            .replace("""url: "https://petstore.swagger.io/v2/swagger.json"""", "url: 'cromwell.yaml'")
-            .replace("""layout: "StandaloneLayout"""", s"""layout: "StandaloneLayout", $swaggerOptions""")
-        )
-      })
+    // Fix Issue #7763: Must intercept 304 BEFORE mapResponseEntity tries to transform it
+    mapResponse { response =>
+      if (response.status == StatusCodes.NotModified) {
+        // For 304, return immediately with empty entity, don't try to transform
+        response.withEntity(HttpEntity.Empty)
+      } else {
+        // For 200, transform the entity content
+        response.mapEntity { entityFromJar =>
+          entityFromJar.transformDataBytes(Flow.fromFunction[ByteString, ByteString] { original: ByteString =>
+            ByteString(
+              original.utf8String
+                .replace("""url: "https://petstore.swagger.io/v2/swagger.json"""", "url: 'cromwell.yaml'")
+                .replace("""layout: "StandaloneLayout"""", s"""layout: "StandaloneLayout", $swaggerOptions""")
+            )
+          })
+        }
+      }
     } {
       getFromResource(s"$resourceDirectory/index.html")
     }

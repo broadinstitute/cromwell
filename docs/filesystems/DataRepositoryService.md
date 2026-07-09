@@ -15,7 +15,7 @@ The `auth` field refers to the authentication schema that should be used to auth
 
 The `drs` section needs to be added to
 - `engine.filesystems` block
-- [PapiV2](http://cromwell.readthedocs.io/en/develop/backends/Google) backend's `filesystems` block
+- [GCPBatch](http://cromwell.readthedocs.io/en/develop/backends/GCPBatch) backend's `filesystems` block
 
 
 **Localization Configuration**

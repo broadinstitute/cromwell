@@ -3,10 +3,11 @@ package cromwell.services.healthmonitor.impl
 import akka.actor.ActorRef
 import com.typesafe.config.Config
 import cromwell.services.healthmonitor.ProtoHealthMonitorServiceActor
-import cromwell.services.healthmonitor.impl.workbench.WorkbenchHealthMonitorServiceActor
+import cromwell.services.healthmonitor.impl.common.EngineDatabaseMonitor
 
-final class HealthMonitorServiceActor(serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
-    extends WorkbenchHealthMonitorServiceActor(serviceConfig, globalConfig, serviceRegistryActor) {
+final class HealthMonitorServiceActor(val serviceConfig: Config, globalConfig: Config, serviceRegistryActor: ActorRef)
+    extends ProtoHealthMonitorServiceActor
+    with EngineDatabaseMonitor {
 
   override lazy val subsystems: Set[ProtoHealthMonitorServiceActor.MonitoredSubsystem] = {
 
@@ -14,6 +15,6 @@ final class HealthMonitorServiceActor(serviceConfig: Config, globalConfig: Confi
 
     Set(
       engineDatabaseSubsystemOption
-    ).flatten ++ PapiSubsystems
+    ).flatten
   }
 }

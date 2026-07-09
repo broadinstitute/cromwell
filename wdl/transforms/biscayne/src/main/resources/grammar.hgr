@@ -149,7 +149,7 @@ grammar {
 
     mode<awaiting_version_name> {
       r'\s+' -> null
-      r'development-1.1' -> :version_name @main
+      r'1.1' -> :version_name @main
     }
     mode<task_fqn> {
       r'\s+' -> null
@@ -429,7 +429,10 @@ grammar {
     $wf_body_element = $call | $declaration | $if_stmt | $scatter | $inputs | $outputs | $wf_parameter_meta | $wf_meta
     $call = :call :fqn optional($alias) list($call_after) optional($call_brace_block) -> Call(task=$1, alias=$2, after=$3, body=$4)
     $call_brace_block = :lbrace optional($call_body) :rbrace -> $1
-    $call_body = :input :colon list($input_kv, :comma) -> CallBody(inputs=$2)
+    $call_body = :input :colon list($call_input, :comma) -> CallBody(inputs=$2)
+    $call_input = :identifier optional($input_assignment) -> CallInputKV(key=$0, value=$1)
+    $input_assignment = :equal $e -> $1
+
     $alias = :as :identifier -> $1
     $call_after = :after :identifier -> $1
     $wf_parameter_meta = :parameter_meta $meta_map -> ParameterMeta(map=$1)
@@ -440,6 +443,5 @@ grammar {
         -> Scatter(item=$2, collection=$4, body=$7)
 
     $object_kv = :identifier :colon $e -> ObjectKV(key=$0, value=$2)
-    $input_kv = :identifier :equal $e -> ObjectKV(key=$0, value=$2)
   }
 }

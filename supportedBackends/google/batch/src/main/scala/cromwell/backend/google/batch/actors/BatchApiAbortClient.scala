@@ -16,6 +16,10 @@ object BatchApiAbortClient {
   // The operation is no longer running. Maybe it was already cancelled, maybe it finished on its own. We don't know
   // the details and for abort they don't really matter.
   case class BatchOperationIsAlreadyTerminal(jobId: String) extends BatchAbortRequestSuccess
+
+  // The operation is currently being aborted. This means that a previous request to cancel the job was successful,
+  // but the job is still in the process of being cancelled.
+  case class BatchOperationIsAlreadyBeingAborted(jobId: String) extends BatchAbortRequestSuccess
 }
 
 trait BatchApiAbortClient { this: Actor with ActorLogging with JobLogging with BatchInstrumentation =>
@@ -37,6 +41,10 @@ trait BatchApiAbortClient { this: Actor with ActorLogging with JobLogging with B
     case BatchAbortRequestSuccessful(jobId) =>
       abortSuccess()
       jobLogger.info(s"Successfully requested cancellation of $jobId")
+
+    // In this case where the job is already being aborted, we log and don't do anything
+    case BatchOperationIsAlreadyBeingAborted(jobId) =>
+      jobLogger.info(s"Job $jobId is already being cancelled")
 
     // In this case we could immediately return an aborted handle and spare ourselves a round of polling
     case BatchOperationIsAlreadyTerminal(jobId) =>

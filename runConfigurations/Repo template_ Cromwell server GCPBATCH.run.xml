@@ -12,7 +12,7 @@
       <env name="GOOGLE_APPLICATION_CREDENTIALS" value="target/ci/resources/cromwell-centaur-service-account.json" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />
-    <module name="root.cromwell" />
+    <module name="root.cromwell.main" />
     <option name="PROGRAM_PARAMETERS" value="server" />
     <option name="VM_PARAMETERS" value="-Dconfig.file=target/ci/resources/gcp_batch_application.conf" />
     <method v="2">

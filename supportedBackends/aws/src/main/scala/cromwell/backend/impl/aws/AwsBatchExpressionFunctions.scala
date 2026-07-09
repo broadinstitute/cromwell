@@ -37,9 +37,13 @@ import cromwell.filesystems.s3.S3PathBuilder
 import cromwell.filesystems.s3.S3PathBuilder.{InvalidS3Path, PossiblyValidRelativeS3Path, ValidFullS3Path}
 import cromwell.filesystems.s3.batch.S3BatchCommandBuilder
 import cromwell.core.path.{DefaultPath, Path}
+import cromwell.backend.impl.aws.io._
 
-class AwsBatchExpressionFunctions(standardParams: StandardExpressionFunctionsParams)
-    extends StandardExpressionFunctions(standardParams) {
+class AwsBatchExpressionFunctions(override val standardParams: StandardExpressionFunctionsParams)
+    extends StandardExpressionFunctions(standardParams)
+    with AwsBatchGlobFunctions
+    with AwsReadLikeFunctions {
+
   override lazy val ioCommandBuilder: IoCommandBuilder = S3BatchCommandBuilder
 
   override def preMapping(str: String) =

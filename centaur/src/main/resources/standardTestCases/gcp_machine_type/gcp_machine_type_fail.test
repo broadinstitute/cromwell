@@ -1,0 +1,13 @@
+name: gcp_machine_type_fail
+testFormat: workflowfailure
+backends: [GCPBATCH]
+
+files {
+  workflow: gcp_machine_type.wdl
+  inputs: fail_inputs.json
+}
+
+# Batch rejects the task and Cromwell fails it in an orderly manner
+metadata {
+  "failures.0.causedBy.0.message": ~~"GCP Batch task exited with Success(0). "
+}

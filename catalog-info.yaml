@@ -21,4 +21,4 @@ metadata:
 spec:
   type: service
   lifecycle: production
-  owner: dsp-analysis
+  owner: manifold-analysis

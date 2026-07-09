@@ -11,7 +11,7 @@
       <env name="CROMWELL_BUILD_RESOURCES_DIRECTORY" value="target/ci/resources" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="cromwell.CromwellApp" />
-    <module name="cromwell" />
+    <module name="root.cromwell.main" />
     <option name="PROGRAM_PARAMETERS" value="server" />
     <option name="VM_PARAMETERS" value="-Dconfig.file=src/ci/resources/tes_application.conf" />
     <method v="2">

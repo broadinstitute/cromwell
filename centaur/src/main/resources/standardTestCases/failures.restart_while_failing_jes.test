@@ -1,7 +1,7 @@
 name: failures.restart_while_failing_jes
 testFormat: WorkflowFailureRestartWithRecover
 callMark: restart_while_failing.B1
-backends: [Papi, GCPBATCH]
+backends: [GCPBATCH]
 tags: [restart]
 
 files {

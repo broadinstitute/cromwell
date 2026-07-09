@@ -1,6 +1,7 @@
 name: invalidate_bad_caches_jes
 testFormat: workflowsuccess
 backends: [GCPBATCH]
+tags: [slowpoke]
 
 files {
   workflow: invalidate_bad_caches/invalidate_bad_caches.wdl

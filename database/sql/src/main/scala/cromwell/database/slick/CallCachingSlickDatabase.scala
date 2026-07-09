@@ -11,12 +11,21 @@ import cromwell.database.sql._
 import cromwell.database.sql.joins.CallCachingJoin
 import cromwell.database.sql.tables._
 
+import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
   this: EngineSlickDatabase =>
 
   import dataAccess.driver.api._
+
+  /**
+   * A well-behaved lookup returns almost instantly, but certain scenarios trick the optimizer into a bad
+   * plan that runs way too long. Terminate the query and continue the workflow without caching for now,
+   * but consider enhancing to properly support all workflows. (CTM-535)
+   */
+  private val callCacheReadTimeout: FiniteDuration = 1 minute
 
   override def addCallCaching(joins: Seq[CallCachingJoin], batchSize: Int)(implicit
     ec: ExecutionContext
@@ -93,7 +102,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
           )
           .result
     }
-    runTransaction(action)
+    runTransaction(action, timeout = callCacheReadTimeout)
   }
 
   override def findCacheHitForAggregation(baseAggregationHash: String,
@@ -131,7 +140,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
           .headOption
     }
 
-    runTransaction(action)
+    runTransaction(action, timeout = callCacheReadTimeout)
   }
 
   override def queryResultsForCacheId(
@@ -149,7 +158,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
       CallCachingJoin(_, Seq.empty, None, callCachingSimpletonEntries, callCachingDetritusEntries)
     )
 
-    runTransaction(action)
+    runTransaction(action, timeout = callCacheReadTimeout)
   }
 
   private def callCacheJoinFromEntryQuery(
@@ -188,7 +197,7 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
         )
     } yield callCacheJoin
 
-    runTransaction(action)
+    runTransaction(action, timeout = callCacheReadTimeout)
   }
 
   override def invalidateCall(
@@ -213,6 +222,6 @@ trait CallCachingSlickDatabase extends CallCachingSqlDatabase {
     workflowExecutionUuid: String
   )(implicit ec: ExecutionContext): Future[Seq[Long]] = {
     val action = dataAccess.callCachingEntryIdsForWorkflowId(workflowExecutionUuid).result
-    runTransaction(action)
+    runTransaction(action, timeout = callCacheReadTimeout)
   }
 }

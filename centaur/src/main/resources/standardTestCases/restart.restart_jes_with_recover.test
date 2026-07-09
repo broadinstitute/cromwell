@@ -2,6 +2,7 @@ name: restart_jes_with_recover
 testFormat: CromwellRestartWithRecover
 callMark: cromwell_restart.cromwell_killer
 backends: [GCPBATCH]
+tags: [restart]
 
 files {
   workflow: cromwell_restart/cromwell_restart.wdl

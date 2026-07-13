@@ -4,8 +4,8 @@ backendsMode: all
 backends: [Local, GCPBATCH]
 workflowType: WDL
 workflowTypeVersion: 1.0
-tags: ["wdl_1.0"]
 retryTestFailures: false
+tags: ["wdl_1.0", "slowpoke"]
 
 files {
   workflow: wdl_draft3/call_cache_capoeira/draft3_call_cache_capoeira_jes.wdl

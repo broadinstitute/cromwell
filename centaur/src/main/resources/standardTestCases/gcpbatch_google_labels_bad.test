@@ -1,6 +1,7 @@
 name: gcpbatch_google_labels_bad
 testFormat: workflowfailure
 backends: [GCPBATCH]
+tags: [slowpoke]
 
 files {
   workflow: google_labels/google_labels.wdl

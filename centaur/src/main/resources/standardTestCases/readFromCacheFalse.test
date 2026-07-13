@@ -1,5 +1,6 @@
 name: readFromCacheFalse
 testFormat: runtwiceexpectingnocallcaching
+tags: [slowpoke]
 
 files {
   workflow: readFromCacheFalse/readFromCache.wdl

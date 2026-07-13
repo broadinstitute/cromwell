@@ -1,6 +1,6 @@
 name: sub_workflow_interactions
 testFormat: workflowsuccess
-tags: [subworkflow]
+tags: [subworkflow, slowpoke]
 
 files {
   workflow: sub_workflow_interactions/sub_workflow_interactions.wdl

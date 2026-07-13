@@ -724,6 +724,9 @@ object Dependencies {
      */
     ExclusionRule("javax.annotation", "javax.annotation-api"),
     ExclusionRule("javax.activation"),
+    // Cromwell uses only synchronous AWS SDK clients, which run on apache-client.
+    // Reduce Netty vulns by excluding what's unused.
+    ExclusionRule("software.amazon.awssdk", "netty-nio-client"),
   )
 
   val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV

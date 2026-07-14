@@ -85,7 +85,6 @@ object Dependencies {
   private val scalaGraphV = "1.13.1"
   private val scalaLoggingV = "3.9.5"
   private val scalaPoolV = "0.4.3"
-  private val scalameterV = "0.21"
   private val scalatestV = "3.2.15"
   private val scalatestScalacheckV = scalatestV + ".0"
   private val scoptV = "4.1.0"
@@ -426,10 +425,6 @@ object Dependencies {
   val coreDependencies: List[ModuleID] = List(
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
-    // NOTE: See scalameter comment under engineDependencies
-    "com.storm-enroute" %% "scalameter" % scalameterV % Test
-      exclude("com.fasterxml.jackson.module", "jackson-module-scala_2.13")
-      exclude("org.scala-lang.modules", "scala-xml_2.13"),
     "com.github.scopt" %% "scopt" % scoptV,
   ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
@@ -454,22 +449,6 @@ object Dependencies {
   val engineDependencies: List[ModuleID] = List(
     "commons-codec" % "commons-codec" % commonsCodecV,
     "commons-io" % "commons-io" % commonsIoV,
-    /*
-    Maybe ScalaMeter should be used, but is anyone?
-    For now keep its dependencies from breaking jackson for other libraries. If someone wants to use it they can
-    re-fight with dependency-hell at that point.
-    Avoid:
-    "com.fasterxml.jackson.databind.JsonMappingException: Scala module 2.11.3 requires Jackson Databind
-    version >= 2.11.0 and < 2.12.0":
-     - https://scalameter.github.io/home/gettingstarted/0.7/sbt/index.html
-     - https://github.com/FasterXML/jackson-module-scala/blob/jackson-module-scala-2.11.3/src/main/scala/com/fasterxml/jackson/module/scala/JacksonModule.scala#L53-L62
-     */
-    "com.storm-enroute" %% "scalameter" % scalameterV
-      exclude("com.fasterxml.jackson.core", "jackson-databind")
-      exclude("com.fasterxml.jackson.module", "jackson-module-scala")
-      exclude("com.fasterxml.jackson.module", "jackson-module-scala_2.13")
-      exclude("org.scala-tools.testing", "test-interface")
-      exclude("org.scala-lang.modules", "scala-xml_2.13"),
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies ++

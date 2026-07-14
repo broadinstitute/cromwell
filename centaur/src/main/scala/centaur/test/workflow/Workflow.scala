@@ -106,19 +106,20 @@ object Workflow {
 
         (files, directoryContentCheckValidation, metadata, retryTestFailuresErrorOr) mapN {
           (f, d, m, retryTestFailures) =>
-            Workflow(n,
-                     f,
-                     m,
-                     absentMetadata,
-                     d,
-                     backendsRequirement,
-                     retryTestFailures,
-                     allowOtherOutputs,
-                     validateDescription,
-                     skipJMValidation,
-                     submittedWorkflowTracker,
-                     maximumTime,
-                     cost
+            Workflow(
+              n,
+              f,
+              m,
+              absentMetadata,
+              d,
+              backendsRequirement,
+              retryTestFailures,
+              allowOtherOutputs,
+              validateDescription,
+              skipJMValidation,
+              submittedWorkflowTracker,
+              maximumTime,
+              cost
             )
         }
 

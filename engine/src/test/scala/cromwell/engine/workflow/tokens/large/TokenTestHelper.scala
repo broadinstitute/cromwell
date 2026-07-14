@@ -5,7 +5,7 @@ import akka.testkit.TestProbe
 import cromwell.engine.workflow.tokens.{RoundRobinQueueIterator, TokenQueue}
 import cromwell.engine.workflow.tokens.TokenQueue.TokenQueuePlaceholder
 
-object TokenDispenserBenchmark {
+object TokenTestHelper {
   implicit val actorSystem: ActorSystem = ActorSystem("TokenDispenserBenchmark")
   val actorToQueue = TestProbe().ref
 

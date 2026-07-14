@@ -203,7 +203,7 @@ class TokenQueueSpec extends TestKitSuite with AnyFlatSpecLike with Matchers {
   }
 
   it should "enqueue and dequeue with multiple hog groups" in {
-    import cromwell.engine.workflow.tokens.large.TokenDispenserBenchmark.{fillQueue, useEntireAvailability}
+    import cromwell.engine.workflow.tokens.large.TokenTestHelper.{fillQueue, useEntireAvailability}
 
     val poolSize = 52
     val jobCount = 150

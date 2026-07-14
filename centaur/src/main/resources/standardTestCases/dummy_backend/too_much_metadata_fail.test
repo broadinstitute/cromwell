@@ -4,6 +4,10 @@ backends: [Dummy]
 tags: [Dummy]
 retryTestFailures: false
 
+# The Job Manager metadata check compares two sequential metadata pulls and would flag the shards
+# that advance between them - a diff large enough to OOM the test reporter. Skip it here.
+skipJobManagerMetadataValidation: true
+
 files {
   workflow: dummy_scatter.wdl
   inputs: fail_inputs.json

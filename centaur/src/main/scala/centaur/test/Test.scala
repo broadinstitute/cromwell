@@ -825,7 +825,12 @@ object Operations extends StrictLogging {
       case None => fetchMetadata(submittedWorkflow, expandSubworkflows = false).map(_.value)
     }
 
-    override def run: IO[WorkflowMetadata] = for {
+    override def run: IO[WorkflowMetadata] =
+      if (workflow.skipJobManagerMetadataValidation) {
+        originalMetadataStringIO.map(WorkflowMetadata(_))
+      } else runValidation
+
+    private def runValidation: IO[WorkflowMetadata] = for {
       originalMetadata <- originalMetadataStringIO
       jmMetadata <- CentaurCromwellClient.metadata(
         workflow = submittedWorkflow,

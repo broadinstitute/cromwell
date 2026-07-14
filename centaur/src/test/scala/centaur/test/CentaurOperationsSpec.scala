@@ -18,7 +18,7 @@ class CentaurOperationsSpec extends AnyFlatSpec with Matchers {
   val placeholderSubmittedWorkflow: SubmittedWorkflow =
     SubmittedWorkflow(id = WorkflowId(UUID.randomUUID()), null, null)
   val placeholderWorkflow: Workflow =
-    Workflow(testName = "", null, null, null, null, null, false, false, false, null, null)
+    Workflow(testName = "", null, null, null, null, null, false, false, false, false, null, null)
 
   val allowableOneWordAdditions = List("farmer")
 

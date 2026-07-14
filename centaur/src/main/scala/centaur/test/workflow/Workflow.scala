@@ -24,6 +24,7 @@ final case class Workflow private (testName: String,
                                    retryTestFailures: Boolean,
                                    allowOtherOutputs: Boolean,
                                    skipDescribeEndpointValidation: Boolean,
+                                   skipJobManagerMetadataValidation: Boolean,
                                    submittedWorkflowTracker: SubmittedWorkflowTracker,
                                    maximumAllowedTime: Option[FiniteDuration],
                                    cost: Option[List[BigDecimal]] = None
@@ -95,6 +96,11 @@ object Workflow {
 
         val validateDescription: Boolean = conf.get[Boolean]("skipDescribeEndpointValidation").valueOrElse(false)
 
+        // Job Manager metadata validation compares two sequential metadata pulls and expects them to agree. For
+        // workflows that never quiesce, the two snapshots can legitimately differ. Allow opting out.
+        val skipJMValidation: Boolean =
+          conf.get[Boolean]("skipJobManagerMetadataValidation").valueOrElse(false)
+
         val maximumTime: Option[FiniteDuration] = conf.get[Option[FiniteDuration]]("maximumTime").value
         val cost: Option[List[BigDecimal]] = conf.get[Option[List[BigDecimal]]]("cost").value
 
@@ -109,6 +115,7 @@ object Workflow {
                      retryTestFailures,
                      allowOtherOutputs,
                      validateDescription,
+                     skipJMValidation,
                      submittedWorkflowTracker,
                      maximumTime,
                      cost

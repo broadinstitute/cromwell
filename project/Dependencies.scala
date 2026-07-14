@@ -74,7 +74,7 @@ object Dependencies {
   https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html#mysqld-8-0-29-charset
    */
   private val mysqlV = "8.0.28"
-  private val nettyV = "4.2.14.Final"
+  private val nettyV = "4.2.16.Final"
   private val postgresV = "42.4.4"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
@@ -595,16 +595,22 @@ object Dependencies {
   val nettyDependencyOverrides: List[ModuleID] = List(
     "buffer",
     "codec",
+    "codec-base",
+    "codec-compression",
     "codec-dns",
     "codec-haproxy",
     "codec-http",
     "codec-http2",
+    "codec-marshalling",
+    "codec-protobuf",
     "codec-socks",
     "common",
+    "handler",
     "handler-proxy",
     "resolver",
     "resolver-dns",
     "transport",
+    "transport-classes-epoll",
     "transport-native-epoll",
     "transport-native-unix-common",
   ).map(m => "io.netty" % s"netty-$m" % nettyV)
@@ -718,6 +724,9 @@ object Dependencies {
      */
     ExclusionRule("javax.annotation", "javax.annotation-api"),
     ExclusionRule("javax.activation"),
+    // Cromwell uses only synchronous AWS SDK clients, which run on apache-client.
+    // Reduce Netty vulns by excluding what's unused.
+    ExclusionRule("software.amazon.awssdk", "netty-nio-client"),
   )
 
   val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV

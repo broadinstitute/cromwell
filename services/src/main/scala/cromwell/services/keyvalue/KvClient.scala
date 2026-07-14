@@ -33,8 +33,9 @@ trait KvClient { this: Actor with ActorLogging =>
 
   private def fulfillOrLog(response: KvResponse) = currentKvClientRequests.get(response.key) match {
     case Some(fulfilledPromise) =>
-      fulfilledPromise.success(response)
       currentKvClientRequests -= response.key
+      fulfilledPromise.success(response)
+      ()
     case None =>
       log.error(
         s"Programmer Error: Got a KV response for a request that was never sent: $response. Did you use the KV store without KvClient? Current key set: ${currentKvClientRequests.keys

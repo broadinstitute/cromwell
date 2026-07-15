@@ -26,7 +26,6 @@ object Dependencies {
   private val diffsonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  private val googleApiClientV = "2.1.4"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20230421-2.0.0"
   private val googleCloudMonitoringV = "3.2.5"
@@ -136,10 +135,6 @@ object Dependencies {
   private val googleApiClientDependencies = List(
     // The exclusions prevent guava from colliding at assembly time.
     "com.google.guava" % "guava" % guavaV,
-    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
-    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
     /*
     The google-cloud-java dependencies have similar issues with using an older javax.* vs. jakarta.* as guice.
@@ -660,14 +655,14 @@ object Dependencies {
     "org.apache.commons" % "commons-csv" % commonsCsvV
   ) ++ testDatabaseDependencies ++ akkaHttpDependencies ++ mockServerDependencies ++ googleCloudDependencies
 
-  /*
-  If we use a version in one of our projects, that's the one we want all the libraries to use
-  ...plus other groups of transitive dependencies shared across multiple projects
-   */
   val jacksonDependencyOverrides: List[ModuleID] = List(
     "com.fasterxml.jackson.core" % "jackson-core" % jacksonV
   )
 
+  /*
+  If we use a version in one of our projects, that's the one we want all the libraries to use
+  ...plus other groups of transitive dependencies shared across multiple projects
+  */
   val cromwellDependencyOverrides: List[ModuleID] =
     allProjectDependencies ++
       googleHttpClientDependencies ++

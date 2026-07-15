@@ -44,7 +44,7 @@ object Dependencies {
   private val guavaV = "33.2.1-jre"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.15.0"
+  private val jacksonV = "2.18.8"
   private val jakartaActivationV = "1.2.2"
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
@@ -675,9 +675,20 @@ object Dependencies {
   If we use a version in one of our projects, that's the one we want all the libraries to use
   ...plus other groups of transitive dependencies shared across multiple projects
    */
+  val jacksonDependencyOverrides: List[ModuleID] = List(
+    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
+    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
+    "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonV,
+    "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base" % jacksonV,
+    "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % jacksonV,
+    "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % jacksonV,
+  )
+
   val cromwellDependencyOverrides: List[ModuleID] =
     allProjectDependencies ++
       googleHttpClientDependencies ++
+      jacksonDependencyOverrides ++
       nettyDependencyOverrides ++
       rdf4jDependencyOverrides ++
       grpcDependencyOverrides ++

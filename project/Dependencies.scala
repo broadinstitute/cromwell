@@ -648,15 +648,15 @@ object Dependencies {
     "com.google.protobuf" % "protobuf-java" % "3.25.5",
   )
 
+  val jacksonDependencyOverrides: List[ModuleID] = List(
+    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV
+  )
+
   val servicesDependencies: List[ModuleID] = List(
     "com.google.cloud" % "google-cloud-billing" % "2.47.0",
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
     "org.apache.commons" % "commons-csv" % commonsCsvV
   ) ++ testDatabaseDependencies ++ akkaHttpDependencies ++ mockServerDependencies ++ googleCloudDependencies
-
-  val jacksonDependencyOverrides: List[ModuleID] = List(
-    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV
-  )
 
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use

@@ -44,7 +44,7 @@ object Dependencies {
   private val guavaV = "33.2.1-jre"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.18.8"
+  private val jacksonV = "2.18.9"
   private val jakartaActivationV = "1.2.2"
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"

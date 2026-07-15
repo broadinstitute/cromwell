@@ -7,7 +7,6 @@ object Dependencies {
   private val apacheHttpClient5V = "5.3.1"
   private val awsSdkV = "2.29.20"
   private val betterFilesV = "3.9.1"
-  private val bardClientV = "1.0.8"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
@@ -135,9 +134,6 @@ object Dependencies {
   )
 
   private val googleApiClientDependencies = List(
-    // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
-    // these Google dependencies, but which isn't properly evicted by IntelliJ's sbt integration.
-    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
     // The exclusions prevent guava from colliding at assembly time.
     "com.google.guava" % "guava" % guavaV,
     "com.google.api-client" % "google-api-client-java6" % googleApiClientV
@@ -279,7 +275,6 @@ object Dependencies {
   ) ++ slf4jBindingDependencies
 
   private val awsCloudDependencies = List(
-    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
   ) ++ s3fsDependencies ++ List(
     "batch",
     "core",
@@ -449,7 +444,6 @@ object Dependencies {
   val engineDependencies: List[ModuleID] = List(
     "commons-codec" % "commons-codec" % commonsCodecV,
     "commons-io" % "commons-io" % commonsIoV,
-    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies ++
     testDatabaseDependencies
@@ -663,12 +657,7 @@ object Dependencies {
   val servicesDependencies: List[ModuleID] = List(
     "com.google.cloud" % "google-cloud-billing" % "2.47.0",
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
-    "org.apache.commons" % "commons-csv" % commonsCsvV,
-    "bio.terra" % "bard-client-resttemplate" % bardClientV
-      exclude("org.springframework", "spring-aop")
-      exclude("org.springframework", "spring-jcl"),
-    "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V // Needed for rest-template connection pooling
-
+    "org.apache.commons" % "commons-csv" % commonsCsvV
   ) ++ testDatabaseDependencies ++ akkaHttpDependencies ++ mockServerDependencies ++ googleCloudDependencies
 
   /*
@@ -676,13 +665,7 @@ object Dependencies {
   ...plus other groups of transitive dependencies shared across multiple projects
    */
   val jacksonDependencyOverrides: List[ModuleID] = List(
-    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
-    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
-    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
-    "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonV,
-    "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-base" % jacksonV,
-    "com.fasterxml.jackson.jaxrs" % "jackson-jaxrs-json-provider" % jacksonV,
-    "com.fasterxml.jackson.module" % "jackson-module-jaxb-annotations" % jacksonV,
+    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV
   )
 
   val cromwellDependencyOverrides: List[ModuleID] =

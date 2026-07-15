@@ -269,8 +269,7 @@ object Dependencies {
     "software.amazon.awssdk" % "s3" % awsSdkV,
   ) ++ slf4jBindingDependencies
 
-  private val awsCloudDependencies = List(
-  ) ++ s3fsDependencies ++ List(
+  private val awsCloudDependencies = s3fsDependencies ++ List(
     "batch",
     "core",
     "cloudwatchlogs",

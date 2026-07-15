@@ -662,7 +662,7 @@ object Dependencies {
   /*
   If we use a version in one of our projects, that's the one we want all the libraries to use
   ...plus other groups of transitive dependencies shared across multiple projects
-  */
+   */
   val cromwellDependencyOverrides: List[ModuleID] =
     allProjectDependencies ++
       googleHttpClientDependencies ++

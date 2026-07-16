@@ -7,7 +7,6 @@ object Dependencies {
   private val apacheHttpClient5V = "5.3.1"
   private val awsSdkV = "2.29.20"
   private val betterFilesV = "3.9.1"
-  private val bardClientV = "1.0.8"
   /*
   cats-effect, fs2, http4s, and sttp (also to v3) should all be upgraded at the same time to use cats-effect 3.x.
    */
@@ -27,7 +26,6 @@ object Dependencies {
   private val diffsonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  private val googleApiClientV = "2.1.4"
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20230421-2.0.0"
   private val googleCloudMonitoringV = "3.2.5"
@@ -44,7 +42,7 @@ object Dependencies {
   private val guavaV = "33.2.1-jre"
   private val hsqldbV = "2.6.1"
   private val http4sV = "0.21.31" // this release is EOL. We need to upgrade further for cats3. https://http4s.org/versions/
-  private val jacksonV = "2.15.0"
+  private val jacksonV = "3.2.1"
   private val jakartaActivationV = "1.2.2"
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
@@ -135,15 +133,8 @@ object Dependencies {
   )
 
   private val googleApiClientDependencies = List(
-    // Used by swagger, but only in tests.  This overrides an older 2.1.3 version of jackson-core brought in by
-    // these Google dependencies, but which isn't properly evicted by IntelliJ's sbt integration.
-    "com.fasterxml.jackson.core" % "jackson-core" % jacksonV,
     // The exclusions prevent guava from colliding at assembly time.
     "com.google.guava" % "guava" % guavaV,
-    "com.google.api-client" % "google-api-client-java6" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
-    "com.google.api-client" % "google-api-client-jackson2" % googleApiClientV
-      exclude("com.google.guava", "guava-jdk5"),
     "com.google.cloud" % "google-cloud-resourcemanager" % googleCloudResourceManagerV,
     /*
     The google-cloud-java dependencies have similar issues with using an older javax.* vs. jakarta.* as guice.
@@ -278,9 +269,7 @@ object Dependencies {
     "software.amazon.awssdk" % "s3" % awsSdkV,
   ) ++ slf4jBindingDependencies
 
-  private val awsCloudDependencies = List(
-    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonV,
-  ) ++ s3fsDependencies ++ List(
+  private val awsCloudDependencies = s3fsDependencies ++ List(
     "batch",
     "core",
     "cloudwatchlogs",
@@ -449,7 +438,6 @@ object Dependencies {
   val engineDependencies: List[ModuleID] = List(
     "commons-codec" % "commons-codec" % commonsCodecV,
     "commons-io" % "commons-io" % commonsIoV,
-    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
   ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies ++
     testDatabaseDependencies
@@ -660,15 +648,14 @@ object Dependencies {
     "com.google.protobuf" % "protobuf-java" % "3.25.5",
   )
 
+  val jacksonDependencyOverrides: List[ModuleID] = List(
+    "tools.jackson.core" % "jackson-core" % jacksonV
+  )
+
   val servicesDependencies: List[ModuleID] = List(
     "com.google.cloud" % "google-cloud-billing" % "2.47.0",
     "com.google.api" % "gax-grpc" % googleGaxGrpcV,
-    "org.apache.commons" % "commons-csv" % commonsCsvV,
-    "bio.terra" % "bard-client-resttemplate" % bardClientV
-      exclude("org.springframework", "spring-aop")
-      exclude("org.springframework", "spring-jcl"),
-    "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V // Needed for rest-template connection pooling
-
+    "org.apache.commons" % "commons-csv" % commonsCsvV
   ) ++ testDatabaseDependencies ++ akkaHttpDependencies ++ mockServerDependencies ++ googleCloudDependencies
 
   /*
@@ -678,6 +665,7 @@ object Dependencies {
   val cromwellDependencyOverrides: List[ModuleID] =
     allProjectDependencies ++
       googleHttpClientDependencies ++
+      jacksonDependencyOverrides ++
       nettyDependencyOverrides ++
       rdf4jDependencyOverrides ++
       grpcDependencyOverrides ++

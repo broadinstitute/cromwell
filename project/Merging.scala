@@ -31,16 +31,16 @@ object Merging {
       path map {
         _.toLowerCase
       } match {
-        case "spring.tooling" :: _ =>
-          MergeStrategy.discard
         case "io.netty.versions.properties" :: Nil =>
+          MergeStrategy.first
+        // jackson-core and AWS's shaded third-party-jackson-core both bundle FastDoubleParser with its license;
+        // keep one copy.
+        case "fastdoubleparser-license" :: Nil =>
           MergeStrategy.first
         case "maven" :: "com.google.guava" :: _ =>
           MergeStrategy.first
         case "versions" :: _ if path.last == "module-info.class" =>
           MergeStrategy.discard
-        case "spring" :: _ if path.last == "aot.factories" =>
-          MergeStrategy.first
         case "native-image" :: _ if Set("native-image.properties", "reflection-config.json").contains(path.last) =>
           /*
           Discard GraalVM configuration files.

@@ -54,7 +54,7 @@ class BatchPollResultMonitorActor(pollMonitorParameters: PollMonitorParameters)
   override def extractVmInfoFromRunState(pollStatus: RunStatus): Option[InstantiatedVmInfo] =
     pollStatus.instantiatedVmInfo
 
-  override def handleVmCostLookup(vmInfo: InstantiatedVmInfo) = {
+  override def handleVmCostLookup(vmInfo: InstantiatedVmInfo): Unit = {
     val request = GcpCostLookupRequest(vmInfo, self)
     params.serviceRegistry ! request
   }

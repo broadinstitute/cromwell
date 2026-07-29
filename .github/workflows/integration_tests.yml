@@ -102,7 +102,7 @@ jobs:
     # Local backend suite can run out of disk space, probably due to pulling images with the runner's Docker.
     # https://github.com/endersonmenezes/free-disk-space#ubuntu-latest-x86_64
     - name: Free disk space
-      uses: endersonmenezes/free-disk-space@v3.2.2
+      uses: endersonmenezes/free-disk-space@7901478139cff6e9d44df5972fd8ab8fcade4db1 # v3.2.2
       with:
         remove_android: "true"
         remove_dotnet: "true"

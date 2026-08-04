@@ -1463,6 +1463,12 @@ trait StandardAsyncExecutionActor
       def readFile(path: Path, maxBytes: Option[Int]): Future[String] =
         asyncIo.contentAsStringAsync(path, maxBytes, failOnOverflow = false)
 
+      // Read the tail of a file, or fall back to reading the head.
+      def readPartial(path: Path, maxBytes: Int): Future[String] =
+        asyncIo.tailAsStringAsync(path, maxBytes) recoverWith { case _ =>
+          asyncIo.contentAsStringAsync(path, Option(maxBytes), failOnOverflow = false)
+        }
+
       def checkMemoryRetryRC(): Future[Boolean] =
         readFile(jobPaths.memoryRetryRC, None) map { codeAsString =>
           Try(codeAsString.trim.toInt) match {
@@ -1481,7 +1487,7 @@ trait StandardAsyncExecutionActor
         }
 
       def checkMemoryRetryStderr(memoryRetryError: Path, errorKeys: List[String], maxBytes: Int): Future[Boolean] =
-        readFile(memoryRetryError, Option(maxBytes)) map { errorContent =>
+        readPartial(memoryRetryError, maxBytes) map { errorContent =>
           errorKeys.exists(errorContent.contains)
         }
 

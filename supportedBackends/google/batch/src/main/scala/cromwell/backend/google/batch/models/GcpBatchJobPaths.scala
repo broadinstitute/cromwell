@@ -2,6 +2,7 @@ package cromwell.backend.google.batch.models
 
 import cromwell.backend.BackendJobDescriptorKey
 import cromwell.backend.google.batch.runnable.GcpBatchMetadataKeys
+import cromwell.backend.google.batch.util.{MemoryRetryRunnable, MemoryRetryStandard}
 import cromwell.backend.io.JobPaths
 import cromwell.core.path.Path
 import cromwell.services.metadata.CallMetadataKeys
@@ -46,6 +47,12 @@ case class GcpBatchJobPaths(override val workflowPaths: GcpBatchWorkflowPaths,
     workflowPaths.gcpBatchConfiguration.batchAttributes.logsPolicy match {
       case GcpBatchLogsPolicy.Path => Some(batchLogPath)
       case _ => None
+    }
+
+  override lazy val memoryRetryError: Option[Path] =
+    workflowPaths.gcpBatchConfiguration.batchAttributes.memoryRetryCheckMode match {
+      case MemoryRetryRunnable => None
+      case MemoryRetryStandard => maybeBatchLogPath
     }
 
   override lazy val customMetadataPaths = {

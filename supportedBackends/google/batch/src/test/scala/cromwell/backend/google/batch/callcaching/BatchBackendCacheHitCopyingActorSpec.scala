@@ -8,6 +8,7 @@ import cromwell.backend.BackendCacheHitCopyingActor.{CopyingOutputsFailedRespons
 import cromwell.backend.BackendJobExecutionActor.JobSucceededResponse
 import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.VirtualPrivateCloudConfiguration
 import cromwell.backend.google.batch.models._
+import cromwell.backend.google.batch.util.MemoryRetryRunnable
 import cromwell.backend.io.JobPaths
 import cromwell.backend.standard.StandardValidatedRuntimeAttributesBuilder
 import cromwell.backend.standard.callcaching.CopyingActorBlacklistCacheSupport.HasFormatting
@@ -436,7 +437,8 @@ class BatchBackendCacheHitCopyingActorSpec
       referenceFileToDiskImageMappingOpt = None,
       checkpointingInterval = 10.minutes,
       logsPolicy = GcpBatchLogsPolicy.CloudLogging,
-      maxTransientErrorRetries = 10
+      maxTransientErrorRetries = 10,
+      memoryRetryCheckMode = MemoryRetryRunnable
     )
 
     val batchConfiguration = mockWithDefaults[GcpBatchConfiguration]

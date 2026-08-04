@@ -22,7 +22,7 @@ import cromwell.backend.google.batch.models.GcpBatchConfigurationAttributes.{
   GcsTransferConfiguration,
   VirtualPrivateCloudConfiguration
 }
-import cromwell.backend.google.batch.util.GcpBatchReferenceFilesMappingOperations
+import cromwell.backend.google.batch.util.{GcpBatchReferenceFilesMappingOperations, MemoryRetryCheckMode}
 import cromwell.cloudsupport.gcp.GoogleConfiguration
 import cromwell.cloudsupport.gcp.auth.GoogleAuthMode
 import cromwell.docker.DockerMirroring
@@ -58,7 +58,8 @@ case class GcpBatchConfigurationAttributes(
   referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]],
   checkpointingInterval: FiniteDuration,
   logsPolicy: GcpBatchLogsPolicy,
-  maxTransientErrorRetries: Int
+  maxTransientErrorRetries: Int,
+  memoryRetryCheckMode: MemoryRetryCheckMode
 )
 
 object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOperations with StrictLogging {
@@ -89,6 +90,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
   val DefaultGcsTransferAttempts: Refined[Int, Positive] = refineMV[Positive](3)
 
   val checkpointingIntervalKey = "checkpointing-interval"
+  val memoryRetryCheckModeKey = "memory-retry-check-mode"
 
   private val batchKeys = CommonBackendConfigurationAttributes.commonValidConfigurationAttributeKeys ++ Set(
     "project",
@@ -128,7 +130,8 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
     "reference-disk-localization-manifests",
-    checkpointingIntervalKey
+    checkpointingIntervalKey,
+    memoryRetryCheckModeKey
   )
 
   private val deprecatedBatchKeys: Map[String, String] = Map(
@@ -311,6 +314,13 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     val maxTransientErrorRetries: Int =
       backendConfig.as[Option[Int]]("max-transient-error-retries").getOrElse(10)
 
+    val memoryRetryCheckMode: ErrorOr[MemoryRetryCheckMode] =
+      MemoryRetryCheckMode
+        .tryParse(
+          backendConfig.getOrElse(memoryRetryCheckModeKey, MemoryRetryCheckMode.DefaultMode.name)
+        )
+        .toErrorOr
+
     def authGoogleConfigForBatchConfigurationAttributes(
       project: String,
       bucket: String,
@@ -327,7 +337,8 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
-      logsPolicy: GcpBatchLogsPolicy
+      logsPolicy: GcpBatchLogsPolicy,
+      memoryRetryCheckMode: MemoryRetryCheckMode
     ): ErrorOr[GcpBatchConfigurationAttributes] =
       (googleConfig.auth(batchName), googleConfig.auth(gcsName)) mapN { (batchAuth, gcsAuth) =>
         val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
@@ -354,7 +365,8 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
           referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
           checkpointingInterval = checkpointingInterval,
           logsPolicy = logsPolicy,
-          maxTransientErrorRetries = maxTransientErrorRetries
+          maxTransientErrorRetries = maxTransientErrorRetries,
+          memoryRetryCheckMode = memoryRetryCheckMode
         )
       }
 
@@ -373,7 +385,8 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
      virtualPrivateCloudConfiguration,
      batchRequestTimeoutConfigurationValidation,
      referenceDiskLocalizationManifestFiles,
-     logsPolicy
+     logsPolicy,
+     memoryRetryCheckMode
     ) flatMapN authGoogleConfigForBatchConfigurationAttributes match {
       case Valid(r) => r
       case Invalid(f) =>

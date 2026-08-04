@@ -40,6 +40,50 @@ class AsyncIoSpec extends TestKitSuite with AsyncFlatSpecLike with Matchers {
     }
   }
 
+  it should "tail asynchronously" in {
+    val testActor = TestActorRef(new AsyncIoTestActor(simpleIoActor))
+
+    val testPath = DefaultPathBuilder.createTempFile()
+    testPath.write("hello")
+
+    testActor.underlyingActor.asyncIo.tailAsStringAsync(testPath, 2) map { result =>
+      assert(result == "")
+    }
+  }
+
+  it should "tail a multi-line unix file asynchronously" in {
+    val testActor = TestActorRef(new AsyncIoTestActor(simpleIoActor))
+
+    val testPath = DefaultPathBuilder.createTempFile()
+    testPath.write("hello\nworld")
+
+    testActor.underlyingActor.asyncIo.tailAsStringAsync(testPath, 8) map { result =>
+      assert(result == "world")
+    }
+  }
+
+  it should "tail a multi-line windows file asynchronously" in {
+    val testActor = TestActorRef(new AsyncIoTestActor(simpleIoActor))
+
+    val testPath = DefaultPathBuilder.createTempFile()
+    testPath.write("hello\r\nworld")
+
+    testActor.underlyingActor.asyncIo.tailAsStringAsync(testPath, 9) map { result =>
+      assert(result == "world")
+    }
+  }
+
+  it should "tail the file if it's under the byte limit asynchronously" in {
+    val testActor = TestActorRef(new AsyncIoTestActor(simpleIoActor))
+
+    val testPath = DefaultPathBuilder.createTempFile()
+    testPath.write("hello")
+
+    testActor.underlyingActor.asyncIo.tailAsStringAsync(testPath, 6) map { result =>
+      assert(result == "hello")
+    }
+  }
+
   it should "get size asynchronously" in {
     val testActor = TestActorRef(new AsyncIoTestActor(simpleIoActor))
 

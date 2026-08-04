@@ -4,10 +4,10 @@ import java.io.{BufferedInputStream, BufferedReader, ByteArrayOutputStream, Inpu
 import java.nio.file.{FileAlreadyExistsException, Files}
 import java.nio.file.attribute.{PosixFilePermission, PosixFilePermissions}
 import java.util.zip.GZIPOutputStream
-
 import better.files.File.OpenOptions
 import cromwell.util.TryWithResource.tryWithResource
 
+import java.nio.channels.Channels
 import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext
 import scala.io.Codec
@@ -86,10 +86,32 @@ trait EvenBetterPathMethods {
 
   final def tailed(tailedSize: Int) = TailedWriter(this, tailedSize)
 
+  /**
+    * Similar to newInputStream, but is overridable in subclasses to provide a different InputStream.
+    *
+    * Naming comes from the original method used from Google Cloud Storage, executeMediaAsInputStream()
+    */
   def mediaInputStream(implicit ec: ExecutionContext): InputStream = {
+    // Use locally(ec) to avoid "parameter value ec in method mediaInputStream is never used"
+    // It is used in the overridden methods, but not here.
     // See https://github.com/scala/bug/issues/10347 and https://github.com/scala/bug/issues/10790
     locally(ec)
     newInputStream
+  }
+
+  /**
+    * A tail version of mediaInputStream that reads the last numBytes of the file.
+    */
+  def mediaInputStreamTail(numBytes: Long)(implicit ec: ExecutionContext): InputStream = {
+    // Use locally(ec) to avoid "parameter value ec in method mediaInputStreamTail is never used"
+    // It is used in the overridden methods, but not here.
+    // See https://github.com/scala/bug/issues/10347 and https://github.com/scala/bug/issues/10790
+    locally(ec)
+    val channel = newFileChannel
+    val size = channel.size()
+    val startPosition = Math.max(0, size - numBytes)
+    channel.position(startPosition)
+    Channels.newInputStream(channel)
   }
 
   protected def gzipByteArray(byteArray: Array[Byte]): Array[Byte] = {
@@ -133,6 +155,14 @@ trait EvenBetterPathMethods {
     tryWithResource(() => new BufferedInputStream(this.mediaInputStream))(f).recoverWith(fileIoErrorPf).get
 
   /**
+    * Similar to withBufferedStream, but reads from the tail of the stream.
+    */
+  def withBufferedStreamTail[A](numBytes: Long)(f: BufferedInputStream => A)(implicit ec: ExecutionContext): A =
+    tryWithResource(() => new BufferedInputStream(this.mediaInputStreamTail(numBytes)))(f)
+      .recoverWith(fileIoErrorPf)
+      .get
+
+  /**
     * Returns an Array[Byte] from a Path. Limit the array size to "limit" byte if defined.
     * @throws IOException if failOnOverflow is true and the file is larger than limit
     */
@@ -151,9 +181,35 @@ trait EvenBetterPathMethods {
     }
 
   /**
-    * Reads the first limitBytes of a file and makes a String. Prepend with an annotation at the start (to say that this is the
-    * first n bytes).
+    * Reads the last bytes of a file and returns a String. If the file is larger than limit, it will
+    * drop the first line and return the rest of the file as a String.
+    */
+  def tailLines(limitBytes: Int)(implicit ec: ExecutionContext): String =
+    // Add one because we'll be dropping until the end of the first line if the file is larger than limitBytes
+    withBufferedStreamTail(limitBytes + 1L) { bufferedStream =>
+      val bytes = bufferedStream.readAllBytes()
+      if (bytes.length <= limitBytes) {
+        new String(bytes, Codec.UTF8.charSet)
+      } else {
+        val newlineIndex = bytes.indexOf('\n')
+        if (newlineIndex < 0) {
+          ""
+        } else {
+          new String(bytes.drop(newlineIndex + 1), Codec.UTF8.charSet)
+        }
+      }
+    }
+
+  /**
+    * Reads the limitBytes of a file and makes a String. Prepend with an annotation at the start (to say that this is a
+    * limited number of bytes).
     */
   def annotatedContentAsStringWithLimit(limitBytes: Int)(implicit ec: ExecutionContext): String =
-    s"[First $limitBytes bytes]:" + new String(limitFileContent(Option(limitBytes), failOnOverflow = false))
+    try
+      s"[Last $limitBytes bytes]:" + tailLines(limitBytes)
+    catch {
+      // If anything goes wrong, such as we cannot seek to the end of the file, we will just return the first n bytes.
+      case _: Exception =>
+        s"[First $limitBytes bytes]:" + new String(limitFileContent(Option(limitBytes), failOnOverflow = false))
+    }
 }

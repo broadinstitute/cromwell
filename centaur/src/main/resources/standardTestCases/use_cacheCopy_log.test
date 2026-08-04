@@ -1,0 +1,21 @@
+name: use_cache_copy_log
+testFormat: runtwiceexpectingcallcaching
+# This concept works on all backends, but each backend is currently writing execution paths in a non-standardized way.
+# That's also why we need the metadata to be correct, which this test is validating.
+# We only want this running during during "Local" tests for now as Papi tests are not long in this world.
+# Search for the "LocalNoDocker" backend but in the workflow options file target the "Local" backend.
+backends: [LocalNoDocker]
+
+files {
+  workflow: use_cacheCopy_log/use_cacheCopy_log.wdl
+  options: use_cacheCopy_log/use_cacheCopy_log.options
+}
+
+metadata {
+  workflowName: wf_hello
+  status: Succeeded
+  "calls.wf_hello.hello_cache_copy_log.callCaching.result": "Cache Hit: <<CACHE_HIT_UUID>>:wf_hello.hello_cache_copy_log:-1"
+  "calls.wf_hello.hello_cache_copy_log.stdout": "<<WORKFLOW_ROOT>>/call-hello_cache_copy_log/cacheCopy/execution/stdout"
+  "calls.wf_hello.hello_cache_copy_log.stderr": "<<WORKFLOW_ROOT>>/call-hello_cache_copy_log/cacheCopy/execution/stderr"
+  "outputs.wf_hello.out": "<<WORKFLOW_ROOT>>/call-hello_cache_copy_log/cacheCopy/execution/hello.txt"
+}

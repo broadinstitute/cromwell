@@ -128,6 +128,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     "virtual-private-cloud.subnetwork-label-key",
     "virtual-private-cloud.auth",
     "reference-disk-localization-manifests",
+    "reference-disk-localization.validation.auth",
     checkpointingIntervalKey
   )
 
@@ -188,14 +189,14 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     }
     warnNotRecognized(configKeys, batchKeys, backendName, Logger)
 
-    def warnDeprecated(keys: Set[String], deprecated: Map[String, String], logger: Logger): Unit = {
+    def warnDeprecated(keys: Set[String], deprecated: Map[String, String], context: String, logger: Logger): Unit = {
       val deprecatedKeys = keys.intersect(deprecated.keySet)
       deprecatedKeys foreach { key =>
-        logger.warn(s"Found deprecated configuration key $key, replaced with ${deprecated.get(key)}")
+        logger.warn(s"Found deprecated configuration key $key in $context, replaced with ${deprecated.get(key)}")
       }
     }
 
-    warnDeprecated(configKeys, deprecatedBatchKeys, Logger)
+    warnDeprecated(configKeys, deprecatedBatchKeys, backendName, Logger)
 
     val project: ErrorOr[String] = validate {
       backendConfig.as[String]("project")
@@ -306,6 +307,10 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     val referenceDiskLocalizationManifestFiles: ErrorOr[Option[List[ManifestFile]]] =
       validateReferenceDiskManifestConfigs(backendConfig, backendName)
 
+    val referenceDiskValidationAuthNameOption: ErrorOr[Option[String]] = validate {
+      backendConfig.getAs[String]("reference-disk-localization.validation.auth")
+    }
+
     val checkpointingInterval: FiniteDuration = backendConfig.getOrElse(checkpointingIntervalKey, 10.minutes)
 
     val maxTransientErrorRetries: Int =
@@ -327,11 +332,17 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
       virtualPrivateCloudConfiguration: VirtualPrivateCloudConfiguration,
       batchRequestTimeoutConfiguration: BatchRequestTimeoutConfiguration,
       referenceDiskLocalizationManifestFilesOpt: Option[List[ManifestFile]],
+      referenceDiskValidationAuthNameOption: Option[String],
       logsPolicy: GcpBatchLogsPolicy
-    ): ErrorOr[GcpBatchConfigurationAttributes] =
-      (googleConfig.auth(batchName), googleConfig.auth(gcsName)) mapN { (batchAuth, gcsAuth) =>
+    ): ErrorOr[GcpBatchConfigurationAttributes] = {
+      val referenceDiskValidationAuthName = referenceDiskValidationAuthNameOption.getOrElse(batchName)
+      (
+        googleConfig.auth(batchName),
+        googleConfig.auth(gcsName),
+        googleConfig.auth(referenceDiskValidationAuthName)
+      ) mapN { (batchAuth, gcsAuth, referenceDiskValidationAuth) =>
         val generatedReferenceFilesMappingOpt = referenceDiskLocalizationManifestFilesOpt map {
-          generateReferenceFilesMapping(batchAuth, _)
+          generateReferenceFilesMapping(referenceDiskValidationAuth, _)
         }
         models.GcpBatchConfigurationAttributes(
           project = project,
@@ -357,6 +368,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
           maxTransientErrorRetries = maxTransientErrorRetries
         )
       }
+    }
 
     (project,
      executionBucket,
@@ -373,6 +385,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
      virtualPrivateCloudConfiguration,
      batchRequestTimeoutConfigurationValidation,
      referenceDiskLocalizationManifestFiles,
+     referenceDiskValidationAuthNameOption,
      logsPolicy
     ) flatMapN authGoogleConfigForBatchConfigurationAttributes match {
       case Valid(r) => r

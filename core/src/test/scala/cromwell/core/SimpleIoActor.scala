@@ -46,6 +46,12 @@ class SimpleIoActor extends Actor {
         case Failure(failure) => sender() ! IoFailure(command, failure)
       }
 
+    case command: IoTailAsStringCommand =>
+      Try(command.file.tailLines(command.options.maxBytes)(context.dispatcher)) match {
+        case Success(content) => sender() ! IoSuccess(command, content)
+        case Failure(failure) => sender() ! IoFailure(command, failure)
+      }
+
     case command: IoHashCommand =>
       Try(command.file.md5) match {
         case Success(hash) => sender() ! IoSuccess(command, hash)
@@ -85,6 +91,12 @@ class SimpleIoActor extends Actor {
 
     case (requestContext: Any, command: IoContentAsStringCommand) =>
       Try(command.file.contentAsString) match {
+        case Success(content) => sender() ! (requestContext -> IoSuccess(command, content))
+        case Failure(failure) => sender() ! (requestContext -> IoFailure(command, failure))
+      }
+
+    case (requestContext: Any, command: IoTailAsStringCommand) =>
+      Try(command.file.tailLines(command.options.maxBytes)(context.dispatcher)) match {
         case Success(content) => sender() ! (requestContext -> IoSuccess(command, content))
         case Failure(failure) => sender() ! (requestContext -> IoFailure(command, failure))
       }

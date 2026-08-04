@@ -42,6 +42,9 @@ class AsyncIo(ioEndpoint: ActorRef, ioCommandBuilder: IoCommandBuilder) {
   def contentAsStringAsync(path: Path, maxBytes: Option[Int], failOnOverflow: Boolean): Future[String] =
     asyncCommand(ioCommandBuilder.contentAsStringCommand(path, maxBytes, failOnOverflow))
 
+  def tailAsStringAsync(path: Path, maxBytes: Int): Future[String] =
+    asyncCommand(ioCommandBuilder.tailAsString(path, maxBytes))
+
   def writeAsync(path: Path, content: String, options: OpenOptions, compressPayload: Boolean = false): Future[Unit] =
     asyncCommand(ioCommandBuilder.writeCommand(path, content, options, compressPayload))
 

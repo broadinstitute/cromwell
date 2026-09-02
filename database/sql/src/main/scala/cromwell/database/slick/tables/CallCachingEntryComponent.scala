@@ -42,6 +42,8 @@ trait CallCachingEntryComponent {
             (workflowExecutionUuid, callFullyQualifiedName, jobIndex),
             unique = true
       )
+
+    def ixCallCachingEntryCa = index("IX_CALL_CACHING_ENTRY_CA", createdAt, unique = false)
   }
 
   protected val callCachingEntries = TableQuery[CallCachingEntries]

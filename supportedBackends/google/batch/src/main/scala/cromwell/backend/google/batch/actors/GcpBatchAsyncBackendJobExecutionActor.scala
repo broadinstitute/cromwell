@@ -1248,16 +1248,20 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   // Check whether this failure should be automatically resubmitted without counting against maxRetries.
-  // Guidance: Resubmit if the task has a known-transient failure type and has not yet cost the user money.
+  // Guidance: Resubmit if the task has a known-transient failure type and has not yet cost the user money,
+  // OR if the failure is a GCP-side infrastructure event that is not attributable to user code regardless of
+  // how long the task had been running (e.g. VMRecreatedDuringExecution, which by definition fires only after
+  // the task has started).
   private def isTransientFailure(failed: RunStatus.Failed): Boolean = {
-    lazy val errorTypeIsTransient = List(
+    lazy val errorTypeIsTransientBeforeRunning = List(
       GcpBatchExitCode.VMPreemption,
-      GcpBatchExitCode.VMRecreatedDuringExecution,
       GcpBatchExitCode.VMRebootedDuringExecution,
       GcpBatchExitCode.VMReportingTimeout
     ).contains(failed.errorCode)
+    lazy val errorTypeIsAlwaysTransient =
+      failed.errorCode == GcpBatchExitCode.VMRecreatedDuringExecution
     lazy val taskStartedRunning = failed.eventList.exists(e => executionEventRunningMatcher.matches(e.name))
-    transientErrorRetryable && errorTypeIsTransient && !taskStartedRunning
+    transientErrorRetryable && (errorTypeIsAlwaysTransient || (errorTypeIsTransientBeforeRunning && !taskStartedRunning))
   }
 
   private def handleTransientErrorRetry(failed: RunStatus.Failed, returnCode: Option[Int]) =

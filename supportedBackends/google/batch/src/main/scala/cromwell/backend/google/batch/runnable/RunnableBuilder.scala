@@ -235,7 +235,8 @@ object RunnableBuilder extends BatchUtilityConversions {
       timeout = 30.minutes
     )
 
-  def cloudSdkRunnable: Runnable.Builder = Runnable.newBuilder.setContainer(cloudSdkContainerBuilder)
+  def cloudSdkRunnable: Runnable.Builder =
+    Runnable.newBuilder.setContainer(cloudSdkContainerBuilder).withEnvironment(CloudSdkEnvironment)
 
   // Set a default timeout of 24 hours for these runnables. They are typically used for running
   // localization, delocalization, small shell commands, etc. These processes occasionally hang and
@@ -247,6 +248,7 @@ object RunnableBuilder extends BatchUtilityConversions {
   ): Runnable.Builder =
     Runnable.newBuilder
       .setContainer(cloudSdkContainerBuilder)
+      .withEnvironment(CloudSdkEnvironment)
       .withVolumes(volumes)
       .withLabels(labels)
       .withEntrypointCommand(

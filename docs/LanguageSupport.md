@@ -5,7 +5,7 @@ Below are the Domain Specific Languages (DSL) that Cromwell currently supports a
 ## Current Language Support
 
 ### WDL Draft 2
-Cromwell started life as a WDL engine and WDL draft2 was our first language!
+Cromwell started life as a WDL engine and WDL draft-2 was our first language.
 For many examples on how to use WDL and some great getting-started resources you can view [the OpenWDL site](https://github.com/openwdl/wdl#getting-started-with-wdl).
 
 Cromwell supports the majority of [Draft-2 of the WDL Spec](https://github.com/openwdl/wdl/blob/master/versions/draft-2/SPEC.md).
@@ -18,9 +18,13 @@ Cromwell supports the majority of [Draft-2 of the WDL Spec](https://github.com/o
 
 ### WDL 1.0
 
-Cromwell also supports WDL version 1.0.
+Cromwell supports WDL 1.0 and this is our most widely used version today.
 
 As well as the changes to the WDL spec between draft-2 and 1.0, Cromwell also supports nested scatters and the [localization_optional](optimizations/FileLocalization.md) optimization in WDL 1.0.  
+
+### WDL 1.1
+
+Supported since version 92 in January 2026. Check out [the spec](https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md) to learn more.
 
 ## Future Language Support
 

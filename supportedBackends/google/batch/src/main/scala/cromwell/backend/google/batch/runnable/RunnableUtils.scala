@@ -16,7 +16,7 @@ object RunnableUtils {
     * http://gcr.io/google.com/cloudsdktool/cloud-sdk
     */
   val CloudSdkImage: String =
-    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:461.0.0-alpine")
+    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:alpine")
 
   /** Quotes a string such that it's compatible as a string argument in the shell. */
   def shellEscaped(any: Any): String = {

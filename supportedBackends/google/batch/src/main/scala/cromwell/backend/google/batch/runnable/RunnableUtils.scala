@@ -18,6 +18,12 @@ object RunnableUtils {
   val CloudSdkImage: String =
     config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:alpine")
 
+  /**
+   * Batch sets a `CLOUDSDK_PYTHON` value that is incorrect for some images.
+   * Erase it so that Cloud SDK self-discovers the right Python within its image.
+   */
+  val CloudSdkEnvironment: Map[String, String] = Map("CLOUDSDK_PYTHON" -> "")
+
   /** Quotes a string such that it's compatible as a string argument in the shell. */
   def shellEscaped(any: Any): String = {
     val str = String.valueOf(any)

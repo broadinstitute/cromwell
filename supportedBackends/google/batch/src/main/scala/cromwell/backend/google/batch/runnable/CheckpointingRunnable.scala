@@ -12,7 +12,7 @@ trait CheckpointingRunnable {
           createParameters.checkpointingConfiguration.checkpointingCommand(checkpointFilename,
                                                                            RunnableCommands.multiLineBinBashCommand
           )
-        val checkpointingEnvironment = Map.empty[String, String]
+        val checkpointingEnvironment = RunnableUtils.CloudSdkEnvironment
 
         // Initial sync from cloud:
         val initialCheckpointSyncRunnable = RunnableBuilder.cloudSdkShellRunnable(

@@ -6,6 +6,14 @@
 * The `disks` WDL runtime attribute size is now honored on EC2 Batch compute environments. Previously, the size component (e.g. `500` in `local-disk 500 HDD`) was silently discarded and tasks shared whatever EBS was attached to the host instance. When a size greater than zero is specified, each task now receives a dedicated gp3 EBS volume of exactly the requested size, provisioned before the task runs and deleted on exit — matching the per-task disk lifecycle of the GCP Batch backend. This requires an AMI built with the `cromwell-disk-utils` bundle at `/usr/local/cromwell-disk-utils` and IAM permissions for `ec2:CreateVolume`, `ec2:AttachVolume`, `ec2:DetachVolume`, `ec2:DeleteVolume`, `ec2:DescribeVolumes`, and `ec2:CreateTags` on the batch instance role. Tasks with no `disks` attribute or a zero-size disk are unaffected.
 * Added support for non-glibc-based docker images (Alpine Linux, etc.)s
 
+### GCP Batch
+
+The default Cloud SDK helper image is now `gcr.io/google.com/cloudsdktool/cloud-sdk:583.0.0-alpine`. Google applied a one-year retention policy to that repository in August 2026 and deleted the previously pinned `461.0.0-alpine` tag, which made every GCP Batch task fail at its first runnable with no stderr or return code reaching GCS.
+
+Cromwell now also blanks `CLOUDSDK_PYTHON` on the runnables it builds from this image, as it already did for user runnables. Batch sets that variable to `/usr/bin/python3`, but current alpine Cloud SDK images ship Python at `/usr/local/bin/python3` only, so `gsutil` would otherwise exit 127 during localization. Blanking it lets `gcloud` and `gsutil` find their own interpreter, so a custom `cloud-sdk-image-url` may point at any variant that provides `python3` and `gsutil`.
+
+Because Google keeps tags for only a year, this pin will expire again. The `cloud-sdk-image-url` configuration key overrides it; see [Custom Google Cloud SDK container](https://cromwell.readthedocs.io/en/stable/backends/GCPBatch/#custom-google-cloud-sdk-container).
+
 ### General
 
 #### Configurable subworkflow launch rate

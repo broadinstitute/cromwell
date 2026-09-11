@@ -347,10 +347,14 @@ Own repository can be used by adding `cloud-sdk-image-url` reference to used con
 ```
 google {
   ...
-  cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:354.0.0-alpine"
+  cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:583.0.0-alpine"
   cloud-sdk-image-size-gb = 1
 }
 ```
+
+Note that Google deletes tags from `gcr.io/google.com/cloudsdktool/cloud-sdk` one year after they are published, so the version Cromwell defaults to will eventually disappear and every task will fail at its first runnable. If that happens before you can upgrade Cromwell, set `cloud-sdk-image-url` to a tag that still exists.
+
+The replacement image must provide `python3` on the `PATH` and a working `gsutil`. Cromwell's helper scripts are base64-encoded and decoded with `python3`, so the `stable` variant, which ships no `python3` at all, will not work. Cromwell blanks `CLOUDSDK_PYTHON` on its own runnables so that `gcloud` and `gsutil` find whichever interpreter their image provides, which means the `alpine`, `slim`, and `debian_component_based` variants are all viable.
 
 ### Parallel Composite Uploads 
 

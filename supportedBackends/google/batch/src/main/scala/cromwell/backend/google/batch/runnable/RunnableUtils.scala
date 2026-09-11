@@ -14,9 +14,20 @@ object RunnableUtils {
   /**
     * An image with the Google Cloud SDK installed.
     * http://gcr.io/google.com/cloudsdktool/cloud-sdk
+    *
+    * Google deletes tags from this repository one year after they are published, so this pin needs periodic bumping.
+    * When it expires, every runnable below fails to pull and jobs die before producing any output.
     */
   val CloudSdkImage: String =
-    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:461.0.0-alpine")
+    config.getOrElse("cloud-sdk-image-url", "gcr.io/google.com/cloudsdktool/cloud-sdk:583.0.0-alpine")
+
+  /**
+    * Batch sets `CLOUDSDK_PYTHON=/usr/bin/python3` on every runnable, but the alpine Cloud SDK image ships Python at
+    * /usr/local/bin/python3 only, so `gsutil` there dies with exit 127 before writing anything to stderr. Blanking the
+    * variable lets `gcloud` and `gsutil` locate their own interpreter, which works regardless of which image (or which
+    * operator-supplied `cloud-sdk-image-url`) we end up running. (AN-601, XKCD-1987)
+    */
+  val CloudSdkEnvironment: Map[String, String] = Map("CLOUDSDK_PYTHON" -> "")
 
   /** Quotes a string such that it's compatible as a string argument in the shell. */
   def shellEscaped(any: Any): String = {

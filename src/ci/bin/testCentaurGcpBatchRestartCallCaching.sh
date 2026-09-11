@@ -16,9 +16,11 @@ cromwell::build::batch::setup_batch_centaur_environment
 
 cromwell::build::assemble_jars
 
+# Split out of testCentaurGcpBatchRestart.sh, which excludes this test. Restart tests are
+# serialized because they kill and restart the shared Cromwell, and this one runs about as
+# long as the other three combined.
 cromwell::build::run_centaur \
     -p 100 \
-    -i restart \
-    -e call_cache_cha_cha_batch \
+    -i call_cache_cha_cha_batch \
 
 cromwell::build::generate_code_coverage

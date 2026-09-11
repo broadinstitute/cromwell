@@ -190,6 +190,9 @@ cromwell::private::create_build_variables() {
         centaurHoricromtalGcpBatch*)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/gcp_batch_horicromtal_application.conf"
             ;;
+        centaurGcpBatchRestartCallCaching)
+            CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/gcp_batch_restart_application.conf"
+            ;;
         *)
             CROMWELL_BUILD_CROMWELL_CONFIG="${CROMWELL_BUILD_RESOURCES_DIRECTORY}/${CROMWELL_BUILD_BACKEND_TYPE}_application.conf"
             ;;

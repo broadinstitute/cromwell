@@ -35,6 +35,7 @@ trait Delocalization {
 
     RunnableBuilder
       .withImage(womOutputRuntimeExtractor.dockerImage.getOrElse(CloudSdkImage))
+      .withEnvironment(CloudSdkEnvironment)
       .withCommand(commands: _*)
       .withEntrypointCommand("/bin/bash")
       .withLabels(Map(Key.Tag -> Value.Delocalization))

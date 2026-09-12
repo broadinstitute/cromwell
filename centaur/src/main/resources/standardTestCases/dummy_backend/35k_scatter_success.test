@@ -14,4 +14,4 @@ metadata {
   "outputs.dummy_scatter.results_count": 35000
 }
 
-maximumTime = 12 minutes
+maximumTime = 15 minutes

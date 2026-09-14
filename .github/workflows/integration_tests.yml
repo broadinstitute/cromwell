@@ -40,6 +40,9 @@ jobs:
           - build_type: centaurGcpBatchRestart
             build_mysql: 8.4
             friendly_name: Centaur GCP Batch (restart)
+          - build_type: centaurGcpBatchRestartCallCaching
+            build_mysql: 8.4
+            friendly_name: Centaur GCP Batch (restart, call caching)
           - build_type: dbms
             friendly_name: DBMS
           - build_type: centaurTes

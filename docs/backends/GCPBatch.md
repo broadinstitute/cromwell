@@ -341,13 +341,14 @@ network labels, and then fall back to running on the default network.
 
 ### Custom Google Cloud SDK container
 
-Cromwell can't use Google's container registry if VPC Perimeter is used in project.
-Own repository can be used by adding `cloud-sdk-image-url` reference to used container:
+Cromwell uses `cloud-sdk:alpine` by default. If you require a static Cloud SDK version, set a custom value like `cloud-sdk:584.0.0-alpine` for `cloud-sdk-image-url`. Note that GCP [deletes tags after 1 year](https://github.com/GoogleCloudPlatform/cloud-sdk-docker#package-retention-policy), so any custom tag requires recurring updates.
+
+Cromwell can't use Google's container registry if VPC Perimeter is used in project. Work around by re-hosting within the project and setting `cloud-sdk-image-url`.
 
 ```
 google {
   ...
-  cloud-sdk-image-url = "eu.gcr.io/your-project-id/cloudsdktool/cloud-sdk:354.0.0-alpine"
+  cloud-sdk-image-url = "gcr.io/google.com/cloudsdktool/cloud-sdk:alpine"
   cloud-sdk-image-size-gb = 1
 }
 ```

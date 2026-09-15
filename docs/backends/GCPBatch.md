@@ -1,4 +1,4 @@
-**Google Cloud Batch Backend**
+# Google Cloud Batch Backend
 
 Google Cloud Batch is a fully managed service that lets you schedule, queue, and execute batch processing workloads on Google Cloud resources. Batch provisions resources and manages capacity on your behalf, allowing your batch workloads to run at scale.
 
@@ -8,7 +8,7 @@ authentication modes. Before reading further in this section please see the
 and detailed instructions for the application default authentication scheme in particular.
 The instructions below assume you have created a Google Cloud Storage bucket and a Google project enabled for the appropriate APIs.
 
-**Configuring Authentication**
+## Configuring Authentication
 
 The `google` stanza in the Cromwell configuration file defines how to authenticate to Google.  There are four different
 authentication schemes that might be used:
@@ -48,7 +48,7 @@ the `GCPBATCH` and `filesystems.gcs` sections within a Google configuration bloc
 The auth for the `GCPBATCH` section governs the interactions with Google itself, while `filesystems.gcs` governs the localization
 of data into and out of GCE VMs.
 
-**Application Default Credentials**
+### Application Default Credentials
 
 By default, application default credentials will be used.  Only `name` and `scheme` are required for application default credentials.
 
@@ -59,7 +59,7 @@ $ gcloud auth login
 $ gcloud config set project my-project
 ```
 
-**Service Account**
+### Service Account
 
 First create a new service account through the [API Credentials](https://console.developers.google.com/apis/credentials) page.  Go to **Create credentials -> Service account key**.  Then in the **Service account** dropdown select **New service account**.  Fill in a name (e.g. `my-account`), and select key type of JSON.
 
@@ -85,7 +85,7 @@ Most importantly, the value of the `client_email` field should go into the `serv
 
 While technically not part of Service Account authentication mode, one can also override the default service account that the compute VM is started with via the configuration option `GCPBATCH.config.batch.compute-service-account` or through the workflow options parameter `google_compute_service_account`.  The service account you provide must have been granted Service Account Actor role to Cromwell's primary service account. As this only affects Google Batch API and not GCS, it's important that this service account, and the service account specified in `GCPBATCH.config.batch.auth` can both read/write the location specified by `GCPBATCH.config.root`
 
-**User Service Account**
+### User Service Account
 
 A [JSON key file for the service account](../wf_options/Google.md) must be passed in via the `user_service_account_json` field in the [Workflow Options](../wf_options/Google.md) when submitting the job. Omitting this field will cause the workflow to fail. The JSON should be passed as a string and will need to have no newlines and all instances of `"` and `\n` escaped. 
 
@@ -93,7 +93,7 @@ In the likely event that this service account does not have access to Cromwell's
 
 For information on the interaction of `user_service_account_json` with private Docker images please see the `Docker` section below.  
 
-**Docker**
+## Docker
 
 It's possible to reference private Docker images to which only particular Docker Hub accounts have access:
 
@@ -161,7 +161,7 @@ backend {
 Note that as per the Google Secret Manager docs, the compute service account for the project in which the GCP Batch
 jobs will run will need to be assigned the `Secret Manager Secret Accessor` IAM role.
 
-***Dockerhub Mirroring***
+### Dockerhub Mirroring
 
 Cromwell supports automatic use of [GAR's Dockerhub mirror](https://cloud.google.com/artifact-registry/docs/pull-cached-dockerhub-images) 
 in the Batch backend. When enabled, Dockerhub images will be pulled through this mirror rather than directly from Dockerhub. 
@@ -186,7 +186,7 @@ backend {
 }
 ```
 
-**Monitoring**
+## Monitoring
 
 In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Call Runtime, a workflow option can be used to specify the path to a script that will run in the background and write its output to a log file.
 
@@ -198,14 +198,14 @@ In order to monitor metrics (CPU, Memory, Disk usage...) about the VM during Cal
 
 The output of this script will be written to a `monitoring.log` file that will be available in the call gcs bucket when the call completes.  This feature is meant to run a script in the background during long-running processes.  It's possible that if the task is very short that the log file does not flush before de-localization happens and you will end up with a zero byte file.
 
-**Google Cloud Storage Filesystem**
+## Google Cloud Storage Filesystem
 
 On the Google Batch backend the GCS (Google Cloud Storage) filesystem is used for the root of the workflow execution.
 On the Local, SGE, and associated backends any GCS URI will be downloaded locally.  For the Google backend the `gcp_batch_gcs_root` [Workflow Option](../wf_options/Google) will take
 precedence over the `root` specified at `backend.providers.JES.config.root` in the configuration file. Google Cloud Storage URIs are the only acceptable values for `File` inputs for
 workflows using the Google backend.
 
-**Batch timeout**
+## Batch timeout
 
 Google sets a default pipeline timeout of 7 days, after which the pipeline will abort. Setting `batch-timeout` overrides this limit to a maximum of 30 days.
 
@@ -215,7 +215,7 @@ backend.providers.GCPBATCH.config {
 }
 ```
 
-#### Google Labels
+## Google Labels
 
 Every call run on the GCP Batch backend is given certain labels by default, so that Google resources can be queried by these labels later. 
 The current default label set automatically applied is:
@@ -232,7 +232,7 @@ The current default label set automatically applied is:
 
 Any custom labels provided as '`google_labels`' in the [workflow options](../wf_options/Google) are also applied to Google resources by GCP Batch.
 
-### Custom Mount Points
+## Custom Mount Points
 
 Cromwell's GCP Batch backend supports custom mount points as documented [here](../RuntimeAttributes.md#disks), with the caveat that all custom mount points must be specified under `/mnt/disks`.
 
@@ -244,7 +244,7 @@ runtime {
 }
 ```
 
-### Virtual Private Network
+## Virtual Private Network
 
 Cromwell can arrange for jobs to run in specific GCP private networks via the `config.virtual-private-cloud` stanza of a Batch backend.
 There are two ways of specifying private networks:
@@ -252,7 +252,7 @@ There are two ways of specifying private networks:
 * [Literal network and subnetwork values](#virtual-private-network-via-literals) that will apply to all projects
 * [Google project labels](#virtual-private-network-via-labels) whose values in a particular Google project will specify the network and subnetwork
 
-#### Virtual Private Network via Literals
+### Virtual Private Network via Literals
 
 ```hocon
 backend {
@@ -296,7 +296,7 @@ Cromwell will then pass the network and subnetwork values to GCP Batch. See the 
 [GCP Batch](https://cloud.google.com/batch/docs/networking-overview)
 for more information on the various formats accepted for `network` and `subnetwork`.
 
-#### Virtual Private Network via Labels
+### Virtual Private Network via Labels
 
 ```hocon
 backend {
@@ -339,7 +339,7 @@ Then it will use the value of the label, which is `vpc-network` here, as the nam
 If the network key is not present in the project's metadata Cromwell will fall back to trying to run jobs using literal
 network labels, and then fall back to running on the default network.
 
-### Custom Google Cloud SDK container
+## Custom Google Cloud SDK container
 
 Cromwell uses `cloud-sdk:alpine` by default. If you require a static Cloud SDK version, set a custom value like `cloud-sdk:584.0.0-alpine` for `cloud-sdk-image-url`. Note that GCP [deletes tags after 1 year](https://github.com/GoogleCloudPlatform/cloud-sdk-docker#package-retention-policy), so any custom tag requires recurring updates.
 
@@ -353,7 +353,7 @@ google {
 }
 ```
 
-### Parallel Composite Uploads 
+## Parallel Composite Uploads 
 
 Cromwell can be configured to use GCS parallel composite uploads which can greatly improve delocalization performance. This feature
 is turned off by default but can be enabled backend-wide by specifying a `gsutil`-compatible memory specification for the key
@@ -386,7 +386,7 @@ which takes precedence over a setting in configuration. The default setting for 
 parallel composite uploads; a value of `0` can also be used in workflow options to turn off parallel composite uploads
 in a Cromwell deployment where they are turned on in config.
 
-#### Issues with composite files
+### Issues with composite files
 
 Please see the [Google documentation](https://cloud.google.com/storage/docs/gsutil/commands/cp#parallel-composite-uploads)
 describing the benefits and drawbacks of parallel composite uploads.
@@ -419,7 +419,7 @@ could allow data corruption to go undetected during uploading/downloading.
 As the message states, the best option would be to have a compiled `crcmod` installed on the system.
 Turning off integrity checks on downloads does get around this issue but really isn't a great idea.
 
-#### Parallel composite uploads and call caching
+### Parallel composite uploads and call caching
 
 Because the parallel composite upload threshold is not considered part of the hash used for call caching purposes, calls
 which would be expected to generate non-composite outputs may call cache to results that did generate composite
@@ -427,7 +427,7 @@ outputs. Calls which are executed and not cached will always honor the parallel 
 their execution.
 
 
-### Migration from Google Cloud Life Sciences v2beta to Google Cloud Batch
+## Migration from Google Cloud Life Sciences v2beta to Google Cloud Batch
 
 1. If you currently run your workflows using Cloud Genomics v2beta and would like to switch to Google Cloud Batch, you will need to do a few changes to your configuration file: `actor-factory` value should be changed 
 from `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory` to `cromwell.backend.google.batch.GcpBatchBackendLifecycleActorFactory`.
@@ -437,7 +437,7 @@ from `cromwell.backend.google.pipelines.v2beta.PipelinesApiLifecycleActorFactory
 3. Google Cloud Batch is now available in a variety of regions. Please see the [Batch Locations](https://cloud.google.com/batch/docs/locations) for a list of supported regions
 
 
-### Reference Disk Support
+## Reference Disk Support
 
 Cromwell 55 and later support mounting reference disks from prebuilt GCP disk images as an alternative to localizing large
 input reference files on Batch. Please note the configuration of reference disk manifests has changed starting with

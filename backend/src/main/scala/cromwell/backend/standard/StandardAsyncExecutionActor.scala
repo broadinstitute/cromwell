@@ -41,6 +41,7 @@ import shapeless.Coproduct
 import wom.callable.Callable.InputDefinition
 import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
 import wom.expression.WomExpression
+import wom.format.MemorySize
 import wom.graph.LocalName
 import wom.values._
 import wom.{CommandSetupSideEffectFile, InstantiatedCommand, WomFileMapper}
@@ -471,9 +472,25 @@ trait StandardAsyncExecutionActor
     val errorOrGlobFiles: ErrorOr[List[WomGlobFile]] =
       backendEngineFunctions.findGlobOutputs(call, jobDescriptor)
 
-    lazy val environmentVariables = instantiatedCommand.environmentVariables map { case (k, v) =>
-      s"""export $k="$v""""
-    } mkString ("", "\n", "\n")
+    lazy val environmentVariables = {
+      /*
+      Add `MEM_SIZE` and `MEM_UNIT` before the other environment variables on all backends that define a `memory`
+      runtime attribute. As of May 2022 some backends may expose these same environment variables via other means where
+      they are accessible elsewhere, for example within sidecar containers used for resource monitoring.
+       */
+      val memoryEnvironmentVariables: List[(String, String)] =
+        runtimeMemoryOption.toList.flatMap(runtimeMemory =>
+          List(
+            "MEM_SIZE" -> runtimeMemory.amount.toString,
+            "MEM_UNIT" -> runtimeMemory.unit.toString
+          )
+        )
+      val environmentVariables: List[(String, String)] =
+        memoryEnvironmentVariables ++ instantiatedCommand.environmentVariables
+      environmentVariables map { case (key, value) =>
+        s"""export $key="$value""""
+      } mkString ("", "\n", "\n")
+    }
 
     val shortId = jobDescriptor.workflowDescriptor.id.shortString
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
@@ -800,6 +817,16 @@ trait StandardAsyncExecutionActor
    */
   lazy val continueOnReturnCode: ContinueOnReturnCode =
     RuntimeAttributesValidation.extract(ContinueOnReturnCodeValidation.instance, validatedRuntimeAttributes)
+
+  /**
+    * Returns the memory size for the job.
+    *
+    * @return the memory size for the job.
+    */
+  lazy val runtimeMemoryOption: Option[MemorySize] = RuntimeAttributesValidation.extractOption(
+    runtimeAttributesValidation = MemoryValidation.instance(),
+    validatedRuntimeAttributes = validatedRuntimeAttributes
+  )
 
   /**
     * Returns the max number of times that a failed job should be retried, obtained by converting `maxRetries` to an Int.

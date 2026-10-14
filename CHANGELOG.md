@@ -1,6 +1,10 @@
 # Cromwell Change Log
 
 ## 93 Release Notes
+### WDL 1.2 Support
+* Cromwell now supports [WDL 1.2](https://github.com/openwdl/wdl/releases/tag/v1.2.1). Use `version 1.2` at the top of your WDL files. New features include the `requirements` and `hints` sections, workflow `hints`, `env` declarations, multi-line strings, the `**` operator, the `Directory` type, the `task` variable, and the new standard library functions `find`, `matches`, `join_paths`, `contains`, `chunk`, `contains_key` and `values`. See [Language Support](docs/LanguageSupport.md) for known limitations.
+* WDL 1.1: fixed a validation error (a message ending in `(of class ...)`) for some workflows and tasks that use WDL 1.1 functions such as `as_map`, or struct literals, in declarations.
+
 ### AWS Batch
 * Added `tagAliases` backend config option, which duplicates engine-generated tags (e.g. `cromwell-workflow-id`) under alternative key names for external systems like cost-tracking tools. See the [Tag Aliases](supportedBackends/aws/src/main/scala/cromwell/backend/impl/aws/README.md#tag-aliases) section for configuration details.
 * The `disks` WDL runtime attribute size is now honored on EC2 Batch compute environments. Previously, the size component (e.g. `500` in `local-disk 500 HDD`) was silently discarded and tasks shared whatever EBS was attached to the host instance. When a size greater than zero is specified, each task now receives a dedicated gp3 EBS volume of exactly the requested size, provisioned before the task runs and deleted on exit — matching the per-task disk lifecycle of the GCP Batch backend. This requires an AMI built with the `cromwell-disk-utils` bundle at `/usr/local/cromwell-disk-utils` and IAM permissions for `ec2:CreateVolume`, `ec2:AttachVolume`, `ec2:DetachVolume`, `ec2:DeleteVolume`, `ec2:DescribeVolumes`, and `ec2:CreateTags` on the batch instance role. Tasks with no `disks` attribute or a zero-size disk are unaffected.

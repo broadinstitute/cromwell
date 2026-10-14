@@ -1,0 +1,3 @@
+{
+  "requirements_and_hints_wf.input_file": "gs://gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai"
+}

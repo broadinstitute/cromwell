@@ -1,0 +1,29 @@
+# Changelog
+2026-10-14
+Created from the WDL 1.1 (biscayne) grammar and updated to WDL 1.2 (https://github.com/openwdl/wdl/releases/tag/v1.2.1):
+- `version 1.2`
+- Task `requirements` and `hints` sections, and the hints-scoped `hints`, `input` and `output` literals
+- Workflow `hints` section
+- `env` modifier on input and private declarations
+- `**` exponentiation operator
+- Multi-line strings (`<<< ... >>>`)
+- `meta` and `parameter_meta` sections in struct definitions
+- Optional `input:` prefix in call bodies
+- `Object` type, `Directory` type and the hidden `task` variable
+- Float literals without an integer part (`.5`) or with an exponent (`1e3`)
+- Arbitrary expressions in index brackets (`a[n - 1]`)
+- Expression placeholders: `==`, `**` and float literals are now lexed correctly, and `if`/`then`/`else` are only
+  recognized as whole words
+
+# HowTo
+When changing the grammar file, generate a new parser by:
+- changing current working directory to cromwell/wdl/transforms/v1_2
+- running: hermes generate src/main/resources/grammar.hgr \
+          --language=java \
+          --directory=src/main/java \
+          --name=wdl \
+          --java-package=wdl.v1_2.parser \
+          --java-use-apache-commons --java-imports=org.apache.commons.lang3.StringEscapeUtils \
+          --header
+See docs/developers/UpdateWDLParser.md for how to install Hermes. Setting PYTHONHASHSEED=0 makes the generated
+terminal numbering reproducible.

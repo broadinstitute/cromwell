@@ -4,6 +4,7 @@ import wdl.model.draft3.elements.ExpressionElement._
 import wdl.model.draft3.elements._
 import wom.types._
 import org.apache.commons.text.StringEscapeUtils
+import wdl.shared.model.expression.ExtensionExpressionElement
 
 object WdlWriterImpl {
 
@@ -67,6 +68,8 @@ object WdlWriterImpl {
         s"${expressionElementWriter.toWdlV1(a.expression)}.${a.memberAccessTail.toList.mkString(".")}"
       case a: IndexAccess => a.toWdlV1
       case a: ExpressionLiteralElement => a.expression
+      // Elements defined outside the shared hierarchy, e.g. by a newer WDL version:
+      case a: ExtensionExpressionElement[ExpressionElement @unchecked] => a.toWdlV1(expressionElementWriter.toWdlV1)
     }
   }
 

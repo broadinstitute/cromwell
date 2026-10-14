@@ -1,0 +1,13 @@
+name: wdl_1_2_runtime_with_requirements
+testFormat: workflowfailure
+tags: ["wdl_1_2"]
+
+files {
+  workflow: wdl_1_2/runtime_with_requirements/runtime_with_requirements.wdl
+}
+
+metadata {
+  status: Failed
+  "failures.0.message": "Workflow input processing failed"
+  "failures.0.causedBy.0.message": "Failed to read task definition at line 4 column 6 (reason 1 of 1): A task cannot have a runtime section together with a requirements or hints section. The runtime section is deprecated in WDL 1.2; use requirements and hints instead."
+}

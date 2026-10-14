@@ -45,6 +45,20 @@ object EngineFunctionEvaluators {
 
   implicit val subRenamer: IdentifierLookupRenamer[Sub] = forThreeParamFunction(Sub)
 
+  // Functions added in WDL 1.1
+  implicit val keysRenamer: IdentifierLookupRenamer[Keys] = forOneParamFunction(Keys)
+  implicit val asMapRenamer: IdentifierLookupRenamer[AsMap] = forOneParamFunction(AsMap)
+  implicit val asPairsRenamer: IdentifierLookupRenamer[AsPairs] = forOneParamFunction(AsPairs)
+  implicit val collectByKeyRenamer: IdentifierLookupRenamer[CollectByKey] = forOneParamFunction(CollectByKey)
+  implicit val quoteRenamer: IdentifierLookupRenamer[Quote] = forOneParamFunction(Quote)
+  implicit val sQuoteRenamer: IdentifierLookupRenamer[SQuote] = forOneParamFunction(SQuote)
+  implicit val unzipRenamer: IdentifierLookupRenamer[Unzip] = forOneParamFunction(Unzip)
+  implicit val suffixRenamer: IdentifierLookupRenamer[Suffix] = forTwoParamFunction(Suffix)
+  implicit val minRenamer: IdentifierLookupRenamer[Min] = forTwoParamFunction(Min)
+  implicit val maxRenamer: IdentifierLookupRenamer[Max] = forTwoParamFunction(Max)
+  implicit val sepRenamer: IdentifierLookupRenamer[Sep] = forTwoParamFunction(Sep)
+  implicit val subPosixRenamer: IdentifierLookupRenamer[SubPosix] = forThreeParamFunction(SubPosix)
+
   private def forZeroParamFunction[A <: ExpressionElement]: IdentifierLookupRenamer[A] =
     new IdentifierLookupRenamer[A] {
       override def renameIdentifiers(a: A, renamingMap: Map[String, String])(implicit

@@ -1,0 +1,39 @@
+name: wdl_1_2_new_engine_functions
+testFormat: workflowsuccess
+tags: ["wdl_1_2"]
+
+files {
+  workflow: wdl_1_2/new_engine_functions/new_engine_functions.wdl
+}
+
+metadata {
+  workflowName: new_engine_functions
+  status: Succeeded
+
+  "outputs.new_engine_functions.int_power": 1024
+  "outputs.new_engine_functions.float_power": 8.0
+  "outputs.new_engine_functions.none_equals_none": true
+
+  "outputs.new_engine_functions.found": "123"
+  "outputs.new_engine_functions.does_match": true
+  "outputs.new_engine_functions.swapped": "world hello"
+
+  "outputs.new_engine_functions.joined": "/a/b/c/d.txt"
+
+  "outputs.new_engine_functions.has_three": true
+  "outputs.new_engine_functions.chunks.0.0": 1
+  "outputs.new_engine_functions.chunks.0.1": 2
+  "outputs.new_engine_functions.chunks.1.0": 3
+  "outputs.new_engine_functions.chunks.1.1": 4
+  "outputs.new_engine_functions.chunks.2.0": 5
+  "outputs.new_engine_functions.first_or_default": 42
+
+  "outputs.new_engine_functions.has_a": true
+  "outputs.new_engine_functions.has_c": false
+  "outputs.new_engine_functions.score_values.0": 1
+  "outputs.new_engine_functions.score_values.1": 2
+  "outputs.new_engine_functions.name_keys.0": "first"
+  "outputs.new_engine_functions.name_keys.1": "last"
+  "outputs.new_engine_functions.scores_length": 2
+  "outputs.new_engine_functions.string_length": 5
+}

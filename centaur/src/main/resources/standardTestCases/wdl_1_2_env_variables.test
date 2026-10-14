@@ -1,0 +1,16 @@
+name: wdl_1_2_env_variables
+testFormat: workflowsuccess
+tags: ["wdl_1_2"]
+
+files {
+  workflow: wdl_1_2/env_variables/env_variables.wdl
+}
+
+metadata {
+  workflowName: env_variables_wf
+  status: Succeeded
+  "outputs.env_variables_wf.greeting": "it's $HOME; echo injected"
+  "outputs.env_variables_wf.names": "[\"a\",\"b\"]"
+  "outputs.env_variables_wf.count": 2
+  "outputs.env_variables_wf.plain": "unset"
+}

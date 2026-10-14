@@ -9,6 +9,7 @@ import cromwell.languages.LanguageFactory
 import cromwell.languages.util.ImportResolver._
 import languages.wdl.biscayne.WdlBiscayneLanguageFactory
 import languages.wdl.cascades.WdlCascadesLanguageFactory
+import languages.wdl.v1_2.WdlV1_2LanguageFactory
 import languages.wdl.draft2.WdlDraft2LanguageFactory
 import languages.wdl.draft3.WdlDraft3LanguageFactory
 import wom.ResolvedImportRecord
@@ -32,7 +33,8 @@ object WomGraphMaker {
         List(
           new WdlDraft3LanguageFactory(ConfigFactory.empty()),
           new WdlBiscayneLanguageFactory(ConfigFactory.empty()),
-          new WdlCascadesLanguageFactory(ConfigFactory.empty())
+          new WdlCascadesLanguageFactory(ConfigFactory.empty()),
+          new WdlV1_2LanguageFactory(ConfigFactory.empty())
         )
           .find(_.looksParsable(mainFileContents))
           .getOrElse(new WdlDraft2LanguageFactory(ConfigFactory.empty()))

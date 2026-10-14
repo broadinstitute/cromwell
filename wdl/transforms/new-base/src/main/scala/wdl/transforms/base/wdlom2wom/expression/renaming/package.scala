@@ -2,6 +2,7 @@ package wdl.transforms.base.wdlom2wom.expression
 
 import wdl.model.draft3.elements.ExpressionElement
 import wdl.model.draft3.elements.ExpressionElement._
+import wdl.shared.model.expression.ExtensionExpressionElement
 import wdl.transforms.base.wdlom2wom.expression.renaming.IdentifierLookupRenamer.ops._
 
 import wdl.transforms.base.wdlom2wom.expression.renaming.BinaryOperatorEvaluators._
@@ -21,6 +22,8 @@ package object renaming {
         a match {
           // Literals:
           case a: PrimitiveLiteralExpressionElement => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: NoneLiteralElement.type => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: StructLiteral => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
           case a: StringLiteral => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
           case a: StringExpression => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
           case a: ObjectLiteral => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
@@ -96,6 +99,26 @@ package object renaming {
           case a: Prefix => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
 
           case a: Sub => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+
+          // Functions added in WDL 1.1:
+          case a: Keys => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: AsMap => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: AsPairs => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: CollectByKey => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: Quote => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: SQuote => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: Unzip => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: Suffix => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: Min => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: Max => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: Sep => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+          case a: SubPosix => a.renameIdentifiers(renamingMap)(expressionElementRenamer)
+
+          // Elements defined outside the shared hierarchy, e.g. by a newer WDL version:
+          case a: ExtensionExpressionElement[ExpressionElement @unchecked] =>
+            a.withParams(
+              a.params.map(expressionElementRenamer.renameIdentifiers(_, renamingMap)(expressionElementRenamer))
+            )
         }
     }
 }

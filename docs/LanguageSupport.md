@@ -26,6 +26,22 @@ As well as the changes to the WDL spec between draft-2 and 1.0, Cromwell also su
 
 Supported since version 92 in January 2026. Check out [the spec](https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md) to learn more.
 
+### WDL 1.2
+
+Supported since version 93. Cromwell implements [WDL 1.2.1](https://github.com/openwdl/wdl/releases/tag/v1.2.1). Check out [the spec](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md) to learn more.
+
+The deprecated `runtime` section is still accepted, but it cannot be combined with the new `requirements` and `hints` sections in the same task.
+
+> *Known Issues:*
+>
+> - `requirements`: `fpga` is not supported by any backend, and the WDL 1.2 `disks` formats (e.g. `"10 GiB"`, mount points) are passed to the backends unchanged. `container: "*"` is only recognized as a literal.
+> - `hints`: `max_cpu`, `max_memory` and `short_task` are accepted but not acted on. The `disks`, `gpu` and `fpga` hints are ignored. Other hints are passed to the backend as runtime attributes, so Cromwell-specific attributes such as `preemptible` can be set as hints.
+> - The `task` variable provides `name`, `id`, `container`, `cpu`, `end_time`, `meta`, `parameter_meta` and `ext`. Using `attempt`, `return_code`, `memory`, `gpu`, `fpga` or `disks` is a validation error.
+> - `Int` values are 32-bit in Cromwell, not 64-bit as WDL 1.2 requires.
+> - `size()` of a `Directory` is not supported yet.
+> - Requirements and hints are overridden in the inputs JSON with `<task>.runtime` rather than `<task>.requirements` and `<task>.hints`.
+> - WDL 1.2 is not supported on the PAPI v2 (Google Pipelines API) backend. Use GCP Batch instead.
+
 ## Future Language Support
 
 ### WDL 'development'

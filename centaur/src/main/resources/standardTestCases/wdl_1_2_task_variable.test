@@ -1,0 +1,15 @@
+name: wdl_1_2_task_variable
+testFormat: workflowsuccess
+tags: ["wdl_1_2"]
+
+files {
+  workflow: wdl_1_2/task_variable/task_variable.wdl
+}
+
+metadata {
+  workflowName: task_variable_wf
+  status: Succeeded
+  "outputs.task_variable_wf.name": "task_variable"
+  "outputs.task_variable_wf.description": "Reads the task variable"
+  "outputs.task_variable_wf.container": "ubuntu:latest"
+}

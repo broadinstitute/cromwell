@@ -65,6 +65,24 @@ object LiteralEvaluators {
       )
     }
 
+  implicit val noneLiteralEvaluator: IdentifierLookupRenamer[NoneLiteralElement.type] =
+    new IdentifierLookupRenamer[NoneLiteralElement.type] {
+      override def renameIdentifiers(a: NoneLiteralElement.type, renamingMap: Map[String, String])(implicit
+        expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]
+      ): NoneLiteralElement.type = a
+    }
+
+  implicit val structLiteralEvaluator: IdentifierLookupRenamer[StructLiteral] =
+    new IdentifierLookupRenamer[StructLiteral] {
+      override def renameIdentifiers(a: StructLiteral, renamingMap: Map[String, String])(implicit
+        expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]
+      ): StructLiteral = a.copy(
+        elements = a.elements map { case (key, value) =>
+          key -> expressionElementRenamer.renameIdentifiers(value, renamingMap)(expressionElementRenamer)
+        }
+      )
+    }
+
   implicit val pairLiteralEvaluator: IdentifierLookupRenamer[PairLiteral] = new IdentifierLookupRenamer[PairLiteral] {
     override def renameIdentifiers(a: PairLiteral, renamingMap: Map[String, String])(implicit
       expressionElementRenamer: IdentifierLookupRenamer[ExpressionElement]

@@ -1,0 +1,19 @@
+name: wdl_1_2_requirements_and_hints
+testFormat: workflowsuccess
+tags: ["wdl_1_2"]
+backends: [GCPBATCH]
+
+files {
+  workflow: wdl_1_2/requirements_and_hints/requirements_and_hints.wdl
+  inputs: wdl_1_2/requirements_and_hints/inputs.json
+}
+
+metadata {
+  workflowName: requirements_and_hints_wf
+  status: Succeeded
+  "calls.requirements_and_hints_wf.requirements_and_hints.runtimeAttributes.container": "ubuntu:latest"
+  "calls.requirements_and_hints_wf.requirements_and_hints.runtimeAttributes.cpu": "1"
+  "calls.requirements_and_hints_wf.requirements_and_hints.runtimeAttributes.continueOnReturnCode": "[0,3]"
+  # The input is localization optional, so the command sees the original cloud path
+  "outputs.requirements_and_hints_wf.path": "gs://gcp-public-data--broad-references/hg19/v0/Homo_sapiens_assembly19.fasta.fai"
+}

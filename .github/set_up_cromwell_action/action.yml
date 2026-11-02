@@ -27,7 +27,10 @@ runs:
 
       - name: Secrets check
         run: |
-          sudo ln -s "$(which echo)" /usr/local/bin/say
+          # git-secrets calls an undefined `say` to print status messages. Provide it as a script rather than a
+          # symlink to `echo`: multicall coreutils binaries (e.g. uutils) refuse to run under another name.
+          printf '#!/bin/sh\necho "$@"\n' | sudo tee /usr/local/bin/say > /dev/null
+          sudo chmod +x /usr/local/bin/say
           ./minnie-kenny.sh --force
           git secrets --scan-history
         shell: bash

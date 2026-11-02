@@ -38,6 +38,8 @@ jobs:
             sbt-${{ matrix.project }}-
             sbt-
 
+      - uses: ./.github/library/use_classic_docker_image_store
+
       # build the image
       - name: Build
         id: build

@@ -56,6 +56,7 @@ jobs:
       with:
         username: dsdejenkins
         password: ${{ secrets.DSDEJENKINS_PASSWORD }}
+    - uses: ./cromwell/.github/library/use_classic_docker_image_store
     # Build & push `cromwell`, `womtool`, `cromiam`, and `cromwell-drs-localizer`
     # This step is validated in the GHA 'docker_build_test.yml' without the accompanying docker push
     - name: Build & push all images

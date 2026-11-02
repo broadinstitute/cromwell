@@ -641,7 +641,7 @@ object Dependencies {
   ).map(m => "org.http4s" %% s"blaze-$m" % "0.23.18")
 
   private val asyncHttpClientOverrides = List(
-    "org.asynchttpclient" % "async-http-client" % "2.12.4",
+    "org.asynchttpclient" % "async-http-client" % "2.16.1",
   )
 
 

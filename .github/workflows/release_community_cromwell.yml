@@ -91,8 +91,6 @@ jobs:
         cd cromwell
         git push origin develop master
 
-    - uses: ./cromwell/.github/library/use_classic_docker_image_store
-
     - name: Build and push Docker image
       run: |
         set -e

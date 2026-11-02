@@ -5,7 +5,7 @@ jobs:
   appsec-trivy:
     # Parse Dockerfile and build, scan image if a "blessed" base image is not used
     name: DSP AppSec Trivy check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -37,8 +37,6 @@ jobs:
           restore-keys: |
             sbt-${{ matrix.project }}-
             sbt-
-
-      - uses: ./.github/library/use_classic_docker_image_store
 
       # build the image
       - name: Build

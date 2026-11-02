@@ -99,7 +99,7 @@ jobs:
       BUILD_MARIADB: ${{ matrix.build_mariadb }}
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
     # Local backend suite can run out of disk space, probably due to pulling images with the runner's Docker.
@@ -121,8 +121,6 @@ jobs:
     - uses: ./.github/set_up_cromwell_action #This github action will set up git-secrets, caching, java, and sbt.
       with:
         cromwell_repo_token: ${{ secrets.BROADBOT_GITHUB_TOKEN }}
-    # Centaur builds Cromwell Docker images with sbt-docker
-    - uses: ./.github/library/use_classic_docker_image_store
     # Activate SSH and idle for 30 minutes, see https://www.notion.so/SSH-into-Github-Action-287ab699a6f580609d01d3c88692df14 for details
 #    - name: Setup tmate session
 #      uses: mxschmitt/action-tmate@v3

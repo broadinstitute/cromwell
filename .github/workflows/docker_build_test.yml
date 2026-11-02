@@ -17,7 +17,7 @@ permissions:
 jobs:
   sbt-build:
     name: sbt docker build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Clone Cromwell
         uses: actions/checkout@v2
@@ -30,7 +30,6 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-      - uses: ./cromwell/.github/library/use_classic_docker_image_store
       # The following invocation should be as similar as possible to the one in chart_update_on_merge.yml
       # To state the obvious: This test should not publish anything. It should simply verify that the build completes.
       - name: Build Cromwell Docker

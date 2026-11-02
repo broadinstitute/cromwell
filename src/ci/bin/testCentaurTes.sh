@@ -31,8 +31,7 @@ startup_funnel() {
     fi
 
     mkdir -p logs
-    # Funnel 0.5.0 guesses DOCKER_API_VERSION from the daemon's error when unset, and Docker 29's
-    # "too old" message makes it guess "." so every `docker run` fails. Set a version Docker 29 accepts.
+    # Otherwise Funnel misparses Docker 29's version error as API version "."
     DOCKER_API_VERSION=1.44 nohup "${funnel_path}" server run --config "${funnel_conf}" &> logs/funnel.log &
 
     FUNNEL_PID=$!

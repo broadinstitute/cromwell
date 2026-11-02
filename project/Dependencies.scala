@@ -53,7 +53,7 @@ object Dependencies {
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
   private val logbackV = "1.6.6"
-  private val lz4JavaV = "1.11.0"
+  private val lz4JavaV = "1.11.4"
   private val mariadbV = "2.7.4"
   /*
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.

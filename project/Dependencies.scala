@@ -631,6 +631,15 @@ object Dependencies {
     "org.scala-lang.modules" %% "scala-collection-compat" % scalaCollectionCompatV,
   )
 
+  /*
+  CVE-2026-73495: http4s-blaze-client 0.21.x (EOL) pulls blaze 0.14.x, which has no fixed release.
+  Force the patched blaze until http4s is upgraded (see the cats-effect 3 comment at the top).
+   */
+  private val blazeOverrides = List(
+    "core",
+    "http",
+  ).map(m => "org.http4s" %% s"blaze-$m" % "0.23.18")
+
   private val asyncHttpClientOverrides = List(
     "org.asynchttpclient" % "async-http-client" % "2.12.4",
   )
@@ -670,6 +679,7 @@ object Dependencies {
       rdf4jDependencyOverrides ++
       grpcDependencyOverrides ++
       scalaCollectionCompatOverrides ++
+      blazeOverrides ++
       asyncHttpClientOverrides ++
       nimbusdsOverrides ++
       bouncyCastleOverrides ++

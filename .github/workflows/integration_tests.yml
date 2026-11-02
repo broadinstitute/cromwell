@@ -99,7 +99,9 @@ jobs:
       BUILD_MARIADB: ${{ matrix.build_mariadb }}
       VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID_CI }}
       VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID_CI }}
-    runs-on: ubuntu-24.04
+      # sbt-docker 1.9.0 can't parse the image id that BuildKit prints with the containerd image store (ubuntu-26.04+)
+      DOCKER_BUILDKIT: 0
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
     # Local backend suite can run out of disk space, probably due to pulling images with the runner's Docker.

@@ -17,7 +17,10 @@ permissions:
 jobs:
   sbt-build:
     name: sbt docker build
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
+    env:
+      # sbt-docker 1.9.0 can't parse the image id that BuildKit prints with the containerd image store (ubuntu-26.04+)
+      DOCKER_BUILDKIT: 0
     steps:
       - name: Clone Cromwell
         uses: actions/checkout@v2

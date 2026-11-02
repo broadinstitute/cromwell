@@ -67,6 +67,7 @@ object Publishing {
       val additionalDockerInstr: Seq[Instruction] = (dockerCustomSettings ?? Nil).value
 
       new Dockerfile {
+        // 2026-11-02: this comment forces a full rebuild on the latest blessed base image (CTM-739).
         from("us.gcr.io/broad-dsp-gcr-public/base/jre:17-debian")
         expose(8000)
         add(artifact, artifactTargetPath)

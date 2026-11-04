@@ -47,7 +47,6 @@ object Dependencies {
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
-  private val janinoV = "3.1.7"
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kittensV = "2.3.2"
@@ -186,7 +185,7 @@ object Dependencies {
   Ex: If one isn't using akka & slf4j, then 'akka-slf4j' isn't required. However, for now, all executables are using
   akka & slf4j... so leaving it.
 
-  Similarly, not _all_ executables/logback.xml configs will need logback-access, raven-logback, janino, etc.
+  Similarly, not _all_ executables/logback.xml configs will need logback-access, raven-logback, etc.
   Still, leaving them as dependencies for simplicity's sake.
    */
   private val slf4jBindingDependencies = List(
@@ -196,7 +195,6 @@ object Dependencies {
     "ch.qos.logback" % "logback-core" % logbackV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "io.sentry" % "sentry-logback" % sentryLogbackV,
-    "org.codehaus.janino" % "janino" % janinoV,
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
     "org.slf4j" % "log4j-over-slf4j" % slf4jV,

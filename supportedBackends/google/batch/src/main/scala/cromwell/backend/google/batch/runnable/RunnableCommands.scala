@@ -172,7 +172,7 @@ object RunnableCommands {
     val base64EncodedScript = Base64.encodeBase64String(withBashShebang.getBytes(StandardCharsets.UTF_8))
     val scriptPath = s"/tmp/$randomUuid.sh"
 
-    s"""python3 -c 'import base64; print(base64.b64decode("$base64EncodedScript").decode("utf-8"));' """ +
+    s"""printf '%s' "$base64EncodedScript" | base64 -d """ +
       s"""> $scriptPath && """ +
       s"chmod u+x $scriptPath && " +
       s"$shell $scriptPath"

@@ -12,40 +12,9 @@
 
     <!-- default properties for FILEROLLER need to be set upfront -->
 
-    <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
-        <expression>!isDefined("FILEROLLER_DIR")</expression>
-    </condition>
-    <if>
-        <then><property name="FILEROLLER_DIR" value="/var/log/cromwell" /></then>
-    </if>
-
-    <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
-        <expression>!isDefined("FILEROLLER_MAXHISTORY")</expression>
-    </condition>
-    <if>
-        <then> <property name="FILEROLLER_MAXHISTORY" value="30" /> </then>
-    </if>
-
-    <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
-        <expression>!isDefined("FILEROLLER_NAME")</expression>
-    </condition>
-    <if>
-        <then> <property name="FILEROLLER_NAME" value="cromwell.log" /> </then>
-    </if>
-
-    <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
-        <expression>!isDefined("FILEROLLER_NAMEPATTERN")</expression>
-    </condition>
-    <if>
-        <then> <property name="FILEROLLER_NAMEPATTERN" value="%d{yyyyMMdd}" /> </then>
-    </if>
-
-    <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
-        <expression>!isDefined("FILEROLLER_SIZECAP")</expression>
-    </condition>
-    <if>
-        <then> <property name="FILEROLLER_SIZECAP" value="0" /> </then>
-    </if>
+    <property name="FILEROLLER_DIR" value="${FILEROLLER_DIR:-/var/log/cromwell}" />
+    <property name="FILEROLLER_MAXHISTORY" value="${FILEROLLER_MAXHISTORY:-30}" />
+    <property name="FILEROLLER_NAME" value="${FILEROLLER_NAME:-cromwell.log}" />
 
     <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
         <expression>propertyEquals("LOG_MODE", "STANDARD") || propertyEquals("LOG_MODE", "standard")</expression>
@@ -91,11 +60,11 @@
 
                 <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
 
-                    <fileNamePattern>${FILEROLLER_DIR}/${FILEROLLER_NAMEPATTERN}-${FILEROLLER_NAME}</fileNamePattern>
+                    <fileNamePattern>${FILEROLLER_DIR}/${FILEROLLER_NAMEPATTERN:-%d{yyyyMMdd}}-${FILEROLLER_NAME}</fileNamePattern>
 
                     <maxHistory>${FILEROLLER_MAXHISTORY}</maxHistory>
 
-                    <totalSizeCap>${FILEROLLER_SIZECAP}</totalSizeCap>
+                    <totalSizeCap>${FILEROLLER_SIZECAP:-0}</totalSizeCap>
 
                 </rollingPolicy>
                 <encoder>

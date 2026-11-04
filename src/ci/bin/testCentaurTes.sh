@@ -31,7 +31,8 @@ startup_funnel() {
     fi
 
     mkdir -p logs
-    nohup "${funnel_path}" server run --config "${funnel_conf}" &> logs/funnel.log &
+    # Otherwise Funnel misparses Docker 29's version error as API version "."
+    DOCKER_API_VERSION=1.44 nohup "${funnel_path}" server run --config "${funnel_conf}" &> logs/funnel.log &
 
     FUNNEL_PID=$!
     export FUNNEL_PID

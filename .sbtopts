@@ -1,3 +1,5 @@
 -J-Xmx4g
 -J-XX:MaxMetaspaceSize=2g
 -J-Xss8m
+# Testcontainers 1.17 defaults to Docker API 1.32, which Docker 29+ rejects (minimum 1.40)
+-J-Dapi.version=1.44

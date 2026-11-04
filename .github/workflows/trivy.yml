@@ -6,6 +6,9 @@ jobs:
     # Parse Dockerfile and build, scan image if a "blessed" base image is not used
     name: DSP AppSec Trivy check
     runs-on: ubuntu-latest
+    env:
+      # sbt-docker 1.9.0 can't parse the image id that BuildKit prints with the containerd image store (ubuntu-26.04+)
+      DOCKER_BUILDKIT: 0
     strategy:
       fail-fast: false
       matrix:

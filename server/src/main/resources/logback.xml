@@ -12,19 +12,14 @@
 
     <!-- default properties for FILEROLLER need to be set upfront -->
 
-    <if condition='property("FILEROLLER_DIR").equals("")'>
-        <then><property name="FILEROLLER_DIR" value="/var/log/cromwell" /></then>
-    </if>
+    <property name="FILEROLLER_DIR" value="${FILEROLLER_DIR:-/var/log/cromwell}" />
+    <property name="FILEROLLER_MAXHISTORY" value="${FILEROLLER_MAXHISTORY:-30}" />
+    <property name="FILEROLLER_NAME" value="${FILEROLLER_NAME:-cromwell.log}" />
 
-    <if condition='property("FILEROLLER_MAXHISTORY").equals("")'>
-        <then> <property name="FILEROLLER_MAXHISTORY" value="30" /> </then>
-    </if>
-
-    <if condition='property("FILEROLLER_NAME").equals("")'>
-        <then> <property name="FILEROLLER_NAME" value="cromwell.log" /> </then>
-    </if>
-
-    <if condition='property("LOG_MODE").toUpperCase().equals("STANDARD")'>
+    <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
+        <expression>propertyEquals("LOG_MODE", "STANDARD") || propertyEquals("LOG_MODE", "standard")</expression>
+    </condition>
+    <if>
         <then>
             <appender name="STANDARD_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
                 <encoder>
@@ -37,7 +32,10 @@
         </else>
     </if>
 
-    <if condition='property("LOG_MODE").toUpperCase().equals("PRETTY")'>
+    <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
+        <expression>propertyEquals("LOG_MODE", "PRETTY") || propertyEquals("LOG_MODE", "pretty")</expression>
+    </condition>
+    <if>
         <then>
             <appender name="PRETTY_APPENDER" class="ch.qos.logback.core.ConsoleAppender">
                 <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
@@ -51,7 +49,10 @@
         </else>
     </if>
 
-    <if condition='property("LOG_MODE").toUpperCase().equals("FILEROLLER")'>
+    <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
+        <expression>propertyEquals("LOG_MODE", "FILEROLLER") || propertyEquals("LOG_MODE", "fileroller")</expression>
+    </condition>
+    <if>
         <then>
             <appender name="FILEROLLER_APPENDER" class="ch.qos.logback.core.rolling.RollingFileAppender">
 
@@ -59,22 +60,11 @@
 
                 <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
 
-                    <if condition='isDefined("FILEROLLER_NAMEPATTERN")'>
-                        <then>
-                            <fileNamePattern>${FILEROLLER_DIR}/${FILEROLLER_NAMEPATTERN}-${FILEROLLER_NAME}</fileNamePattern>
-                        </then>
-                        <else>
-                            <fileNamePattern>${FILEROLLER_DIR}/%d{yyyyMMdd}-${FILEROLLER_NAME}</fileNamePattern>
-                        </else>
-                    </if>
+                    <fileNamePattern>${FILEROLLER_DIR}/${FILEROLLER_NAMEPATTERN:-%d{yyyyMMdd}}-${FILEROLLER_NAME}</fileNamePattern>
 
                     <maxHistory>${FILEROLLER_MAXHISTORY}</maxHistory>
 
-                    <if condition='isDefined("FILEROLLER_SIZECAP")'>
-                        <then>
-                            <totalSizeCap>${FILEROLLER_SIZECAP}</totalSizeCap>
-                        </then>
-                    </if>
+                    <totalSizeCap>${FILEROLLER_SIZECAP:-0}</totalSizeCap>
 
                 </rollingPolicy>
                 <encoder>

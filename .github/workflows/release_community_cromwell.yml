@@ -7,6 +7,9 @@ jobs:
   cromwell-release:
     name: Release Community Cromwell
     runs-on: ubuntu-latest
+    env:
+      # sbt-docker 1.9.0 can't parse the image id that BuildKit prints with the containerd image store (ubuntu-26.04+)
+      DOCKER_BUILDKIT: 0
     steps:
     - uses: sbt/setup-sbt@v1
 

@@ -11,6 +11,9 @@ jobs:
     name: Cromwell Version Auto Updater
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    env:
+      # sbt-docker 1.9.0 can't parse the image id that BuildKit prints with the containerd image store (ubuntu-26.04+)
+      DOCKER_BUILDKIT: 0
     steps:
     - uses: sbt/setup-sbt@v1
     - name: Clone Cromwell

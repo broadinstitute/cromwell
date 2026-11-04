@@ -21,13 +21,12 @@ runs:
         run: |
           git clone --quiet https://github.com/awslabs/git-secrets.git ~/git-secrets
           cd ~/git-secrets
-          git checkout ad82d68ee924906a0401dfd48de5057731a9bc84
+          git checkout 7d6b970cbd3c216353cb22b383b70c150140662e
           sudo make install
         shell: bash
 
       - name: Secrets check
         run: |
-          sudo ln -s "$(which echo)" /usr/local/bin/say
           ./minnie-kenny.sh --force
           git secrets --scan-history
         shell: bash

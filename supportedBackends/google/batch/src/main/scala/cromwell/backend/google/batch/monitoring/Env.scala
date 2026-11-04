@@ -1,6 +1,7 @@
 package cromwell.backend.google.batch.monitoring
 
 import cromwell.backend.BackendJobDescriptor
+import cromwell.backend.google.batch.runnable.RunnableUtils
 
 object Env {
 
@@ -14,7 +15,7 @@ object Env {
   val DiskMounts = "DISK_MOUNTS"
 
   def monitoringImageEnvironment(jobDescriptor: BackendJobDescriptor)(mountPaths: List[String]): Map[String, String] =
-    Map(
+    RunnableUtils.CloudSdkEnvironment ++ Map(
       Env.WorkflowId -> jobDescriptor.workflowDescriptor.id.toString,
       Env.TaskCallName -> jobDescriptor.taskCall.localName,
       Env.TaskCallIndex -> jobDescriptor.key.index.map(_.toString).getOrElse("NA"),

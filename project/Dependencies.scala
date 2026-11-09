@@ -47,13 +47,12 @@ object Dependencies {
   private val jakartaAnnotationV = "1.3.5"
   private val jakartaInjectV = "2.6.1"
   private val jakartaXmlBindApiV = "2.3.2"
-  private val janinoV = "3.1.7"
   private val jsr305V = "3.0.2"
   private val junitV = "4.13.2"
   private val kittensV = "2.3.2"
   private val liquibaseV = "4.8.0"
-  private val logbackV = "1.5.34"
-  private val lz4JavaV = "1.11.0"
+  private val logbackV = "1.6.6"
+  private val lz4JavaV = "1.11.4"
   private val mariadbV = "2.7.4"
   /*
   The StatsD reporter for DropWizard's (Code Hale's) Metrics 3.x still works with Metrics 4.x.
@@ -72,7 +71,7 @@ object Dependencies {
   https://dev.mysql.com/doc/relnotes/mysql/8.0/en/news-8-0-29.html#mysqld-8-0-29-charset
    */
   private val mysqlV = "8.0.28"
-  private val nettyV = "4.2.16.Final"
+  private val nettyV = "4.2.19.Final"
   private val postgresV = "42.4.4"
   private val pprintV = "0.7.3"
   private val rdf4jV = "3.7.1"
@@ -186,7 +185,7 @@ object Dependencies {
   Ex: If one isn't using akka & slf4j, then 'akka-slf4j' isn't required. However, for now, all executables are using
   akka & slf4j... so leaving it.
 
-  Similarly, not _all_ executables/logback.xml configs will need logback-access, raven-logback, janino, etc.
+  Similarly, not _all_ executables/logback.xml configs will need logback-access, raven-logback, etc.
   Still, leaving them as dependencies for simplicity's sake.
    */
   private val slf4jBindingDependencies = List(
@@ -196,7 +195,6 @@ object Dependencies {
     "ch.qos.logback" % "logback-core" % logbackV,
     "com.typesafe.akka" %% "akka-slf4j" % akkaV,
     "io.sentry" % "sentry-logback" % sentryLogbackV,
-    "org.codehaus.janino" % "janino" % janinoV,
     // Replace all log4j usage with slf4j
     // https://www.slf4j.org/legacy.html#log4j-over-slf4j
     "org.slf4j" % "log4j-over-slf4j" % slf4jV,
@@ -631,8 +629,17 @@ object Dependencies {
     "org.scala-lang.modules" %% "scala-collection-compat" % scalaCollectionCompatV,
   )
 
+  /*
+  CVE-2026-73495: http4s-blaze-client 0.21.x (EOL) pulls blaze 0.14.x, which has no fixed release.
+  Force the patched blaze until http4s is upgraded (see the cats-effect 3 comment at the top).
+   */
+  private val blazeOverrides = List(
+    "core",
+    "http",
+  ).map(m => "org.http4s" %% s"blaze-$m" % "0.23.18")
+
   private val asyncHttpClientOverrides = List(
-    "org.asynchttpclient" % "async-http-client" % "2.12.4",
+    "org.asynchttpclient" % "async-http-client" % "2.16.1",
   )
 
 
@@ -670,6 +677,7 @@ object Dependencies {
       rdf4jDependencyOverrides ++
       grpcDependencyOverrides ++
       scalaCollectionCompatOverrides ++
+      blazeOverrides ++
       asyncHttpClientOverrides ++
       nimbusdsOverrides ++
       bouncyCastleOverrides ++

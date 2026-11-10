@@ -454,10 +454,7 @@ trait StandardAsyncExecutionActor
     val rcPath = cwd./(jobPaths.returnCodeFilename)
     updateJobPaths()
 
-    // The standard input redirection gets a '<' that standard output and error do not since standard input is only
-    // redirected if requested. Standard output and error are always redirected but not necessarily to the default
-    // stdout/stderr file names.
-    val stdinRedirection = ""
+    // Standard output and error are always redirected but not necessarily to the default stdout/stderr file names.
     val stdoutRedirection = executionStdout.shellQuote
     val stderrRedirection = executionStderr.shellQuote
     val rcTmpPath = rcPath.plusExt("tmp")
@@ -532,7 +529,7 @@ trait StandardAsyncExecutionActor
           |cd ${cwd.pathAsString}
           |ENVIRONMENT_VARIABLES
           |INSTANTIATED_COMMAND
-          |) $stdinRedirection > "$$$out" 2> "$$$err"
+          |) > "$$$out" 2> "$$$err"
           |echo $$? > $rcTmpPath
           |$emptyDirectoryFillCommand
           |(

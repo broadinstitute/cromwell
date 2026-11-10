@@ -89,7 +89,6 @@ sealed trait CommandTaskDefinition extends TaskDefinition {
     commandTemplateBuilder(taskInputs).toTry("Failed to build command").get
   def prefixSeparator: String
   def commandPartSeparator: String
-  def stdinRedirection: Option[WomExpression]
   def adHocFileCreation: Set[ContainerizedInputExpression]
   def environmentExpressions: Map[String, WomExpression]
   def additionalGlob: Option[WomGlobFile]
@@ -156,7 +155,6 @@ final case class CallableTaskDefinition(name: String,
                                         environmentExpressions: Map[String, WomExpression],
                                         prefixSeparator: String = ".",
                                         commandPartSeparator: String = "",
-                                        stdinRedirection: Option[WomExpression] = None,
                                         additionalGlob: Option[WomGlobFile] = None,
                                         private[wom] val customizedOutputEvaluation: OutputEvaluationFunction =
                                           OutputEvaluationFunction.none,
@@ -186,7 +184,6 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def parameterMeta = callableTaskDefinition.parameterMeta
   override def prefixSeparator = callableTaskDefinition.prefixSeparator
   override def commandPartSeparator = callableTaskDefinition.commandPartSeparator
-  override def stdinRedirection = callableTaskDefinition.stdinRedirection
   override def adHocFileCreation = callableTaskDefinition.adHocFileCreation
   override def environmentExpressions = callableTaskDefinition.environmentExpressions
   override def additionalGlob = callableTaskDefinition.additionalGlob

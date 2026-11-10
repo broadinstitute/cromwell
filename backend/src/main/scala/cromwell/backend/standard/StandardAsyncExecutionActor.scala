@@ -39,7 +39,7 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
 import wom.callable.Callable.InputDefinition
-import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
+import wom.callable.{AdHocValue, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
@@ -738,21 +738,11 @@ trait StandardAsyncExecutionActor
 
       val environmentVariables = callable.environmentExpressions.toList traverse evaluateEnvironmentExpression
 
-      // Build a list of functions from a CommandTaskDefinition to an Option[WomExpression] representing a possible
-      // redirection or override of the filename of a redirection. Evaluate that expression if present and stringify.
-      val List(stdinRedirect) =
-        List[CommandTaskDefinition => Option[WomExpression]](_.stdinRedirection) map {
-          _.apply(callable).traverse[ErrorOr, String] {
-            _.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { _.valueString }
-          }
-        }
-
-      (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect) mapN {
-        (adHocFiles, env, in) =>
+      (adHocFileCreationSideEffectFiles, environmentVariables) mapN {
+        (adHocFiles, env) =>
           instantiatedCommand.copy(
             createdFiles = instantiatedCommand.createdFiles ++ adHocFiles,
-            environmentVariables = env.toMap,
-            evaluatedStdinRedirection = in
+            environmentVariables = env.toMap
           )
       }: ErrorOr[InstantiatedCommand]
     }

@@ -84,6 +84,15 @@ class MaterializeWorkflowDescriptorActorSpec
   private val invalidMemoryRetryOptions5 =
     WorkflowOptions.fromJsonString(""" { "memory_retry_multiplier": true } """).get
 
+  private val validMaxRetriesModeOptions1 =
+    WorkflowOptions.fromJsonString(""" { "max_retries_mode": "AllErrors" } """).get
+  private val validMaxRetriesModeOptions2 =
+    WorkflowOptions.fromJsonString(""" { "max_retries_mode": "KnownErrors" } """).get
+  private val invalidMaxRetriesModeOptions1 =
+    WorkflowOptions.fromJsonString(""" { "max_retries_mode": "invalid value" } """).get
+  private val invalidMaxRetriesModeOptions2 =
+    WorkflowOptions.fromJsonString(""" { "max_retries_mode": true } """).get
+
   before {}
 
   after {
@@ -695,6 +704,27 @@ class MaterializeWorkflowDescriptorActorSpec
                 "It should be of type Double and in the range 1.0 ≤ n ≤ 99.0. Error: NumberFormatException:"
             )
           case Valid(_) => fail(s"memory_retry_multiplier validation for $options succeeded but should have failed!")
+        }
+      }
+    }
+
+    "accept valid max_retries_mode" in {
+      List(validMaxRetriesModeOptions1, validMaxRetriesModeOptions2, validOptions) map { options =>
+        MaterializeWorkflowDescriptorActor.validateMaxRetriesMode(options) match {
+          case Valid(_) => // good!
+          case Invalid(_) => fail(s"max_retries_mode validation for $options failed but should have passed!")
+        }
+      }
+    }
+
+    "reject invalid max_retries_mode" in {
+      List(invalidMaxRetriesModeOptions1, invalidMaxRetriesModeOptions2) map { options =>
+        MaterializeWorkflowDescriptorActor.validateMaxRetriesMode(options) match {
+          case Invalid(errorsList) =>
+            errorsList.head should startWith(
+              "Invalid max retries mode"
+            )
+          case Valid(_) => fail(s"max_retries_mode validation for $options succeeded but should have failed!")
         }
       }
     }

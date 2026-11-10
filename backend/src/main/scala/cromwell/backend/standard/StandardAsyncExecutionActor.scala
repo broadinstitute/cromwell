@@ -29,6 +29,7 @@ import cromwell.backend.validation._
 import cromwell.core._
 import cromwell.core.io.{AsyncIoActorClient, DefaultIoCommandBuilder, IoCommandBuilder}
 import cromwell.core.path.Path
+import cromwell.core.retry._
 import cromwell.services.keyvalue.KeyValueServiceActor._
 import cromwell.services.keyvalue.KvClient
 import cromwell.services.metadata.CallMetadataKeys
@@ -304,6 +305,25 @@ trait StandardAsyncExecutionActor
           None
       }
     }
+
+  lazy val maxRetriesMode: MaxRetriesMode = {
+    val maxRetriesModeOption: Option[MaxRetriesMode] =
+      jobDescriptor.workflowDescriptor.getWorkflowOption(WorkflowOptions.MaxRetriesMode) flatMap { value: String =>
+        MaxRetriesMode.tryParse(value) match {
+          case Success(v) => Option(v)
+          case Failure(e) =>
+            // should not happen, this case should have been screened for and fast-failed during workflow materialization.
+            log.error(
+              e,
+              s"Programmer error: unexpected failure attempting to convert value for workflow option " +
+                s"'${WorkflowOptions.MaxRetriesMode.name}' to MaxRetriesMode."
+            )
+            Option(MaxRetriesMode.DefaultMode)
+        }
+      }
+
+    maxRetriesModeOption.getOrElse(MaxRetriesMode.DefaultMode)
+  }
 
   lazy val memoryRetryRequested: Boolean = memoryRetryFactor.nonEmpty
 
@@ -1143,8 +1163,17 @@ trait StandardAsyncExecutionActor
 
         failedRetryableOrNonRetryable match {
           case failedNonRetryable: FailedNonRetryableExecutionHandle if previousFailedRetries < maxRetries =>
-            // The user asked us to retry finitely for them, possibly with a memory modification
-            evaluateFailureRetry(failedNonRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, memoryRetry)
+            maxRetriesMode match {
+              case AllErrors =>
+                // The user asked us to retry finitely for them, possibly with a memory modification
+                evaluateFailureRetry(failedNonRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, memoryRetry)
+              case KnownErrors if memoryRetry.oomDetected =>
+                // The user asked us to retry finitely for them, with a memory modification
+                evaluateFailureRetry(failedNonRetryable, kvsFromPreviousAttempt, kvsForNextAttempt, memoryRetry)
+              case _ =>
+                // No reason to retry
+                Future.successful(failedNonRetryable)
+            }
           case failedNonRetryable: FailedNonRetryableExecutionHandle =>
             // No reason to retry
             Future.successful(failedNonRetryable)

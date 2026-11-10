@@ -417,8 +417,7 @@ trait StandardAsyncExecutionActor
 
   def executionStdin: Option[String] = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
   def executionStdout: String = jobPaths.defaultStdoutFilename |> absolutizeContainerPath
-  def executionStderr: String =
-    instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
+  def executionStderr: String = jobPaths.defaultStderrFilename |> absolutizeContainerPath
 
   /*
    * Ensures the standard paths are correct w.r.t overridden paths. This is called in two places: when generating the command and

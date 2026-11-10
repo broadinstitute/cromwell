@@ -427,20 +427,9 @@ trait StandardAsyncExecutionActor
    */
   private var jobPathsUpdated: Boolean = false
   def updateJobPaths(): Unit = if (!jobPathsUpdated) {
-    // .get's are safe on stdout and stderr after falling back to default names above.
-    jobPaths.standardPaths = StandardPaths(
-      output = hostPathFromContainerPath(executionStdout),
-      error = hostPathFromContainerPath(executionStderr)
-    )
     // Re-publish stdout and stderr paths that were possibly just updated.
     tellMetadata(jobPaths.standardOutputAndErrorPaths)
     jobPathsUpdated = true
-  }
-
-  def hostPathFromContainerPath(string: String): Path = {
-    val cwdString = cwd.pathAsString.ensureSlashed
-    val relativePath = string.stripPrefix(cwdString)
-    jobPaths.callExecutionRoot.resolve(relativePath)
   }
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */

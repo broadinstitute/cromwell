@@ -473,8 +473,6 @@ trait StandardAsyncExecutionActor
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
     val (out, err) = (s"out$shortId", s"err$shortId")
 
-    val dockerOutputDir = ""
-
     // Only adjust the temporary directory permissions if this is executing under Docker.
     val tmpDirPermissionsAdjustment = if (isDockerRun) s"""chmod 777 "$$tmpDir"""" else ""
 
@@ -508,7 +506,6 @@ trait StandardAsyncExecutionActor
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
     (errorOrDirectoryOutputs, errorOrGlobFiles, errorOrPreamble).mapN((directoryOutputs, globFiles, preamble) =>
       s"""|#!$jobShell
-          |DOCKER_OUTPUT_DIR_LINK
           |cd ${cwd.pathAsString}
           |tmpDir=$temporaryDirectory
           |$tmpDirPermissionsAdjustment
@@ -543,7 +540,6 @@ trait StandardAsyncExecutionActor
         .replace("ENVIRONMENT_VARIABLES", environmentVariables)
         .replace("INSTANTIATED_COMMAND", commandString)
         .replace("SCRIPT_EPILOGUE", scriptEpilogue)
-        .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir)
         .replace("SCRIPT_CLOSURE", scriptClosure.getOrElse(""))
     )
   }

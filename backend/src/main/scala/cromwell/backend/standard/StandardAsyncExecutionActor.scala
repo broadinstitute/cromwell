@@ -415,7 +415,6 @@ trait StandardAsyncExecutionActor
   private def absolutizeContainerPath(path: String): String =
     if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
 
-  def executionStdin: Option[String] = None
   def executionStdout: String = jobPaths.defaultStdoutFilename |> absolutizeContainerPath
   def executionStderr: String = jobPaths.defaultStderrFilename |> absolutizeContainerPath
 
@@ -458,7 +457,7 @@ trait StandardAsyncExecutionActor
     // The standard input redirection gets a '<' that standard output and error do not since standard input is only
     // redirected if requested. Standard output and error are always redirected but not necessarily to the default
     // stdout/stderr file names.
-    val stdinRedirection = executionStdin.map("< " + _.shellQuote).getOrElse("")
+    val stdinRedirection = ""
     val stdoutRedirection = executionStdout.shellQuote
     val stderrRedirection = executionStderr.shellQuote
     val rcTmpPath = rcPath.plusExt("tmp")

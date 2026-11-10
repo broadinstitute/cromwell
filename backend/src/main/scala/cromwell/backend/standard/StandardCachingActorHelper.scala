@@ -67,19 +67,38 @@ trait StandardCachingActorHelper extends JobCachingActorHelper {
   lazy val jobPaths: JobPaths = standardInitializationData.workflowPaths.toJobPaths(jobDescriptor)
 
   /**
-    * Returns the metadata key values to store before executing a job.
+    * Returns the metadata key values to store.
     *
-    * @return the metadata key values to store before executing a job.
+    * @param isCallCacheCopyAttempt are the keys for a call cache attempt.
+    * @return the metadata key values to store.
     */
-  def startMetadataKeyValues: Map[String, Any] = {
+  def metadataKeyValues(isCallCacheCopyAttempt: Boolean): Map[String, Any] = {
     val runtimeAttributesMetadata = RuntimeAttributesValidation.toMetadataStrings(validatedRuntimeAttributes) map {
       case (key, value) => (s"${CallMetadataKeys.RuntimeAttributes}:$key", value)
     }
 
-    val fileMetadata = jobPaths.metadataPaths
+    val fileMetadata =
+      if (isCallCacheCopyAttempt)
+        jobPaths.forCallCacheCopyAttempts.metadataPaths
+      else
+        jobPaths.metadataPaths
 
     nonStandardMetadata ++ runtimeAttributesMetadata ++ fileMetadata
   }
+
+  /**
+    * Returns the metadata key values to store before executing a job.
+    *
+    * @return the metadata key values to store before executing a job.
+    */
+  def startMetadataKeyValues: Map[String, Any] = metadataKeyValues(isCallCacheCopyAttempt = false)
+
+  /**
+    * Returns the metadata key values to store for a call cached job.
+    *
+    * @return the metadata key values to store for a call cached job.
+    */
+  def cachedMetadataKeyValues: Map[String, Any] = metadataKeyValues(isCallCacheCopyAttempt = true)
 
   /**
     * Returns any custom metadata for the backend.

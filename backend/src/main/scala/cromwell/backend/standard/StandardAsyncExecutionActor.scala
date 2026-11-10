@@ -473,9 +473,7 @@ trait StandardAsyncExecutionActor
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
     val (out, err) = (s"out$shortId", s"err$shortId")
 
-    val dockerOutputDir = jobDescriptor.taskCall.callable.dockerOutputDirectory map { d =>
-      s"ln -s $cwd $d"
-    } getOrElse ""
+    val dockerOutputDir = ""
 
     // Only adjust the temporary directory permissions if this is executing under Docker.
     val tmpDirPermissionsAdjustment = if (isDockerRun) s"""chmod 777 "$$tmpDir"""" else ""

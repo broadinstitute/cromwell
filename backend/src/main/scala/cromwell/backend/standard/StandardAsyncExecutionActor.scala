@@ -415,7 +415,7 @@ trait StandardAsyncExecutionActor
   private def absolutizeContainerPath(path: String): String =
     if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
 
-  def executionStdin: Option[String] = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
+  def executionStdin: Option[String] = None
   def executionStdout: String = jobPaths.defaultStdoutFilename |> absolutizeContainerPath
   def executionStderr: String = jobPaths.defaultStderrFilename |> absolutizeContainerPath
 

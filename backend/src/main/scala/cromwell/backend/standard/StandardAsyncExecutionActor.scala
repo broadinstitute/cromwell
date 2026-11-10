@@ -454,7 +454,7 @@ trait StandardAsyncExecutionActor
     val rcPath = cwd./(jobPaths.returnCodeFilename)
     updateJobPaths()
 
-    // Standard output and error are always redirected but not necessarily to the default stdout/stderr file names.
+    // Standard output and error are always redirected to the default stdout/stderr file names.
     val stdoutRedirection = executionStdout.shellQuote
     val stderrRedirection = executionStderr.shellQuote
     val rcTmpPath = rcPath.plusExt("tmp")
@@ -501,8 +501,9 @@ trait StandardAsyncExecutionActor
       }
     }
 
-    // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
-    // stdout and stderr for PAPI to periodically upload to cloud storage.
+    // The `tee` trickery below lets the command's stdout/stderr land in the known stdout/stderr files while also
+    // streaming to the regular stdout/stderr. For example, in GCP Batch the files are uploaded to GCS, while the
+    // stream is sent to Cloud Logging.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
     (errorOrDirectoryOutputs, errorOrGlobFiles, errorOrPreamble).mapN((directoryOutputs, globFiles, preamble) =>
       s"""|#!$jobShell

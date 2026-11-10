@@ -72,8 +72,6 @@ final case class ResolvedImportRecord(importPath: String) extends AnyVal
   * @param environmentVariables Key/value environment variable pairs.
   * @param createdFiles Any files created as side effects of instantiating the command.
   * @param evaluatedStdinRedirection An optional redirection of standard input from a stringified filename.
-  * @param evaluatedStdoutOverride An optional override of standard output to a specified filename. Standard output will
-  *                       always be redirected to a file, this parameter only controls the name of the file.
   * @param evaluatedStderrOverride An optional override of standard error to a specified filename. Standard error will
   *                       always be redirected to a file, this parameter only controls the name of the file.
   * @param preprocessedInputs A List of tuples of preprocessed inputs. This is a List rather than a Map because this class
@@ -86,7 +84,6 @@ final case class InstantiatedCommand(commandString: String,
                                      environmentVariables: Map[String, String] = Map.empty,
                                      createdFiles: List[CommandSetupSideEffectFile] = List.empty,
                                      evaluatedStdinRedirection: Option[String] = None,
-                                     evaluatedStdoutOverride: Option[String] = None,
                                      evaluatedStderrOverride: Option[String] = None,
                                      preprocessedInputs: List[(LocalName, WomValue)] = List.empty,
                                      valueMappedPreprocessedInputs: List[(LocalName, WomValue)] = List.empty

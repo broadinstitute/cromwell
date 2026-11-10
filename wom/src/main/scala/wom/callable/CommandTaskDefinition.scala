@@ -83,7 +83,6 @@ sealed trait TaskDefinition extends Callable {
   */
 sealed trait CommandTaskDefinition extends TaskDefinition {
   def dockerOutputDirectory: Option[String]
-  def stdoutOverride: Option[WomExpression]
   def stderrOverride: Option[WomExpression]
   def commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]]
   // TODO ErrorOrify this ? Throw for now
@@ -159,7 +158,6 @@ final case class CallableTaskDefinition(name: String,
                                         prefixSeparator: String = ".",
                                         commandPartSeparator: String = "",
                                         stdinRedirection: Option[WomExpression] = None,
-                                        stdoutOverride: Option[WomExpression] = None,
                                         stderrOverride: Option[WomExpression] = None,
                                         additionalGlob: Option[WomGlobFile] = None,
                                         private[wom] val customizedOutputEvaluation: OutputEvaluationFunction =
@@ -191,7 +189,6 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def prefixSeparator = callableTaskDefinition.prefixSeparator
   override def commandPartSeparator = callableTaskDefinition.commandPartSeparator
   override def stdinRedirection = callableTaskDefinition.stdinRedirection
-  override def stdoutOverride = callableTaskDefinition.stdoutOverride
   override def stderrOverride = callableTaskDefinition.stderrOverride
   override def adHocFileCreation = callableTaskDefinition.adHocFileCreation
   override def environmentExpressions = callableTaskDefinition.environmentExpressions

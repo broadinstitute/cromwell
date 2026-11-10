@@ -742,9 +742,8 @@ trait StandardAsyncExecutionActor
 
       // Build a list of functions from a CommandTaskDefinition to an Option[WomExpression] representing a possible
       // redirection or override of the filename of a redirection. Evaluate that expression if present and stringify.
-      val List(stdinRedirect, stdoutOverride, stderrOverride) =
+      val List(stdinRedirect, stderrOverride) =
         List[CommandTaskDefinition => Option[WomExpression]](_.stdinRedirection,
-                                                             _.stdoutOverride,
                                                              _.stderrOverride
         ) map {
           _.apply(callable).traverse[ErrorOr, String] {
@@ -752,13 +751,12 @@ trait StandardAsyncExecutionActor
           }
         }
 
-      (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect, stdoutOverride, stderrOverride) mapN {
-        (adHocFiles, env, in, out, err) =>
+      (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect, stderrOverride) mapN {
+        (adHocFiles, env, in, err) =>
           instantiatedCommand.copy(
             createdFiles = instantiatedCommand.createdFiles ++ adHocFiles,
             environmentVariables = env.toMap,
             evaluatedStdinRedirection = in,
-            evaluatedStdoutOverride = out,
             evaluatedStderrOverride = err
           )
       }: ErrorOr[InstantiatedCommand]

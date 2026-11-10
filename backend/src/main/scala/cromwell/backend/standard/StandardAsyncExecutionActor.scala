@@ -734,12 +734,11 @@ trait StandardAsyncExecutionActor
 
       val environmentVariables = callable.environmentExpressions.toList traverse evaluateEnvironmentExpression
 
-      (adHocFileCreationSideEffectFiles, environmentVariables) mapN {
-        (adHocFiles, env) =>
-          instantiatedCommand.copy(
-            createdFiles = instantiatedCommand.createdFiles ++ adHocFiles,
-            environmentVariables = env.toMap
-          )
+      (adHocFileCreationSideEffectFiles, environmentVariables) mapN { (adHocFiles, env) =>
+        instantiatedCommand.copy(
+          createdFiles = instantiatedCommand.createdFiles ++ adHocFiles,
+          environmentVariables = env.toMap
+        )
       }: ErrorOr[InstantiatedCommand]
     }
 

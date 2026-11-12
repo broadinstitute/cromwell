@@ -655,6 +655,11 @@ object Dependencies {
     "com.google.protobuf" % "protobuf-java" % "3.25.5",
   )
 
+  // CVE-2026-59990
+  private val jawnOverrides = List(
+    "org.typelevel" %% "jawn-parser" % "1.7.0",
+  )
+
   val jacksonDependencyOverrides: List[ModuleID] = List(
     "tools.jackson.core" % "jackson-core" % jacksonV
   )
@@ -681,7 +686,8 @@ object Dependencies {
       asyncHttpClientOverrides ++
       nimbusdsOverrides ++
       bouncyCastleOverrides ++
-      protobufJavaOverrides
+      protobufJavaOverrides ++
+      jawnOverrides
 
   /*
   Libraries that should be globally excluded.

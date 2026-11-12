@@ -90,14 +90,8 @@ object WebServiceUtils extends WebServiceUtils {
       completeResponse(statusCode, ContentTypes.`application/json`, prettyPrint(APIResponse.error(e)), warnings)
   }
 
-  // Layout of FailureResponse that API clients are used to: fields in declaration order, array elements one per line.
-  // spray's JsObject sorts its fields alphabetically and PrettyPrinter keeps arrays on one line.
+  // spray's PrettyPrinter keeps arrays on one line, but API clients are used to one element per line.
   private object ArrayPerLinePrettyPrinter extends PrettyPrinter {
-    private val fieldOrder = List("status", "message", "errors")
-
-    override protected def organiseMembers(members: Map[String, JsValue]): Seq[(String, JsValue)] =
-      members.toSeq.sortBy { case (name, _) => fieldOrder.indexOf(name) }
-
     override protected def printArray(elements: Seq[JsValue], sb: java.lang.StringBuilder, indent: Int): Unit = {
       sb.append('[')
       printSeq(elements, { sb.append(','); () }) { e =>

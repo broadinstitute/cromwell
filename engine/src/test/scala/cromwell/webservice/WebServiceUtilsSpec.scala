@@ -16,19 +16,19 @@ class WebServiceUtilsSpec extends AnyFlatSpec with ScalatestRouteTest with Match
     Get() ~> ex.failRequest(StatusCodes.BadRequest) ~> check {
       responseAs[String] shouldBe
         """{
-          |  "status": "fail",
-          |  "message": "Bad \"thing\"\nhappened: é",
           |  "errors": [
           |    "first",
           |    "second \"quoted\""
-          |  ]
+          |  ],
+          |  "message": "Bad \"thing\"\nhappened: é",
+          |  "status": "fail"
           |}""".stripMargin
     }
     Get() ~> new RuntimeException("solo").errorRequest(StatusCodes.InternalServerError) ~> check {
-      responseAs[String] shouldBe "{\n  \"status\": \"error\",\n  \"message\": \"solo\"\n}"
+      responseAs[String] shouldBe "{\n  \"message\": \"solo\",\n  \"status\": \"error\"\n}"
     }
     Get() ~> AggregatedMessageException("none", List.empty).failRequest(StatusCodes.BadRequest) ~> check {
-      responseAs[String] shouldBe "{\n  \"status\": \"fail\",\n  \"message\": \"none\",\n  \"errors\": [\n  ]\n}"
+      responseAs[String] shouldBe "{\n  \"errors\": [\n  ],\n  \"message\": \"none\",\n  \"status\": \"fail\"\n}"
     }
   }
 }

@@ -62,8 +62,8 @@ class WomtoolRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest with
         status should be(StatusCodes.BadRequest)
 
         assertResult(s"""{
-                        |  "status": "fail",
-                        |  "message": "as requested, failing to describe"
+                        |  "message": "as requested, failing to describe",
+                        |  "status": "fail"
                         |}""".stripMargin) {
           responseAs[String]
         }

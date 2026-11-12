@@ -398,12 +398,9 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
       case Success(s) =>
         s match {
           case Some(configs) =>
-            import _root_.io.circe.config.parser
-            import _root_.io.circe.generic.auto._
+            import net.ceedubs.ficus.readers.ArbitraryTypeReader._
 
-            // Unfortunately the `as` method of `config` collides with the Ficus method of the same name, so invoke its
-            // equivalent using clunkier syntax:
-            configs traverse parser.decode[ManifestFile] match {
+            configs.traverse(config => Try(config.as[ManifestFile])).toEither match {
               case Right(manifests) =>
                 logger.info(
                   s"Reference disks feature for $backendName backend is configured with the following reference images: ${manifests.map(_.imageIdentifier).mkString(", ")}."

@@ -9,7 +9,7 @@ files {
 submit {
   statusCode: 400
   message: """{
-  "status": "fail",
-  "message": "Error(s): Submitted input '\"this_is_not_a_valid_json_object\"' of type JsString is not a valid JSON object."
+  "message": "Error(s): Input file is not valid JSON. Inputs data: 'this_is_not_a_valid_json_object\n'. Error: JsonParser.ParsingException: Unexpected character 'h' at input index 0 (line 1, position 1), expected JSON Value:\nthis_is_not_a_valid_json_object\n^\n.",
+  "status": "fail"
 }"""
 }

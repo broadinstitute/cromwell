@@ -1,6 +1,6 @@
 package cromwell.services.womtool.models
 
-import spray.json.{JsString, JsValue, JsonWriter}
+import spray.json.{JsonWriter, JsString, JsValue}
 import wom.expression.WomExpression
 
 object WomExpressionJsonSupport {

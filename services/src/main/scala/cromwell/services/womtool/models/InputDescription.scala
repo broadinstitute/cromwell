@@ -2,7 +2,7 @@ package cromwell.services.womtool.models
 
 import cromwell.services.womtool.models.WomExpressionJsonSupport.womExpressionEncoder
 import cromwell.services.womtool.models.WomTypeJsonSupport.womTypeEncoder
-import spray.json.{JsBoolean, JsNull, JsObject, JsString, JsValue, JsonWriter}
+import spray.json.{JsBoolean, JsNull, JsObject, JsonWriter, JsString, JsValue}
 import wom.expression.WomExpression
 import wom.types.WomType
 

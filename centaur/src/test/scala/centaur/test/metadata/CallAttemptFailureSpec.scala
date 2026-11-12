@@ -13,7 +13,8 @@ class CallAttemptFailureSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   it should "parse metadata" in {
     val res = CallAttemptFailure.buildFailures(failingInSeveralWaysMetadataJson).unsafeRunSync()
     res.size should be(10)
-    val (firsts, lasts) = res.partition(_.callFullyQualifiedName == "FailingInSeveralWays.ScatterJobThatWillFailSometimes")
+    val (firsts, lasts) =
+      res.partition(_.callFullyQualifiedName == "FailingInSeveralWays.ScatterJobThatWillFailSometimes")
     firsts.size should be(9)
     val last = lasts.head
     firsts.map(_.callFullyQualifiedName).distinct should contain theSameElementsAs

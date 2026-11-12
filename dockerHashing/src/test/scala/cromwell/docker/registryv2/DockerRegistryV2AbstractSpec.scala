@@ -40,7 +40,9 @@ class DockerRegistryV2AbstractSpec extends AnyFlatSpec with CromwellTimeoutSpec 
 
   private def vendorResponse(body: String): Response[IO] = {
     val mediaType = MediaType.parse(DockerRegistryV2Abstract.DockerManifestV2MediaType).toOption.get
-    Response[IO](headers = Headers.of(`Content-Type`(mediaType)), body = fs2.Stream.emits(body.getBytes("UTF-8")).covary[IO])
+    Response[IO](headers = Headers.of(`Content-Type`(mediaType)),
+                 body = fs2.Stream.emits(body.getBytes("UTF-8")).covary[IO]
+    )
   }
 
   it should "decodeVendorManifest" in {

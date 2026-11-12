@@ -205,35 +205,36 @@ case object WorkflowDescription {
                             isRunnableWorkflow
     )
 
-  implicit val workflowDescriptionFormat: RootJsonFormat[WorkflowDescription] = new RootJsonFormat[WorkflowDescription] {
-    override def write(a: WorkflowDescription): JsValue = JsObject(
-      "valid" -> JsBoolean(a.valid),
-      "errors" -> JsArray(a.errors.map(JsString(_)).toVector),
-      "validWorkflow" -> JsBoolean(a.validWorkflow),
-      "name" -> JsString(a.name),
-      "inputs" -> JsArray(a.inputs.map(inputDescriptionWriter.write).toVector),
-      "outputs" -> JsArray(a.outputs.map(outputDescriptionWriter.write).toVector),
-      "images" -> JsArray(a.images.map(JsString(_)).toVector),
-      "submittedDescriptorType" -> stringMap(a.submittedDescriptorType),
-      "importedDescriptorTypes" -> JsArray(a.importedDescriptorTypes.map(stringMap).toVector),
-      "meta" -> metaMap(a.meta),
-      "parameterMeta" -> metaMap(a.parameterMeta),
-      "isRunnableWorkflow" -> JsBoolean(a.isRunnableWorkflow)
-    )
-
-    // We need this reader to exist for `responseAs[WorkflowDescription]` to work in `cromwell.webservice.routes.WomtoolRouteSupportSpec`
-    // That test only inspects some fields in the JSON, so this works adequately for now.
-    override def read(json: JsValue): WorkflowDescription = {
-      val fields = json.asJsObject.fields
-      WorkflowDescription(
-        valid = fields("valid").convertTo[Boolean],
-        errors = fields("errors").convertTo[List[String]],
-        validWorkflow = fields("validWorkflow").convertTo[Boolean]
+  implicit val workflowDescriptionFormat: RootJsonFormat[WorkflowDescription] =
+    new RootJsonFormat[WorkflowDescription] {
+      override def write(a: WorkflowDescription): JsValue = JsObject(
+        "valid" -> JsBoolean(a.valid),
+        "errors" -> JsArray(a.errors.map(JsString(_)).toVector),
+        "validWorkflow" -> JsBoolean(a.validWorkflow),
+        "name" -> JsString(a.name),
+        "inputs" -> JsArray(a.inputs.map(inputDescriptionWriter.write).toVector),
+        "outputs" -> JsArray(a.outputs.map(outputDescriptionWriter.write).toVector),
+        "images" -> JsArray(a.images.map(JsString(_)).toVector),
+        "submittedDescriptorType" -> stringMap(a.submittedDescriptorType),
+        "importedDescriptorTypes" -> JsArray(a.importedDescriptorTypes.map(stringMap).toVector),
+        "meta" -> metaMap(a.meta),
+        "parameterMeta" -> metaMap(a.parameterMeta),
+        "isRunnableWorkflow" -> JsBoolean(a.isRunnableWorkflow)
       )
-    }
 
-    private def stringMap(m: Map[String, String]): JsObject = JsObject(m.map { case (k, v) => k -> JsString(v) })
-    private def metaMap(m: Map[String, MetaValueElement]): JsObject =
-      JsObject(m.map { case (k, v) => k -> metaValueElementEncoder.write(v) })
-  }
+      // We need this reader to exist for `responseAs[WorkflowDescription]` to work in `cromwell.webservice.routes.WomtoolRouteSupportSpec`
+      // That test only inspects some fields in the JSON, so this works adequately for now.
+      override def read(json: JsValue): WorkflowDescription = {
+        val fields = json.asJsObject.fields
+        WorkflowDescription(
+          valid = fields("valid").convertTo[Boolean],
+          errors = fields("errors").convertTo[List[String]],
+          validWorkflow = fields("validWorkflow").convertTo[Boolean]
+        )
+      }
+
+      private def stringMap(m: Map[String, String]): JsObject = JsObject(m.map { case (k, v) => k -> JsString(v) })
+      private def metaMap(m: Map[String, MetaValueElement]): JsObject =
+        JsObject(m.map { case (k, v) => k -> metaValueElementEncoder.write(v) })
+    }
 }

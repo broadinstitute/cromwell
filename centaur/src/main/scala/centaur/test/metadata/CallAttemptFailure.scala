@@ -51,12 +51,19 @@ object CallAttemptFailure {
   private def field[A: JsonReader](json: JsObject, name: String): Option[A] =
     json.fields.get(name).filter(_ != JsNull).map(_.convertTo[A])
 
-  private def decodeFromCallAttempt(workflowId: String, callName: String, json: JsObject): Option[CallAttemptFailure] = {
+  private def decodeFromCallAttempt(workflowId: String,
+                                    callName: String,
+                                    json: JsObject
+  ): Option[CallAttemptFailure] = {
     val shardIndexOption = field[Int](json, "shardIndex")
     val attemptOption = field[Int](json, "attempt")
-    val messageOption = json.fields.get("failures").collect { case JsArray(failures) if failures.nonEmpty =>
-      field[String](failures.head.asJsObject, "message")
-    }.flatten
+    val messageOption = json.fields
+      .get("failures")
+      .collect {
+        case JsArray(failures) if failures.nonEmpty =>
+          field[String](failures.head.asJsObject, "message")
+      }
+      .flatten
     val startOption = field[OffsetDateTime](json, "start")
     val endOption = field[OffsetDateTime](json, "end")
     val stdoutOption = field[String](json, "stdout")

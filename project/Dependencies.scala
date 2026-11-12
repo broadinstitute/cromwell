@@ -27,6 +27,9 @@ object Dependencies {
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
   // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
+  private val googleOauth2ApiV = "v1-rev127-1.22.0"
+  private val googleBigQueryApiV = "v2-rev377-1.22.0"
+  private val googleComputeApiV = "v1-rev152-1.22.0"
   private val googleCloudKmsV = "v1-rev20230421-2.0.0"
   private val googleCloudMonitoringV = "3.2.5"
   private val googleCloudNioV = "0.127.18"
@@ -99,7 +102,6 @@ object Dependencies {
   private val testContainersScalaV = "0.40.10"
   private val tikaV = "3.2.3"
   private val typesafeConfigV = "1.4.2"
-  private val workbenchGoogleV = "0.21-5c9c4f6" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/google/CHANGELOG.md
   private val workbenchModelV = "0.15-f9f0d4c" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/model/CHANGELOG.md
   private val workbenchUtilV = "0.6-65bba14" // via: https://github.com/broadinstitute/workbench-libs/blob/develop/util/CHANGELOG.md
 
@@ -295,11 +297,12 @@ object Dependencies {
       exclude("com.google.cloud.datastore", "datastore-v1-protos")
       exclude("javax.inject", "javax.inject")
       exclude("org.apache.httpcomponents", "httpclient"),
-    "org.broadinstitute.dsde.workbench" %% "workbench-google" % workbenchGoogleV
-      exclude("com.google.apis", "google-api-services-genomics"),
     "org.apache.httpcomponents.client5" % "httpclient5" % apacheHttpClient5V,
   "com.google.apis" % "google-api-services-cloudkms" % googleCloudKmsV
       exclude("com.google.guava", "guava-jdk5"),
+    "com.google.apis" % "google-api-services-oauth2" % googleOauth2ApiV,
+    "com.google.apis" % "google-api-services-bigquery" % googleBigQueryApiV,
+    "com.google.apis" % "google-api-services-compute" % googleComputeApiV,
     "org.glassfish.hk2.external" % "jakarta.inject" % jakartaInjectV,
   )
 
@@ -491,7 +494,6 @@ object Dependencies {
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "org.typelevel" %% "cats-effect" % catsEffectV,
     "com.iheart" %% "ficus" % ficusV,
-    "com.softwaremill.sttp" %% "circe" % sttpV,
     "com.github.scopt" %% "scopt" % scoptV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
     "io.spray" %% "spray-json" % sprayJsonV,

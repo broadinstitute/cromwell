@@ -32,7 +32,6 @@ import cromwell.api.model.{
 }
 import cromwell.cloudsupport.aws.AwsConfiguration
 import cromwell.cloudsupport.gcp.GoogleConfiguration
-import io.circe.parser._
 import mouse.all._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import software.amazon.awssdk.auth.credentials.{AwsBasicCredentials, StaticCredentialsProvider}
@@ -333,10 +332,10 @@ object Operations extends StrictLogging {
                 metadata =>
                   val failuresString = if (expectedStatus == Succeeded) {
                     (for {
-                      metadataJson <- parse(metadata.value).toOption
-                      asObject <- metadataJson.asObject
-                      failures <- asObject.toMap.get("failures")
-                    } yield s" Metadata 'failures' content: ${failures.spaces2}")
+                      metadataJson <- Try(metadata.value.parseJson).toOption
+                      asObject <- Option(metadataJson).collect { case o: JsObject => o }
+                      failures <- asObject.fields.get("failures")
+                    } yield s" Metadata 'failures' content: ${failures.prettyPrint}")
                       .getOrElse("No additional failure information found in metadata.")
                   } else {
                     ""

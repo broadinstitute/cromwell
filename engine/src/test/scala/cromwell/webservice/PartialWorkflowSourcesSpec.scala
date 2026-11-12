@@ -116,4 +116,9 @@ class PartialWorkflowSourcesSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
     actual should be(expected)
   }
+
+  it should "blankInputsUnchanged" in {
+    PartialWorkflowSources.workflowInputsValidation("  ") should be(Vector("false").validNel)
+    PartialWorkflowSources.workflowInputsValidation("") should be(Vector("false").validNel)
+  }
 }

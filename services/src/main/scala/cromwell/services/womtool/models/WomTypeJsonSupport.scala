@@ -1,63 +1,63 @@
 package cromwell.services.womtool.models
 
-import io.circe.{Encoder, Json}
+import spray.json._
 import wom.types._
 
 object WomTypeJsonSupport {
 
   // We use `wom.types.WomType.callCachingName` instead of `wom.types.WomType.displayName` here because
   // the type hierarchy is designed for machine readability and should similarly be stable.
-  implicit val womTypeEncoder: Encoder[WomType] = new Encoder[WomType] {
-    final def apply(a: WomType): Json =
+  implicit val womTypeEncoder: JsonWriter[WomType] = new JsonWriter[WomType] {
+    final def write(a: WomType): JsValue =
       a match {
         case a: WomMapType =>
-          Json.obj(
-            ("typeName", Json.fromString("Map")),
+          JsObject(
+            ("typeName", JsString("Map")),
             ("mapType",
-             Json.obj(
-               ("keyType", womTypeEncoder.apply(a.keyType)),
-               ("valueType", womTypeEncoder.apply(a.valueType))
+             JsObject(
+               ("keyType", write(a.keyType)),
+               ("valueType", write(a.valueType))
              )
             )
           )
         case a: WomPairType =>
-          Json.obj(
-            ("typeName", Json.fromString("Pair")),
+          JsObject(
+            ("typeName", JsString("Pair")),
             ("pairType",
-             Json.obj(
-               ("leftType", womTypeEncoder.apply(a.leftType)),
-               ("rightType", womTypeEncoder.apply(a.rightType))
+             JsObject(
+               ("leftType", write(a.leftType)),
+               ("rightType", write(a.rightType))
              )
             )
           )
         case a: WomArrayType =>
-          Json.obj(
-            ("typeName", Json.fromString("Array")),
-            ("arrayType", womTypeEncoder.apply(a.memberType)),
-            ("nonEmpty", Json.fromBoolean(a.guaranteedNonEmpty))
+          JsObject(
+            ("typeName", JsString("Array")),
+            ("arrayType", write(a.memberType)),
+            ("nonEmpty", JsBoolean(a.guaranteedNonEmpty))
           )
         case a: WomCompositeType =>
-          Json.obj(
-            ("typeName", Json.fromString("Object")),
+          JsObject(
+            ("typeName", JsString("Object")),
             ("objectFieldTypes",
-             Json.fromValues(
-               a.typeMap map { entry =>
-                 Json.obj(
-                   ("fieldName", Json.fromString(entry._1)),
-                   ("fieldType", womTypeEncoder.apply(entry._2))
+             JsArray(
+               a.typeMap.toVector map { entry =>
+                 JsObject(
+                   ("fieldName", JsString(entry._1)),
+                   ("fieldType", write(entry._2))
                  )
                }
              )
             )
           )
         case a: WomOptionalType =>
-          Json.obj(
-            ("typeName", Json.fromString("Optional")),
-            ("optionalType", womTypeEncoder.apply(a.memberType))
+          JsObject(
+            ("typeName", JsString("Optional")),
+            ("optionalType", write(a.memberType))
           )
         case _ =>
-          Json.obj(
-            ("typeName", Json.fromString(a.stableName))
+          JsObject(
+            ("typeName", JsString(a.stableName))
           )
       }
   }

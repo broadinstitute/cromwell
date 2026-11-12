@@ -409,7 +409,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
               case Left(err) =>
                 val message =
                   s"Reference disks misconfigured for backend $backendName, could not parse as List[ManifestFile]"
-                logger.error(message, err.getCause)
+                logger.error(message, err)
                 s"$message: ${err.getMessage}".invalidNel
             }
           case None =>

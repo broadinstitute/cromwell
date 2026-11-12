@@ -22,10 +22,10 @@ object Dependencies {
   private val diffsonSprayJsonV = "4.1.1"
   private val ficusV = "1.5.2"
   private val fs2V = "2.5.9" // scala-steward:off (CROM-6564)
-  // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleOauth2ApiV = "v1-rev127-1.22.0"
   private val googleBigQueryApiV = "v2-rev377-1.22.0"
   private val googleComputeApiV = "v1-rev152-1.22.0"
+  // latest date via: https://github.com/googleapis/google-api-java-client-services/blob/main/clients/google-api-services-cloudkms/v1.metadata.json
   private val googleCloudKmsV = "v1-rev20230421-2.0.0"
   private val googleCloudMonitoringV = "3.2.5"
   private val googleCloudNioV = "0.127.18"

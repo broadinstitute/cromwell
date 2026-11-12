@@ -445,4 +445,32 @@ class GcpBatchConfigurationAttributesSpec
       validation.isInvalid shouldBe true
     }
   }
+
+  it should "parse a manifest with a crc32c exceeding Int range" in {
+    val manifestConfig =
+      """reference-disk-localization-manifests = [{
+        |  "imageIdentifier" : "hg19-public-2020-10-26",
+        |  "diskSizeGb" : 10,
+        |  "files" : [ { "path" : "bucket/file", "crc32c" : 4294967295 } ]
+        |}]""".stripMargin
+    val backendConfig = ConfigFactory.parseString(configString(manifestConfig))
+    val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "GCPBATCH")
+    validation shouldBe Some(
+      List(ManifestFile("hg19-public-2020-10-26", 10, List(ReferenceFile("bucket/file", 4294967295L))))
+    ).validNel
+  }
+
+  it should "fail with the expected message when a manifest is missing diskSizeGb" in {
+    val manifestConfig =
+      """reference-disk-localization-manifests = [{
+        |  "imageIdentifier" : "hg19-public-2020-10-26",
+        |  "files" : [ { "path" : "bucket/file", "crc32c" : 159565724 } ]
+        |}]""".stripMargin
+    val backendConfig = ConfigFactory.parseString(configString(manifestConfig))
+    val validation = GcpBatchConfigurationAttributes.validateReferenceDiskManifestConfigs(backendConfig, "GCPBATCH")
+    validation.isInvalid shouldBe true
+    validation.swap.toOption.get.head should startWith(
+      "Reference disks misconfigured for backend GCPBATCH, could not parse as List[ManifestFile]"
+    )
+  }
 }

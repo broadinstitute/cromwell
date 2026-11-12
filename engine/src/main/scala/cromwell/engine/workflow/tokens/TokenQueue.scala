@@ -6,8 +6,9 @@ import cromwell.core.JobToken
 import cromwell.core.JobToken.JobTokenType
 import cromwell.engine.workflow.tokens.TokenQueue._
 import cromwell.engine.workflow.tokens.UnhoggableTokenPool._
-import io.circe.generic.JsonCodec
 import io.github.andrebeat.pool.Lease
+import spray.json.DefaultJsonProtocol._
+import spray.json.RootJsonFormat
 
 import scala.collection.immutable.Queue
 
@@ -156,9 +157,13 @@ object TokenQueue {
     new TokenQueue(Map.empty, Vector.empty, logger, new UnhoggableTokenPool(tokenType))
   final case class TokenQueuePlaceholder(actor: ActorRef, hogGroup: String)
 
-  @JsonCodec
   final case class TokenQueueState(groupsNeedingTokens: Vector[TokenQueueSize], poolState: TokenPoolState)
+  object TokenQueueState {
+    implicit val tokenQueueStateFormat: RootJsonFormat[TokenQueueState] = jsonFormat2(TokenQueueState.apply)
+  }
 
-  @JsonCodec
   final case class TokenQueueSize(hogGroup: String, size: Int)
+  object TokenQueueSize {
+    implicit val tokenQueueSizeFormat: RootJsonFormat[TokenQueueSize] = jsonFormat2(TokenQueueSize.apply)
+  }
 }

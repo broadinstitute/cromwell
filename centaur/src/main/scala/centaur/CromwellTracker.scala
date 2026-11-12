@@ -1,18 +1,15 @@
 package centaur
 
-import centaur.CromwellTracker._
+import centaur.CromwellTracker.workflowProcessingEventFormat
 import com.typesafe.scalalogging.StrictLogging
-import cromwell.api.model.WorkflowMetadata
+import cromwell.api.model.{OffsetDateTimeJsonFormat, WorkflowMetadata}
 import cromwell.core.WorkflowProcessingEvent
 import cromwell.core.WorkflowProcessingEvents.DescriptionEventValue
-import io.circe.{Decoder, Encoder}
-import io.circe.generic.semiauto._
-import io.circe.optics.JsonPath._
-import io.circe.parser.parse
-import io.circe.syntax._
 import org.apache.commons.math3.stat.inference.ChiSquareTest
+import spray.json._
 
 import scala.language.postfixOps
+import scala.util.Try
 
 case class CromwellTracker(backendCount: Int, configuredSignificance: Double) extends StrictLogging {
   var counts: Map[String, Int] = Map()
@@ -20,19 +17,20 @@ case class CromwellTracker(backendCount: Int, configuredSignificance: Double) ex
 
     // Get all the workflow processing events for this workflow and pick out the "PickedUp" events. There can be multiple of
     // these for a workflow if Cromwell was restarted while it was running.
-    val pickupEvents = parse(metadata.value) map {
-      root.workflowProcessingEvents.each.as[WorkflowProcessingEvent].getAll(_)
+    val events = metadata.value.parseJson match {
+      case JsObject(fields) =>
+        fields.get("workflowProcessingEvents") match {
+          case Some(JsArray(elements)) => elements.flatMap(e => Try(e.convertTo[WorkflowProcessingEvent]).toOption)
+          case _ => Vector.empty
+        }
+      case _ => Vector.empty
     }
 
-    pickupEvents match {
-      case Left(exception) => throw exception
-      case Right(events) =>
-        events filter { _.description == DescriptionEventValue.PickedUp.value } foreach { e =>
-          synchronized {
-            counts = counts + (e.cromwellId -> (counts.getOrElse(e.cromwellId, 0) + 1))
-            logger.info("added count for Cromwell id {}: {}", e.cromwellId, counts(e.cromwellId))
-          }
-        }
+    events filter { _.description == DescriptionEventValue.PickedUp.value } foreach { e =>
+      synchronized {
+        counts = counts + (e.cromwellId -> (counts.getOrElse(e.cromwellId, 0) + 1))
+        logger.info("added count for Cromwell id {}: {}", e.cromwellId, counts(e.cromwellId))
+      }
     }
   }
 
@@ -57,11 +55,12 @@ case class CromwellTracker(backendCount: Int, configuredSignificance: Double) ex
     }
   }
 
-  override def toString: String = this.asInstanceOf[CromwellTracker].asJson.spaces2
+  override def toString: String = this.toJson.prettyPrint
 }
 
-object CromwellTracker {
-  implicit lazy val cromwellTrackerEncoder: Encoder[CromwellTracker] = deriveEncoder
-  implicit lazy val workflowProcessingEventEncoder: Encoder[WorkflowProcessingEvent] = deriveEncoder
-  implicit lazy val workflowProcessingEventDecoder: Decoder[WorkflowProcessingEvent] = deriveDecoder
+object CromwellTracker extends DefaultJsonProtocol {
+  implicit lazy val cromwellTrackerFormat: RootJsonFormat[CromwellTracker] =
+    jsonFormat2(CromwellTracker.apply _)
+  implicit lazy val workflowProcessingEventFormat: RootJsonFormat[WorkflowProcessingEvent] =
+    jsonFormat4(WorkflowProcessingEvent.apply _)
 }

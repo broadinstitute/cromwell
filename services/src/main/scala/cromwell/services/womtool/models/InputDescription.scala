@@ -1,15 +1,26 @@
 package cromwell.services.womtool.models
 
-import cromwell.services.womtool.models.WomTypeJsonSupport.womTypeEncoder // IntelliJ is lying
 import cromwell.services.womtool.models.WomExpressionJsonSupport.womExpressionEncoder
-import io.circe.generic.JsonCodec
+import cromwell.services.womtool.models.WomTypeJsonSupport.womTypeEncoder
+import spray.json.{JsBoolean, JsNull, JsObject, JsonWriter, JsString, JsValue}
 import wom.expression.WomExpression
 import wom.types.WomType
 
-@JsonCodec(encodeOnly = true)
 case class InputDescription(name: String,
                             valueType: WomType,
                             typeDisplayName: String,
                             optional: Boolean,
                             default: Option[WomExpression]
 )
+
+object InputDescription {
+  implicit val inputDescriptionWriter: JsonWriter[InputDescription] = new JsonWriter[InputDescription] {
+    override def write(a: InputDescription): JsValue = JsObject(
+      "name" -> JsString(a.name),
+      "valueType" -> womTypeEncoder.write(a.valueType),
+      "typeDisplayName" -> JsString(a.typeDisplayName),
+      "optional" -> JsBoolean(a.optional),
+      "default" -> a.default.map(womExpressionEncoder.write).getOrElse(JsNull)
+    )
+  }
+}

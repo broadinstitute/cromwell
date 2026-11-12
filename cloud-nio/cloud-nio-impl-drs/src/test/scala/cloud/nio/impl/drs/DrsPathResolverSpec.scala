@@ -6,13 +6,13 @@ import java.nio.file.attribute.FileTime
 import java.time.OffsetDateTime
 import cloud.nio.impl.drs.DrsCloudNioRegularFileAttributes._
 import common.assertion.CromwellTimeoutSpec
-import io.circe.{Json, JsonObject}
 import org.apache.http.ProtocolVersion
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+import spray.json._
 
 class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with Matchers {
-  private val mockGSA = SADataObject(data = Json.fromJsonObject(JsonObject("key" -> Json.fromString("value"))))
+  private val mockGSA = SADataObject(data = JsObject("key" -> JsString("value")))
   private val crcHashValue = "8a366443"
   private val md5HashValue = "336ea55913bc261b72875bd259753046"
 
@@ -66,13 +66,36 @@ class DrsPathResolverSpec extends AnyFlatSpecLike with CromwellTimeoutSpec with 
     }"""
 
   it should "successfully parse a failure" in {
-    import io.circe.parser.decode
-    import cloud.nio.impl.drs.DrsResolverResponseSupport.drsResolverFailureResponseDecoder
+    import cloud.nio.impl.drs.DrsResolverResponseSupport.drsResolverFailureResponseFormat
 
-    val maybeDecoded = decode[DrsResolverFailureResponse](failureResponseJson)
-    maybeDecoded map { decoded: DrsResolverFailureResponse =>
-      decoded.response.text shouldBe "{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}"
-    }
+    val decoded = failureResponseJson.parseJson.convertTo[DrsResolverFailureResponse]
+    decoded.response.text shouldBe "{\"msg\":\"User 'null' does not have required action: read_data\",\"status_code\":500}"
+  }
+
+  it should "decode nulls and ignore unknown fields" in {
+    import cloud.nio.impl.drs.DrsResolverResponseSupport.drsResolverResponseFormat
+
+    val json = """{"size":null,"bogus":1,"gsUri":"gs://b/o"}"""
+    json.parseJson.convertTo[DrsResolverResponse] shouldBe DrsResolverResponse(size = None, gsUri = Some("gs://b/o"))
+  }
+
+  it should "write the request with enum values as strings and None options as null" in {
+    import cloud.nio.impl.drs.DrsResolverResponseSupport.drsResolverRequestFormat
+
+    val request = DrsResolverRequest("drs://x", None, NonEmptyList.of(DrsResolverField.GsUri, DrsResolverField.Size))
+    request.toJson shouldBe JsObject(
+      "url" -> JsString("drs://x"),
+      "cloudPlatform" -> JsNull,
+      "fields" -> JsArray(JsString("gsUri"), JsString("size")),
+      "userProject" -> JsNull
+    )
+    request.copy(cloudPlatform = Some(DrsCloudPlatform.GoogleStorage), userProject = Some("p")).toJson shouldBe
+      JsObject(
+        "url" -> JsString("drs://x"),
+        "cloudPlatform" -> JsString("gs"),
+        "fields" -> JsArray(JsString("gsUri"), JsString("size")),
+        "userProject" -> JsString("p")
+      )
   }
 
   import org.apache.http.message.BasicStatusLine

@@ -8,11 +8,10 @@ import com.typesafe.config.{Config, ConfigFactory}
 import common.validation.ErrorOr._
 import common.validation.Validation._
 import cromwell.engine.workflow.workflowstore.WorkflowHeartbeatConfig._
-import io.circe._
-import io.circe.generic.semiauto._
-import io.circe.syntax._
 import mouse.all._
 import net.ceedubs.ficus.Ficus._
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 import scala.concurrent.duration._
 
@@ -32,7 +31,7 @@ case class WorkflowHeartbeatConfig(cromwellId: String,
                                    writeBatchSize: Int,
                                    writeThreshold: Int
 ) {
-  override def toString: String = this.asInstanceOf[WorkflowHeartbeatConfig].asJson.spaces2
+  override def toString: String = this.toJson.prettyPrint
 }
 
 object WorkflowHeartbeatConfig {
@@ -40,10 +39,18 @@ object WorkflowHeartbeatConfig {
   // NOTE: If these are made fully private the compiler wrongly emits a warning about them being unused, which our
   // compiler flag settings then promote to an error.
 
-  // NOTE: This is a different encoding than circe's finiteDurationEncoder: https://github.com/circe/circe/pull/978
-  implicit private[engine] lazy val encodeFiniteDuration: Encoder[FiniteDuration] =
-    Encoder.encodeString.contramap(_.toString)
-  implicit private[engine] lazy val encodeWorkflowHeartbeatConfig: Encoder[WorkflowHeartbeatConfig] = deriveEncoder
+  implicit private[engine] lazy val writeFiniteDuration: JsonWriter[FiniteDuration] =
+    (d: FiniteDuration) => JsString(d.toString)
+  implicit private[engine] lazy val workflowHeartbeatConfigWriter: RootJsonWriter[WorkflowHeartbeatConfig] =
+    (c: WorkflowHeartbeatConfig) =>
+      JsObject(
+        "cromwellId" -> c.cromwellId.toJson,
+        "heartbeatInterval" -> c.heartbeatInterval.toJson,
+        "ttl" -> c.ttl.toJson,
+        "failureShutdownDuration" -> c.failureShutdownDuration.toJson,
+        "writeBatchSize" -> c.writeBatchSize.toJson,
+        "writeThreshold" -> c.writeThreshold.toJson
+      )
 
   def apply(config: Config): WorkflowHeartbeatConfig =
     validate(config).toTry("Errors parsing WorkflowHeartbeatConfig").get

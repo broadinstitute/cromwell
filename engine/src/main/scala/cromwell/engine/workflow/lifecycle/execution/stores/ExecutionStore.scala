@@ -135,16 +135,16 @@ final case class ActiveExecutionStore private[stores] (private val statusStore: 
 ) extends ExecutionStore(statusStore, needsUpdate) {
 
   override def toString: String = {
-    import io.circe.syntax._
-    import io.circe.Printer
+    import spray.json._
+    import spray.json.DefaultJsonProtocol._
 
     statusStore
       .map {
         case (k, v) if k.isShard => s"${k.node.fullyQualifiedName}:${k.index.get}" -> v.toString
         case (k, v) => k.node.fullyQualifiedName -> v.toString
       }
-      .asJson
-      .printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
+      .toJson
+      .prettyPrint
   }
 
   override def updateKeys(values: Map[JobKey, ExecutionStatus], needsUpdate: Boolean): ActiveExecutionStore =

@@ -8,6 +8,14 @@
 
 ### General
 
+#### Workflow inputs must be JSON
+
+Workflow inputs must be JSON; YAML inputs are no longer accepted. The `yaml.max-nodes` and `yaml.max-depth` settings are removed.
+
+Workflow inputs and `requestedWorkflowId` must now be strict JSON. Inputs the YAML parser used to accept are now rejected with HTTP 400, including `#` comments, trailing commas, single-quoted strings, and unquoted keys or values. In particular, a bare (unquoted) `requestedWorkflowId` UUID must now be a JSON string or a JSON array of strings.
+
+API error-response bodies now list their fields in a different order (previously `message` before `status`). The content is unchanged; clients should parse the JSON rather than compare text.
+
 #### Configurable subworkflow launch rate
 
 The key `system.max-subworkflow-launch-count` now controls how many subworkflows launch per batch, with a default of 1.

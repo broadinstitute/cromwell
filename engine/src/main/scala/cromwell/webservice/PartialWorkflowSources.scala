@@ -20,7 +20,6 @@ import org.slf4j.LoggerFactory
 import spray.json._
 import wdl.draft2.model.WorkflowJson
 import wom.core._
-import wom.util.YamlUtils
 
 import scala.util.{Failure, Success, Try}
 
@@ -198,49 +197,28 @@ object PartialWorkflowSources {
   }
 
   private def arrayTypeElementValidation[A](data: String,
-                                            interpretElementFunction: _root_.io.circe.Json => ErrorOr[A]
-  ) = {
-    import cats.syntax.validated._
-
-    val parseInputsTry = Try {
-      YamlUtils.parse(data) match {
-        // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
-        case Right(json) =>
-          json.asArray
-            .map(_.traverse(interpretElementFunction))
-            .getOrElse(interpretElementFunction(json).map(Vector(_)))
-            .validNel
-        case Left(error) =>
-          s"Input file is not a valid yaml or json. Inputs data: '$data'. Error: ${ExceptionUtils.getMessage(error)}.".invalidNel
-      }
-    }
-
-    parseInputsTry match {
-      case Success(v) => v.flatten
+                                            interpretElementFunction: JsValue => ErrorOr[A]
+  ): ErrorOr[Vector[A]] =
+    Try(JsonParser(data.stripPrefix("\uFEFF"))) match {
+      // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
+      case Success(JsArray(elements)) => elements.traverse(interpretElementFunction)
+      case Success(json) => interpretElementFunction(json).map(Vector(_))
       case Failure(error) =>
-        s"Input file is not a valid yaml or json. Inputs data: '$data'. Error: ${ExceptionUtils.getMessage(error)}.".invalidNel
+        s"Input file is not valid JSON. Inputs data: '$data'. Error: ${ExceptionUtils.getMessage(error)}.".invalidNel
     }
-  }
 
   def workflowInputsValidation(data: String): ErrorOr[Vector[WorkflowJson]] = {
-    import _root_.io.circe.Printer
-    import _root_.io.circe.Json
-    import cats.syntax.validated._
-
-    def interpretEachElement(json: Json): ErrorOr[String] = json.printWith(Printer.noSpaces).validNel
+    def interpretEachElement(json: JsValue): ErrorOr[String] = json.compactPrint.validNel
 
     arrayTypeElementValidation(data, interpretEachElement)
   }
 
   def workflowIdsValidation(data: String): ErrorOr[Vector[WorkflowId]] = {
-    import _root_.io.circe.Json
-    import _root_.io.circe.Printer
-    import cats.syntax.validated._
-
-    def interpretEachElement(json: Json): ErrorOr[WorkflowId] =
-      if (json.isString) {
-        Try(WorkflowId.fromString(json.asString.get)).toErrorOrWithContext("parse requested workflow ID as UUID")
-      } else s"Requested workflow IDs must be strings but got: '${json.printWith(Printer.noSpaces)}'".invalidNel
+    def interpretEachElement(json: JsValue): ErrorOr[WorkflowId] =
+      json match {
+        case JsString(id) => Try(WorkflowId.fromString(id)).toErrorOrWithContext("parse requested workflow ID as UUID")
+        case other => s"Requested workflow IDs must be strings but got: '${other.compactPrint}'".invalidNel
+      }
 
     arrayTypeElementValidation(data, interpretEachElement)
   }

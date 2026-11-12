@@ -1,10 +1,10 @@
 package cromwell.services.womtool.models
 
-import io.circe.{Encoder, Json}
+import spray.json.{JsonWriter, JsString, JsValue}
 import wom.expression.WomExpression
 
 object WomExpressionJsonSupport {
-  implicit val womExpressionEncoder: Encoder[WomExpression] = new Encoder[WomExpression] {
-    override def apply(a: WomExpression): Json = Json.fromString(a.sourceString)
+  implicit val womExpressionEncoder: JsonWriter[WomExpression] = new JsonWriter[WomExpression] {
+    override def write(a: WomExpression): JsValue = JsString(a.sourceString)
   }
 }

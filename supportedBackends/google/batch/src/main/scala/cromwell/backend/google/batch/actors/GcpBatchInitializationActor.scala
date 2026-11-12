@@ -1,8 +1,5 @@
 package cromwell.backend.google.batch.actors
 
-import _root_.io.circe.Decoder
-import _root_.io.circe.generic.semiauto.deriveDecoder
-import _root_.io.circe.parser.decode
 import akka.actor.ActorRef
 import com.google.api.client.http.{HttpRequest, HttpResponse}
 import com.google.api.services.cloudkms.v1.model.EncryptRequest
@@ -36,7 +33,8 @@ import cromwell.filesystems.gcs.GoogleUtil._
 import cromwell.filesystems.gcs.batch.GcsBatchCommandBuilder
 import org.apache.commons.codec.binary.Base64
 import org.apache.commons.lang3.exception.ExceptionUtils
-import spray.json.{JsObject, JsString}
+import spray.json.DefaultJsonProtocol._
+import spray.json.{enrichString, JsObject, JsString, RootJsonFormat}
 import wom.graph.CommandCallNode
 
 import scala.concurrent.Future
@@ -167,15 +165,16 @@ class GcpBatchInitializationActor(batchParams: GcpBatchInitializationActorParams
       }
 
     def projectMetadataResponseToLabels(httpResponse: HttpResponse): Future[ProjectLabels] = {
-      implicit val googleProjectMetadataLabelDecoder: Decoder[ProjectLabels] = deriveDecoder
-      Future.fromTry(decode[ProjectLabels](httpResponse.parseAsString()).toTry).recoverWith { case NonFatal(e) =>
-        Future.failed(
-          new RuntimeException(
-            s"Failed to parse labels from project metadata response from Google Cloud Resource Manager API. " +
-              s"${ExceptionUtils.getMessage(e)}",
-            e
+      implicit val googleProjectMetadataLabelFormat: RootJsonFormat[ProjectLabels] = jsonFormat1(ProjectLabels)
+      Future.fromTry(Try(httpResponse.parseAsString().parseJson.convertTo[ProjectLabels])).recoverWith {
+        case NonFatal(e) =>
+          Future.failed(
+            new RuntimeException(
+              s"Failed to parse labels from project metadata response from Google Cloud Resource Manager API. " +
+                s"${ExceptionUtils.getMessage(e)}",
+              e
+            )
           )
-        )
       }
     }
 

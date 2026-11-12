@@ -8,10 +8,6 @@ import cloud.nio.impl.drs.DrsPathResolver.{FatalRetryDisposition, RegularRetryDi
 import cloud.nio.impl.drs.DrsResolverResponseSupport._
 import common.exception.{toIO, AggregatedMessageException}
 import common.validation.ErrorOr.ErrorOr
-import io.circe._
-import io.circe.generic.semiauto._
-import io.circe.parser.decode
-import io.circe.syntax._
 import mouse.boolean._
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.http.client.config.RequestConfig
@@ -21,6 +17,7 @@ import org.apache.http.impl.client.HttpClientBuilder
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager
 import org.apache.http.util.EntityUtils
 import org.apache.http.{HttpResponse, HttpStatus, StatusLine}
+import spray.json._
 
 import java.nio.ByteBuffer
 import java.nio.channels.{Channels, ReadableByteChannel}
@@ -60,7 +57,7 @@ class DrsPathResolver(drsConfig: DrsConfig,
       case Valid(token) =>
         IO {
           val postRequest = new HttpPost(drsConfig.drsResolverUrl)
-          val requestJson = makeDrsResolverRequest(drsPath, fields).asJson.noSpaces
+          val requestJson = makeDrsResolverRequest(drsPath, fields).toJson.compactPrint
           postRequest.setEntity(new StringEntity(requestJson, ContentType.APPLICATION_JSON))
           postRequest.setHeader("Authorization", s"Bearer $token")
           postRequest.setHeader("X-App-ID", "cromwell_drs_localizer")
@@ -115,7 +112,7 @@ class DrsPathResolver(drsConfig: DrsConfig,
 
         responseContentIO
           .flatMap { responseContent =>
-            IO.fromEither(decode[DrsResolverResponse](responseContent))
+            IO.fromTry(Try(responseContent.parseJson.convertTo[DrsResolverResponse]))
           }
           .handleErrorWith { e =>
             IO.raiseError(
@@ -221,7 +218,7 @@ final case class DrsResolverRequest(url: String,
                                     userProject: Option[String] = None
 )
 
-final case class SADataObject(data: Json)
+final case class SADataObject(data: JsValue)
 
 final case class AccessUrl(url: String, headers: Option[Map[String, String]])
 
@@ -257,20 +254,28 @@ final case class DrsResolverFailureResponse(response: DrsResolverFailureResponse
 final case class DrsResolverFailureResponsePayload(text: String)
 
 object DrsResolverResponseSupport {
+  import DefaultJsonProtocol._
 
-  implicit lazy val drsResolverFieldEncoder: Encoder[DrsResolverField.Value] =
-    Encoder.encodeEnumeration(DrsResolverField)
-  implicit lazy val drsResolverCloudPlatformEncoder: Encoder[DrsCloudPlatform.Value] =
-    Encoder.encodeEnumeration(DrsCloudPlatform)
-  implicit lazy val drsResolverRequestEncoder: Encoder[DrsResolverRequest] = deriveEncoder
+  implicit lazy val drsResolverFieldWriter: JsonWriter[DrsResolverField.Value] = v => JsString(v.toString)
+  implicit lazy val drsResolverCloudPlatformWriter: JsonWriter[DrsCloudPlatform.Value] = v => JsString(v.toString)
+  // Unlike `jsonFormatN`, always emit the Option fields (as null when empty) to keep the wire format unchanged.
+  implicit lazy val drsResolverRequestFormat: RootJsonWriter[DrsResolverRequest] = r =>
+    JsObject(
+      "url" -> JsString(r.url),
+      "cloudPlatform" -> r.cloudPlatform.map(_.toJson).getOrElse(JsNull),
+      "fields" -> JsArray(r.fields.toList.map(_.toJson).toVector),
+      "userProject" -> r.userProject.map(JsString(_)).getOrElse(JsNull)
+    )
 
-  implicit lazy val saDataObjectDecoder: Decoder[SADataObject] = deriveDecoder
-  implicit lazy val drsResolverResponseDecoder: Decoder[DrsResolverResponse] = deriveDecoder
+  implicit lazy val saDataObjectFormat: RootJsonFormat[SADataObject] = jsonFormat1(SADataObject.apply)
+  implicit lazy val drsResolverAccessUrlFormat: RootJsonFormat[AccessUrl] = jsonFormat2(AccessUrl.apply)
+  implicit lazy val drsResolverResponseFormat: RootJsonFormat[DrsResolverResponse] =
+    jsonFormat10(DrsResolverResponse.apply)
 
-  implicit lazy val drsResolverFailureResponseDecoder: Decoder[DrsResolverFailureResponse] = deriveDecoder
-  implicit lazy val drsResolverFailureResponsePayloadDecoder: Decoder[DrsResolverFailureResponsePayload] = deriveDecoder
-
-  implicit lazy val drsResolverAccessUrlDecoder: Decoder[AccessUrl] = deriveDecoder
+  implicit lazy val drsResolverFailureResponsePayloadFormat: RootJsonFormat[DrsResolverFailureResponsePayload] =
+    jsonFormat1(DrsResolverFailureResponsePayload.apply)
+  implicit lazy val drsResolverFailureResponseFormat: RootJsonFormat[DrsResolverFailureResponse] =
+    jsonFormat1(DrsResolverFailureResponse.apply)
 
   private val GcsScheme = "gs://"
 
@@ -289,7 +294,7 @@ object DrsResolverResponseSupport {
 
     drsResolverResponseEntityOption match {
       case Some(entity) =>
-        val maybeErrorResponse: Either[Error, DrsResolverFailureResponse] = decode[DrsResolverFailureResponse](entity)
+        val maybeErrorResponse = Try(entity.parseJson.convertTo[DrsResolverFailureResponse]).toEither
         maybeErrorResponse match {
           case Left(_) =>
             // Not parsable as a `DrsResolverFailureResponse`

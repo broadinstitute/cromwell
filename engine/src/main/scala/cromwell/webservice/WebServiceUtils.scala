@@ -7,10 +7,9 @@ import akka.http.scaladsl.server.Directives.complete
 import akka.http.scaladsl.server.Route
 import akka.stream.Materializer
 import akka.util.{ByteString, Timeout}
+import cromwell.webservice.WorkflowJsonSupport.errorResponse
 import cromwell.webservice.routes.CromwellApiService._
-import io.circe._
-import io.circe.generic.auto._
-import io.circe.syntax._
+import spray.json._
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -91,8 +90,23 @@ object WebServiceUtils extends WebServiceUtils {
       completeResponse(statusCode, ContentTypes.`application/json`, prettyPrint(APIResponse.error(e)), warnings)
   }
 
+  // spray's PrettyPrinter keeps arrays on one line, but API clients are used to one element per line.
+  private object ArrayPerLinePrettyPrinter extends PrettyPrinter {
+    override protected def printArray(elements: Seq[JsValue], sb: java.lang.StringBuilder, indent: Int): Unit = {
+      sb.append('[')
+      printSeq(elements, { sb.append(','); () }) { e =>
+        sb.append('\n')
+        printIndent(sb, indent + Indent)
+        print(e, sb, indent + Indent)
+      }
+      sb.append('\n')
+      printIndent(sb, indent)
+      sb.append(']')
+      ()
+    }
+  }
+
   private def prettyPrint(failureResponse: FailureResponse): String =
-    // .asJson cannot live inside a value class like `EnhancedThrowable`, hence the object method
-    failureResponse.asJson.printWith(Printer.spaces2.copy(dropNullValues = true, colonLeft = ""))
+    ArrayPerLinePrettyPrinter(failureResponse.toJson)
 
 }

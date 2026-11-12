@@ -116,4 +116,52 @@ class PartialWorkflowSourcesSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
 
     actual should be(expected)
   }
+
+  // Previously (YAML parser) both of these were accepted as Vector("false"); now they are rejected as invalid JSON.
+  it should "blankInputsRejected" in {
+    List("  ", "") foreach { blank =>
+      val result = PartialWorkflowSources.workflowInputsValidation(blank)
+      result.isInvalid shouldBe true
+      result.swap.toOption.get.head should startWith("Input file is not valid JSON.")
+    }
+  }
+
+  it should "rejectYamlOnlySyntax" in {
+    List("a: 1", "{'a': 1}", "{a: 1}", "{\"a\": 1,}", "# c\n{\"a\": 1}") foreach { yamlish =>
+      val result = PartialWorkflowSources.workflowInputsValidation(yamlish)
+      result.isInvalid shouldBe true
+      result.swap.toOption.get.head should startWith("Input file is not valid JSON.")
+    }
+  }
+
+  it should "accept a leading UTF-8 BOM in workflow inputs" in {
+    PartialWorkflowSources.workflowInputsValidation("\uFEFF{\"a\": 1}") should be(Vector("{\"a\":1}").validNel)
+  }
+
+  it should "reject a bare unquoted workflow ID" in {
+    PartialWorkflowSources.workflowIdsValidation("3fa85f64-5717-4562-b3fc-2c963f66afa6").isInvalid shouldBe true
+  }
+
+  it should "accept a quoted workflow ID" in {
+    PartialWorkflowSources.workflowIdsValidation("\"3fa85f64-5717-4562-b3fc-2c963f66afa6\"") should be(
+      Vector(WorkflowId.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6")).validNel
+    )
+  }
+
+  it should "rejectDeepNesting" in {
+    val deep = "[" * 10000 + "]" * 10000
+    val result = PartialWorkflowSources.workflowInputsValidation(deep) // must not throw StackOverflowError
+    result.isInvalid shouldBe true
+  }
+
+  it should "numbersRoundTrip" in {
+    val input = """{"w.big":12345678901234567890,"w.prec":0.1000,"w.exp":1e10}"""
+    PartialWorkflowSources.workflowInputsValidation(input) match {
+      case Valid(Vector(out)) =>
+        out.parseJson shouldBe input.parseJson
+        out should include("12345678901234567890")
+        out should include("0.1000")
+      case other => fail(s"Unexpected result: $other")
+    }
+  }
 }

@@ -9,7 +9,7 @@ files {
 submit {
   statusCode: 400
   message: """{
-  "status": "fail",
-  "message": "Error(s): Error while validating workflow url: no protocol: raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/path-to-wdl"
+  "message": "Error(s): Error while validating workflow url: no protocol: raw.githubusercontent.com/broadinstitute/cromwell/develop/centaur/src/main/resources/standardTestCases/path-to-wdl",
+  "status": "fail"
 }"""
 }

@@ -2,9 +2,9 @@ package centaur.test.metadata
 
 import centaur.test.metadata.CallAttemptFailureSpec._
 import common.assertion.CromwellTimeoutSpec
-import io.circe.ParsingFailure
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import spray.json.JsonParser.ParsingException
 
 class CallAttemptFailureSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
 
@@ -13,11 +13,13 @@ class CallAttemptFailureSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
   it should "parse metadata" in {
     val res = CallAttemptFailure.buildFailures(failingInSeveralWaysMetadataJson).unsafeRunSync()
     res.size should be(10)
-    val firsts = res.take(9)
-    val last = res.drop(9).head
+    val (firsts, lasts) =
+      res.partition(_.callFullyQualifiedName == "FailingInSeveralWays.ScatterJobThatWillFailSometimes")
+    firsts.size should be(9)
+    val last = lasts.head
     firsts.map(_.callFullyQualifiedName).distinct should contain theSameElementsAs
       Vector("FailingInSeveralWays.ScatterJobThatWillFailSometimes")
-    firsts.map(_.jobIndex) should contain theSameElementsInOrderAs (41 to 49)
+    firsts.map(_.jobIndex).sorted should contain theSameElementsInOrderAs (41 to 49)
     last.callFullyQualifiedName should be("FailingInSeveralWays.ReadItBackToMe")
     last.workflowId should be("9e83cb0d-0347-431e-8ee6-48f535060845")
   }
@@ -27,9 +29,19 @@ class CallAttemptFailureSpec extends AnyFlatSpec with CromwellTimeoutSpec with M
     res should be(empty)
   }
 
+  it should "skipIncompleteAttempts" in {
+    val json =
+      """{"id": "wf", "calls": {"a.b": [
+        |  {"shardIndex":0,"attempt":1,"failures":[{"message":"m"}]},
+        |  {"attempt":1}
+        |]}}""".stripMargin
+    val res = CallAttemptFailure.buildFailures(json).unsafeRunSync()
+    res.map(_.message) should be(Vector("m"))
+    CallAttemptFailure.buildFailures("\"not json\"").unsafeRunSync() should be(Vector.empty)
+  }
+
   it should "not parse malformed json" in {
-    val theException: Exception = the[ParsingFailure] thrownBy CallAttemptFailure.buildFailures("{").unsafeRunSync()
-    theException should have message "exhausted input"
+    a[ParsingException] should be thrownBy CallAttemptFailure.buildFailures("{").unsafeRunSync()
   }
 
 }

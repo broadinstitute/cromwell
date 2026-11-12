@@ -37,4 +37,25 @@ class DockerRegistryV2AbstractSpec extends AnyFlatSpec with CromwellTimeoutSpec 
       ._1
       .reason shouldBe "Failed to get docker hash for ubuntu:latest Malformed message body: Invalid JSON: empty body"
   }
+
+  private def vendorResponse(body: String): Response[IO] = {
+    val mediaType = MediaType.parse(DockerRegistryV2Abstract.DockerManifestV2MediaType).toOption.get
+    Response[IO](headers = Headers.of(`Content-Type`(mediaType)),
+                 body = fs2.Stream.emits(body.getBytes("UTF-8")).covary[IO]
+    )
+  }
+
+  it should "decodeVendorManifest" in {
+    val decoded = DockerRegistryV2Abstract.entityManifestDecoder
+      .decode(vendorResponse("""{"schemaVersion":2,"layers":[{"size":10},{"size":32}]}"""), strict = false)
+      .value
+      .unsafeRunSync()
+    decoded.toOption.get.compressedSize shouldBe 42L
+
+    val malformed = DockerRegistryV2Abstract.entityManifestDecoder
+      .decode(vendorResponse("not json"), strict = false)
+      .value
+      .unsafeRunSync()
+    malformed.left.toOption.get shouldBe a[MalformedMessageBodyFailure]
+  }
 }

@@ -199,7 +199,7 @@ object PartialWorkflowSources {
   private def arrayTypeElementValidation[A](data: String,
                                             interpretElementFunction: JsValue => ErrorOr[A]
   ): ErrorOr[Vector[A]] =
-    Try(JsonParser(data)) match {
+    Try(JsonParser(data.stripPrefix("\uFEFF"))) match {
       // If it's an array, treat each element as an individual input object, otherwise simply toString the whole thing
       case Success(JsArray(elements)) => elements.traverse(interpretElementFunction)
       case Success(json) => interpretElementFunction(json).map(Vector(_))

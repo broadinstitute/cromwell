@@ -134,6 +134,20 @@ class PartialWorkflowSourcesSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     }
   }
 
+  it should "accept a leading UTF-8 BOM in workflow inputs" in {
+    PartialWorkflowSources.workflowInputsValidation("\uFEFF{\"a\": 1}") should be(Vector("{\"a\":1}").validNel)
+  }
+
+  it should "reject a bare unquoted workflow ID" in {
+    PartialWorkflowSources.workflowIdsValidation("3fa85f64-5717-4562-b3fc-2c963f66afa6").isInvalid shouldBe true
+  }
+
+  it should "accept a quoted workflow ID" in {
+    PartialWorkflowSources.workflowIdsValidation("\"3fa85f64-5717-4562-b3fc-2c963f66afa6\"") should be(
+      Vector(WorkflowId.fromString("3fa85f64-5717-4562-b3fc-2c963f66afa6")).validNel
+    )
+  }
+
   it should "rejectDeepNesting" in {
     val deep = "[" * 10000 + "]" * 10000
     val result = PartialWorkflowSources.workflowInputsValidation(deep) // must not throw StackOverflowError

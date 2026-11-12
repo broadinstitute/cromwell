@@ -19,17 +19,14 @@ import cromwell.services.instrumentation.CromwellInstrumentation._
 import cromwell.services.instrumentation.{CromwellInstrumentation, CromwellInstrumentationScheduler}
 import cromwell.services.loadcontroller.LoadControllerService.ListenToLoadController
 import cromwell.util.GracefulShutdownHelper.ShutdownCommand
-import io.circe.Printer
-import io.circe.generic.JsonCodec
-import io.circe.generic.semiauto._
-import io.circe.syntax._
 import io.github.andrebeat.pool.Lease
+import spray.json.DefaultJsonProtocol._
+import spray.json._
 
 import java.time.OffsetDateTime
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
-import io.circe.Encoder.AsObject
 
 class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
                              override val dispensingRate: DynamicRateLimiter.Rate,
@@ -253,7 +250,7 @@ class JobTokenDispenserActor(override val serviceRegistryActor: ActorRef,
 
   private def logTokenAllocation(someInterval: FiniteDuration): Unit = {
 
-    log.info(tokenDispenserState.asJson.printWith(Printer.spaces2))
+    log.info(tokenDispenserState.toJson.prettyPrint)
 
     tokenEventLogger.tokenExhaustedGroups foreach { group =>
       log.info(s"Token Dispenser: The group $group has reached its job limit and is being rate-limited.")
@@ -313,17 +310,19 @@ object JobTokenDispenserActor {
   case object FetchLimitedGroups
   final case class ReplyLimitedGroups(groups: Set[String])
 
-  implicit val tokenEncoder: AsObject[JobTokenType] = deriveEncoder[JobTokenType]
-
-  @JsonCodec(encodeOnly = true)
   final case class TokenDispenserState(dispenserType: String,
                                        tokenTypes: Vector[TokenTypeState],
                                        pointer: Int,
                                        leased: Int
   )
+  object TokenDispenserState {
+    implicit val tokenDispenserStateFormat: RootJsonFormat[TokenDispenserState] = jsonFormat4(TokenDispenserState.apply)
+  }
 
-  @JsonCodec(encodeOnly = true)
   final case class TokenTypeState(tokenType: JobTokenType, queue: TokenQueueState)
+  object TokenTypeState {
+    implicit val tokenTypeStateFormat: RootJsonFormat[TokenTypeState] = jsonFormat2(TokenTypeState.apply)
+  }
 
   final case class TokenLeaseRecord(tokenLease: Lease[JobToken], time: OffsetDateTime)
 }

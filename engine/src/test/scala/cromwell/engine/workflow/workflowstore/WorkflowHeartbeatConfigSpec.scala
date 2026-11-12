@@ -6,6 +6,7 @@ import common.exception.AggregatedMessageException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableDrivenPropertyChecks
+import spray.json._
 
 import scala.concurrent.duration._
 
@@ -26,6 +27,13 @@ class WorkflowHeartbeatConfigSpec
     workflowHeartbeatConfig.failureShutdownDuration should be(5.minutes)
     workflowHeartbeatConfig.writeBatchSize should be(10000)
     workflowHeartbeatConfig.writeThreshold should be(10000)
+  }
+
+  it should "heartbeatToStringIsJson" in {
+    val ttl = WorkflowHeartbeatConfigSpec.DefaultConfig.getDuration("system.workflow-heartbeats.ttl")
+    val config = WorkflowHeartbeatConfig(WorkflowHeartbeatConfigSpec.DefaultConfig)
+    config.toString.parseJson.asJsObject.fields("ttl") shouldBe JsString(config.ttl.toString)
+    config.ttl.toMillis shouldBe ttl.toMillis
   }
 
   private val validConfigTests = Table(

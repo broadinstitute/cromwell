@@ -69,7 +69,7 @@ case class GcsReader(googleAuthMode: GoogleAuthMode,
       case Some(googleSA) =>
         IO(
           UserServiceAccountMode("drs_resolver_service_account").credentials(
-            Map(GoogleAuthMode.UserServiceAccountKey -> googleSA.data.noSpaces),
+            Map(GoogleAuthMode.UserServiceAccountKey -> googleSA.data.compactPrint),
             readScopes
           )
         )

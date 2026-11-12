@@ -167,7 +167,8 @@ object Dependencies {
   val implDrsDependencies: List[ModuleID] = List(
     "org.apache.commons" % "commons-lang3" % commonsLang3V,
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
-    "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV
+    "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV,
+    "io.spray" %% "spray-json" % sprayJsonV
   ) ++ circeDependencies ++ catsDependencies
 
   // Internal collections of dependencies

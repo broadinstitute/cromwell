@@ -82,16 +82,12 @@ sealed trait TaskDefinition extends Callable {
   * Can be Callable only or CallableExecutable
   */
 sealed trait CommandTaskDefinition extends TaskDefinition {
-  def dockerOutputDirectory: Option[String]
-  def stdoutOverride: Option[WomExpression]
-  def stderrOverride: Option[WomExpression]
   def commandTemplateBuilder: WomEvaluatedCallInputs => ErrorOr[Seq[CommandPart]]
   // TODO ErrorOrify this ? Throw for now
   def commandTemplate(taskInputs: WomEvaluatedCallInputs): Seq[CommandPart] =
     commandTemplateBuilder(taskInputs).toTry("Failed to build command").get
   def prefixSeparator: String
   def commandPartSeparator: String
-  def stdinRedirection: Option[WomExpression]
   def adHocFileCreation: Set[ContainerizedInputExpression]
   def environmentExpressions: Map[String, WomExpression]
   def additionalGlob: Option[WomGlobFile]
@@ -158,13 +154,9 @@ final case class CallableTaskDefinition(name: String,
                                         environmentExpressions: Map[String, WomExpression],
                                         prefixSeparator: String = ".",
                                         commandPartSeparator: String = "",
-                                        stdinRedirection: Option[WomExpression] = None,
-                                        stdoutOverride: Option[WomExpression] = None,
-                                        stderrOverride: Option[WomExpression] = None,
                                         additionalGlob: Option[WomGlobFile] = None,
                                         private[wom] val customizedOutputEvaluation: OutputEvaluationFunction =
                                           OutputEvaluationFunction.none,
-                                        dockerOutputDirectory: Option[String] = None,
                                         override val sourceLocation: Option[SourceFileLocation]
 ) extends CommandTaskDefinition {
   def toExecutable: ErrorOr[ExecutableTaskDefinition] = TaskCall.graphFromDefinition(this) map {
@@ -190,15 +182,11 @@ final case class ExecutableTaskDefinition private (callableTaskDefinition: Calla
   override def parameterMeta = callableTaskDefinition.parameterMeta
   override def prefixSeparator = callableTaskDefinition.prefixSeparator
   override def commandPartSeparator = callableTaskDefinition.commandPartSeparator
-  override def stdinRedirection = callableTaskDefinition.stdinRedirection
-  override def stdoutOverride = callableTaskDefinition.stdoutOverride
-  override def stderrOverride = callableTaskDefinition.stderrOverride
   override def adHocFileCreation = callableTaskDefinition.adHocFileCreation
   override def environmentExpressions = callableTaskDefinition.environmentExpressions
   override def additionalGlob = callableTaskDefinition.additionalGlob
   override private[wom] def customizedOutputEvaluation = callableTaskDefinition.customizedOutputEvaluation
   override def toExecutable = this.validNel
-  override def dockerOutputDirectory = callableTaskDefinition.dockerOutputDirectory
 }
 
 sealed trait ExpressionTaskDefinition extends TaskDefinition {

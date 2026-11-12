@@ -69,9 +69,7 @@ trait JobPaths {
   lazy val callRoot = callPathBuilder(workflowPaths.workflowRoot, jobKey, isCallCacheCopyAttempt)
   lazy val callExecutionRoot = callRoot
 
-  // Use default stdout and stderr names by default. This StandardPaths `var` may be reassigned later to
-  // enable dynamic standard output and error file names for languages like CWL that support this feature.
-  var standardPaths: StandardPaths = StandardPaths(
+  lazy val standardPaths: StandardPaths = StandardPaths(
     output = callExecutionRoot.resolve(defaultStdoutFilename),
     error = callExecutionRoot.resolve(defaultStderrFilename)
   )
@@ -81,8 +79,6 @@ trait JobPaths {
   lazy val returnCode = callExecutionRoot.resolve(returnCodeFilename)
   lazy val memoryRetryRC = callExecutionRoot.resolve(memoryRetryRCFilename)
 
-  // This is a `def` because `standardPaths` is a `var` that may be reassigned during the calculation of
-  // standard output and error file names.
   def standardOutputAndErrorPaths: Map[String, Path] = Map(
     CallMetadataKeys.Stdout -> standardPaths.output,
     CallMetadataKeys.Stderr -> standardPaths.error
@@ -91,9 +87,7 @@ trait JobPaths {
   private lazy val commonMetadataPaths: Map[String, Path] =
     standardOutputAndErrorPaths + (CallMetadataKeys.CallRoot -> callRoot)
 
-  // This is a `def` because `standardPaths` is a `var` that may be reassigned during the calculation of
-  // standard output and error file names.
-  private def commonDetritusPaths: Map[String, Path] = Map(
+  private lazy val commonDetritusPaths: Map[String, Path] = Map(
     JobPaths.CallRootPathKey -> callRoot,
     JobPaths.ScriptPathKey -> script,
     JobPaths.StdoutPathKey -> standardPaths.output,
@@ -111,7 +105,7 @@ trait JobPaths {
   protected lazy val customLogPaths: Map[String, Path] = Map.empty
 
   lazy val metadataPaths = commonMetadataPaths ++ customMetadataPaths
-  def detritusPaths = commonDetritusPaths ++ customDetritusPaths
+  lazy val detritusPaths = commonDetritusPaths ++ customDetritusPaths
   lazy val logPaths = commonLogPaths ++ customLogPaths
 
   lazy val callContext = CallContext(callExecutionRoot, standardPaths, isDocker)

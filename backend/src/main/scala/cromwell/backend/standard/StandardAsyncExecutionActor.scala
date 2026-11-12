@@ -39,7 +39,7 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 import shapeless.Coproduct
 import wom.callable.Callable.InputDefinition
-import wom.callable.{AdHocValue, CommandTaskDefinition, ContainerizedInputExpression}
+import wom.callable.{AdHocValue, ContainerizedInputExpression}
 import wom.expression.WomExpression
 import wom.graph.LocalName
 import wom.values._
@@ -415,11 +415,8 @@ trait StandardAsyncExecutionActor
   private def absolutizeContainerPath(path: String): String =
     if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
 
-  def executionStdin: Option[String] = instantiatedCommand.evaluatedStdinRedirection map absolutizeContainerPath
-  def executionStdout: String =
-    instantiatedCommand.evaluatedStdoutOverride.getOrElse(jobPaths.defaultStdoutFilename) |> absolutizeContainerPath
-  def executionStderr: String =
-    instantiatedCommand.evaluatedStderrOverride.getOrElse(jobPaths.defaultStderrFilename) |> absolutizeContainerPath
+  def executionStdout: String = jobPaths.defaultStdoutFilename |> absolutizeContainerPath
+  def executionStderr: String = jobPaths.defaultStderrFilename |> absolutizeContainerPath
 
   /*
    * Ensures the standard paths are correct w.r.t overridden paths. This is called in two places: when generating the command and
@@ -430,20 +427,9 @@ trait StandardAsyncExecutionActor
    */
   private var jobPathsUpdated: Boolean = false
   def updateJobPaths(): Unit = if (!jobPathsUpdated) {
-    // .get's are safe on stdout and stderr after falling back to default names above.
-    jobPaths.standardPaths = StandardPaths(
-      output = hostPathFromContainerPath(executionStdout),
-      error = hostPathFromContainerPath(executionStderr)
-    )
     // Re-publish stdout and stderr paths that were possibly just updated.
     tellMetadata(jobPaths.standardOutputAndErrorPaths)
     jobPathsUpdated = true
-  }
-
-  def hostPathFromContainerPath(string: String): Path = {
-    val cwdString = cwd.pathAsString.ensureSlashed
-    val relativePath = string.stripPrefix(cwdString)
-    jobPaths.callExecutionRoot.resolve(relativePath)
   }
 
   /** A bash script containing the custom preamble, the instantiated command, and output globbing behavior. */
@@ -457,10 +443,7 @@ trait StandardAsyncExecutionActor
     val rcPath = cwd./(jobPaths.returnCodeFilename)
     updateJobPaths()
 
-    // The standard input redirection gets a '<' that standard output and error do not since standard input is only
-    // redirected if requested. Standard output and error are always redirected but not necessarily to the default
-    // stdout/stderr file names.
-    val stdinRedirection = executionStdin.map("< " + _.shellQuote).getOrElse("")
+    // Standard output and error are always redirected to the default stdout/stderr file names.
     val stdoutRedirection = executionStdout.shellQuote
     val stderrRedirection = executionStderr.shellQuote
     val rcTmpPath = rcPath.plusExt("tmp")
@@ -478,10 +461,6 @@ trait StandardAsyncExecutionActor
     val shortId = jobDescriptor.workflowDescriptor.id.shortString
     // Give the out and error FIFO variables names that are unlikely to conflict with anything the user is doing.
     val (out, err) = (s"out$shortId", s"err$shortId")
-
-    val dockerOutputDir = jobDescriptor.taskCall.callable.dockerOutputDirectory map { d =>
-      s"ln -s $cwd $d"
-    } getOrElse ""
 
     // Only adjust the temporary directory permissions if this is executing under Docker.
     val tmpDirPermissionsAdjustment = if (isDockerRun) s"""chmod 777 "$$tmpDir"""" else ""
@@ -511,12 +490,12 @@ trait StandardAsyncExecutionActor
       }
     }
 
-    // The `tee` trickery below is to be able to redirect to known filenames for CWL while also streaming
-    // stdout and stderr for PAPI to periodically upload to cloud storage.
+    // The `tee` trickery below lets the command's stdout/stderr land in the known stdout/stderr files while also
+    // streaming to the regular stdout/stderr. For example, in GCP Batch the files are uploaded to GCS, while the
+    // stream is sent to Cloud Logging.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
     (errorOrDirectoryOutputs, errorOrGlobFiles, errorOrPreamble).mapN((directoryOutputs, globFiles, preamble) =>
       s"""|#!$jobShell
-          |DOCKER_OUTPUT_DIR_LINK
           |cd ${cwd.pathAsString}
           |tmpDir=$temporaryDirectory
           |$tmpDirPermissionsAdjustment
@@ -535,7 +514,7 @@ trait StandardAsyncExecutionActor
           |cd ${cwd.pathAsString}
           |ENVIRONMENT_VARIABLES
           |INSTANTIATED_COMMAND
-          |) $stdinRedirection > "$$$out" 2> "$$$err"
+          |) > "$$$out" 2> "$$$err"
           |echo $$? > $rcTmpPath
           |$emptyDirectoryFillCommand
           |(
@@ -551,7 +530,6 @@ trait StandardAsyncExecutionActor
         .replace("ENVIRONMENT_VARIABLES", environmentVariables)
         .replace("INSTANTIATED_COMMAND", commandString)
         .replace("SCRIPT_EPILOGUE", scriptEpilogue)
-        .replace("DOCKER_OUTPUT_DIR_LINK", dockerOutputDir)
         .replace("SCRIPT_CLOSURE", scriptClosure.getOrElse(""))
     )
   }
@@ -740,27 +718,11 @@ trait StandardAsyncExecutionActor
 
       val environmentVariables = callable.environmentExpressions.toList traverse evaluateEnvironmentExpression
 
-      // Build a list of functions from a CommandTaskDefinition to an Option[WomExpression] representing a possible
-      // redirection or override of the filename of a redirection. Evaluate that expression if present and stringify.
-      val List(stdinRedirect, stdoutOverride, stderrOverride) =
-        List[CommandTaskDefinition => Option[WomExpression]](_.stdinRedirection,
-                                                             _.stdoutOverride,
-                                                             _.stderrOverride
-        ) map {
-          _.apply(callable).traverse[ErrorOr, String] {
-            _.evaluateValue(valueMappedPreprocessedInputs, backendEngineFunctions) map { _.valueString }
-          }
-        }
-
-      (adHocFileCreationSideEffectFiles, environmentVariables, stdinRedirect, stdoutOverride, stderrOverride) mapN {
-        (adHocFiles, env, in, out, err) =>
-          instantiatedCommand.copy(
-            createdFiles = instantiatedCommand.createdFiles ++ adHocFiles,
-            environmentVariables = env.toMap,
-            evaluatedStdinRedirection = in,
-            evaluatedStdoutOverride = out,
-            evaluatedStderrOverride = err
-          )
+      (adHocFileCreationSideEffectFiles, environmentVariables) mapN { (adHocFiles, env) =>
+        instantiatedCommand.copy(
+          createdFiles = instantiatedCommand.createdFiles ++ adHocFiles,
+          environmentVariables = env.toMap
+        )
       }: ErrorOr[InstantiatedCommand]
     }
 

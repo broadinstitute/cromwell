@@ -1,7 +1,6 @@
 import sbt._
 
 object Dependencies {
-  private val akkaHttpCirceIntegrationV = "1.39.2"
   private val akkaHttpV = "10.1.15" // (CROM-6619)
   private val akkaV = "2.5.32" // scala-steward:off (CROM-6637)
   private val apacheHttpClient5V = "5.3.1"
@@ -12,9 +11,6 @@ object Dependencies {
    */
   private val catsEffectV = "2.5.3" // scala-steward:off (CROM-6564)
   private val catsV = "2.7.0"
-  private val circeConfigV = "0.8.0"
-  private val circeV = "0.14.1"
-  private val circeYamlV = "0.15.1"
   private val commonsCodecV = "1.15" // via: https://commons.apache.org/proper/commons-codec/
   private val commonsCsvV = "1.9.0"
   private val commonsIoV = "2.21.0" // via: https://commons.apache.org/proper/commons-io/
@@ -110,16 +106,6 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingV,
   )
 
-  private val circeYamlDependency = "io.circe" %% "circe-yaml" % circeYamlV
-
-  private val circeDependencies = List(
-    "core",
-    "parser",
-    "generic",
-    "optics"
-  ).map(m => "io.circe" %% s"circe-$m" % circeV) :+ circeYamlDependency :+
-  "io.circe" %% "circe-config" % circeConfigV
-
   private val catsDependencies = List(
     "org.typelevel" %% "cats-core" % catsV,
     "org.typelevel" %% "alleycats-core" % catsV,
@@ -168,7 +154,7 @@ object Dependencies {
     "com.google.cloud" % "google-cloud-storage" % googleCloudStorageV,
     "com.google.oauth-client" % "google-oauth-client" % googleOauthClientV,
     "io.spray" %% "spray-json" % sprayJsonV
-  ) ++ circeDependencies ++ catsDependencies
+  ) ++ catsDependencies
 
   // Internal collections of dependencies
 
@@ -239,10 +225,6 @@ object Dependencies {
     // other libraries do. See akka-http, elastic4s, etc.
     "com.typesafe.akka" %% "akka-http-spray-json" % akkaHttpV,
   ) ++ akkaStreamDependencies
-
-  private val akkaHttpCirceIntegrationDependency = List(
-    "de.heikoseeberger" %% "akka-http-circe" % akkaHttpCirceIntegrationV
-  )
 
   private val swaggerUiDependencies = List(
     "org.webjars" % "swagger-ui" % swaggerUiV,
@@ -390,7 +372,7 @@ object Dependencies {
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.typelevel" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV
-  ) ++ scalacheckDependencies ++ circeDependencies ++ refinedTypeDependenciesList
+  ) ++ scalacheckDependencies ++ refinedTypeDependenciesList
 
   val wdlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,
@@ -416,14 +398,14 @@ object Dependencies {
     "com.google.auth" % "google-auth-library-oauth2-http" % googleOauth2V,
     "com.chuusai" %% "shapeless" % shapelessV,
     "com.github.scopt" %% "scopt" % scoptV,
-  ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++ circeDependencies ++
+  ) ++ akkaStreamDependencies ++ configDependencies ++ catsDependencies ++
     googleApiClientDependencies ++ statsDDependencies ++ betterFilesDependencies ++
     // TODO: We're not using the "F" in slf4j. Core only supports logback, specifically the WorkflowLogger.
     slf4jBindingDependencies ++ stackdriverDependencies
 
   val databaseMigrationDependencies: List[ModuleID] = liquibaseDependencies ++ dbmsDependencies
 
-  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ circeDependencies ++ awsCloudDependencies
+  val dockerHashingDependencies: List[ModuleID] = http4sDependencies ++ awsCloudDependencies
 
   val cromwellApiClientDependencies: List[ModuleID] = List(
     "org.typelevel" %% "cats-effect" % catsEffectV,
@@ -434,13 +416,13 @@ object Dependencies {
     "org.apache.commons" % "commons-math3" % commonsMathV,
     "com.github.kxbmap" %% "configs" % configsV,
     "org.gnieh" %% "diffson-spray-json" % diffsonSprayJsonV
-  ) ++ circeDependencies ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
+  ) ++ slf4jBindingDependencies ++ cloudSupportDependencies ++ http4sDependencies
 
   val engineDependencies: List[ModuleID] = List(
     "commons-codec" % "commons-codec" % commonsCodecV,
     "commons-io" % "commons-io" % commonsIoV,
     "io.github.andrebeat" %% "scala-pool" % scalaPoolV
-  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++ akkaHttpCirceIntegrationDependency ++ circeDependencies ++
+  ) ++ swaggerUiDependencies ++ akkaHttpDependencies ++
     testDatabaseDependencies
 
   val serverDependencies: List[ModuleID] = slf4jBindingDependencies
@@ -497,7 +479,7 @@ object Dependencies {
     "com.github.scopt" %% "scopt" % scoptV,
     "org.apache.commons" % "commons-csv" % commonsCsvV,
     "io.spray" %% "spray-json" % sprayJsonV,
-  ) ++ circeDependencies ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
+  ) ++ catsDependencies ++ slf4jBindingDependencies ++ languageFactoryDependencies
 
   val allProjectDependencies: List[ModuleID] =
     backendDependencies ++
@@ -657,11 +639,6 @@ object Dependencies {
     "com.google.protobuf" % "protobuf-java" % "3.25.5",
   )
 
-  // CVE-2026-59990
-  private val jawnOverrides = List(
-    "org.typelevel" %% "jawn-parser" % "1.7.0",
-  )
-
   val jacksonDependencyOverrides: List[ModuleID] = List(
     "tools.jackson.core" % "jackson-core" % jacksonV
   )
@@ -688,8 +665,7 @@ object Dependencies {
       asyncHttpClientOverrides ++
       nimbusdsOverrides ++
       bouncyCastleOverrides ++
-      protobufJavaOverrides ++
-      jawnOverrides
+      protobufJavaOverrides
 
   /*
   Libraries that should be globally excluded.

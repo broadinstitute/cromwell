@@ -130,7 +130,6 @@ object Dependencies {
   private val http4sDependencies = List(
     "org.http4s" %% "http4s-dsl" % http4sV,
     "org.http4s" %% "http4s-blaze-client" % http4sV,
-    "org.http4s" %% "http4s-circe" % http4sV,
   )
 
   private val googleApiClientDependencies = List(
@@ -716,5 +715,4 @@ object Dependencies {
   val http4sDsl = "org.http4s" %% "http4s-dsl" % http4sV
   val http4sEmberClient = "org.http4s" %% "http4s-ember-client" % http4sV
   val http4sEmberServer = "org.http4s" %% "http4s-ember-server" % http4sV
-  val http4sCirce = "org.http4s" %% "http4s-circe" % http4sV
 }

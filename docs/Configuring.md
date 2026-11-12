@@ -781,37 +781,3 @@ system.workflow-heartbeats {
 ```
 
 The default threshold value is 100, just like the default for the heartbeat batch size.
-
-### YAML
-
-**Maximum number of nodes**
-
-Cromwell will throw an error when detecting cyclic loops in Yaml inputs. However one can craft small acyclic YAML
-documents that consume significant amounts of memory or cpu. To limit the amount of processing during parsing, there is
-a limit on the number of nodes parsed per YAML document.
-
-This limit may be configured via the configuration value:
-
-```hocon
-yaml {
-  max-nodes = 1000000
-}
-```
-
-The default limit is 1,000,000 nodes.
-
-**Maximum nesting depth**
-
-There is a limit on the maximum depth of nested YAML. If you decide to increase this value, you will likely need to also
-increase the Java Virtual Machine's thread stack size as well using
-[either `-Xss` or `-XX:ThreadStackSize`](https://docs.oracle.com/javase/8/docs/technotes/tools/unix/java.html).
-
-This limit may be configured via the configuration value:
-
-```hocon
-yaml {
-  max-depth = 100
-}
-```
-
-The default limit is a maximum nesting depth of 1,000.

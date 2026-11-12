@@ -117,8 +117,37 @@ class PartialWorkflowSourcesSpec extends AnyFlatSpec with CromwellTimeoutSpec wi
     actual should be(expected)
   }
 
-  it should "blankInputsUnchanged" in {
-    PartialWorkflowSources.workflowInputsValidation("  ") should be(Vector("false").validNel)
-    PartialWorkflowSources.workflowInputsValidation("") should be(Vector("false").validNel)
+  // Previously (YAML parser) both of these were accepted as Vector("false"); now they are rejected as invalid JSON.
+  it should "blankInputsRejected" in {
+    List("  ", "") foreach { blank =>
+      val result = PartialWorkflowSources.workflowInputsValidation(blank)
+      result.isInvalid shouldBe true
+      result.swap.toOption.get.head should startWith("Input file is not valid JSON.")
+    }
+  }
+
+  it should "rejectYamlOnlySyntax" in {
+    List("a: 1", "{'a': 1}", "{a: 1}", "{\"a\": 1,}", "# c\n{\"a\": 1}") foreach { yamlish =>
+      val result = PartialWorkflowSources.workflowInputsValidation(yamlish)
+      result.isInvalid shouldBe true
+      result.swap.toOption.get.head should startWith("Input file is not valid JSON.")
+    }
+  }
+
+  it should "rejectDeepNesting" in {
+    val deep = "[" * 10000 + "]" * 10000
+    val result = PartialWorkflowSources.workflowInputsValidation(deep) // must not throw StackOverflowError
+    result.isInvalid shouldBe true
+  }
+
+  it should "numbersRoundTrip" in {
+    val input = """{"w.big":12345678901234567890,"w.prec":0.1000,"w.exp":1e10}"""
+    PartialWorkflowSources.workflowInputsValidation(input) match {
+      case Valid(Vector(out)) =>
+        out.parseJson shouldBe input.parseJson
+        out should include("12345678901234567890")
+        out should include("0.1000")
+      case other => fail(s"Unexpected result: $other")
+    }
   }
 }

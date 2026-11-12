@@ -8,6 +8,10 @@
 
 ### General
 
+#### Workflow inputs must be JSON
+
+Workflow inputs must be JSON; YAML inputs are no longer accepted. The `yaml.max-nodes` and `yaml.max-depth` settings are removed.
+
 #### Configurable subworkflow launch rate
 
 The key `system.max-subworkflow-launch-count` now controls how many subworkflows launch per batch, with a default of 1.

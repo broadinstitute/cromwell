@@ -47,8 +47,8 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         }
         assertResult(
           s"""|{
-              |  "status": "fail",
-              |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId}"
+              |  "message": "Unrecognized workflow ID: ${CromwellApiServiceSpec.UnrecognizedWorkflowId}",
+              |  "status": "fail"
               |}
               |""".stripMargin.trim
         ) {
@@ -67,8 +67,8 @@ class MetadataRouteSupportSpec extends AsyncFlatSpec with ScalatestRouteTest wit
         }
         assertResult(
           """{
-            |  "status": "fail",
-            |  "message": "Invalid workflow ID: 'foobar'."
+            |  "message": "Invalid workflow ID: 'foobar'.",
+            |  "status": "fail"
             |}""".stripMargin
         ) {
           responseAs[String]

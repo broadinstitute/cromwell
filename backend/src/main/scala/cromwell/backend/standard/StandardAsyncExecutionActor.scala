@@ -399,9 +399,19 @@ trait StandardAsyncExecutionActor
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
 
-  // Standard output and error are always redirected to the backend's default filenames, which are known to be
-  // relative paths. Absolutize them since the command script references them outside a (cd "execution dir"; ...)
-  // subshell.
+  // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
+  // the command, but the standard input file will never be accessed after the command completes. standard output and
+  // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read
+  // by the backend.
+  //
+  // All of these redirections can be expressions and will be given "value-mapped" versions of their inputs, which
+  // means that if any fully qualified filenames are generated they will be container paths. As mentioned above this
+  // doesn't matter for standard input since that's ephemeral to the container, but standard output and error paths
+  // will need to be mapped back to host paths for use outside the command script.
+  //
+  // Absolutize any redirect and overridden paths. All of these files must have absolute paths since the command script
+  // references them outside a (cd "execution dir"; ...) subshell. The default names are known to be relative paths,
+  // the names from redirections may or may not be relative.
   private def absolutizeContainerPath(path: String): String =
     if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
 

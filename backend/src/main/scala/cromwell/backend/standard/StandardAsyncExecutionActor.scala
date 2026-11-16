@@ -399,24 +399,32 @@ trait StandardAsyncExecutionActor
   def cwd: Path = commandDirectory
   def rcPath: Path = cwd./(jobPaths.returnCodeFilename)
 
-  // The standard input filename can be as ephemeral as the execution: the name needs to match the expectations of
-  // the command, but the standard input file will never be accessed after the command completes. standard output and
-  // error on the other hand will be accessed and the names of those files need to be known to be delocalized and read
-  // by the backend.
-  //
-  // All of these redirections can be expressions and will be given "value-mapped" versions of their inputs, which
-  // means that if any fully qualified filenames are generated they will be container paths. As mentioned above this
-  // doesn't matter for standard input since that's ephemeral to the container, but standard output and error paths
-  // will need to be mapped back to host paths for use outside the command script.
-  //
-  // Absolutize any redirect and overridden paths. All of these files must have absolute paths since the command script
-  // references them outside a (cd "execution dir"; ...) subshell. The default names are known to be relative paths,
-  // the names from redirections may or may not be relative.
+  // Standard output and error are always redirected to the backend's default filenames, which are known to be
+  // relative paths. Absolutize them since the command script references them outside a (cd "execution dir"; ...)
+  // subshell.
   private def absolutizeContainerPath(path: String): String =
     if (path.startsWith(cwd.pathAsString)) path else cwd.resolve(path).pathAsString
 
   def executionStdout: String = jobPaths.defaultStdoutFilename |> absolutizeContainerPath
   def executionStderr: String = jobPaths.defaultStderrFilename |> absolutizeContainerPath
+
+  /**
+   * @param stdoutPipe The pipe emitting the `stdout` stream
+   * @param stdoutFile The file path to write `stdout` to
+   *
+   * @return Tee command that continues emitting `stdout` while redirecting a copy to file
+   */
+  protected def stdoutTeeCommand(stdoutPipe: String, stdoutFile: String): String =
+    s"""tee $stdoutFile < "$$$stdoutPipe" &"""
+
+  /**
+   * @param stderrPipe The pipe emitting the `stderr` stream
+   * @param stderrFile The file path to write `stderr` to
+   *
+   * @return Tee command that continues emitting `stderr` while redirecting a copy to file
+   */
+  protected def stderrTeeCommand(stderrPipe: String, stderrFile: String): String =
+    s"""tee $stderrFile < "$$$stderrPipe" >&2 &"""
 
   /*
    * Ensures the standard paths are correct w.r.t overridden paths. This is called in two places: when generating the command and
@@ -492,7 +500,7 @@ trait StandardAsyncExecutionActor
 
     // The `tee` trickery below lets the command's stdout/stderr land in the known stdout/stderr files while also
     // streaming to the regular stdout/stderr. For example, in GCP Batch the files are uploaded to GCS, while the
-    // stream is sent to Cloud Logging.
+    // stream is sent to Cloud Logging. Backends can customize the streaming via `stdoutTeeCommand`/`stderrTeeCommand`.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
     (errorOrDirectoryOutputs, errorOrGlobFiles, errorOrPreamble).mapN((directoryOutputs, globFiles, preamble) =>
       s"""|#!$jobShell
@@ -508,8 +516,8 @@ trait StandardAsyncExecutionActor
           |mkfifo "$$$out" "$$$err"
           |trap 'rm "$$$out" "$$$err"' EXIT
           |touch $stdoutRedirection $stderrRedirection
-          |tee $stdoutRedirection < "$$$out" &
-          |tee $stderrRedirection < "$$$err" >&2 &
+          |${stdoutTeeCommand(out, stdoutRedirection)}
+          |${stderrTeeCommand(err, stderrRedirection)}
           |(
           |cd ${cwd.pathAsString}
           |ENVIRONMENT_VARIABLES

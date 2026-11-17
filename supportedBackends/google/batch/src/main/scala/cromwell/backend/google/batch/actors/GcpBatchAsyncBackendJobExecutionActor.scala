@@ -1255,7 +1255,7 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
       GcpBatchExitCode.VMRecreatedDuringExecution,
       GcpBatchExitCode.VMRebootedDuringExecution,
       GcpBatchExitCode.VMReportingTimeout
-    ).contains(failed.errorCode)
+    ).contains(failed.errorCode) || failed.eventList.exists(_.name.contains("CODE_GCE_RESOURCE_NOT_FOUND"))
     lazy val taskStartedRunning = failed.eventList.exists(e => executionEventRunningMatcher.matches(e.name))
     transientErrorRetryable && errorTypeIsTransient && !taskStartedRunning
   }

@@ -226,7 +226,7 @@ class MetadataBuilderActorSpec
 
     val mba = system.actorOf(
       props = MetadataBuilderActor.props(readMetadataWorkerMaker),
-      name = "mba-cost-builder"
+      name = s"mba-cost-builder-${UUID.randomUUID()}"
     )
 
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
@@ -280,7 +280,7 @@ class MetadataBuilderActorSpec
 
     val mba = system.actorOf(
       props = MetadataBuilderActor.props(readMetadataWorkerMaker),
-      name = "mba-cost-builder"
+      name = s"mba-cost-builder-${UUID.randomUUID()}"
     )
 
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
@@ -304,7 +304,7 @@ class MetadataBuilderActorSpec
 
     val mba = system.actorOf(
       props = MetadataBuilderActor.props(readMetadataWorkerMaker),
-      name = "mba-cost-builder"
+      name = s"mba-cost-builder-${UUID.randomUUID()}"
     )
 
     val response = mba.ask(action).mapTo[MetadataJsonResponse]
@@ -427,7 +427,7 @@ class MetadataBuilderActorSpec
     def readMetadataWorkerMaker = () => Props(new TestReadDatabaseMetadataWorkerActorForCost)
     val mba = system.actorOf(
       props = MetadataBuilderActor.props(readMetadataWorkerMaker),
-      name = "mba-cost-builder"
+      name = s"mba-cost-builder-${UUID.randomUUID()}"
     )
 
     val response = mba.ask(mainAction).mapTo[MetadataJsonResponse]

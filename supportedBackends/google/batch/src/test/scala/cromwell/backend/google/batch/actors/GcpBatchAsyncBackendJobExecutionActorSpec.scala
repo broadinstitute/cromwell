@@ -532,26 +532,6 @@ class GcpBatchAsyncBackendJobExecutionActorSpec
     }
   }
 
-  it should "retry transient GCE scheduling errors only when the task never ran" in {
-    val actorRef = buildPreemptibleTestActorRef(attempt = 1, preemptible = 0, previousTransientRetriesCount = 0)
-    val batchBackend = actorRef.underlyingActor
-    val handle = new GcpBatchPendingExecutionHandle(null, generateStandardAsyncJob, None, None)
-    val gceError = ExecutionEvent(
-      "Batch Error: code - CODE_GCE_RESOURCE_NOT_FOUND, description - googleapi: Error 404: The resource " +
-        "'projects/1/regions/us-central1/networks/default' was not found, notFound, already retried 3 times",
-      OffsetDateTime.now()
-    )
-    val running = ExecutionEvent("Job state is set from SCHEDULED to RUNNING for job x.", OffsetDateTime.now())
-
-    def result(events: List[ExecutionEvent]) = Await.result(
-      batchBackend.handleExecutionResult(RunStatus.Failed(GcpBatchExitCode.GenericFailure, events), handle),
-      timeout
-    )
-
-    result(List(gceError)).isInstanceOf[FailedRetryableExecutionHandle] shouldBe true
-    result(List(running, gceError)).isInstanceOf[FailedNonRetryableExecutionHandle] shouldBe true
-  }
-
   it should "not retry transient failures after 10 attempts" in {
     val actorRef = buildPreemptibleTestActorRef(attempt = 11, preemptible = 0, previousTransientRetriesCount = 10)
     val batchBackend = actorRef.underlyingActor

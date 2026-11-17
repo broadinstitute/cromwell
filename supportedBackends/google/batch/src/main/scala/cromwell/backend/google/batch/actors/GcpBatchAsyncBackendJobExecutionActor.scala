@@ -1249,8 +1249,6 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
 
   // Check whether this failure should be automatically resubmitted without counting against maxRetries.
   // Guidance: Resubmit if the task has a known-transient failure type and has not yet cost the user money.
-  // `CODE_GCE_RESOURCE_NOT_FOUND` may seem like a non-retryable 404, but we have seen it happen on
-  // resources like networks that definitely exist and were transiently unreachable within GCP
   private def isTransientFailure(failed: RunStatus.Failed): Boolean = {
     lazy val errorTypeIsTransient = List(
       GcpBatchExitCode.VMPreemption,

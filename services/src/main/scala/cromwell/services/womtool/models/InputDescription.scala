@@ -2,7 +2,7 @@ package cromwell.services.womtool.models
 
 import cromwell.services.womtool.models.WomExpressionJsonSupport.womExpressionEncoder
 import cromwell.services.womtool.models.WomTypeJsonSupport.womTypeEncoder
-import spray.json.{JsBoolean, JsNull, JsObject, JsonWriter, JsString, JsValue}
+import spray.json.{DefaultJsonProtocol, JsonFormat, JsonWriter, NullOptions, RootJsonFormat}
 import wom.expression.WomExpression
 import wom.types.WomType
 
@@ -14,13 +14,12 @@ case class InputDescription(name: String,
 )
 
 object InputDescription {
-  implicit val inputDescriptionWriter: JsonWriter[InputDescription] = new JsonWriter[InputDescription] {
-    override def write(a: InputDescription): JsValue = JsObject(
-      "name" -> JsString(a.name),
-      "valueType" -> womTypeEncoder.write(a.valueType),
-      "typeDisplayName" -> JsString(a.typeDisplayName),
-      "optional" -> JsBoolean(a.optional),
-      "default" -> a.default.map(womExpressionEncoder.write).getOrElse(JsNull)
-    )
+  // NullOptions writes a missing `default` as `null`, which the describe endpoint has always returned.
+  private object Protocol extends DefaultJsonProtocol with NullOptions {
+    implicit val womTypeFormat: JsonFormat[WomType] = lift(womTypeEncoder)
+    implicit val womExpressionFormat: JsonFormat[WomExpression] = lift(womExpressionEncoder)
+    val inputDescriptionFormat: RootJsonFormat[InputDescription] = jsonFormat5(InputDescription.apply)
   }
+
+  implicit val inputDescriptionWriter: JsonWriter[InputDescription] = Protocol.inputDescriptionFormat
 }

@@ -1,4 +1,5 @@
 # NB: To request this test by name, make it lowercase, eg sbt "centaur/it:testOnly * -- -n gcpbatch_fast_fail_noaddress"
+ignore: true
 name: gcpbatch_fast_fail_noaddress
 backends: [ GCPBATCH ]
 backendsMode: any

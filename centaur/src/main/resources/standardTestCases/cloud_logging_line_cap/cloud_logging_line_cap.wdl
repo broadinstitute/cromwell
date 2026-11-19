@@ -1,4 +1,4 @@
-version 1.0
+version 1.1
 
 # Prints more lines than the default Cloud Logging cap (10,000) to both stdout and stderr, then checks that:
 #  - the stdout/stderr files still contain every line, since the cap only limits what is forwarded to Cloud Logging;

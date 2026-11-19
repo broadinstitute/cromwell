@@ -39,18 +39,12 @@ object WorkflowHeartbeatConfig {
   // NOTE: If these are made fully private the compiler wrongly emits a warning about them being unused, which our
   // compiler flag settings then promote to an error.
 
-  implicit private[engine] lazy val writeFiniteDuration: JsonWriter[FiniteDuration] =
-    (d: FiniteDuration) => JsString(d.toString)
-  implicit private[engine] lazy val workflowHeartbeatConfigWriter: RootJsonWriter[WorkflowHeartbeatConfig] =
-    (c: WorkflowHeartbeatConfig) =>
-      JsObject(
-        "cromwellId" -> c.cromwellId.toJson,
-        "heartbeatInterval" -> c.heartbeatInterval.toJson,
-        "ttl" -> c.ttl.toJson,
-        "failureShutdownDuration" -> c.failureShutdownDuration.toJson,
-        "writeBatchSize" -> c.writeBatchSize.toJson,
-        "writeThreshold" -> c.writeThreshold.toJson
-      )
+  implicit private[engine] lazy val writeFiniteDuration: JsonFormat[FiniteDuration] =
+    lift(JsonWriter.func2Writer[FiniteDuration](d => JsString(d.toString)))
+  implicit private[engine] lazy val workflowHeartbeatConfigWriter: RootJsonFormat[WorkflowHeartbeatConfig] =
+    jsonFormat6[String, FiniteDuration, FiniteDuration, FiniteDuration, Int, Int, WorkflowHeartbeatConfig](
+      new WorkflowHeartbeatConfig(_, _, _, _, _, _)
+    )
 
   def apply(config: Config): WorkflowHeartbeatConfig =
     validate(config).toTry("Errors parsing WorkflowHeartbeatConfig").get

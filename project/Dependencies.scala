@@ -372,7 +372,7 @@ object Dependencies {
     "io.spray" %% "spray-json" % sprayJsonV,
     "org.typelevel" %% "simulacrum" % simulacrumV,
     "commons-codec" % "commons-codec" % commonsCodecV
-  ) ++ scalacheckDependencies ++ refinedTypeDependenciesList
+  ) ++ scalacheckDependencies
 
   val wdlDependencies: List[ModuleID] = List(
     "commons-io" % "commons-io" % commonsIoV,

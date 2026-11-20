@@ -25,6 +25,20 @@ The `metadata-write-statistics.sub-workflow-bundling` config key is removed. The
 
 The `metadata-read-row-number-safety-threshold` config key is removed. `metadata-row-limit` is its recommended replacement.
 
+### Deprecations
+
+The following Cromwell features are unmaintained and should be considered deprecated.
+
+#### Databases
+
+- MariaDB
+- PostgreSQL
+
+#### Backends
+
+- HPC (SGE, LSF, Slurm, HTCondor)
+- TES
+
 ## 92 Release Notes
 ### WDL 1.1 Support
 * Cromwell now fully supports WDL 1.1. Users can specify `Version: "1.1"` in their workflow options to use WDL 1.1 features. See the [WDL 1.1 Spec](https://github.com/openwdl/wdl/blob/wdl-1.1/SPEC.md)

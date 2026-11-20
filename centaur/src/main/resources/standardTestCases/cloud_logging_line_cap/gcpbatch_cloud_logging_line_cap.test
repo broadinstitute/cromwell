@@ -1,0 +1,20 @@
+name: gcpbatch_cloud_logging_line_cap
+testFormat: workflowsuccess
+backends: [GCPBATCH]
+
+files {
+  workflow: cloud_logging_line_cap.wdl
+}
+
+metadata {
+  workflowName: cloud_logging_line_cap
+  status: Succeeded
+  "outputs.cloud_logging_line_cap.stdout_lines": 20000
+  "outputs.cloud_logging_line_cap.stderr_lines": 20000
+  "outputs.cloud_logging_line_cap.cloud_logging_stdout_line_10000": true
+  "outputs.cloud_logging_line_cap.cloud_logging_stderr_line_10000": true
+  "outputs.cloud_logging_line_cap.cloud_logging_stdout_note": true
+  "outputs.cloud_logging_line_cap.cloud_logging_stderr_note": true
+  "outputs.cloud_logging_line_cap.cloud_logging_stdout_line_10001": false
+  "outputs.cloud_logging_line_cap.cloud_logging_stderr_line_10001": false
+}

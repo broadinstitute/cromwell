@@ -36,6 +36,19 @@ class GcpBatchConfigurationAttributesSpec
     gcpBatchAttributes.computeServiceAccount should be("default")
     gcpBatchAttributes.referenceFileToDiskImageMappingOpt.isEmpty should be(true)
     gcpBatchAttributes.logsPolicy should be(GcpBatchLogsPolicy.CloudLogging)
+    gcpBatchAttributes.cloudLoggingMaxLines should be(None)
+  }
+
+  it should "parse an overridden cloud-logging-max-lines" in {
+    val backendConfig = ConfigFactory.parseString(configString(batch = "cloud-logging-max-lines = 500"))
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
+    gcpBatchAttributes.cloudLoggingMaxLines should be(Some(500))
+  }
+
+  it should "disable cloud logging truncation when cloud-logging-max-lines = 0" in {
+    val backendConfig = ConfigFactory.parseString(configString(batch = "cloud-logging-max-lines = 0"))
+    val gcpBatchAttributes = GcpBatchConfigurationAttributes(googleConfig, backendConfig, "GCPBATCH")
+    gcpBatchAttributes.cloudLoggingMaxLines should be(None)
   }
 
   it should "parse correct preemptible config" in {

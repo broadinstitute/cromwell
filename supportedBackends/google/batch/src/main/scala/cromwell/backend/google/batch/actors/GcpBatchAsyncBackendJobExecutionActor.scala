@@ -67,6 +67,16 @@ import scala.util.{Failure, Success, Try}
 
 object GcpBatchAsyncBackendJobExecutionActor {
 
+  /**
+    * An awk filter that passes the first `maxLines` lines of its input straight through, followed by one copy of
+    * `truncationNote`, then silently drains the rest. Used to cap what reaches Cloud Logging while the full,
+    * untruncated stream still reaches the GCS-bound file it's `tee`'d to.
+    */
+  private[actors] def cloudLoggingLineFilter(maxLines: Option[Int], truncationNote: String): Option[String] =
+    maxLines map { n =>
+      s"""awk -v n=$n -v note=${truncationNote.shellQuote} 'NR<=n{print;fflush()} NR==n+1{print note;fflush()}'"""
+    }
+
   private def StandardException(errorCode: GcpBatchExitCode,
                                 message: Option[String],
                                 jobTag: String,
@@ -206,6 +216,30 @@ class GcpBatchAsyncBackendJobExecutionActor(override val standardParams: Standar
   }
 
   lazy val maxTransientErrorRetries = batchConfiguration.batchAttributes.maxTransientErrorRetries
+
+  override protected def stdoutTeeCommand(stdoutPipe: String, stdoutFile: String): String =
+    cappedTeeCommand("stdout", jobPaths.standardPaths.output.pathAsString, stdoutPipe, stdoutFile, redirect = "")
+      .getOrElse(super.stdoutTeeCommand(stdoutPipe, stdoutFile))
+
+  override protected def stderrTeeCommand(stderrPipe: String, stderrFile: String): String =
+    cappedTeeCommand("stderr", jobPaths.standardPaths.error.pathAsString, stderrPipe, stderrFile, redirect = " >&2")
+      .getOrElse(super.stderrTeeCommand(stderrPipe, stderrFile))
+
+  // A tee command whose pass-through stream is capped by `cloudLoggingLineFilter`, or None if no cap is configured.
+  private def cappedTeeCommand(streamName: String,
+                               fullOutputPath: String,
+                               pipe: String,
+                               file: String,
+                               redirect: String
+  ): Option[String] =
+    batchAttributes.cloudLoggingMaxLines flatMap { n =>
+      GcpBatchAsyncBackendJobExecutionActor.cloudLoggingLineFilter(
+        Option(n),
+        s"[Cromwell] $streamName truncated after $n lines, see $fullOutputPath for full output"
+      )
+    } map { filter =>
+      s"""tee $file < "$$$pipe" | $filter$redirect &"""
+    }
 
   lazy val transientErrorRetryable: Boolean = previousRetryReasons match {
     case Valid(PreviousRetryReasons(_, _, ar)) => ar < maxTransientErrorRetries

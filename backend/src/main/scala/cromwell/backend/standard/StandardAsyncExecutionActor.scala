@@ -418,6 +418,24 @@ trait StandardAsyncExecutionActor
   def executionStdout: String = jobPaths.defaultStdoutFilename |> absolutizeContainerPath
   def executionStderr: String = jobPaths.defaultStderrFilename |> absolutizeContainerPath
 
+  /**
+   * @param stdoutPipe The pipe emitting the `stdout` stream
+   * @param stdoutFile The file path to write `stdout` to
+   *
+   * @return Tee command that continues emitting `stdout` while redirecting a copy to file
+   */
+  protected def stdoutTeeCommand(stdoutPipe: String, stdoutFile: String): String =
+    s"""tee $stdoutFile < "$$$stdoutPipe" &"""
+
+  /**
+   * @param stderrPipe The pipe emitting the `stderr` stream
+   * @param stderrFile The file path to write `stderr` to
+   *
+   * @return Tee command that continues emitting `stderr` while redirecting a copy to file
+   */
+  protected def stderrTeeCommand(stderrPipe: String, stderrFile: String): String =
+    s"""tee $stderrFile < "$$$stderrPipe" >&2 &"""
+
   /*
    * Ensures the standard paths are correct w.r.t overridden paths. This is called in two places: when generating the command and
    * before sending the results back to the engine. The latter is to cover for the case of a restart where the command is not re-generated,
@@ -492,7 +510,7 @@ trait StandardAsyncExecutionActor
 
     // The `tee` trickery below lets the command's stdout/stderr land in the known stdout/stderr files while also
     // streaming to the regular stdout/stderr. For example, in GCP Batch the files are uploaded to GCS, while the
-    // stream is sent to Cloud Logging.
+    // stream is sent to Cloud Logging. Backends can customize the streaming via `stdoutTeeCommand`/`stderrTeeCommand`.
     // https://stackoverflow.com/questions/692000/how-do-i-write-stderr-to-a-file-while-using-tee-with-a-pipe
     (errorOrDirectoryOutputs, errorOrGlobFiles, errorOrPreamble).mapN((directoryOutputs, globFiles, preamble) =>
       s"""|#!$jobShell
@@ -508,8 +526,8 @@ trait StandardAsyncExecutionActor
           |mkfifo "$$$out" "$$$err"
           |trap 'rm "$$$out" "$$$err"' EXIT
           |touch $stdoutRedirection $stderrRedirection
-          |tee $stdoutRedirection < "$$$out" &
-          |tee $stderrRedirection < "$$$err" >&2 &
+          |${stdoutTeeCommand(out, stdoutRedirection)}
+          |${stderrTeeCommand(err, stderrRedirection)}
           |(
           |cd ${cwd.pathAsString}
           |ENVIRONMENT_VARIABLES

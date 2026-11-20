@@ -58,7 +58,8 @@ case class GcpBatchConfigurationAttributes(
   referenceFileToDiskImageMappingOpt: Option[Map[String, GcpBatchReferenceFilesDisk]],
   checkpointingInterval: FiniteDuration,
   logsPolicy: GcpBatchLogsPolicy,
-  maxTransientErrorRetries: Int
+  maxTransientErrorRetries: Int,
+  cloudLoggingMaxLines: Option[Int]
 )
 
 object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOperations with StrictLogging {
@@ -104,6 +105,7 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     "batch.localization-attempts",
     "batch.parallel-composite-upload-threshold",
     "batch.logs-policy",
+    "batch.cloud-logging-max-lines",
     "filesystems",
     "filesystems.drs.auth",
     "filesystems.gcs.auth",
@@ -311,6 +313,13 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
     val maxTransientErrorRetries: Int =
       backendConfig.as[Option[Int]]("max-transient-error-retries").getOrElse(10)
 
+    // The number of lines of stdout/stderr to pass through to Cloud Logging. `0` (or less) disables the limit.
+    val cloudLoggingMaxLines: Option[Int] =
+      backendConfig.as[Option[Int]]("batch.cloud-logging-max-lines").getOrElse(0) match {
+        case n if n > 0 => Option(n)
+        case _ => None
+      }
+
     def authGoogleConfigForBatchConfigurationAttributes(
       project: String,
       bucket: String,
@@ -354,7 +363,8 @@ object GcpBatchConfigurationAttributes extends GcpBatchReferenceFilesMappingOper
           referenceFileToDiskImageMappingOpt = generatedReferenceFilesMappingOpt,
           checkpointingInterval = checkpointingInterval,
           logsPolicy = logsPolicy,
-          maxTransientErrorRetries = maxTransientErrorRetries
+          maxTransientErrorRetries = maxTransientErrorRetries,
+          cloudLoggingMaxLines = cloudLoggingMaxLines
         )
       }
 

@@ -1,0 +1,11 @@
+name: max_retries_mode_allerrors
+testFormat: workflowfailure
+
+files {
+  workflow: max_retries/max_retries.wdl
+  options: max_retries/max_retries_mode_allerrors.options
+}
+
+metadata {
+  "failures.0.causedBy.0.message": "Job retry_for_me.broken_task:NA:2 exited with return code 1 which has not been declared as a valid return code. See 'continueOnReturnCode' runtime attribute for more details."
+}

@@ -146,3 +146,12 @@ Example `options.json`:
     "memory_retry_multiplier" : 1.1
 }
 ```
+
+## Max Retries Mode
+
+The `max_retries_mode` workflow options sets the behavior of retrying failed jobs when the [`maxRetries` runtime
+attribute](../RuntimeAttributes.md#maxretries) is specified.
+
+The possible values are `AllErrors` or `KnownErrors`. If set to `AllErrors`, the job will be retried for any error. If
+set to `KnownErrors`, the job will only be retried for errors that are known to be retryable, such as increasing memory
+in out-of-memory situations. The default value is `AllErrors`.

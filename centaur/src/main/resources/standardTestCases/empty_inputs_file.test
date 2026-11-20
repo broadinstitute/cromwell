@@ -9,7 +9,7 @@ files {
 submit {
   statusCode: 400
   message: """{
-  "status": "fail",
-  "message": "Error(s): Submitted input 'false' of type JsFalse$ is not a valid JSON object."
+  "message": "Error(s): Input file is not valid JSON. Inputs data: ''. Error: JsonParser.ParsingException: Unexpected end-of-input at input index 0 (line 1, position 1), expected JSON Value:\n\n^\n.",
+  "status": "fail"
 }"""
 }

@@ -60,7 +60,7 @@ case class CromwellTracker(backendCount: Int, configuredSignificance: Double) ex
 
 object CromwellTracker extends DefaultJsonProtocol {
   implicit lazy val cromwellTrackerFormat: RootJsonFormat[CromwellTracker] =
-    jsonFormat2(CromwellTracker.apply _)
+    jsonFormat2(CromwellTracker.apply)
   implicit lazy val workflowProcessingEventFormat: RootJsonFormat[WorkflowProcessingEvent] =
-    jsonFormat4(WorkflowProcessingEvent.apply _)
+    jsonFormat4(WorkflowProcessingEvent.apply)
 }

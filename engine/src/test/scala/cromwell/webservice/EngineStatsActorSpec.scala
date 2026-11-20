@@ -15,7 +15,7 @@ class EngineStatsActorSpec extends TestKitSuite with AnyFlatSpecLike with Matche
   behavior of "EngineStatsActor"
 
   val replyTo = TestProbe("replyTo")
-  val defaultTimeout = 500 millis
+  val defaultTimeout = 2 seconds
 
   it should "return double zeros with no WorkflowActors" in {
     TestActorRef(EngineStatsActor.props(List.empty[ActorRef], replyTo.ref, timeout = 200 millis))

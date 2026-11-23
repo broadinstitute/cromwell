@@ -76,7 +76,7 @@ jobs:
             friendly_name: Horicromtal Deadlock
           - build_type: singleWorkflowRunner
             friendly_name: Single Workflow Runner
-          # Disabled: MariaDB and PostgreSQL are EOL (CTM-790)
+          # Disabled: MariaDB and PostgreSQL support is unmaintained, these versions are are EOL (CTM-790)
           # - build_type: centaurLocal
           #   build_mariadb: 10.3
           #   friendly_name: Centaur Local with MariaDB 10.3

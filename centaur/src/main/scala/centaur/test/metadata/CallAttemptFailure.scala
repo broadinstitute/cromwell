@@ -4,8 +4,11 @@ import java.time.OffsetDateTime
 
 import cats.effect.IO
 import cats.implicits._
-import io.circe._
-import io.circe.parser._
+import cromwell.api.model.OffsetDateTimeJsonFormat
+import spray.json._
+import spray.json.DefaultJsonProtocol._
+
+import scala.util.Try
 
 /**
   * The first failure message of a call. Based on the JMUI FailureMessage:
@@ -30,46 +33,55 @@ object CallAttemptFailure {
     jsonOption.map(buildFailures).getOrElse(IO.pure(Vector.empty))
 
   def buildFailures(json: String): IO[Vector[CallAttemptFailure]] =
-    IO.fromEither(decode[Vector[CallAttemptFailure]](json))
+    IO.fromTry(Try(json.parseJson)) map { parsed =>
+      Try(decodeFailures(parsed)).getOrElse(Vector.empty)
+    }
 
-  implicit private val decodeFailures: Decoder[Vector[CallAttemptFailure]] =
-    Decoder.instance { c =>
-      for {
-        workflowId <- c.get[String]("id")
-        calls <- c.get[Map[String, Json]]("calls").map(_.toVector)
-        callAttemptFailures <- calls.flatTraverse[Decoder.Result, CallAttemptFailure] { case (callName, callJson) =>
-          val decoderCallAttempt = decodeFromCallAttempt(workflowId, callName)
-          callJson.as[Vector[Option[CallAttemptFailure]]](Decoder.decodeVector(decoderCallAttempt)).map(_.flatten)
-        }
-      } yield callAttemptFailures
-    } or Decoder.const(Vector.empty)
+  private def decodeFailures(json: JsValue): Vector[CallAttemptFailure] = {
+    val fields = json.asJsObject.fields
+    val workflowId = fields("id").convertTo[String]
+    val calls = fields("calls").asJsObject.fields.toVector
+    calls flatMap { case (callName, callJson) =>
+      callJson.convertTo[Vector[JsValue]] flatMap { attempt =>
+        Try(decodeFromCallAttempt(workflowId, callName, attempt.asJsObject)).toOption.flatten
+      }
+    }
+  }
 
-  private def decodeFromCallAttempt(workflowId: String, callName: String): Decoder[Option[CallAttemptFailure]] =
-    Decoder.instance { c =>
-      for {
-        shardIndexOption <- c.get[Option[Int]]("shardIndex")
-        attemptOption <- c.get[Option[Int]]("attempt")
-        messageOption <- c.downField("failures").downArray.get[Option[String]]("message")
-        startOption <- c.get[Option[OffsetDateTime]]("start")
-        endOption <- c.get[Option[OffsetDateTime]]("end")
-        stdoutOption <- c.get[Option[String]]("stdout")
-        stderrOption <- c.get[Option[String]]("stderr")
-        callRootOption <- c.get[Option[String]]("callRoot")
-        callAttemptFailureOption = (shardIndexOption, attemptOption, messageOption) mapN {
-          (shardIndex, attempt, message) =>
-            new CallAttemptFailure(
-              workflowId = workflowId,
-              callFullyQualifiedName = callName,
-              jobIndex = shardIndex,
-              jobAttempt = attempt,
-              message = message,
-              startOption = startOption,
-              endOption = endOption,
-              stdoutOption = stdoutOption,
-              stderrOption = stderrOption,
-              callRootOption = callRootOption
-            )
-        }
-      } yield callAttemptFailureOption
-    } or Decoder.const(None)
+  private def field[A: JsonReader](json: JsObject, name: String): Option[A] =
+    json.fields.get(name).filter(_ != JsNull).map(_.convertTo[A])
+
+  private def decodeFromCallAttempt(workflowId: String,
+                                    callName: String,
+                                    json: JsObject
+  ): Option[CallAttemptFailure] = {
+    val shardIndexOption = field[Int](json, "shardIndex")
+    val attemptOption = field[Int](json, "attempt")
+    val messageOption = json.fields
+      .get("failures")
+      .collect {
+        case JsArray(failures) if failures.nonEmpty =>
+          field[String](failures.head.asJsObject, "message")
+      }
+      .flatten
+    val startOption = field[OffsetDateTime](json, "start")
+    val endOption = field[OffsetDateTime](json, "end")
+    val stdoutOption = field[String](json, "stdout")
+    val stderrOption = field[String](json, "stderr")
+    val callRootOption = field[String](json, "callRoot")
+    (shardIndexOption, attemptOption, messageOption) mapN { (shardIndex, attempt, message) =>
+      new CallAttemptFailure(
+        workflowId = workflowId,
+        callFullyQualifiedName = callName,
+        jobIndex = shardIndex,
+        jobAttempt = attempt,
+        message = message,
+        startOption = startOption,
+        endOption = endOption,
+        stdoutOption = stdoutOption,
+        stderrOption = stderrOption,
+        callRootOption = callRootOption
+      )
+    }
+  }
 }

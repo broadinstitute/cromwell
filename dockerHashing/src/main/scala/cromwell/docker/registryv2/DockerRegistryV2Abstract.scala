@@ -1,23 +1,23 @@
 package cromwell.docker.registryv2
 
-import cats.data.NonEmptyList
+import cats.data.{EitherT, NonEmptyList}
 import cats.effect.IO
 import cats.syntax.either._
 import common.validation.Validation._
 import cromwell.docker.DockerInfoActor._
 import cromwell.docker._
 import cromwell.docker.registryv2.DockerRegistryV2Abstract._
-import io.circe.Decoder
-import io.circe.generic.auto._
 import org.http4s.Uri.{Authority, Scheme}
 import org.http4s._
-import org.http4s.circe._
 import org.http4s.client.Client
 import org.http4s.client.dsl.io._
 import org.http4s.headers._
 import org.http4s.util.CaseInsensitiveString
+import spray.json._
+import spray.json.DefaultJsonProtocol._
 
 import scala.util.control.NoStackTrace
+import scala.util.Try
 import scala.concurrent.ExecutionContext
 import cats.effect.ContextShift
 import cats.effect.Timer
@@ -56,31 +56,35 @@ object DockerRegistryV2Abstract {
     .parse(OCIMediaTypes)
     .unsafe("Cannot parse invalid OCI index v1 Accept header. Please report this error.")
 
+  implicit val dockerLayerFormat: RootJsonFormat[DockerLayer] = jsonFormat1(DockerLayer.apply)
+  implicit val dockerManifestFormat: RootJsonFormat[DockerManifest] = jsonFormat(DockerManifest.apply, "layers")
+  implicit val dockerManifestReferenceFormat: RootJsonFormat[DockerManifestReference] =
+    jsonFormat1(DockerManifestReference.apply)
+  implicit val dockerManifestListFormat: RootJsonFormat[DockerManifestList] = jsonFormat1(DockerManifestList.apply)
+  implicit val dockerAccessTokenFormat: RootJsonFormat[DockerAccessToken] = jsonFormat1(DockerAccessToken.apply)
+
   implicit val entityManifestDecoder: EntityDecoder[IO, DockerManifest] =
-    jsonEntityDecoder[DockerManifest](DockerManifestV2MediaRange)
+    sprayEntityDecoder[DockerManifest](DockerManifestV2MediaRange)
   implicit val entityManifestListDecoder: EntityDecoder[IO, DockerManifestList] =
-    jsonEntityDecoder[DockerManifestList](DockerManifestListV2MediaRange)
-  implicit val entityTokenDecoder: EntityDecoder[IO, DockerAccessToken] = jsonOf[IO, DockerAccessToken]
+    sprayEntityDecoder[DockerManifestList](DockerManifestListV2MediaRange)
+  implicit val entityTokenDecoder: EntityDecoder[IO, DockerAccessToken] =
+    sprayEntityDecoder[DockerAccessToken](MediaType.application.json)
 
   /**
     * Creates a Json decoder for the given type but allows a different media type than application/json
     * This is necessary because the docker registry API responds with an "application/vnd.docker.distribution.manifest.v2+json"
-    * and not the traditional "application/json". Adapted from CirceInstances.jsonOf
+    * and not the traditional "application/json".
     */
-  private def jsonEntityDecoder[A](mediaRange: MediaRange)(implicit decoder: Decoder[A]): EntityDecoder[IO, A] =
+  private def sprayEntityDecoder[A: JsonReader](mediaRange: MediaRange): EntityDecoder[IO, A] =
     EntityDecoder.decodeBy[IO, A](mediaRange) { message =>
-      CirceInstances.builder.build
-        .jsonDecoderByteBuffer[IO]
-        .decode(message, strict = false)
-        .flatMap { json =>
-          decoder
-            .decodeJson(json)
-            .fold(
-              failure =>
-                DecodeResult.failureT(InvalidMessageBodyFailure(s"Could not decode JSON: $json", Some(failure))),
-              DecodeResult.successT(_)
-            )
-        }
+      EitherT.liftF[IO, DecodeFailure, String](EntityDecoder.decodeText[IO](message)).subflatMap { text =>
+        if (text.trim.isEmpty)
+          Left(MalformedMessageBodyFailure("Invalid JSON: empty body"))
+        else
+          Try(text.parseJson.convertTo[A]).toEither.leftMap(e =>
+            MalformedMessageBodyFailure(s"Invalid JSON: ${e.getMessage}", Some(e))
+          )
+      }
     }
 
   // Placeholder exceptions that can be carried through IO before being converted to a DockerInfoFailedResponse

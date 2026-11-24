@@ -863,7 +863,7 @@ paths:
           type: string
           in: formData
         - name: workflowInputs
-          description: JSON or YAML file containing the inputs as an object.
+          description: JSON file containing the inputs as an object.
           required: false
           type: file
           in: formData

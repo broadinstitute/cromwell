@@ -170,7 +170,7 @@ class DrsLocalizerMain(toResolveAndDownload: IO[List[UnresolvedDrsUrl]],
     resolvedGoogleUrls.map { url =>
       downloaderFactory.buildGcsUriDownloader(
         gcsPath = url.drsResponse.gsUri.get,
-        serviceAccountJsonOption = url.drsResponse.googleServiceAccount.map(_.data.spaces2),
+        serviceAccountJsonOption = url.drsResponse.googleServiceAccount.map(_.data.prettyPrint),
         downloadLoc = url.downloadDestinationPath,
         requesterPaysProjectOption = requesterPaysProjectIdOption
       )

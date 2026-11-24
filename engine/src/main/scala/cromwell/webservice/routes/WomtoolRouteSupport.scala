@@ -79,11 +79,10 @@ trait WomtoolRouteSupport extends WebServiceUtils with GithubAuthVendingSupport 
 
     onComplete(serviceRegistryActor.ask(DescribeRequest(wsfc, importAuthProviders)).mapTo[DescribeResult]) {
       case Success(response: DescribeSuccess) =>
-        import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionEncoder
-        import de.heikoseeberger.akkahttpcirce.ErrorAccumulatingCirceSupport._
-        import io.circe.syntax._
+        import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+        import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionFormat
 
-        complete(response.description.asJson)
+        complete(response.description)
       case Success(response: DescribeFailure) =>
         new Exception(response.reason).failRequest(StatusCodes.BadRequest)
       case Failure(e) =>

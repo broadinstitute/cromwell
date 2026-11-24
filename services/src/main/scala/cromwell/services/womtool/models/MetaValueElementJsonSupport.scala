@@ -1,37 +1,36 @@
 package cromwell.services.womtool.models
 
-import io.circe.{Encoder, Json}
-
+import spray.json._
 import wom.callable.MetaValueElement
 import wom.callable.MetaValueElement._
 
 object MetaValueElementJsonSupport {
 
-  // We only implement the encoder, because currently, the decoder is not required.
-  implicit val metaValueElementEncoder: Encoder[MetaValueElement] = new Encoder[MetaValueElement] {
-    final def apply(a: MetaValueElement): Json =
+  // We only implement the writer, because currently, the reader is not required.
+  implicit val metaValueElementEncoder: JsonWriter[MetaValueElement] = new JsonWriter[MetaValueElement] {
+    final def write(a: MetaValueElement): JsValue =
       a match {
         case MetaValueElementNull =>
-          Json.Null
+          JsNull
 
         case MetaValueElementBoolean(b) =>
-          Json.fromBoolean(b)
+          JsBoolean(b)
 
         case MetaValueElementFloat(x) =>
-          Json.fromDouble(x).get
+          JsNumber(x)
 
         case MetaValueElementInteger(a) =>
-          Json.fromInt(a)
+          JsNumber(a)
 
         case MetaValueElementString(s) =>
-          Json.fromString(s)
+          JsString(s)
 
         case MetaValueElementArray(vec) =>
-          Json.fromValues(vec.map(apply))
+          JsArray(vec.map(write))
 
         case MetaValueElementObject(m) =>
-          Json.fromFields(m.map { case (key, value) =>
-            key -> apply(value)
+          JsObject(m.map { case (key, value) =>
+            key -> write(value)
           })
       }
   }

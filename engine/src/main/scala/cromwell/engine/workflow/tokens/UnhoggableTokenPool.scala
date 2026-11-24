@@ -6,8 +6,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 import cromwell.core.JobToken
 import cromwell.core.JobToken.JobTokenType
 import cromwell.engine.workflow.tokens.UnhoggableTokenPool._
-import io.circe.generic.JsonCodec
 import io.github.andrebeat.pool._
+import spray.json.DefaultJsonProtocol._
+import spray.json.RootJsonFormat
 
 import scala.collection.immutable.HashSet
 import scala.collection.mutable
@@ -151,15 +152,19 @@ object UnhoggableTokenPool {
     override def available: Boolean = false
   }
 
-  @JsonCodec
   final case class HogGroupState(hogGroup: String, used: Int, atLimit: Boolean)
+  object HogGroupState {
+    implicit val hogGroupStateFormat: RootJsonFormat[HogGroupState] = jsonFormat3(HogGroupState.apply)
+  }
 
-  @JsonCodec
   final case class TokenPoolState(hogGroups: Option[Set[HogGroupState]],
                                   hogLimit: Option[Int],
                                   capacity: Int,
                                   leased: Int,
                                   available: Boolean
   )
+  object TokenPoolState {
+    implicit val tokenPoolStateFormat: RootJsonFormat[TokenPoolState] = jsonFormat5(TokenPoolState.apply)
+  }
 
 }

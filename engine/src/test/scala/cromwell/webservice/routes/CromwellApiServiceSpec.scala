@@ -102,8 +102,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
         assertResult {
           s"""|{
-              |  "status": "error",
-              |  "message": "Couldn't abort $workflowId because no workflow with that ID is in progress"
+              |  "message": "Couldn't abort $workflowId because no workflow with that ID is in progress",
+              |  "status": "error"
               |}
               |""".stripMargin.trim
         } {
@@ -122,8 +122,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
         assertResult(
           """{
-            |  "status": "fail",
-            |  "message": "Invalid workflow ID: 'foobar'."
+            |  "message": "Invalid workflow ID: 'foobar'.",
+            |  "status": "fail"
             |}""".stripMargin
         ) {
           responseAs[String]
@@ -358,8 +358,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       check {
         assertResult(
           s"""{
-             |  "status": "fail",
-             |  "message": "Error(s): Unexpected body part name: incorrectParameter\\nUnexpected body part name: incorrectParameter2\\nworkflowSource or workflowUrl needs to be supplied"
+             |  "message": "Error(s): Unexpected body part name: incorrectParameter\\nUnexpected body part name: incorrectParameter2\\nworkflowSource or workflowUrl needs to be supplied",
+             |  "status": "fail"
              |}""".stripMargin
         ) {
           responseAs[String]
@@ -396,8 +396,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
         assertResult {
           """|{
-             |  "status": "fail",
-             |  "message": "Error(s): Invalid workflow options provided: Unsupported key/value pair in WorkflowOptions: defaultRuntimeOptions -> {\"cpu\":1}"
+             |  "message": "Error(s): Invalid workflow options provided: Unsupported key/value pair in WorkflowOptions: defaultRuntimeOptions -> {\"cpu\":1}",
+             |  "status": "fail"
              |}
              |""".stripMargin.trim
         } {
@@ -428,8 +428,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
         }
         assertResult {
           """|{
-             |  "status": "fail",
-             |  "message": "Error(s): Invalid workflow options provided: Unexpected end-of-input at input index 28 (line 3, position 1), expected '}':\n\n^\n"
+             |  "message": "Error(s): Invalid workflow options provided: Unexpected end-of-input at input index 28 (line 3, position 1), expected '}':\n\n^\n",
+             |  "status": "fail"
              |}
              |""".stripMargin.trim
         } {
@@ -506,8 +506,8 @@ class CromwellApiServiceSpec extends AsyncFlatSpec with ScalatestRouteTest with 
       akkaHttpService.workflowRoutes ~>
       check {
         assertResult(s"""{
-                        |  "status": "fail",
-                        |  "message": "Error(s): No inputs were provided"
+                        |  "message": "Error(s): No inputs were provided",
+                        |  "status": "fail"
                         |}""".stripMargin) {
           responseAs[String]
         }

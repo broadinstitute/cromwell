@@ -11,11 +11,11 @@ import cromwell.core.{
 import cromwell.languages.config.{CromwellLanguages, LanguageConfiguration}
 import cromwell.services.womtool.DescriberSpec._
 import cromwell.services.womtool.WomtoolServiceMessages.DescribeSuccess
-import io.circe.Json
-import io.circe.parser._
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import spray.json._
 
 import scala.util.Try
 
@@ -63,7 +63,7 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
           case UrlAndDescription(url, _) => interimWsfc.copy(workflowUrl = Option(url))
         }
 
-        check(wsfc, parse(testCase.expectedDescription).toOption.get)
+        check(wsfc, testCase.expectedDescription.parseJson)
       }
     }
   }
@@ -78,7 +78,7 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val importedWdl = directory.resolve("imports.zip").byteArray
 
     // Read expected description
-    val expectedDescription = parse(directory.resolve("description.json").contentAsString).toOption.get
+    val expectedDescription = directory.resolve("description.json").contentAsString.parseJson
 
     // Build the source files collection with dependencies zip
     val wsfc = WorkflowSourceFilesWithDependenciesZip(
@@ -108,7 +108,7 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     val importedWdl = directory.resolve("imports.zip").byteArray
 
     // Read expected description
-    val expectedDescription = parse(directory.resolve("description.json").contentAsString).toOption.get
+    val expectedDescription = directory.resolve("description.json").contentAsString.parseJson
 
     // Build the source files collection with dependencies zip
     val wsfc = WorkflowSourceFilesWithDependenciesZip(
@@ -128,9 +128,8 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     check(wsfc, expectedDescription)
   }
 
-  private def check(wsfc: WorkflowSourceFilesCollection, expectedJson: Json): Assertion = {
-    import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionEncoder
-    import io.circe.syntax._
+  private def check(wsfc: WorkflowSourceFilesCollection, expectedJson: JsValue): Assertion = {
+    import cromwell.services.womtool.models.WorkflowDescription.workflowDescriptionFormat
 
     // We test scenarios that would produce DescribeFailure in
     // cromwell.services.womtool.impl.WomtoolServiceInCromwellActorSpec
@@ -138,9 +137,9 @@ class DescriberSpec extends AnyFlatSpec with CromwellTimeoutSpec with Matchers {
     // cromwell.webservice.routes.WomtoolRouteSupportSpec
     // so here we bravely assume that we are able to describe successfully (both valid and invalid workflows)
     //
-    // N.B. the `asJson` is highly significant as it exercises the entire serialization module and compares
+    // N.B. the `toJson` is highly significant as it exercises the entire serialization module and compares
     // the end product instead of an intermediate case class hierarchy
-    Describer.describeWorkflow(wsfc, List.empty).asInstanceOf[DescribeSuccess].description.asJson shouldBe expectedJson
+    Describer.describeWorkflow(wsfc, List.empty).asInstanceOf[DescribeSuccess].description.toJson shouldBe expectedJson
   }
 }
 

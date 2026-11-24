@@ -11,6 +11,12 @@
 
 ### General
 
+#### Removed support for YAML inputs
+
+YAML inputs are no longer accepted. The `yaml.max-nodes` and `yaml.max-depth` settings are removed.
+
+Workflow inputs must be strict JSON: files with comments, trailing commas or single quotes, which the YAML parser used to accept, are now rejected.
+
 #### Configurable subworkflow launch rate
 
 The key `system.max-subworkflow-launch-count` now controls how many subworkflows launch per batch, with a default of 1.

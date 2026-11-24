@@ -9,7 +9,7 @@ files {
 submit {
   statusCode: 400
   message: """{
-  "status": "fail",
-  "message": "Error(s): Input file is not a valid yaml or json. Inputs data: '{\n  \"intentionally_missing_the_close_brace\": \"oh the humanity\"\n'. Error: ParsingFailure: while parsing a flow mapping\n in 'reader', line 1, column 1:\n    {\n    ^\nexpected ',' or '}', but got <stream end>\n in 'reader', line 3, column 1:\n    \n    ^\n."
+  "message": "Error(s): Input file is not valid JSON. Inputs data: '{\n  \"intentionally_missing_the_close_brace\": \"oh the humanity\"\n'. Error: JsonParser.ParsingException: Unexpected end-of-input at input index 63 (line 3, position 1), expected '}':\n\n^\n.",
+  "status": "fail"
 }"""
 }
